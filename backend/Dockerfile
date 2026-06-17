@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (curl needed for healthcheck)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     gcc \
@@ -26,9 +26,9 @@ USER polynous
 # Expose port
 EXPOSE 8000
 
-# Health check (uses $PORT if set, else 8000)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check — start-period gives app time to fully boot before checks begin
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Run
-CMD ["/bin/sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+# Run — ${PORT:-8000} fallback prevents crash if Railway injects PORT late
+CMD ["/bin/sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
