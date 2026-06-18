@@ -1,5 +1,6 @@
 import sys
 import warnings
+from sqlalchemy import text
 from app.middleware.auth_middleware import extract_user_middleware
 from app.middleware.input_sanitizer import input_sanitizer_middleware
 from app.middleware.security_headers import security_headers_middleware
@@ -25,6 +26,7 @@ from app.graph.orchestrator import orchestrator
 from app.graph.debate_graph import debate_graph
 from app.state import AgentState
 from typing import Optional
+
 
 # Database and routes
 from app.database import init_db, get_db, check_database_connection  # ← Added imports
@@ -244,7 +246,7 @@ async def health():
         db = next(get_db())
         
         # Execute a simple query to verify connectivity
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         
         # Close the session
         db.close()
