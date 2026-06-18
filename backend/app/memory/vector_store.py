@@ -52,14 +52,14 @@ def create_embedding(text: str):
         return None
 
 # ============================================================
-# USER-SCOPED: Store research in user-specific namespace
+# USER‑SCOPED: Store research in user‑specific namespace
 # ============================================================
 
 def store_research(user_id: str, session_id: str, query: str, documents: list, answer: str, metadata: dict = {}):
     """Store research results in Pinecone — scoped to user namespace"""
     try:
         index = get_or_create_index()
-        # ✅ USER-SPECIFIC NAMESPACE — isolates data per user
+        # ✅ USER‑SPECIFIC NAMESPACE — isolates data per user
         namespace = f"user_{user_id}"
         
         combined_text = f"Query: {query}\nAnswer: {answer[:500]}"
@@ -98,14 +98,14 @@ def store_research(user_id: str, session_id: str, query: str, documents: list, a
 
 
 # ============================================================
-# USER-SCOPED: Search similar research within user's namespace
+# USER‑SCOPED: Search similar research within user's namespace
 # ============================================================
 
 def search_similar_research(user_id: str, query: str, top_k: int = 5):
     """Find similar previous research — only within user's namespace"""
     try:
         index = get_or_create_index()
-        # ✅ USER-SPECIFIC NAMESPACE — searches only user's data
+        # ✅ USER‑SPECIFIC NAMESPACE — searches only user's data
         namespace = f"user_{user_id}"
         
         embedding = create_embedding(query)
@@ -140,14 +140,14 @@ def search_similar_research(user_id: str, query: str, top_k: int = 5):
 
 
 # ============================================================
-# USER-SCOPED: Get session history within user's namespace
+# USER‑SCOPED: Get session history within user's namespace
 # ============================================================
 
 def get_session_history(user_id: str, session_id: str, limit: int = 10):
     """Get all research history for a session — scoped to user namespace"""
     try:
         index = get_or_create_index()
-        # ✅ USER-SPECIFIC NAMESPACE
+        # ✅ USER‑SPECIFIC NAMESPACE
         namespace = f"user_{user_id}"
         
         # ✅ Query with namespace and session filter
@@ -177,14 +177,14 @@ def get_session_history(user_id: str, session_id: str, limit: int = 10):
 
 
 # ============================================================
-# USER-SCOPED: Get ALL research for a user (across sessions)
+# USER‑SCOPED: Get ALL research for a user (across sessions)
 # ============================================================
 
 def get_user_history(user_id: str, limit: int = 20):
     """Get all research history for a user — across all sessions"""
     try:
         index = get_or_create_index()
-        # ✅ USER-SPECIFIC NAMESPACE
+        # ✅ USER‑SPECIFIC NAMESPACE
         namespace = f"user_{user_id}"
         
         # ✅ Query with namespace (no session filter — gets all)
@@ -219,12 +219,10 @@ def get_user_history(user_id: str, limit: int = 20):
 # BACKWARD COMPATIBILITY: Original function signatures
 # ============================================================
 
-# Keep original store_research signature for code that hasn't migrated yet
-# The session_id parameter acts as user_id fallback for guest users
 def store_research_legacy(session_id: str, query: str, documents: list, answer: str, metadata: dict = {}):
     """Legacy wrapper — uses session_id as user_id for backward compatibility"""
     return store_research(
-        user_id=session_id,  # Use session_id as user_id for legacy calls
+        user_id=session_id,
         session_id=session_id,
         query=query,
         documents=documents,
@@ -241,4 +239,4 @@ def get_session_history_legacy(session_id: str, limit: int = 10):
     return get_session_history(user_id=session_id, session_id=session_id, limit=limit)
 
 
-print("✅ Pinecone Vector Memory Ready! (User-scoped namespaces enabled)")
+print("✅ Pinecone Vector Memory Ready! (User‑scoped namespaces enabled)")

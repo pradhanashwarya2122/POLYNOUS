@@ -1,15 +1,26 @@
-from anthropic import Anthropic
-import os
-from dotenv import load_dotenv
+from app.llm_client import ask_claude, ask_openai
 
-load_dotenv()
-anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-
-def writer_agent(query, summaries, critique, citations, response_style="academic"):
-    """Create world-class research answers with user's preferred style"""
+def writer_agent(user, query, summaries, critique, citations, response_style="academic", provider=None):
+    """
+    Create world-class research answers with the user's preferred LLM.
+    Uses either Anthropic or OpenAI key depending on availability and preference.
+    """
     print(f"✍️ Writer: Creating answer (style: {response_style})...")
-    
-    # ─── Style-specific system prompts ───
+
+    # ── Determine which provider to use ──
+    if provider is None:
+        provider = getattr(user, 'preferred_provider', None) or 'anthropic'
+    # Fallback if chosen provider has no key
+    if provider == 'anthropic' and not getattr(user, 'anthropic_api_key_enc', None):
+        if getattr(user, 'openai_api_key_enc', None):
+            provider = 'openai'
+            print("  ℹ️ Anthropic key missing, falling back to OpenAI")
+    elif provider == 'openai' and not getattr(user, 'openai_api_key_enc', None):
+        if getattr(user, 'anthropic_api_key_enc', None):
+            provider = 'anthropic'
+            print("  ℹ️ OpenAI key missing, falling back to Anthropic")
+
+    # ─── Style‑specific system prompts (unchanged) ───
     style_prompts = {
         "academic": """You are POLYNOUS — a world-class research synthesis engine. You transform complex multi-source research into authoritative, impeccably structured academic answers that rival papers published in Nature and Science.
 
@@ -276,16 +287,14 @@ Analyze the quality of the evidence base:
     
     try:
         # ─── Build richer context ───
-        summary_text = "\n\n---\n\n".join(summaries)[:4000]  # Increased from 3000
+        summary_text = "\n\n---\n\n".join(summaries)[:4000]
         
-        # Extract more detail from critique
         confidence = critique.get('overall_confidence', 'N/A')
         contradictions = critique.get('contradictions', [])
         agreements = critique.get('agreements', [])
         quality_notes = critique.get('quality_notes', [])
         contradictions_count = len(contradictions)
         
-        # Build contradiction analysis
         contradiction_text = ""
         if contradictions:
             contradiction_text = "CONTRADICTIONS BETWEEN SOURCES:\n" + "\n".join([
@@ -293,7 +302,6 @@ Analyze the quality of the evidence base:
                 for c in contradictions
             ])
         
-        # Build agreement analysis
         agreement_text = ""
         if agreements:
             agreement_text = "AREAS OF STRONG AGREEMENT:\n" + "\n".join([
@@ -301,13 +309,11 @@ Analyze the quality of the evidence base:
                 for a in agreements
             ])
         
-        # Build citation text with more detail
         citation_text = "\n".join([
             f"[{i+1}] {c.get('title', 'Untitled')} ({c.get('year', 'n.d.')}) - {c.get('source_type', 'Unknown source')}"
             for i, c in enumerate(citations)
         ])
         
-        # ─── Assemble comprehensive context ───
         context = f"""## USER QUERY
 {query}
 
@@ -330,37 +336,53 @@ The response should demonstrate deep engagement with the provided sources.
 Every major claim must be sourceable. Be specific with data and numbers.
 Acknowledge uncertainty and conflicting evidence honestly."""
         
-        # ─── Call Claude with optimized parameters ───
-        message = anthropic.messages.create(
-            model="claude-haiku-4-5",  # Upgraded from haiku for better quality
-            max_tokens=1500,  # Increased from 800 for more thorough answers
-            temperature=0.4,  # Slightly lower for more consistent quality
-            system=system_prompt,
-            messages=[{
-                "role": "user",
-                "content": context
-            }]
-        )
+        # ── Call the appropriate LLM ──
+        if provider == 'openai':
+            message = ask_openai(
+                user,
+                system=system_prompt,
+                messages=[{"role": "user", "content": context}],
+                model="gpt-4o",
+                max_tokens=1500,
+                temperature=0.4,
+            )
+        else:
+            message = ask_claude(
+                user,
+                system=system_prompt,
+                messages=[{"role": "user", "content": context}],
+                model="claude-sonnet-4-5",
+                max_tokens=1500,
+                temperature=0.4,
+            )
         
         answer = message.content[0].text
-        print(f"  ✅ World-class answer created! (style: {response_style}, tokens: ~{len(answer.split())})")
+        print(f"  ✅ World-class answer created! (style: {response_style}, provider: {provider}, tokens: ~{len(answer.split())})")
         return answer
         
     except Exception as e:
         print(f"  ❌ Writer error: {e}")
-        # Fallback to haiku if sonnet fails
+        # Fallback to lighter model
         try:
-            print("  🔄 Falling back to Claude Haiku...")
-            message = anthropic.messages.create(
-                model="claude-haiku-4-5",
-                max_tokens=800,
-                temperature=0.5,
-                system=system_prompt[:2000],  # Truncate for haiku's context window
-                messages=[{
-                    "role": "user",
-                    "content": context[:3000]
-                }]
-            )
+            print("  🔄 Falling back to lighter model...")
+            if provider == 'openai':
+                message = ask_openai(
+                    user,
+                    system=system_prompt[:2000],
+                    messages=[{"role": "user", "content": context[:3000]}],
+                    model="gpt-4o-mini",
+                    max_tokens=800,
+                    temperature=0.5,
+                )
+            else:
+                message = ask_claude(
+                    user,
+                    system=system_prompt[:2000],
+                    messages=[{"role": "user", "content": context[:3000]}],
+                    model="claude-haiku-4-5",
+                    max_tokens=800,
+                    temperature=0.5,
+                )
             answer = message.content[0].text
             print("  ✅ Fallback answer created!")
             return answer

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, apiFetch } from '../config';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DESIGN TOKENS
@@ -41,26 +41,18 @@ const C = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// API LAYER
+// API LAYER — now uses centralized apiFetch from ../config
 // ─────────────────────────────────────────────────────────────────────────────
-const BASE = API_BASE_URL;
 
-function getToken() {
-  return localStorage.getItem("polynous_token") || window.__POLYNOUS_ACCESS_TOKEN__ || "";
-}
-
-function authHeaders() {
-  const token = getToken();
-  return token
-    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
-}
-
-async function safeFetch(url, opts = {}) {
-  opts.headers = { ...(opts.headers || {}), ...authHeaders() };
+/**
+ * Thin wrapper around the centralized apiFetch.
+ * - apiFetch already attaches auth headers and prepends API_BASE_URL.
+ * - This wrapper adds JSON parsing and structured error handling.
+ */
+async function safeFetch(path, opts = {}) {
   let res;
   try {
-    res = await fetch(url, opts);
+    res = await apiFetch(path, opts);
   } catch (networkErr) {
     throw new Error(`Network error: ${networkErr.message}`);
   }
@@ -83,36 +75,36 @@ async function safeFetch(url, opts = {}) {
 
 const api = {
   // ── API Keys ──────────────────────────────────────────────────────────────
-  getApiKeys:   ()               => safeFetch(`${BASE}/settings/api-keys`),
-  saveApiKey:   (provider, key)  => safeFetch(`${BASE}/settings/api-keys`, { method: "PUT",    body: JSON.stringify({ provider, api_key: key }) }),
-  deleteApiKey: (provider)       => safeFetch(`${BASE}/settings/api-keys/${provider}`, { method: "DELETE" }),
-  testApiKey:   (provider, key)  => safeFetch(`${BASE}/settings/api-keys/test`, { method: "POST", body: JSON.stringify({ provider, api_key: key }) }),
+  getApiKeys:   ()               => safeFetch('/settings/api-keys'),
+  saveApiKey:   (provider, key)  => safeFetch('/settings/api-keys', { method: "PUT",    body: JSON.stringify({ provider, api_key: key }) }),
+  deleteApiKey: (provider)       => safeFetch(`/settings/api-keys/${provider}`, { method: "DELETE" }),
+  testApiKey:   (provider, key)  => safeFetch('/settings/api-keys/test', { method: "POST", body: JSON.stringify({ provider, api_key: key }) }),
 
   // ── Preferences ───────────────────────────────────────────────────────────
-  getPreferences:  ()      => safeFetch(`${BASE}/settings/preferences`),
-  savePreferences: (prefs) => safeFetch(`${BASE}/settings/preferences`, { method: "PUT", body: JSON.stringify(prefs) }),
+  getPreferences:  ()      => safeFetch('/settings/preferences'),
+  savePreferences: (prefs) => safeFetch('/settings/preferences', { method: "PUT", body: JSON.stringify(prefs) }),
 
   // ── Profile ───────────────────────────────────────────────────────────────
-  getProfile:    ()     => safeFetch(`${BASE}/auth/me`),
-  updateProfile: (data) => safeFetch(`${BASE}/auth/me`, { method: "PUT", body: JSON.stringify(data) }),
-  changePassword: (data) => safeFetch(`${BASE}/auth/change-password`, { method: "POST", body: JSON.stringify(data) }),
-  revokeAllSessions: () => safeFetch(`${BASE}/auth/revoke-sessions`, { method: "POST" }),
-  deleteAccount: ()     => safeFetch(`${BASE}/auth/me`, { method: "DELETE" }),
+  getProfile:    ()     => safeFetch('/auth/me'),
+  updateProfile: (data) => safeFetch('/auth/me', { method: "PUT", body: JSON.stringify(data) }),
+  changePassword: (data) => safeFetch('/auth/change-password', { method: "POST", body: JSON.stringify(data) }),
+  revokeAllSessions: () => safeFetch('/auth/revoke-sessions', { method: "POST" }),
+  deleteAccount: ()     => safeFetch('/auth/me', { method: "DELETE" }),
 
   // ── Stats ─────────────────────────────────────────────────────────────────
-  getStats:   ()           => safeFetch(`${BASE}/memory/stats`),
-  exportData: ()           => safeFetch(`${BASE}/settings/export`),
-  clearHistory: ()         => safeFetch(`${BASE}/memory/clear`, { method: "DELETE" }),
-  clearAllData: ()         => safeFetch(`${BASE}/settings/reset`, { method: "POST" }),
+  getStats:   ()           => safeFetch('/memory/stats'),
+  exportData: ()           => safeFetch('/settings/export'),
+  clearHistory: ()         => safeFetch('/memory/clear', { method: "DELETE" }),
+  clearAllData: ()         => safeFetch('/settings/reset', { method: "POST" }),
 
   // ── Notifications ─────────────────────────────────────────────────────────
-  getNotifications:  ()      => safeFetch(`${BASE}/settings/notifications`),
-  saveNotifications: (prefs) => safeFetch(`${BASE}/settings/notifications`, { method: "PUT", body: JSON.stringify(prefs) }),
+  getNotifications:  ()      => safeFetch('/settings/notifications'),
+  saveNotifications: (prefs) => safeFetch('/settings/notifications', { method: "PUT", body: JSON.stringify(prefs) }),
 
   // ── Integrations ──────────────────────────────────────────────────────────
-  getIntegrations:      ()       => safeFetch(`${BASE}/settings/integrations`),
-  connectIntegration:   (name)   => safeFetch(`${BASE}/settings/integrations/${name}/connect`, { method: "POST" }),
-  disconnectIntegration:(name)   => safeFetch(`${BASE}/settings/integrations/${name}/disconnect`, { method: "DELETE" }),
+  getIntegrations:      ()       => safeFetch('/settings/integrations'),
+  connectIntegration:   (name)   => safeFetch(`/settings/integrations/${name}/connect`, { method: "POST" }),
+  disconnectIntegration:(name)   => safeFetch(`/settings/integrations/${name}/disconnect`, { method: "DELETE" }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -669,7 +661,6 @@ function ProfileSection({ user: initialUser, push }) {
   const [saving,   setSaving]   = useState(false);
   const [loading,  setLoading]  = useState(false);
 
-  // Fetch fresh profile on mount
   useEffect(() => {
     setLoading(true);
     api.getProfile()
@@ -777,7 +768,7 @@ function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
   const [saving,     setSaving]     = useState(false);
   const [removing,   setRemoving]   = useState(false);
   const [testing,    setTesting]    = useState(false);
-  const [testResult, setTestResult] = useState(null); // null | "ok" | "fail"
+  const [testResult, setTestResult] = useState(null);
   const p = PROVIDERS[providerId];
 
   const doSave = async () => {
@@ -970,7 +961,7 @@ function ApiKeysSection({ push }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APPEARANCE SECTION  (fully local — no backend endpoint)
+// APPEARANCE SECTION
 // ─────────────────────────────────────────────────────────────────────────────
 function AppearanceSection({ push }) {
   const [theme,      setTheme]      = useState(() => localStorage.getItem("polynous_theme")      || "dark");
@@ -1181,7 +1172,6 @@ function NotificationsSection({ push }) {
   const toggle = (i) => {
     const next = items.map((it, idx) => idx === i ? { ...it, on: !it.on } : it);
     setItems(next);
-    // Debounced save
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
@@ -1248,7 +1238,6 @@ function IntegrationsSection({ push }) {
         setStatuses(prev => ({ ...prev, [row.id]: { ...prev[row.id], connected: false, detail: null } }));
         push(`${row.label} disconnected`);
       } else {
-        // For OAuth flows, open a popup / redirect
         const result = await api.connectIntegration(row.id);
         if (result?.redirect_url) {
           window.open(result.redirect_url, "_blank", "width=600,height=700");
@@ -1316,7 +1305,7 @@ function IntegrationsSection({ push }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SECURITY SECTION  — Change Password + Revoke Sessions are real
+// SECURITY SECTION
 // ─────────────────────────────────────────────────────────────────────────────
 const SECURITY_ROWS = [
   { icon: "lock",    color: C.purple, title: "Fernet AES-128",   sub: "All keys encrypted at rest",   status: "Active"   },
@@ -1452,8 +1441,8 @@ function DataStorageSection({ push }) {
   const doExport = async () => {
     setExporting(true);
     try {
-      const token = getToken();
-      const res = await fetch(`${API_BASE_URL}/settings/export`, { headers: authHeaders() });
+      // Use apiFetch directly for blob download (safeFetch returns parsed JSON)
+      const res = await apiFetch('/settings/export');
       if (!res.ok) throw new Error(`Export failed: ${res.status}`);
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);

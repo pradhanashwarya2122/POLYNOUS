@@ -1,3 +1,4 @@
+import * as THREE from 'three'
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL } from '../config';
 

@@ -226,7 +226,7 @@ def search_pdf(query: str, pdf_name: str = None, top_k: int = 5) -> List[Dict]:
     """Semantic search across PDF chunks"""
     try:
         index = get_pdf_index()
-        query_embedding = create_query_embedding(query)
+        query_embedding = create_query_embedding(user, query)
         
         if not query_embedding:
             print("❌ Failed to create query embedding")

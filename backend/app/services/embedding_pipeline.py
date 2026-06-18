@@ -177,7 +177,7 @@ class UnifiedEmbeddingPipeline:
             return []
         
         try:
-            query_embedding = create_query_embedding(query)
+            query_embedding = create_query_embedding(user, query)
             if not query_embedding:
                 return []
             

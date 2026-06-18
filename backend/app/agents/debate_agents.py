@@ -1,23 +1,27 @@
-from anthropic import Anthropic
-import os
+from app.llm_client import ask_claude, ask_openai
 import json
-from dotenv import load_dotenv
+import random
 
-load_dotenv()
-anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-
-def argue_for_position(query: str, context: list) -> str:
-    """Argue FOR the main proposition"""
+def argue_for_position(user, query: str, context: list, provider=None) -> str:
+    """Argue FOR the main proposition using the user's preferred LLM key."""
     print("  🟢 FOR: Building argument...")
+    
+    # ── Provider resolution ──
+    if provider is None:
+        provider = getattr(user, 'preferred_provider', None) or 'anthropic'
+    if provider == 'anthropic' and not getattr(user, 'anthropic_api_key_enc', None):
+        if getattr(user, 'openai_api_key_enc', None):
+            provider = 'openai'
+            print("  ℹ️ Anthropic key missing, falling back to OpenAI")
+    elif provider == 'openai' and not getattr(user, 'openai_api_key_enc', None):
+        if getattr(user, 'anthropic_api_key_enc', None):
+            provider = 'anthropic'
+            print("  ℹ️ OpenAI key missing, falling back to Anthropic")
     
     try:
         context_text = "\n".join(context[:2]) if context else "No sources provided"
         
-        message = anthropic.messages.create(
-            model="claude-haiku-4-5",  # Fixed model name
-            max_tokens=400,
-            temperature=0.8,
-            system="""You are an expert debate advocate arguing FOR a proposition. 
+        system_prompt = """You are an expert debate advocate arguing FOR a proposition. 
 
 RULES:
 1. Provide 4-6 detailed, substantive points
@@ -34,12 +38,31 @@ Point 1: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis
 
 Point 2: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis and implications].
 
-...etc""",
-            messages=[{
-                "role": "user",
-                "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue FOR this proposition:"
-            }]
-        )
+...etc"""
+        
+        messages = [{
+            "role": "user",
+            "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue FOR this proposition:"
+        }]
+        
+        if provider == 'openai':
+            message = ask_openai(
+                user,
+                system=system_prompt,
+                messages=messages,
+                model="gpt-4o",
+                max_tokens=400,
+                temperature=0.8,
+            )
+        else:
+            message = ask_claude(
+                user,
+                system=system_prompt,
+                messages=messages,
+                model="claude-haiku-4-5",
+                max_tokens=400,
+                temperature=0.8,
+            )
         
         argument = message.content[0].text
         print("  ✅ FOR argument ready")
@@ -49,18 +72,26 @@ Point 2: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis
         print(f"  ❌ FOR error: {e}")
         return f"ERROR: {str(e)}"
 
-def argue_against_position(query: str, context: list) -> str:
-    """Argue AGAINST the main proposition"""
+def argue_against_position(user, query: str, context: list, provider=None) -> str:
+    """Argue AGAINST the main proposition using the user's preferred LLM key."""
     print("  🔴 AGAINST: Building counter-argument...")
+    
+    # ── Provider resolution ──
+    if provider is None:
+        provider = getattr(user, 'preferred_provider', None) or 'anthropic'
+    if provider == 'anthropic' and not getattr(user, 'anthropic_api_key_enc', None):
+        if getattr(user, 'openai_api_key_enc', None):
+            provider = 'openai'
+            print("  ℹ️ Anthropic key missing, falling back to OpenAI")
+    elif provider == 'openai' and not getattr(user, 'openai_api_key_enc', None):
+        if getattr(user, 'anthropic_api_key_enc', None):
+            provider = 'anthropic'
+            print("  ℹ️ OpenAI key missing, falling back to Anthropic")
     
     try:
         context_text = "\n".join(context[:2]) if context else "No sources provided"
         
-        message = anthropic.messages.create(
-            model="claude-haiku-4-5",  # Fixed model name
-            max_tokens=1000,
-            temperature=0.8,
-            system="""You are an expert debate advocate arguing AGAINST a proposition.
+        system_prompt = """You are an expert debate advocate arguing AGAINST a proposition.
 
 RULES:
 1. Provide 4-6 detailed, substantive counter-points
@@ -77,12 +108,31 @@ Counter-Point 1: [Clear topic sentence]. [Detailed explanation with evidence]. [
 
 Counter-Point 2: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis and implications].
 
-...etc""",
-            messages=[{
-                "role": "user",
-                "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue AGAINST this proposition:"
-            }]
-        )
+...etc"""
+        
+        messages = [{
+            "role": "user",
+            "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue AGAINST this proposition:"
+        }]
+        
+        if provider == 'openai':
+            message = ask_openai(
+                user,
+                system=system_prompt,
+                messages=messages,
+                model="gpt-4o",
+                max_tokens=1000,
+                temperature=0.8,
+            )
+        else:
+            message = ask_claude(
+                user,
+                system=system_prompt,
+                messages=messages,
+                model="claude-haiku-4-5",
+                max_tokens=1000,
+                temperature=0.8,
+            )
         
         argument = message.content[0].text
         print("  ✅ AGAINST argument ready")
@@ -92,16 +142,24 @@ Counter-Point 2: [Clear topic sentence]. [Detailed explanation with evidence]. [
         print(f"  ❌ AGAINST error: {e}")
         return f"ERROR: {str(e)}"
 
-def judge_debate(for_arg: str, against_arg: str, query: str) -> dict:
-    """Judge which side won the debate"""
+def judge_debate(user, for_arg: str, against_arg: str, query: str, provider=None) -> dict:
+    """Judge which side won the debate using the user's preferred LLM key."""
     print("  ⚖️ JUDGE: Evaluating...")
     
+    # ── Provider resolution ──
+    if provider is None:
+        provider = getattr(user, 'preferred_provider', None) or 'anthropic'
+    if provider == 'anthropic' and not getattr(user, 'anthropic_api_key_enc', None):
+        if getattr(user, 'openai_api_key_enc', None):
+            provider = 'openai'
+            print("  ℹ️ Anthropic key missing, falling back to OpenAI")
+    elif provider == 'openai' and not getattr(user, 'openai_api_key_enc', None):
+        if getattr(user, 'anthropic_api_key_enc', None):
+            provider = 'anthropic'
+            print("  ℹ️ OpenAI key missing, falling back to Anthropic")
+    
     try:
-        message = anthropic.messages.create(
-            model="claude-haiku-4-5",  # Fixed model name
-            max_tokens=1000,
-            temperature=0.3,
-            system="""You are an impartial debate judge. You MUST pick a winner - never declare a tie.
+        system_prompt = """You are an impartial debate judge. You MUST pick a winner - never declare a tie.
 
 Evaluate both arguments based on:
 1. Quality of evidence and citations
@@ -115,16 +173,35 @@ IMPORTANT: You MUST choose either FOR or AGAINST as winner. NEVER say TIE.
 Even if close, pick the slightly better side.
 
 Return ONLY valid JSON:
-{"winner":"FOR","for_score":7,"against_score":5,"reasoning":"FOR won because they provided stronger evidence with specific data points and better addressed the core question. Their argument about X was particularly compelling.","strongest_point":"The strongest argument was..."}""",
-            messages=[{
-                "role": "user",
-                "content": f"Topic: {query}\n\nFOR ARGUMENT:\n{for_arg[:1500]}\n\nAGAINST ARGUMENT:\n{against_arg[:1500]}\n\nYou MUST pick a winner (FOR or AGAINST). Never say TIE. Return JSON:"
-            }]
-        )
+{"winner":"FOR","for_score":7,"against_score":5,"reasoning":"FOR won because they provided stronger evidence with specific data points and better addressed the core question. Their argument about X was particularly compelling.","strongest_point":"The strongest argument was..."}"""
+        
+        messages = [{
+            "role": "user",
+            "content": f"Topic: {query}\n\nFOR ARGUMENT:\n{for_arg[:1500]}\n\nAGAINST ARGUMENT:\n{against_arg[:1500]}\n\nYou MUST pick a winner (FOR or AGAINST). Never say TIE. Return JSON:"
+        }]
+        
+        if provider == 'openai':
+            message = ask_openai(
+                user,
+                system=system_prompt,
+                messages=messages,
+                model="gpt-4o",
+                max_tokens=1000,
+                temperature=0.3,
+            )
+        else:
+            message = ask_claude(
+                user,
+                system=system_prompt,
+                messages=messages,
+                model="claude-haiku-4-5",
+                max_tokens=1000,
+                temperature=0.3,
+            )
         
         text = message.content[0].text
         
-        # Parse JSON
+        # Parse JSON (same robust extraction as original)
         try:
             if "```json" in text:
                 start = text.find("```json") + 7
@@ -139,7 +216,6 @@ Return ONLY valid JSON:
             
             # Force a winner if TIE
             if verdict.get('winner', '').upper() == 'TIE':
-                # Pick based on scores
                 if verdict.get('for_score', 5) >= verdict.get('against_score', 5):
                     verdict['winner'] = 'FOR'
                 else:
@@ -152,10 +228,8 @@ Return ONLY valid JSON:
                     verdict['for_score'] = min(10, verdict['for_score'] + 1)
                 else:
                     verdict['against_score'] = min(10, verdict['against_score'] + 1)
-                    
-        except:
-            # Fallback - pick random winner
-            import random
+        except Exception:
+            # Fallback – pick random winner
             winner = random.choice(['FOR', 'AGAINST'])
             verdict = {
                 "winner": winner,

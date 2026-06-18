@@ -1,5 +1,8 @@
-/* App.css - Complete Stylesheet for POLYNOUS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* App.css - Complete Stylesheet for POLYNOUS */
 
 /* ========== CUSTOM FONT: LEMONS ========== */
 @font-face {
@@ -47,9 +50,8 @@
   line-height: 1.2 !important;
   margin: 0 0 8px 0 !important;
 }
+
 /* ========== RESET & BASE STYLES ========== */
-
-
 * {
   margin: 0;
   padding: 0;

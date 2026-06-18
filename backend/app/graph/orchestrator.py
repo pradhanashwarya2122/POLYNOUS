@@ -1,4 +1,3 @@
-# app/graph/orchestrator.py
 from app.semantic_search import semantic_search
 from app.knowledge_graph.hybrid_search import hybrid
 from app.knowledge_graph.graph_manager import kg
@@ -8,9 +7,10 @@ from app.state import AgentState
 from app.agents.summariser_agent import summariser_agent
 from app.agents.critic_agent import critic_agent
 from app.agents.writer_agent import writer_agent
-from app.search_agent import search_web
+from app.search_agent import search_web, ask_claude_with_context
 from app.chat_history import save_chat
 from app.services.embedding_pipeline import pipeline
+from app.memory.vector_store import store_research   # ✅ added for user‑scoped Pinecone storage
 import json
 
 def search_node(state: AgentState) -> AgentState:
@@ -21,21 +21,19 @@ def search_node(state: AgentState) -> AgentState:
     
     state['current_agent'] = 'search'
     
-    # ✅ Get user ID from state (set by auth middleware via main.py)
-    user_id = state.get('session_id', 'guest_user')
+    user = state.get('user')
+    user_id = getattr(user, 'id', 'guest_user') if user else 'guest_user'
     
-    # Web search
-    results = search_web(state['query'])
+    results = search_web(user, state['query'])
     state['retrieved_docs'] = results
     
-    # Hybrid search for enhanced context
     print(". Running hybrid search...")
     try:
         hybrid_results = hybrid.hybrid_search(state['query'])
         entities = hybrid._extract_entities(state['query'])
         if entities:
             print(f"    Detected entities: {entities}")
-            kg.extract_and_link_entities(state['query'], user_id=user_id)  # ✅ Dynamic user ID
+            kg.extract_and_link_entities(state['query'], user_id=user_id)
         state['graph_context'] = hybrid_results.get('enhanced_context', '')
         state['graph_results'] = hybrid_results.get('graph_results', [])
         graph_count = len(hybrid_results.get('graph_results', []))
@@ -45,7 +43,6 @@ def search_node(state: AgentState) -> AgentState:
         state['graph_results'] = []
         graph_count = 0
     
-    # Extract citations
     state['citations'] = [
         {
             'title': doc.get('title', 'Untitled'),
@@ -66,7 +63,10 @@ def summarise_node(state: AgentState) -> AgentState:
     
     state['current_agent'] = 'summariser'
     
+    user = state.get('user')
+    
     summaries = summariser_agent(
+        user,
         state['retrieved_docs'],
         state['query']
     )
@@ -83,7 +83,10 @@ def critic_node(state: AgentState) -> AgentState:
     
     state['current_agent'] = 'critic'
     
+    user = state.get('user')
+    
     critique = critic_agent(
+        user,
         state['summaries'],
         state['query']
     )
@@ -100,20 +103,20 @@ def writer_node(state: AgentState) -> AgentState:
     
     state['current_agent'] = 'writer'
     
-    # Get user ID
-    user_id = state.get('session_id', 'guest_user')
+    user = state.get('user')
+    user_id = getattr(user, 'id', 'guest_user') if user else 'guest_user'
+    # ✅ get the public UUID for Pinecone namespaces
+    user_public_id = getattr(user, 'public_id', None) or getattr(user, 'id', 'guest_user')
     print(f"  👤 User ID: {user_id}")
     
-    # Get graph context if available
     graph_context = state.get('graph_context', '')
     
-    # Add graph context to summaries for enhanced answer
     enhanced_summaries = state['summaries'].copy()
     if graph_context:
         enhanced_summaries.append(f"KNOWLEDGE GRAPH INSIGHTS:\n{graph_context}")
     
-    # ✅ Pass response_style from state to writer agent
     answer = writer_agent(
+        user,
         state['query'],
         enhanced_summaries,
         state['critique'],
@@ -122,7 +125,6 @@ def writer_node(state: AgentState) -> AgentState:
     )
     state['final_answer'] = answer
     
-    # Extract entities
     try:
         entities = hybrid._extract_entities(state['query'])
         entities = [e.strip() for e in entities if e.strip() and len(e.strip()) < 80 and e.strip().lower() != 'unknown']
@@ -170,19 +172,35 @@ def writer_node(state: AgentState) -> AgentState:
             mode="research",
             confidence=state.get('critique', {}).get('overall_confidence', 0),
             sources=state['citations'],
-            user_id=user_id  # ✅ Added user_id
+            user_id=user_id
         )
         print(f"  ✅ Indexed in Semantic Search")
     except Exception as e:
         print(f"  ⚠️ Search indexing: {e}")
+    
+    # ========== STORE IN PINECONE (USER‑SCOPED) ==========
+    try:
+        store_research(
+            user_id=user_public_id,                     # ✅ Public UUID for namespace
+            session_id=state.get('session_id', 'guest'),
+            query=state['query'],
+            documents=state.get('retrieved_docs', []),
+            answer=answer,
+            metadata={
+                'confidence': state.get('critique', {}).get('overall_confidence', 0),
+                'mode': 'research',
+                'num_sources': len(state.get('retrieved_docs', []))
+            }
+        )
+        print(f"  ✅ Stored in Pinecone namespace user_{user_public_id}")
+    except Exception as e:
+        print(f"  ⚠️ Pinecone storage error: {e}")
     
     print("✅ Final answer ready with graph insights!")
     print("="*60 + "\n")
     return state
 
 def create_orchestrator():
-    """Create the multi-agent workflow graph"""
-    
     workflow = StateGraph(AgentState)
     
     workflow.add_node("search", search_node)
