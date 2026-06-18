@@ -1,13 +1,21 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
+# database.py — PostgreSQL ONLY, no SQLite fallback
+from sqlalchemy import (
+    create_engine,
+    Column,
+    String,
+    DateTime,
+    Text,
+    Boolean,
+)
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
 import os
 import sys
 import re
+from datetime import datetime
 
 # ============================================================
 # ENVIRONMENT DETECTION
 # ============================================================
-
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
 
@@ -15,106 +23,72 @@ print(f"🌍 Environment: {ENVIRONMENT}")
 print(f"🏭 Production mode: {IS_PRODUCTION}")
 
 # ============================================================
-# DATABASE URL CONFIGURATION
+# DATABASE URL – PostgreSQL REQUIRED
 # ============================================================
-
-# Get the raw database URL from environment
 raw_url = os.getenv("DATABASE_URL", "")
-
-# ── Production: DATABASE_URL is REQUIRED ──────────────────
-if IS_PRODUCTION:
-    if not raw_url:
-        print("=" * 60)
-        print("❌ FATAL: ENVIRONMENT=production but DATABASE_URL is not set!")
-        print("=" * 60)
+if not raw_url:
+    print("=" * 60)
+    print("❌ FATAL: DATABASE_URL is not set! PostgreSQL is required.")
+    print("=" * 60)
+    if IS_PRODUCTION:
         print("   On Railway:")
-        print("   1. Add a PostgreSQL service to your project")
-        print("   2. The DATABASE_URL will be injected automatically")
+        print("   1. Add a PostgreSQL service")
+        print("   2. DATABASE_URL will be injected automatically")
         print("   3. Or set it manually in Variables tab")
-        print("=" * 60)
-        sys.exit(1)
-    
-    print(f"🗄️  Using PostgreSQL (production): {raw_url[:50]}...")
-
-# ── Development: Fall back to SQLite if no URL provided ────
-else:
-    if not raw_url:
-        raw_url = "sqlite:///./polynous.db"
-        print("🗄️  Using SQLite (local development)")
-    elif raw_url.startswith("sqlite"):
-        print("🗄️  Using SQLite (local development)")
     else:
-        print(f"🗄️  Using external database: {raw_url[:50]}...")
+        print("   For local development, set DATABASE_URL to your PostgreSQL instance.")
+    sys.exit(1)
 
-# ============================================================
-# FIX URL SCHEME
-# ============================================================
-
-# Some providers (like Railway) may give "postgres://" instead of "postgresql://"
-# SQLAlchemy requires "postgresql://" — this fix handles that automatically
+# Fix scheme: Railway may give postgres://, but SQLAlchemy wants postgresql://
 if raw_url.startswith("postgres://"):
     raw_url = raw_url.replace("postgres://", "postgresql://", 1)
     print("🔧 Fixed URL scheme: postgres:// → postgresql://")
-
-# Also handle "mysql://" → "mysql+pymysql://" if needed
-if raw_url.startswith("mysql://"):
-    raw_url = raw_url.replace("mysql://", "mysql+pymysql://", 1)
-    print("🔧 Fixed URL scheme: mysql:// → mysql+pymysql://")
+elif not raw_url.startswith("postgresql://"):
+    print("=" * 60)
+    print(f"❌ Unsupported database scheme: {raw_url.split('://')[0]}")
+    print("   Only PostgreSQL is allowed (postgresql://) ")
+    print("=" * 60)
+    sys.exit(1)
 
 DATABASE_URL = raw_url
+print(f"🗄️  PostgreSQL database: {re.sub(r'://[^:]+:[^@]+@', r'://****:****@', DATABASE_URL)}")
 
 # ============================================================
-# ENGINE CONFIGURATION
+# ENGINE – Optimised for PostgreSQL
 # ============================================================
-
-if DATABASE_URL.startswith("sqlite"):
-    # ── SQLite Configuration ──────────────────────────────
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},  # Required for SQLite with FastAPI
-        echo=False,                                  # Set to True for SQL debugging
-    )
-    print("⚙️  SQLite engine configured (single-thread mode)")
-
+connect_args = {}
+if IS_PRODUCTION:
+    connect_args["sslmode"] = "require"
+    print("🔒 SSL mode: require (production)")
 else:
-    # ── PostgreSQL / MySQL Configuration ──────────────────
-    
-    # Build connect_args based on environment
-    connect_args = {}
-    
-    # In production, always require SSL for PostgreSQL
-    if IS_PRODUCTION and "postgresql" in DATABASE_URL:
-        connect_args["sslmode"] = "require"
-        print("🔒 SSL mode: require (production)")
-    
-    engine = create_engine(
-        DATABASE_URL,
-        pool_size=5,                # Base number of connections in pool
-        max_overflow=10,            # Extra connections allowed beyond pool_size
-        pool_pre_ping=True,         # ✅ Verify connections before using (survives idle drops)
-        pool_recycle=3600,          # Recycle connections every hour (prevents stale connections)
-        pool_timeout=30,            # Seconds to wait for a connection before timing out
-        connect_args=connect_args,
-        echo=False,                 # Set to True for SQL debugging
-    )
-    
-    print(f"⚙️  Database engine configured:")
-    print(f"   • pool_size: 5")
-    print(f"   • max_overflow: 10")
-    print(f"   • pool_pre_ping: True (survives idle drops)")
-    print(f"   • pool_recycle: 3600s")
-    print(f"   • pool_timeout: 30s")
+    # In development you might want to allow plain connections
+    connect_args["sslmode"] = "prefer"
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,          # Survives idle connection drops
+    pool_recycle=3600,           # Recycle connections hourly
+    pool_timeout=30,             # Wait max 30s for a connection
+    connect_args=connect_args,
+    echo=False,                  # Set to True for SQL debug logging
+)
+
+print("⚙️  Database engine configured:")
+print("   • pool_size: 5")
+print("   • max_overflow: 10")
+print("   • pool_pre_ping: True")
+print("   • pool_recycle: 3600s")
+print("   • pool_timeout: 30s")
 
 # ============================================================
-# SESSION FACTORY
+# SESSION FACTORY – Thread‑safe scoped session
 # ============================================================
-
-# Use scoped_session to ensure thread-safe sessions per request
-# This is critical for FastAPI's async request handling
 SessionLocal = scoped_session(
     sessionmaker(
-        autocommit=False,    # Explicit commits required
-        autoflush=False,     # Don't auto-flush (better control)
+        autocommit=False,
+        autoflush=False,
         bind=engine,
         expire_on_commit=False,  # Keep objects usable after commit
     )
@@ -123,84 +97,74 @@ SessionLocal = scoped_session(
 print("✅ Session factory created (scoped_session)")
 
 # ============================================================
+# DECLARATIVE BASE & MODELS
+# ============================================================
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=True)
+    google_id = Column(String, nullable=True)
+    github_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    # BYOK fields (encrypted)
+    anthropic_api_key_enc = Column(Text, nullable=True)
+    openai_api_key_enc = Column(Text, nullable=True)
+    pinecone_api_key_enc = Column(Text, nullable=True)
+    pinecone_environment = Column(String, nullable=True)
+    pinecone_index_name = Column(String, nullable=True)
+    tavily_api_key_enc = Column(Text, nullable=True)
+    neo4j_uri = Column(String, nullable=True)
+    neo4j_user = Column(String, nullable=True)
+    neo4j_password_enc = Column(Text, nullable=True)
+
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+    user_id = Column(String, primary_key=True)
+    theme = Column(String, default="dark")
+    notifications_enabled = Column(Boolean, default=True)
+    email_notifications = Column(Boolean, default=False)
+    research_depth = Column(String, default="standard")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# ============================================================
 # DATABASE INITIALIZATION
 # ============================================================
-
 def init_db():
     """
-    Create all database tables safely.
-    
-    Called from main.py on startup.
-    Uses SQLAlchemy's create_all() which is idempotent — 
-    existing tables are not modified.
-    
-    For production migrations, consider using Alembic instead.
+    Create all tables. Safe to call multiple times – create_all() is idempotent.
     """
     try:
-        # Import all models here to ensure they're registered
-        from app.models.user import Base
-        
-        # Create all tables
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created/verified!")
-        
-        # Log which database we're using
-        if DATABASE_URL.startswith("sqlite"):
-            db_path = DATABASE_URL.replace("sqlite:///", "")
-            print(f"📁 SQLite database at: {db_path}")
-        else:
-            # Mask password in logs
-            safe_url = re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', DATABASE_URL)
-            print(f"🗄️  Connected to: {safe_url}")
-            
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         if IS_PRODUCTION:
-            # In production, fail fast — don't start without a database
             raise
         else:
-            # In development, print warning but continue
-            print("⚠️  Continuing without database — some features may not work")
+            print("⚠️  Continuing without database – some features may not work")
 
 # ============================================================
-# DEPENDENCY INJECTION
+# DEPENDENCY INJECTION for FastAPI
 # ============================================================
-
 def get_db():
-    """
-    FastAPI dependency to get a database session.
-    
-    Usage in routes:
-        @router.get("/something")
-        async def something(db: Session = Depends(get_db)):
-            ...
-    
-    The session is automatically closed after the request completes,
-    and the scoped session is removed from the thread-local registry.
-    """
     db = SessionLocal()
     try:
         yield db
     except Exception:
-        # Rollback on any exception during request
         db.rollback()
         raise
     finally:
-        # Always close the session and remove from scope
         db.close()
         SessionLocal.remove()
 
 # ============================================================
-# HEALTH CHECK
+# HEALTH CHECK utility
 # ============================================================
-
 def check_database_connection():
-    """
-    Verify the database connection is working.
-    
-    Returns:
-        tuple: (is_healthy: bool, message: str)
-    """
     try:
         db = SessionLocal()
         db.execute("SELECT 1")
@@ -210,12 +174,14 @@ def check_database_connection():
         return False, f"Database connection failed: {str(e)}"
 
 # ============================================================
-# EXPORT CONVENIENCE
+# EXPORTS
 # ============================================================
-
 __all__ = [
     "engine",
     "SessionLocal",
+    "Base",
+    "User",
+    "UserPreferences",
     "init_db",
     "get_db",
     "check_database_connection",
