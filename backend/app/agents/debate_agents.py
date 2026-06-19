@@ -3,8 +3,8 @@ import json
 import random
 from app.llm_client import ask_llm
 
-def argue_for_position(user, query: str, context: list, provider="anthropic") -> str:
-    """Argue FOR the main proposition using the user's own LLM key."""
+def argue_for_position(query: str, context: list, user=None, provider: str = "anthropic") -> str:
+    """Argue FOR the main proposition using the user's own API key."""
     print("  🟢 FOR: Building argument...")
 
     try:
@@ -27,29 +27,27 @@ def argue_for_position(user, query: str, context: list, provider="anthropic") ->
             "...etc"
         )
 
-        messages = [{
-            "role": "user",
-            "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue FOR this proposition:"
-        }]
-
-        argument = ask_llm(
+        answer = ask_llm(
             user=user,
             provider=provider,
             system_prompt=system_prompt,
-            messages=messages,
+            messages=[{
+                "role": "user",
+                "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue FOR this proposition:"
+            }],
             max_tokens=1000,
             temperature=0.8,
         )
         print("  ✅ FOR argument ready")
-        return argument
+        return answer
 
     except Exception as e:
         print(f"  ❌ FOR error: {e}")
         return f"ERROR: {str(e)}"
 
 
-def argue_against_position(user, query: str, context: list, provider="anthropic") -> str:
-    """Argue AGAINST the main proposition using the user's own LLM key."""
+def argue_against_position(query: str, context: list, user=None, provider: str = "anthropic") -> str:
+    """Argue AGAINST the main proposition using the user's own API key."""
     print("  🔴 AGAINST: Building counter-argument...")
 
     try:
@@ -72,29 +70,27 @@ def argue_against_position(user, query: str, context: list, provider="anthropic"
             "...etc"
         )
 
-        messages = [{
-            "role": "user",
-            "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue AGAINST this proposition:"
-        }]
-
-        argument = ask_llm(
+        answer = ask_llm(
             user=user,
             provider=provider,
             system_prompt=system_prompt,
-            messages=messages,
+            messages=[{
+                "role": "user",
+                "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue AGAINST this proposition:"
+            }],
             max_tokens=1000,
             temperature=0.8,
         )
         print("  ✅ AGAINST argument ready")
-        return argument
+        return answer
 
     except Exception as e:
         print(f"  ❌ AGAINST error: {e}")
         return f"ERROR: {str(e)}"
 
 
-def judge_debate(user, for_arg: str, against_arg: str, query: str, provider="anthropic") -> dict:
-    """Judge which side won the debate using the user's own LLM key."""
+def judge_debate(for_arg: str, against_arg: str, query: str, user=None, provider: str = "anthropic") -> dict:
+    """Judge which side won the debate using the user's own API key."""
     print("  ⚖️ JUDGE: Evaluating...")
 
     try:
@@ -112,26 +108,24 @@ def judge_debate(user, for_arg: str, against_arg: str, query: str, provider="ant
             '"strongest_point":"The strongest argument was..."}'
         )
 
-        messages = [{
-            "role": "user",
-            "content": (
-                f"Topic: {query}\n\n"
-                f"FOR ARGUMENT:\n{for_arg[:1500]}\n\n"
-                f"AGAINST ARGUMENT:\n{against_arg[:1500]}\n\n"
-                "You MUST pick a winner (FOR or AGAINST). Never say TIE. Return JSON:"
-            )
-        }]
-
         text = ask_llm(
             user=user,
             provider=provider,
             system_prompt=system_prompt,
-            messages=messages,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Topic: {query}\n\n"
+                    f"FOR ARGUMENT:\n{for_arg[:1500]}\n\n"
+                    f"AGAINST ARGUMENT:\n{against_arg[:1500]}\n\n"
+                    "You MUST pick a winner (FOR or AGAINST). Never say TIE. Return JSON:"
+                )
+            }],
             max_tokens=500,
             temperature=0.3,
         )
 
-        # Robust JSON extraction
+        # ── Robust JSON extraction ──
         try:
             if "```json" in text:
                 start = text.find("```json") + 7
@@ -161,12 +155,13 @@ def judge_debate(user, for_arg: str, against_arg: str, query: str, provider="ant
                     verdict['against_score'] = min(10, verdict['against_score'] + 1)
 
         except Exception:
+            # Fallback verdict
             winner = random.choice(['FOR', 'AGAINST'])
             verdict = {
                 "winner": winner,
                 "for_score": 7 if winner == 'FOR' else 5,
                 "against_score": 5 if winner == 'FOR' else 7,
-                "reasoning": f"{winner} presented more compelling arguments.",
+                "reasoning": f"{winner} presented more compelling arguments with better evidence and reasoning.",
                 "strongest_point": "Evidence-based arguments were more persuasive."
             }
 

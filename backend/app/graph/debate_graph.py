@@ -47,8 +47,13 @@ def for_agent_node(state: AgentState) -> AgentState:
         for doc in state.get('retrieved_docs', [])
     ]
     
-    # ✅ Pass user and provider to the agent
-    argument = argue_for_position(user, state['query'], context, provider=provider)
+    # ✅ Correct argument order: (query, context, user=..., provider=...)
+    argument = argue_for_position(
+        state['query'],
+        context,
+        user=user,
+        provider=provider
+    )
     
     state['debate_history'].append({
         "side": "FOR",
@@ -73,8 +78,13 @@ def against_agent_node(state: AgentState) -> AgentState:
         for doc in state.get('retrieved_docs', [])
     ]
     
-    # ✅ Pass user and provider to the agent
-    argument = argue_against_position(user, state['query'], context, provider=provider)
+    # ✅ Correct argument order: (query, context, user=..., provider=...)
+    argument = argue_against_position(
+        state['query'],
+        context,
+        user=user,
+        provider=provider
+    )
     
     state['debate_history'].append({
         "side": "AGAINST",
@@ -105,7 +115,6 @@ def judge_node(state: AgentState) -> AgentState:
         print(f"  👤 User profile ensured for debate: {user_id[:20]}...")
     except Exception as e:
         print(f"  ⚠️ User profile creation skipped: {e}")
-        pass
     
     # Get last FOR and AGAINST arguments
     for_arg = ""
@@ -117,8 +126,14 @@ def judge_node(state: AgentState) -> AgentState:
         elif entry.get('side') == 'AGAINST':
             against_arg = entry.get('argument', '')
     
-    # ✅ Pass user and provider to judge
-    verdict = judge_debate(user, for_arg, against_arg, state['query'], provider=provider)
+    # ✅ Correct argument order: (for_arg, against_arg, query, user=..., provider=...)
+    verdict = judge_debate(
+        for_arg,
+        against_arg,
+        state['query'],
+        user=user,
+        provider=provider
+    )
     state['judge_verdict'] = verdict
     
     winner = verdict.get('winner', 'FOR')
