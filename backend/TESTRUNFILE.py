@@ -7,7 +7,7 @@ headers = {
 }
 payload = {
     "provider": "anthropic",
-    "api_key": "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"   # Replace with the real key to test
+    "api_key": ""   # Replace with the real key to test
 }
 
 response = requests.post(url, headers=headers, json=payload)
