@@ -63,12 +63,14 @@ def summarise_node(state: AgentState) -> AgentState:
     
     state['current_agent'] = 'summariser'
     
-    user = state.get('user')
+    user     = state.get('user')
+    provider = state.get('preferred_provider', 'anthropic')
     
     summaries = summariser_agent(
         user,
         state['retrieved_docs'],
-        state['query']
+        state['query'],
+        provider=provider
     )
     state['summaries'] = summaries
     
@@ -83,12 +85,14 @@ def critic_node(state: AgentState) -> AgentState:
     
     state['current_agent'] = 'critic'
     
-    user = state.get('user')
+    user     = state.get('user')
+    provider = state.get('preferred_provider', 'anthropic')
     
     critique = critic_agent(
         user,
         state['summaries'],
-        state['query']
+        state['query'],
+        provider=provider
     )
     state['critique'] = critique
     
@@ -103,9 +107,9 @@ def writer_node(state: AgentState) -> AgentState:
     
     state['current_agent'] = 'writer'
     
-    user = state.get('user')
-    user_id = getattr(user, 'id', 'guest_user') if user else 'guest_user'
-    # ✅ get the public UUID for Pinecone namespaces
+    user     = state.get('user')
+    provider = state.get('preferred_provider', 'anthropic')
+    user_id  = getattr(user, 'id', 'guest_user') if user else 'guest_user'
     user_public_id = getattr(user, 'public_id', None) or getattr(user, 'id', 'guest_user')
     print(f"  👤 User ID: {user_id}")
     
@@ -121,7 +125,8 @@ def writer_node(state: AgentState) -> AgentState:
         enhanced_summaries,
         state['critique'],
         state['citations'],
-        response_style=state.get('response_style', 'academic')
+        response_style=state.get('response_style', 'academic'),
+        provider=provider          # ✅ Pass provider from state
     )
     state['final_answer'] = answer
     
@@ -181,7 +186,7 @@ def writer_node(state: AgentState) -> AgentState:
     # ========== STORE IN PINECONE (USER‑SCOPED) ==========
     try:
         store_research(
-            user_id=user_public_id,                     # ✅ Public UUID for namespace
+            user_id=user_public_id,
             session_id=state.get('session_id', 'guest'),
             query=state['query'],
             documents=state.get('retrieved_docs', []),

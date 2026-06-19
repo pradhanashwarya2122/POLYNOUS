@@ -8,6 +8,10 @@ class AgentState(TypedDict):
     # User preference (set from frontend or defaults to "academic")
     response_style: str
 
+    # BYO API Key support
+    user_api_key: Optional[str]          # decrypted user API key (or None)
+    preferred_provider: Optional[str]    # "anthropic" or "openai"
+
     # Search results
     retrieved_docs: List[Dict]
 

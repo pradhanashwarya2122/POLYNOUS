@@ -14,7 +14,6 @@ def debate_search_node(state: AgentState) -> AgentState:
     print("  DEBATE: Searching for sources...")
     print("="*60)
     
-    # ✅ Get user ID from state
     user_id = state.get('session_id', 'guest_user')
     
     results = search_web(state['query'])
@@ -39,14 +38,17 @@ def for_agent_node(state: AgentState) -> AgentState:
     print("🟢 FOR AGENT")
     print("="*60)
     
-    user_id = state.get('session_id', 'guest_user')
+    user     = state.get('user')
+    provider = state.get('preferred_provider', 'anthropic')
+    user_id  = state.get('session_id', 'guest_user')
     
     context = [
         f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
         for doc in state.get('retrieved_docs', [])
     ]
     
-    argument = argue_for_position(state['query'], context)
+    # ✅ Pass user and provider to the agent
+    argument = argue_for_position(user, state['query'], context, provider=provider)
     
     state['debate_history'].append({
         "side": "FOR",
@@ -62,14 +64,17 @@ def against_agent_node(state: AgentState) -> AgentState:
     print("🔴 AGAINST AGENT")
     print("="*60)
     
-    user_id = state.get('session_id', 'guest_user')
+    user     = state.get('user')
+    provider = state.get('preferred_provider', 'anthropic')
+    user_id  = state.get('session_id', 'guest_user')
     
     context = [
         f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
         for doc in state.get('retrieved_docs', [])
     ]
     
-    argument = argue_against_position(state['query'], context)
+    # ✅ Pass user and provider to the agent
+    argument = argue_against_position(user, state['query'], context, provider=provider)
     
     state['debate_history'].append({
         "side": "AGAINST",
@@ -85,11 +90,12 @@ def judge_node(state: AgentState) -> AgentState:
     print("⚖️ JUDGE")
     print("="*60)
     
-    # ✅ Get user ID from state (set by auth middleware via main.py)
-    user_id = state.get('session_id', 'guest_user')
+    user     = state.get('user')
+    provider = state.get('preferred_provider', 'anthropic')
+    user_id  = state.get('session_id', 'guest_user')
     print(f"  👤 User ID: {user_id[:30] if len(user_id) > 30 else user_id}")
     
-    # ✅ FIX: Ensure user profile exists before storing debate
+    # Ensure user profile exists before storing debate
     try:
         user_memory.create_user_profile(
             user_id=user_id,
@@ -111,10 +117,10 @@ def judge_node(state: AgentState) -> AgentState:
         elif entry.get('side') == 'AGAINST':
             against_arg = entry.get('argument', '')
     
-    verdict = judge_debate(for_arg, against_arg, state['query'])
+    # ✅ Pass user and provider to judge
+    verdict = judge_debate(user, for_arg, against_arg, state['query'], provider=provider)
     state['judge_verdict'] = verdict
     
-    # Build clean debate summary
     winner = verdict.get('winner', 'FOR')
     reasoning = verdict.get('reasoning', '')
     strongest = verdict.get('strongest_point', '')
@@ -144,7 +150,6 @@ def judge_node(state: AgentState) -> AgentState:
     
     state['final_answer'] = debate_summary
     
-    # Store citations
     state['citations'] = [
         {'title': doc.get('title', 'Untitled'), 'url': doc.get('url', '')}
         for doc in state.get('retrieved_docs', [])
@@ -154,7 +159,7 @@ def judge_node(state: AgentState) -> AgentState:
     print(f"    Storing debate for user_id: {user_id[:30]}")
     try:
         user_memory.record_debate(
-            user_id=user_id,  # ✅ DYNAMIC USER ID
+            user_id=user_id,
             topic=state['query'],
             for_score=for_score,
             against_score=against_score,
@@ -172,7 +177,7 @@ def judge_node(state: AgentState) -> AgentState:
             mode="debate",
             confidence=for_score * 10,
             sources=state.get('citations', []),
-            user_id=user_id  # ✅ DYNAMIC USER ID
+            user_id=user_id
         )
         print("    Indexed debate for Semantic Search")
     except Exception as e:
@@ -181,7 +186,7 @@ def judge_node(state: AgentState) -> AgentState:
     # ========== Save debate to chat history ==========
     try:
         save_debate(
-            session_id=user_id,  # ✅ DYNAMIC USER ID
+            session_id=user_id,
             topic=state['query'],
             for_score=for_score,
             against_score=against_score,
@@ -194,46 +199,39 @@ def judge_node(state: AgentState) -> AgentState:
     
     # ========== Embed debate in Unified Pipeline ==========
     try:
-        # Embed the debate topic
         pipeline.embed_and_store(
             content=state['query'],
             module="debate",
             content_type="topic",
             metadata={
-                "session_id": user_id,  # ✅ DYNAMIC USER ID
+                "session_id": user_id,
                 "for_score": for_score,
                 "against_score": against_score,
                 "winner": winner
             }
         )
-        
-        # Embed FOR argument
         pipeline.embed_and_store(
             content=for_arg,
             module="debate",
             content_type="argument",
             metadata={
-                "session_id": user_id,  # ✅ DYNAMIC USER ID
+                "session_id": user_id,
                 "side": "FOR",
                 "score": for_score,
                 "topic": state['query'][:200]
             }
         )
-        
-        # Embed AGAINST argument
         pipeline.embed_and_store(
             content=against_arg,
             module="debate",
             content_type="counterargument",
             metadata={
-                "session_id": user_id,  # ✅ DYNAMIC USER ID
+                "session_id": user_id,
                 "side": "AGAINST",
                 "score": against_score,
                 "topic": state['query'][:200]
             }
         )
-        
-        # Find cross-module connections: this debate → similar research
         cross_connections = pipeline.find_cross_module_connections(
             query=state['query'],
             source_module="debate",
@@ -241,50 +239,41 @@ def judge_node(state: AgentState) -> AgentState:
         )
         if cross_connections:
             print(f"  🔗 Found {len(cross_connections)} cross-module connections")
-        
         print("🧬 Debate embedded in Unified Pipeline")
     except Exception as e:
         print(f"⚠️ Pipeline embedding error: {e}")
     
     # ========== PHASE 3: Create Rich Graph Nodes ==========
     try:
-        # Create Argument nodes with user_id
         kg.create_argument_node(
             argument_text=for_arg[:300],
             side="FOR",
             score=for_score,
             debate_topic=state['query'],
-            session_id=user_id,  # ✅ DYNAMIC USER ID
-            user_id=user_id       # ✅ DYNAMIC USER ID
+            session_id=user_id,
+            user_id=user_id
         )
-        
         kg.create_argument_node(
             argument_text=against_arg[:300],
             side="AGAINST",
             score=against_score,
             debate_topic=state['query'],
-            session_id=user_id,  # ✅ DYNAMIC USER ID
-            user_id=user_id       # ✅ DYNAMIC USER ID
+            session_id=user_id,
+            user_id=user_id
         )
-        
-        # Link FOR → AGAINST with user_id
         kg.link_argument_to_counterargument(
             for_arg[:300], 
             against_arg[:300],
-            user_id=user_id  # ✅ DYNAMIC USER ID
+            user_id=user_id
         )
-        
-        # Create Claim from debate verdict reasoning
         if reasoning:
             kg.create_claim_node(
                 claim_text=f"Debate verdict on '{state['query'][:100]}': {reasoning[:200]}",
                 source_module="debate",
                 confidence=max(for_score, against_score) * 10,
-                session_id=user_id,  # ✅ DYNAMIC USER ID
-                user_id=user_id       # ✅ DYNAMIC USER ID
+                session_id=user_id,
+                user_id=user_id
             )
-        
-        # Link debate topic to research topics
         try:
             from app.knowledge_graph.hybrid_search import hybrid
             entities = hybrid._extract_entities(state['query'])
@@ -293,11 +282,10 @@ def judge_node(state: AgentState) -> AgentState:
                     research_query=state['query'],
                     debate_topic=entity,
                     similarity_score=0.7,
-                    user_id=user_id  # ✅ DYNAMIC USER ID
+                    user_id=user_id
                 )
         except:
             pass
-        
         print(". Created rich debate graph nodes (Arguments + Claims)")
     except Exception as e:
         print(f"⚠️ Rich debate graph error: {e}")
@@ -307,21 +295,16 @@ def judge_node(state: AgentState) -> AgentState:
     return state
 
 def create_debate_graph():
-    """Create debate mode workflow"""
-    
     workflow = StateGraph(AgentState)
-    
     workflow.add_node("debate_search", debate_search_node)
     workflow.add_node("for_agent", for_agent_node)
     workflow.add_node("against_agent", against_agent_node)
     workflow.add_node("judge", judge_node)
-    
     workflow.set_entry_point("debate_search")
     workflow.add_edge("debate_search", "for_agent")
     workflow.add_edge("for_agent", "against_agent")
     workflow.add_edge("against_agent", "judge")
     workflow.add_edge("judge", END)
-    
     return workflow.compile()
 
 debate_graph = create_debate_graph()

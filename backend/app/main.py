@@ -1,6 +1,9 @@
 import sys
 import warnings
 from sqlalchemy import text
+from app.database import SessionLocal
+from app.models.user import User
+from app.utils.encryption import decrypt_api_key
 from app.middleware.auth_middleware import extract_user_middleware
 from app.middleware.input_sanitizer import input_sanitizer_middleware
 from app.middleware.security_headers import security_headers_middleware
@@ -240,7 +243,7 @@ async def debate_history(session_id: str = None, limit: int = 20):
 
 @app.post("/ask", response_model=QueryResponse)
 async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
-    """Research or Debate endpoint — user object attached to state."""
+    """Research or Debate endpoint — user object attached to state with BYO API key."""
     
     # ─── INPUT VALIDATION ─────────────────
     if not is_safe_input(request.query):
@@ -253,15 +256,28 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
     # ✅ Fetch the authenticated user from DB using public_id (UUID)
     user_public_id = getattr(req.state, 'user_public_id', None)
     user = None
+    user_api_key = None  # ← will hold the decrypted BYO key
+    
     if user_public_id:
         user = db.query(User).filter(User.public_id == user_public_id).first()
+        if user:
+            # Determine which provider's key to use (defaults to anthropic)
+            provider = getattr(user, 'preferred_provider', 'anthropic') or 'anthropic'
+            encrypted_key = getattr(user, f'{provider}_api_key', None)
+            if encrypted_key:
+                user_api_key = decrypt_api_key(encrypted_key, user.encryption_key)
+                print(f"  🔑 Using user's {provider.upper()} API key")
+            else:
+                print(f"  ℹ️  No {provider} key stored – falling back to system key")
+    
     session_id = user_public_id or 'guest'
     print(f"  👤 User: {session_id} (authenticated: {user is not None})")
     
     state = AgentState(
         query=request.query,
         session_id=session_id,
-        user=user,               # ← user object passed to state
+        user=user,
+        user_api_key=user_api_key,          # ← NEW: user's API key (or None)
         retrieved_docs=[],
         summaries=[],
         critique={},
@@ -332,7 +348,7 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
 
 @app.post("/ask-stream")
 async def ask_stream(request: QueryRequest, req: Request):
-    """Streaming endpoint — user object attached to state."""
+    """Streaming endpoint — user object attached to state with BYO API key."""
     
     if not is_safe_input(request.query):
         raise HTTPException(status_code=400, detail="Invalid query detected")
@@ -342,20 +358,29 @@ async def ask_stream(request: QueryRequest, req: Request):
         raise HTTPException(status_code=400, detail="Query cannot be empty")
     
     async def gen():
-        db = next(get_db())  # Acquire DB session inside generator
+        db = next(get_db())
         try:
             # ✅ Fetch the authenticated user from DB using public_id (UUID)
             user_public_id = getattr(req.state, 'user_public_id', None)
             user = None
+            user_api_key = None
+            
             if user_public_id:
                 user = db.query(User).filter(User.public_id == user_public_id).first()
+                if user:
+                    provider = getattr(user, 'preferred_provider', 'anthropic') or 'anthropic'
+                    encrypted_key = getattr(user, f'{provider}_api_key', None)
+                    if encrypted_key:
+                        user_api_key = decrypt_api_key(encrypted_key, user.encryption_key)
+            
             session_id = user_public_id or 'guest'
             print(f"  👤 User (stream): {session_id} (authenticated: {user is not None})")
             
             state = AgentState(
                 query=request.query,
                 session_id=session_id,
-                user=user,               # ← user object passed
+                user=user,
+                user_api_key=user_api_key,   # ← NEW
                 retrieved_docs=[], summaries=[], critique={}, final_answer="", citations=[],
                 debate_mode=request.debate_mode, debate_history=[], judge_verdict={},
                 errors=[], warnings=[], current_agent="",
@@ -416,7 +441,7 @@ async def ask_stream(request: QueryRequest, req: Request):
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Research request failed. Please rephrase your query.'})}\n\n"
         finally:
-            db.close()  # Ensure DB session is closed after generator finishes
+            db.close()
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 
