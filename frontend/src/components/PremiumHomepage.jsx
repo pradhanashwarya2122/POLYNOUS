@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const PHOTO_SRC = "data:image/jpeg;base64,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";
+const PHOTO_SRC = "data:image/jpeg;base64,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";
 
 const C = {
   green:"#00ff0f", cyan:"#00ccff", crimson:"#ff2040", gold:"#ffd700",
@@ -13,11 +13,9 @@ const GLOBAL_STYLES = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; font-size: 16px; }
   body { background-color: #060610; color: #ffffff; overflow-x: hidden; font-family: 'Hanken Grotesk', sans-serif; }
-
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: #06060f; }
   ::-webkit-scrollbar-thumb { background: rgba(0,255,15,0.2); border-radius: 2px; }
-
   @keyframes spin        { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
   @keyframes rainbowSpin { from{filter:hue-rotate(0deg)} to{filter:hue-rotate(360deg)} }
   @keyframes shimmerGrad { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
@@ -39,10 +37,17 @@ const GLOBAL_STYLES = `
   @keyframes numberReveal{ from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
   @keyframes stepSlideIn { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
   @keyframes glitch      { 0%,100%{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)} 20%{clip-path:polygon(0 5%,100% 5%,100% 15%,0 15%)} 40%{clip-path:polygon(0 65%,100% 65%,100% 75%,0 75%)} 60%{clip-path:polygon(0 45%,100% 45%,100% 55%,0 55%)} 80%{clip-path:polygon(0 85%,100% 85%,100% 95%,0 95%)} }
-
+  @keyframes nodeFloat   { 0%,100%{transform:translate(0,0)} 33%{transform:translate(3px,-4px)} 66%{transform:translate(-3px,2px)} }
+  @keyframes edgeGlow    { 0%,100%{opacity:0.25} 50%{opacity:0.7} }
+  @keyframes dotTravel   { 0%{offset-distance:0%} 100%{offset-distance:100%} }
+  @keyframes progressRing{ from{stroke-dashoffset:220} to{stroke-dashoffset:42} }
+  @keyframes shimmerLive { 0%{opacity:0.4} 50%{opacity:1} 100%{opacity:0.4} }
+  @keyframes pdfPulse    { 0%,100%{box-shadow:0 0 0 0 rgba(0,204,255,0.3)} 50%{box-shadow:0 0 0 8px rgba(0,204,255,0)} }
+  @keyframes tooltipFade { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes timelinePulse{ 0%,100%{transform:scale(1);opacity:0.7} 50%{transform:scale(1.4);opacity:1} }
+  @keyframes sparkle     { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
   .reveal { opacity:0; transform:translateY(36px); transition:opacity 0.9s cubic-bezier(0.22,1,0.36,1),transform 0.9s cubic-bezier(0.22,1,0.36,1); will-change:opacity,transform; }
   .reveal.visible { opacity:1; transform:translateY(0); }
-
   .reveal-stagger > * { opacity:0; transform:translateY(24px); transition:opacity 0.75s cubic-bezier(0.22,1,0.36,1),transform 0.75s cubic-bezier(0.22,1,0.36,1); }
   .reveal-stagger.visible > *:nth-child(1)  { opacity:1;transform:translateY(0);transition-delay:0.04s }
   .reveal-stagger.visible > *:nth-child(2)  { opacity:1;transform:translateY(0);transition-delay:0.11s }
@@ -51,19 +56,14 @@ const GLOBAL_STYLES = `
   .reveal-stagger.visible > *:nth-child(5)  { opacity:1;transform:translateY(0);transition-delay:0.32s }
   .reveal-stagger.visible > *:nth-child(6)  { opacity:1;transform:translateY(0);transition-delay:0.39s }
   .reveal-stagger.visible > *:nth-child(n+7){ opacity:1;transform:translateY(0);transition-delay:0.45s }
-
   .section-rule { width:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,15,0.35),rgba(0,204,255,0.2),transparent);margin:0 auto 88px;transition:width 1.2s cubic-bezier(0.22,1,0.36,1); }
   .section-rule.visible { width:50%; }
-
   .glass-card { background:rgba(13,13,31,0.75);backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.06);transition:all 0.5s cubic-bezier(0.23,1,0.32,1); }
   .terminal-bg { background:#05050f;border:1px solid #1c1c34; }
   .animate-pulse-dot { animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-
   .nav-link { font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:500;color:rgba(100,116,145,0.85);text-decoration:none;transition:color .22s;cursor:pointer;letter-spacing:0.018em; }
   .nav-link:hover { color:#00ff0f; }
   .nav-link-active { color:#00ff0f; }
-
-  /* Feature cards — redesigned large format */
   .feat-card { transition:all 0.5s cubic-bezier(0.23,1,0.32,1);position:relative;cursor:pointer;overflow:hidden; }
   .feat-card::before { content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.5s ease;z-index:0;border-radius:inherit; }
   .feat-card:hover { transform:translateY(-6px); }
@@ -78,41 +78,29 @@ const GLOBAL_STYLES = `
   .feat-card:hover::before  { opacity:1; }
   .feat-card:hover .feat-top-line { opacity:1 !important; }
   .feat-card:hover .feat-arrow { opacity:1 !important; transform:translate(3px,-3px) !important; }
-
-  /* Tech cards */
   .tech-card { transition:all 0.45s cubic-bezier(0.23,1,0.32,1);position:relative;overflow:hidden;cursor:default; }
   .tech-card:hover { transform:translateY(-4px); }
   .tech-card:hover .tc-glow { opacity:1 !important; }
   .tech-card:hover .tc-bar { opacity:1 !important; }
-
-  /* Step rows */
   .step-row { transition:background 0.4s ease; }
   .step-row:hover { background:rgba(255,255,255,0.015); }
   .step-row:hover .step-accent-line { opacity:1 !important; width:100% !important; }
-
   .agent-btn { border:none;cursor:pointer;border-radius:14px;font-family:'Sora',sans-serif;font-weight:600;font-size:14px;transition:all 0.3s cubic-bezier(0.23,1,0.32,1);position:relative;overflow:hidden; }
   .agent-btn:hover { transform:translateY(-3px) scale(1.04); }
   .agent-btn:active { transform:scale(0.97); }
-
   .search-focus:focus-within { border-color:rgba(0,255,15,0.5) !important;box-shadow:0 0 0 3px rgba(0,255,15,0.07),0 4px 28px rgba(0,255,15,0.05) !important; }
-
   .noise-overlay { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-
-  @media (max-width:1100px) {
-    .features-grid { grid-template-columns:1fr 1fr !important; }
-  }
-  @media (max-width:900px) {
-    .nav-center { display:none !important; }
-    .features-grid { grid-template-columns:1fr 1fr !important; }
-    .tech-3 { grid-template-columns:1fr 1fr !important; }
-    .hiw-grid { grid-template-columns:1fr !important; }
-    .api-grid { grid-template-columns:1fr !important; }
-  }
-  @media (max-width:600px) {
-    .features-grid,.tech-3,.example-4 { grid-template-columns:1fr !important; }
-    .search-bar { flex-direction:column;border-radius:20px !important;padding:12px !important; }
-    .hero-title { font-size:clamp(3rem,14vw,5rem) !important; }
-  }
+  /* NEW: byok tooltip */
+  .byok-tooltip { display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:rgba(8,8,22,0.97);border:1px solid rgba(0,204,255,0.3);border-radius:10px;padding:8px 12px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(0,204,255,0.9);pointer-events:none;z-index:100;animation:tooltipFade 0.2s ease; }
+  .byok-wrap:hover .byok-tooltip { display:block; }
+  /* NEW: user dropdown */
+  .user-dropdown { display:none;position:absolute;top:calc(100% + 8px);right:0;background:rgba(8,8,22,0.97);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:6px;min-width:180px;z-index:200; }
+  .user-wrap:hover .user-dropdown { display:block; }
+  .user-dropdown-item { display:block;width:100%;padding:9px 14px;background:transparent;border:none;color:rgba(200,210,220,0.75);font-family:'Hanken Grotesk',sans-serif;font-size:13px;text-align:left;cursor:pointer;border-radius:8px;transition:background 0.2s,color 0.2s; }
+  .user-dropdown-item:hover { background:rgba(255,255,255,0.04);color:#fff; }
+  @media (max-width:1100px) { .features-grid { grid-template-columns:1fr 1fr !important; } }
+  @media (max-width:900px) { .nav-center { display:none !important; } .features-grid { grid-template-columns:1fr 1fr !important; } .tech-3 { grid-template-columns:1fr 1fr !important; } .hiw-grid { grid-template-columns:1fr !important; } .api-grid { grid-template-columns:1fr !important; } }
+  @media (max-width:600px) { .features-grid,.tech-3,.example-4 { grid-template-columns:1fr !important; } .search-bar { flex-direction:column;border-radius:20px !important;padding:12px !important; } .hero-title { font-size:clamp(3rem,14vw,5rem) !important; } }
 `;
 
 const NAV_SECTIONS = [
@@ -190,6 +178,38 @@ const AGENT_QUIPS = {
   judge:    ["Weighing all arguments…","Confidence score: 91%.","Ruling: Affirmative wins by evidence margin.","Session archived to Knowledge Graph."],
 };
 
+// ── NEW: Mock memory timeline data ────────────────────────────────────────────
+const MEMORY_DOTS = [
+  {id:1, query:"Quantum entanglement basics", date:"Jun 18, 2025", x:8},
+  {id:2, query:"CRISPR gene editing ethics", date:"Jun 15, 2025", x:22},
+  {id:3, query:"Mars colonization feasibility", date:"Jun 12, 2025", x:38},
+  {id:4, query:"AI regulation global impact", date:"Jun 9, 2025",  x:55},
+  {id:5, query:"Fusion energy milestones",    date:"Jun 5, 2025",  x:70},
+  {id:6, query:"Neuroplasticity research",    date:"Jun 1, 2025",  x:85},
+];
+
+// ── NEW: Sparkline data ────────────────────────────────────────────────────────
+const SPARKLINE_RESEARCH = [3,5,4,7,6,9,8,12,10,14];
+const SPARKLINE_CONF = [80,82,85,83,88,87,91,90,92,94];
+const TOP_TOPICS = [
+  {label:"AI/ML", val:87, color:C.green},
+  {label:"Biology", val:64, color:C.cyan},
+  {label:"Space", val:55, color:C.purple},
+  {label:"Energy", val:43, color:C.amber},
+];
+
+// ── NEW: Force graph nodes ─────────────────────────────────────────────────────
+const GRAPH_NODES_DATA = [
+  {id:0, label:"AI Ethics",   x:200, y:130, color:C.green,  r:18},
+  {id:1, label:"CRISPR",      x:100, y:200, color:C.cyan,   r:14},
+  {id:2, label:"Quantum",     x:280, y:210, color:C.purple, r:15},
+  {id:3, label:"Mars",        x:150, y:290, color:C.crimson,r:13},
+  {id:4, label:"Fusion",      x:250, y:290, color:C.amber,  r:12},
+  {id:5, label:"Memory",      x:80,  y:310, color:C.teal,   r:11},
+  {id:6, label:"Regulation",  x:320, y:140, color:C.gold,   r:13},
+];
+const GRAPH_EDGES = [[0,1],[0,2],[0,6],[1,3],[2,4],[3,5],[4,5],[2,6],[0,3]];
+
 function useReveal(threshold=0.13) {
   const ref=useRef(null);
   useEffect(()=>{
@@ -199,6 +219,25 @@ function useReveal(threshold=0.13) {
     return()=>obs.disconnect();
   },[threshold]);
   return ref;
+}
+
+// ── useCountUp ─────────────────────────────────────────────────────────────────
+function useCountUp(target, duration=2200, start=false) {
+  const [val, setVal] = useState(0);
+  useEffect(()=>{
+    if(!start) return;
+    let frame, startTime=null;
+    function tick(ts){
+      if(!startTime) startTime=ts;
+      const progress=Math.min((ts-startTime)/duration, 1);
+      const ease=1-Math.pow(1-progress,3);
+      setVal(Math.round(ease*target));
+      if(progress<1) frame=requestAnimationFrame(tick);
+    }
+    frame=requestAnimationFrame(tick);
+    return()=>cancelAnimationFrame(frame);
+  },[target,duration,start]);
+  return val;
 }
 
 /* ── NeuralCanvas ─────────────────────────────────────────────────────────── */
@@ -283,7 +322,7 @@ function NeuralPipeline(){
     <div style={{width:"100%",minHeight:"620px",display:"flex",alignItems:"stretch",position:"relative"}}>
       <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
         <div style={{marginBottom:"32px",textAlign:"center"}}>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.green,letterSpacing:"0.16em",margin:0}}>    RESEARCH PIPELINE</p>
+          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.green,letterSpacing:"0.16em",margin:0}}>RESEARCH PIPELINE</p>
           <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>SEQUENTIAL SYNTHESIS ARCHITECTURE</p>
         </div>
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
@@ -326,6 +365,682 @@ function SectionDivider(){
   return <div ref={ref} className="section-rule reveal"/>;
 }
 
+/* ── NEW SECTION 1: BYOK Badge ────────────────────────────────────────────── */
+function BYOKBadge() {
+  return (
+    <div className="byok-wrap" style={{display:"inline-flex",alignItems:"center",position:"relative",cursor:"default"}}>
+      <div style={{
+        display:"inline-flex",alignItems:"center",gap:"7px",
+        padding:"5px 13px",borderRadius:"9999px",
+        border:"1px solid rgba(192,192,220,0.22)",
+        background:"rgba(12,12,28,0.7)",backdropFilter:"blur(12px)",
+        fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(192,210,220,0.75)",
+        letterSpacing:"0.06em",transition:"border-color 0.25s",
+        boxShadow:"0 1px 8px rgba(0,0,0,0.3)"
+      }}>
+        {/* Key icon */}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(192,210,220,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2L11 12m0 0l2 4m-2-4l4 2"/>
+        </svg>
+        Bring Your Own Key – Anthropic · OpenAI
+      </div>
+      {/* Tooltip */}
+      <div className="byok-tooltip">
+        🔒 Keys encrypted with Fernet · Never stored in plaintext
+      </div>
+    </div>
+  );
+}
+
+/* ── NEW SECTION 2: Live Mini-Stats Counter ───────────────────────────────── */
+function LiveStatsCounter() {
+  const ref = useRef(null);
+  const [started, setStarted] = useState(false);
+  useEffect(()=>{
+    const el = ref.current; if(!el) return;
+    const obs = new IntersectionObserver(([e])=>{if(e.isIntersecting){setStarted(true);obs.unobserve(el);}},{threshold:0.3});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+  const sessions = useCountUp(12847, 2400, started);
+  const debates  = useCountUp(4391,  2000, started);
+  const conf     = useCountUp(92,    1800, started);
+
+  const stats = [
+    {label:"Research Sessions", value:sessions, suffix:"", color:C.green},
+    {label:"Debates Judged",    value:debates,  suffix:"", color:C.cyan},
+    {label:"Avg Confidence %",  value:conf,     suffix:"%",color:C.purple},
+  ];
+  return (
+    <div ref={ref} style={{display:"flex",justifyContent:"center",gap:"48px",flexWrap:"wrap",margin:"28px 0 0"}}>
+      {stats.map(s=>(
+        <div key={s.label} style={{textAlign:"center",position:"relative"}}>
+          {/* shimmer badge for "live" */}
+          <div style={{
+            fontFamily:"JetBrains Mono,monospace",fontWeight:600,
+            fontSize:"clamp(1.6rem,3vw,2.2rem)",
+            color:s.color,letterSpacing:"-0.04em",
+            animation:"shimmerLive 2.5s ease-in-out infinite",
+            textShadow:`0 0 20px ${s.color}55`
+          }}>
+            {started ? s.value.toLocaleString() : "0"}{s.suffix}
+          </div>
+          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.6)",letterSpacing:"0.1em",marginTop:"4px",textTransform:"uppercase"}}>{s.label}</div>
+          <div style={{position:"absolute",bottom:"-8px",left:"50%",transform:"translateX(-50%)",width:"30px",height:"1px",background:`linear-gradient(90deg,transparent,${s.color}50,transparent)`}}/>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── NEW SECTION 3: Semantic Search Bar ──────────────────────────────────── */
+function SemanticSearchBar() {
+  const [val, setVal] = useState("");
+  const [focused, setFocused] = useState(false);
+  const go = () => {
+    const q = val.trim();
+    if(q) window.location.href = `/search?query=${encodeURIComponent(q)}`;
+  };
+  return (
+    <div style={{
+      display:"flex",alignItems:"center",gap:"8px",
+      padding:"6px 6px 6px 14px",borderRadius:"9999px",
+      background:"rgba(8,8,20,0.7)",backdropFilter:"blur(16px)",
+      border:`1px solid ${focused?"rgba(0,204,255,0.45)":"rgba(255,255,255,0.05)"}`,
+      width:"min(560px,100%)",margin:"16px auto 0",
+      transition:"border-color 0.25s,box-shadow 0.25s",
+      boxShadow:focused?"0 0 0 3px rgba(0,204,255,0.06)":"none"
+    }}>
+      {/* Magnifying glass */}
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(0,204,255,0.5)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input
+        value={val}
+        onChange={e=>setVal(e.target.value)}
+        onFocus={()=>setFocused(true)}
+        onBlur={()=>setFocused(false)}
+        onKeyDown={e=>e.key==="Enter"&&go()}
+        placeholder="Search your memory…"
+        style={{flex:1,height:"36px",background:"transparent",border:"none",outline:"none",color:"rgba(200,215,230,0.85)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px"}}
+      />
+      <button
+        onClick={go}
+        style={{padding:"6px 16px",borderRadius:"9999px",border:"none",background:"rgba(0,204,255,0.12)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0,transition:"background 0.2s",letterSpacing:"0.04em"}}
+        onMouseOver={e=>e.currentTarget.style.background="rgba(0,204,255,0.22)"}
+        onMouseOut={e=>e.currentTarget.style.background="rgba(0,204,255,0.12)"}
+      >Search →</button>
+    </div>
+  );
+}
+
+/* ── NEW SECTION 4: Try a Debate Button ─────────────────────────────────── */
+function DebateQuickButton() {
+  return (
+    <button
+      onClick={()=>window.location.href="/debate?topic=Should+AI+be+regulated%3F"}
+      style={{
+        padding:"13px 28px",borderRadius:"9999px",
+        border:`1.5px solid ${C.crimson}`,
+        background:`linear-gradient(135deg,rgba(255,32,64,0.14),rgba(255,32,64,0.06))`,
+        color:"#ff4060",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",
+        cursor:"pointer",letterSpacing:"0.02em",
+        transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",
+        display:"inline-flex",alignItems:"center",gap:"8px",
+        boxShadow:`0 0 18px rgba(255,32,64,0.35), 0 0 40px rgba(255,32,64,0.15), inset 0 1px 0 rgba(255,100,120,0.15)`,
+        textShadow:`0 0 12px rgba(255,32,64,0.8)`,
+      }}
+      onMouseOver={e=>{
+        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.24),rgba(255,32,64,0.12))`;
+        e.currentTarget.style.boxShadow=`0 0 28px rgba(255,32,64,0.55), 0 0 60px rgba(255,32,64,0.25), inset 0 1px 0 rgba(255,100,120,0.2)`;
+        e.currentTarget.style.transform="scale(1.05)";
+        e.currentTarget.style.color="#ff6070";
+      }}
+      onMouseOut={e=>{
+        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.14),rgba(255,32,64,0.06))`;
+        e.currentTarget.style.boxShadow=`0 0 18px rgba(255,32,64,0.35), 0 0 40px rgba(255,32,64,0.15), inset 0 1px 0 rgba(255,100,120,0.15)`;
+        e.currentTarget.style.transform="scale(1)";
+        e.currentTarget.style.color="#ff4060";
+      }}
+    >
+      ⚖️ Try a Debate
+    </button>
+  );
+}
+
+/* ── NEW SECTION 5: PDF Drop Zone ────────────────────────────────────────── */
+function PDFDropZone() {
+  const [hovering, setHovering] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files[0] || null;
+    if(!file) return;
+    setUploading(true); setProgress(0);
+    let p = 0;
+    const iv = setInterval(()=>{
+      p += Math.random()*18+5;
+      if(p>=100){ clearInterval(iv); setProgress(100); setTimeout(()=>window.location.href="/pdf-lab",400); }
+      else setProgress(Math.min(p,99));
+    },120);
+  };
+
+  return (
+    <div
+      onDragOver={e=>{e.preventDefault();setHovering(true);}}
+      onDragLeave={()=>setHovering(false)}
+      onDrop={handleDrop}
+      style={{
+        borderRadius:"16px",border:`1.5px dashed ${hovering||uploading?C.cyan:"rgba(180,200,220,0.18)"}`,
+        background:hovering?"rgba(0,204,255,0.04)":"rgba(8,8,20,0.6)",
+        backdropFilter:"blur(12px)",
+        padding:"28px 24px",textAlign:"center",
+        transition:"all 0.3s ease",cursor:"pointer",
+        boxShadow:hovering?`0 0 0 3px rgba(0,204,255,0.08),0 0 24px rgba(0,204,255,0.12)`:"none",
+        animation:hovering?"pdfPulse 1.5s ease-in-out infinite":"none",
+        marginTop:"20px",width:"min(500px,100%)",marginLeft:"auto",marginRight:"auto"
+      }}
+      onClick={()=>{
+        // simulate file drop via click
+        setUploading(true);setProgress(0);
+        let p=0;
+        const iv=setInterval(()=>{p+=Math.random()*18+5;if(p>=100){clearInterval(iv);setProgress(100);setTimeout(()=>window.location.href="/pdf-lab",400);}else setProgress(Math.min(p,99));},120);
+      }}
+    >
+      {/* PDF icon */}
+      <div style={{marginBottom:"12px"}}>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{margin:"0 auto",display:"block"}}>
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke={hovering?C.cyan:"rgba(180,200,220,0.4)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M14 2v6h6M9 13h6M9 17h6M9 9h1" stroke={hovering?C.cyan:"rgba(180,200,220,0.3)"} strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </div>
+      <p style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"14px",color:hovering?C.cyan:"rgba(180,200,220,0.65)",marginBottom:"4px",transition:"color 0.25s"}}>
+        {uploading ? "Analysing PDF…" : "Drop a PDF to analyse it"}
+      </p>
+      <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.45)",letterSpacing:"0.06em"}}>
+        {uploading ? "Embedding & indexing…" : "or click to demo the PDF Lab"}
+      </p>
+      {uploading && (
+        <div style={{marginTop:"14px",height:"3px",borderRadius:"9999px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${progress}%`,background:`linear-gradient(90deg,${C.green},${C.cyan})`,borderRadius:"9999px",transition:"width 0.12s linear",boxShadow:`0 0 8px ${C.cyan}80`}}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── NEW SECTION 7: User Profile Quick-Access ─────────────────────────────── */
+function UserProfileWidget() {
+  const [user] = useState(()=>{
+    try{ const t=localStorage.getItem("token"); if(t) return JSON.parse(atob(t.split(".")[1]||"")).name||"User"; } catch(_){}
+    // For demo: simulate logged-in state by checking any "user" key
+    return localStorage.getItem("polynous_user") || null;
+  });
+
+  if(!user) return null;
+
+  const initials = user.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
+  const items = [
+    {label:"My Research", icon:"biotech",    route:"/research"},
+    {label:"Memory Bank", icon:"neurology",  route:"/memory"},
+    {label:"Settings",    icon:"settings",   route:"/settings"},
+    {label:"Logout",      icon:"logout",     action:()=>{localStorage.removeItem("polynous_user");window.location.reload();}},
+  ];
+  return (
+    <div className="user-wrap" style={{position:"relative",display:"inline-block"}}>
+      <div style={{
+        display:"flex",alignItems:"center",gap:"8px",cursor:"pointer",padding:"4px 10px 4px 4px",
+        borderRadius:"9999px",border:"1px solid rgba(255,255,255,0.07)",
+        background:"rgba(8,8,20,0.7)",transition:"border-color 0.2s"
+      }}>
+        <div style={{width:"28px",height:"28px",borderRadius:"50%",background:`linear-gradient(135deg,${C.green}30,${C.cyan}20)`,border:`1px solid ${C.green}40`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11px",color:C.green}}>
+          {initials}
+        </div>
+        <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(200,215,225,0.75)",fontWeight:500}}>{user}</span>
+        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px",color:"rgba(255,255,255,0.25)"}}>expand_more</span>
+      </div>
+      <div className="user-dropdown">
+        {items.map(item=>(
+          <button
+            key={item.label}
+            className="user-dropdown-item"
+            onClick={()=>item.action?item.action():window.location.href=item.route}
+          >
+            <span style={{display:"flex",alignItems:"center",gap:"10px"}}>
+              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px",color:"rgba(150,165,180,0.6)"}}>{item.icon}</span>
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── NEW SECTION 8: Knowledge Graph Preview ──────────────────────────────── */
+function KnowledgeGraphPreview() {
+  const canvasRef = useRef(null);
+  const nodesRef = useRef(GRAPH_NODES_DATA.map(n=>({...n, vx:0, vy:0, ox:n.x, oy:n.y})));
+  const rafRef = useRef(null);
+  const timeRef = useRef(0);
+
+  useEffect(()=>{
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    function draw(ts) {
+      timeRef.current = ts;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const nodes = nodesRef.current;
+      // gentle float animation
+      nodes.forEach((n,i)=>{
+        n.x = n.ox + Math.sin(ts*0.0007 + i*1.2)*5;
+        n.y = n.oy + Math.cos(ts*0.0009 + i*0.8)*4;
+      });
+      // draw edges
+      GRAPH_EDGES.forEach(([a,b])=>{
+        const na=nodes[a], nb=nodes[b];
+        const glow = (Math.sin(ts*0.001+a*0.5)+1)/2;
+        ctx.beginPath();
+        ctx.moveTo(na.x, na.y);
+        ctx.lineTo(nb.x, nb.y);
+        ctx.strokeStyle=`rgba(80,120,180,${0.12+glow*0.1})`;
+        ctx.lineWidth=1;
+        ctx.stroke();
+      });
+      // draw nodes
+      nodes.forEach((n)=>{
+        // glow
+        const grad = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*3);
+        grad.addColorStop(0,n.color+"44");
+        grad.addColorStop(1,"transparent");
+        ctx.beginPath();
+        ctx.arc(n.x,n.y,n.r*3,0,Math.PI*2);
+        ctx.fillStyle=grad;
+        ctx.fill();
+        // node
+        ctx.beginPath();
+        ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+        ctx.fillStyle=n.color+"22";
+        ctx.fill();
+        ctx.strokeStyle=n.color+"aa";
+        ctx.lineWidth=1.5;
+        ctx.stroke();
+        // label
+        ctx.fillStyle="rgba(200,215,230,0.7)";
+        ctx.font="bold 8px JetBrains Mono, monospace";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillText(n.label,n.x,n.y);
+      });
+      rafRef.current = requestAnimationFrame(draw);
+    }
+    rafRef.current = requestAnimationFrame(draw);
+    return ()=>cancelAnimationFrame(rafRef.current);
+  },[]);
+
+  return (
+    <div
+      onClick={()=>window.location.href="/graph"}
+      style={{
+        borderRadius:"20px",overflow:"hidden",cursor:"pointer",
+        border:"1px solid rgba(0,204,255,0.15)",
+        background:"rgba(5,5,15,0.85)",position:"relative",
+        transition:"all 0.3s ease",display:"inline-block"
+      }}
+      onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.4)";e.currentTarget.style.boxShadow="0 0 32px rgba(0,204,255,0.12)";}}
+      onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.15)";e.currentTarget.style.boxShadow="none";}}
+    >
+      <canvas ref={canvasRef} width={400} height={360} style={{display:"block"}}/>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"14px 18px",background:"linear-gradient(to top,rgba(5,5,15,0.95),transparent)"}}>
+        <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"13px",color:"rgba(0,204,255,0.9)",margin:0,letterSpacing:"0.04em"}}>Explore your knowledge graph →</p>
+        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK TO LAUNCH FULL GRAPH</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── NEW SECTION 9: Confidence Score Ring ────────────────────────────────── */
+function ConfidenceRing() {
+  const circumference = 2 * Math.PI * 35;
+  const dashOffset = circumference - (92/100)*circumference;
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"8px"}}>
+      <div style={{position:"relative",width:"90px",height:"90px"}}>
+        <svg width="90" height="90" viewBox="0 0 90 90" style={{transform:"rotate(-90deg)"}}>
+          <defs>
+            <linearGradient id="confGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={C.green}/>
+              <stop offset="100%" stopColor={C.cyan}/>
+            </linearGradient>
+            <filter id="confGlow">
+              <feGaussianBlur stdDeviation="2" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          {/* Track */}
+          <circle cx="45" cy="45" r="35" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6"/>
+          {/* Ring */}
+          <circle
+            cx="45" cy="45" r="35" fill="none"
+            stroke="url(#confGrad)" strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            filter="url(#confGlow)"
+            style={{animation:"progressRing 1.8s cubic-bezier(0.22,1,0.36,1) forwards",strokeDashoffset:circumference}}
+          />
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontWeight:600,fontSize:"16px",color:"#fff",letterSpacing:"-0.03em"}}>92%</span>
+        </div>
+      </div>
+      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.6)",letterSpacing:"0.1em",textTransform:"uppercase"}}>Avg Confidence</span>
+    </div>
+  );
+}
+
+/* ── NEW SECTION 10: Export & Quick Actions Row ──────────────────────────── */
+function QuickActionsRow() {
+  const actions = [
+    {label:"Export Data",    icon:"download", action:()=>{if(window.confirm("Export all research data?")) fetch("/api/export",{method:"POST"}).catch(()=>alert("Export initiated (demo)"));}},
+    {label:"Clear History",  icon:"delete",   action:()=>{if(window.confirm("Clear all research history? This cannot be undone.")) fetch("/api/history",{method:"DELETE"}).catch(()=>alert("History cleared (demo)"));}},
+    {label:"Reset Account",  icon:"restart_alt", action:()=>{if(window.confirm("Reset your entire account? All data will be deleted permanently.")) fetch("/api/account/reset",{method:"POST"}).catch(()=>alert("Account reset (demo)"));}},
+  ];
+  return (
+    <div style={{display:"flex",flexWrap:"wrap",gap:"6px 24px",justifyContent:"center",alignItems:"center",padding:"20px 0 0"}}>
+      {actions.map((a,i)=>(
+        <span key={a.label}>
+          <button
+            onClick={a.action}
+            style={{
+              background:"transparent",border:"none",
+              color:"rgba(150,165,180,0.5)",fontFamily:"Hanken Grotesk,sans-serif",
+              fontSize:"13px",cursor:"pointer",padding:"0",letterSpacing:"0.01em",
+              display:"inline-flex",alignItems:"center",gap:"5px",
+              transition:"color 0.2s",textDecoration:"none",position:"relative"
+            }}
+            onMouseOver={e=>{e.currentTarget.style.color="rgba(200,215,230,0.9)";e.currentTarget.style.textDecoration="underline";}}
+            onMouseOut={e=>{e.currentTarget.style.color="rgba(150,165,180,0.5)";e.currentTarget.style.textDecoration="none";}}
+          >
+            <span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{a.icon}</span>
+            {a.label}
+          </button>
+          {i < actions.length-1 && <span style={{color:"rgba(60,70,90,0.8)",marginLeft:"6px",fontSize:"13px"}}>·</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ── NEW SECTION 11: Memory Bank Timeline Preview ────────────────────────── */
+function MemoryTimeline() {
+  const [activeId, setActiveId] = useState(null);
+  const active = MEMORY_DOTS.find(d=>d.id===activeId);
+  return (
+    <div style={{padding:"28px 0 0"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",letterSpacing:"0.1em",textTransform:"uppercase"}}>Recent Research Timeline</p>
+        <a href="/memory" style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.purple,letterSpacing:"0.06em",textDecoration:"none"}} onMouseOver={e=>e.currentTarget.style.color="#c084fc"} onMouseOut={e=>e.currentTarget.style.color=C.purple}>View All →</a>
+      </div>
+      {/* Gradient line */}
+      <div style={{position:"relative",height:"40px",display:"flex",alignItems:"center"}}>
+        <div style={{position:"absolute",left:0,right:0,height:"2px",background:`linear-gradient(90deg,transparent,${C.purple}40,${C.cyan}40,${C.green}40,transparent)`,borderRadius:"1px"}}/>
+        {/* Timeline dots */}
+        {MEMORY_DOTS.map(dot=>(
+          <div
+            key={dot.id}
+            onClick={()=>window.location.href="/memory"}
+            onMouseEnter={()=>setActiveId(dot.id)}
+            onMouseLeave={()=>setActiveId(null)}
+            style={{
+              position:"absolute",left:`${dot.x}%`,transform:"translateX(-50%)",
+              width:"10px",height:"10px",borderRadius:"50%",cursor:"pointer",
+              background:activeId===dot.id?C.purple:"rgba(130,100,220,0.5)",
+              border:`1.5px solid ${activeId===dot.id?C.purple:"rgba(130,100,220,0.35)"}`,
+              boxShadow:activeId===dot.id?`0 0 12px ${C.purple}60`:"none",
+              animation:`timelinePulse ${2+dot.id*0.3}s ease-in-out infinite`,
+              transition:"all 0.2s ease",zIndex:2
+            }}
+          />
+        ))}
+      </div>
+      {/* Tooltip */}
+      <div style={{minHeight:"36px",marginTop:"8px",textAlign:"center"}}>
+        {active && (
+          <div style={{animation:"fadeUp 0.2s ease"}}>
+            <p style={{fontFamily:"Sora,sans-serif",fontSize:"13px",color:"rgba(200,215,230,0.85)",fontWeight:600,margin:0}}>{active.query}</p>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0"}}>{active.date}</p>
+          </div>
+        )}
+        {!active && <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(80,95,115,0.4)"}}>hover a dot to preview</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ── NEW SECTION 12: Analytics Mini-Preview ──────────────────────────────── */
+function AnalyticsMiniPreview() {
+  const ref = useReveal(0.1);
+  const maxR = Math.max(...SPARKLINE_RESEARCH);
+  const maxC = Math.max(...SPARKLINE_CONF);
+
+  const sparklinePath = (data, max, w, h) => {
+    const pts = data.map((v,i)=>`${(i/(data.length-1))*w},${h-(v/max)*h}`);
+    return `M ${pts.join(" L ")}`;
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="reveal"
+      onClick={()=>window.location.href="/analytics"}
+      style={{
+        borderRadius:"20px",padding:"24px",background:"rgba(8,8,20,0.85)",
+        border:"1px solid rgba(255,255,255,0.06)",cursor:"pointer",
+        transition:"all 0.3s ease",backdropFilter:"blur(16px)"
+      }}
+      onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,170,0,0.25)";e.currentTarget.style.transform="translateY(-3px)";}}
+      onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.06)";e.currentTarget.style.transform="translateY(0)";}}
+    >
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"18px"}}>
+        <div>
+          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Analytics Dashboard</p>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK TO OPEN FULL DASHBOARD →</p>
+        </div>
+        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"20px",color:C.amber,opacity:0.7}}>insights</span>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"14px"}}>
+        {/* Research over time sparkline */}
+        <div>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.green,letterSpacing:"0.08em",marginBottom:"8px",opacity:0.8}}>RESEARCH / WEEK</p>
+          <svg width="100%" height="40" viewBox="0 0 80 40" preserveAspectRatio="none">
+            <path d={sparklinePath(SPARKLINE_RESEARCH,maxR,80,38)} fill="none" stroke={C.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d={sparklinePath(SPARKLINE_RESEARCH,maxR,80,38)+" L 80,40 L 0,40 Z"} fill={`url(#resGrad)`} opacity="0.15"/>
+            <defs><linearGradient id="resGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green}/><stop offset="100%" stopColor="transparent"/></linearGradient></defs>
+          </svg>
+        </div>
+
+        {/* Top Topics mini bars */}
+        <div>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.cyan,letterSpacing:"0.08em",marginBottom:"8px",opacity:0.8}}>TOP TOPICS</p>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            {TOP_TOPICS.map(t=>(
+              <div key={t.label} style={{display:"flex",alignItems:"center",gap:"5px"}}>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8px",color:"rgba(130,148,168,0.5)",minWidth:"32px"}}>{t.label}</span>
+                <div style={{flex:1,height:"4px",borderRadius:"2px",background:"rgba(255,255,255,0.04)"}}>
+                  <div style={{width:`${t.val}%`,height:"100%",borderRadius:"2px",background:t.color,transition:"width 1s ease"}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Confidence trend sparkline */}
+        <div>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.purple,letterSpacing:"0.08em",marginBottom:"8px",opacity:0.8}}>CONFIDENCE %</p>
+          <svg width="100%" height="40" viewBox="0 0 80 40" preserveAspectRatio="none">
+            <path d={sparklinePath(SPARKLINE_CONF,100,80,38)} fill="none" stroke={C.purple} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d={sparklinePath(SPARKLINE_CONF,100,80,38)+" L 80,40 L 0,40 Z"} fill={`url(#confTrendGrad)`} opacity="0.12"/>
+            <defs><linearGradient id="confTrendGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.purple}/><stop offset="100%" stopColor="transparent"/></linearGradient></defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── NEW SECTION 13: Interactive Knowledge Graph (drag/click nodes) ─────── */
+function InteractiveKnowledgeGraph() {
+  const canvasRef = useRef(null);
+  const stateRef = useRef({
+    nodes: GRAPH_NODES_DATA.map(n=>({...n, vx:0, vy:0, dragging:false})),
+    draggingIdx: null,
+    mouse: {x:0, y:0},
+    raf: null,
+    nextId: GRAPH_NODES_DATA.length,
+    edges: [...GRAPH_EDGES]
+  });
+  const [nodeCount, setNodeCount] = useState(GRAPH_NODES_DATA.length);
+
+  useEffect(()=>{
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const s = stateRef.current;
+    const COLORS=[C.green,C.cyan,C.purple,C.crimson,C.amber,C.teal,C.gold];
+    const LABELS=["Concept","Pattern","Theory","Idea","Link","Model","Node","Fact"];
+
+    function physics() {
+      s.nodes.forEach((n,i)=>{
+        if(n.dragging) return;
+        // repulsion
+        s.nodes.forEach((m,j)=>{
+          if(i===j) return;
+          const dx=n.x-m.x, dy=n.y-m.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+          if(d<80){ n.vx+=dx/d*0.8; n.vy+=dy/d*0.8; }
+        });
+        // center gravity
+        n.vx+=(canvas.width/2-n.x)*0.0006;
+        n.vy+=(canvas.height/2-n.y)*0.0006;
+        n.vx*=0.88; n.vy*=0.88;
+        n.x+=n.vx; n.y+=n.vy;
+        // bounds
+        n.x=Math.max(n.r+4,Math.min(canvas.width-n.r-4,n.x));
+        n.y=Math.max(n.r+4,Math.min(canvas.height-n.r-4,n.y));
+      });
+    }
+
+    function draw(ts) {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      physics();
+      // edges
+      s.edges.forEach(([a,b])=>{
+        if(!s.nodes[a]||!s.nodes[b]) return;
+        const glow=(Math.sin(ts*0.0012+a)*0.5+0.5);
+        ctx.beginPath();
+        ctx.moveTo(s.nodes[a].x,s.nodes[a].y);
+        ctx.lineTo(s.nodes[b].x,s.nodes[b].y);
+        ctx.strokeStyle=`rgba(80,120,200,${0.08+glow*0.12})`;
+        ctx.lineWidth=1; ctx.stroke();
+      });
+      // nodes
+      s.nodes.forEach(n=>{
+        const glow=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*2.5);
+        glow.addColorStop(0,n.color+"55"); glow.addColorStop(1,"transparent");
+        ctx.beginPath(); ctx.arc(n.x,n.y,n.r*2.5,0,Math.PI*2);
+        ctx.fillStyle=glow; ctx.fill();
+        ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+        ctx.fillStyle=n.color+"1a"; ctx.fill();
+        ctx.strokeStyle=n.color+(n.dragging?"ff":"99"); ctx.lineWidth=n.dragging?2:1.5; ctx.stroke();
+        ctx.fillStyle="rgba(220,235,245,0.8)";
+        ctx.font=`bold 7px JetBrains Mono, monospace`;
+        ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillText(n.label,n.x,n.y);
+      });
+      s.raf = requestAnimationFrame(draw);
+    }
+
+    const getNode = (x,y)=>s.nodes.findIndex(n=>{const dx=n.x-x,dy=n.y-y;return Math.sqrt(dx*dx+dy*dy)<n.r+4;});
+
+    const onDown = e=>{
+      const rect=canvas.getBoundingClientRect();
+      const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+      const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+      const idx=getNode(mx,my);
+      if(idx>=0){s.draggingIdx=idx;s.nodes[idx].dragging=true;s.nodes[idx].vx=0;s.nodes[idx].vy=0;}
+    };
+    const onMove = e=>{
+      if(s.draggingIdx===null) return;
+      const rect=canvas.getBoundingClientRect();
+      s.nodes[s.draggingIdx].x=(e.clientX-rect.left)*(canvas.width/rect.width);
+      s.nodes[s.draggingIdx].y=(e.clientY-rect.top)*(canvas.height/rect.height);
+    };
+    const onUp = ()=>{
+      if(s.draggingIdx!==null){s.nodes[s.draggingIdx].dragging=false;s.draggingIdx=null;}
+    };
+    const onClick = e=>{
+      const rect=canvas.getBoundingClientRect();
+      const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+      const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+      const existing=getNode(mx,my);
+      if(existing<0){
+        const newNode={id:s.nextId,x:mx,y:my,r:11,color:COLORS[s.nextId%COLORS.length],label:LABELS[s.nextId%LABELS.length],vx:0,vy:0,dragging:false};
+        // connect to nearest
+        let nearest=0,minD=Infinity;
+        s.nodes.forEach((n,i)=>{const d=Math.hypot(n.x-mx,n.y-my);if(d<minD){minD=d;nearest=i;}});
+        s.edges.push([nearest,s.nextId]);
+        s.nodes.push(newNode);
+        s.nextId++;
+        setNodeCount(s.nodes.length);
+      }
+    };
+
+    canvas.addEventListener("mousedown",onDown);
+    canvas.addEventListener("mousemove",onMove);
+    canvas.addEventListener("mouseup",onUp);
+    canvas.addEventListener("click",onClick);
+    s.raf=requestAnimationFrame(draw);
+    return ()=>{
+      cancelAnimationFrame(s.raf);
+      canvas.removeEventListener("mousedown",onDown);
+      canvas.removeEventListener("mousemove",onMove);
+      canvas.removeEventListener("mouseup",onUp);
+      canvas.removeEventListener("click",onClick);
+    };
+  },[]);
+
+  return (
+    <div style={{borderRadius:"24px",overflow:"hidden",border:"1px solid rgba(0,204,255,0.12)",background:"rgba(4,4,14,0.9)",position:"relative"}}>
+      <div style={{padding:"18px 22px",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Interactive Knowledge Graph</p>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK EMPTY SPACE TO ADD NODES · DRAG TO REPOSITION · {nodeCount} NODES</p>
+        </div>
+        <button
+          onClick={()=>window.location.href="/graph"}
+          style={{padding:"7px 16px",borderRadius:"9999px",border:`1px solid ${C.cyan}30`,background:"rgba(0,204,255,0.06)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12px",fontWeight:700,cursor:"pointer",transition:"all 0.2s"}}
+          onMouseOver={e=>{e.currentTarget.style.background="rgba(0,204,255,0.14)";e.currentTarget.style.borderColor=`${C.cyan}70`;}}
+          onMouseOut={e=>{e.currentTarget.style.background="rgba(0,204,255,0.06)";e.currentTarget.style.borderColor=`${C.cyan}30`;}}
+        >
+          Launch Full Graph →
+        </button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={340}
+        style={{width:"100%",height:"340px",display:"block",cursor:"crosshair"}}
+      />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ORIGINAL COMPONENTS BELOW (UNCHANGED)
+═══════════════════════════════════════════════════════════════════════════ */
+
 /* ── Header ───────────────────────────────────────────────────────────────── */
 function Header(){
   const[activeIdx,setActiveIdx]=useState(-1);
@@ -347,6 +1062,8 @@ function Header(){
           ))}
         </nav>
         <div style={{justifySelf:"end",display:"flex",alignItems:"center",gap:"10px"}}>
+          {/* NEW SECTION 7: User widget */}
+          <UserProfileWidget/>
           <button style={{padding:"7px 18px",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"9999px",background:"transparent",color:"rgba(255,255,255,0.45)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",fontWeight:500,cursor:"pointer",transition:"all 0.25s",letterSpacing:"0.01em"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="rgba(255,255,255,0.45)";}}>Sign In</button>
           <button style={{padding:"7px 20px",background:`linear-gradient(135deg,${C.green},#19e81f)`,border:"none",borderRadius:"9999px",color:C.void,fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,cursor:"pointer",transition:"all 0.25s",boxShadow:`0 0 20px rgba(0,255,15,0.25),0 2px 8px rgba(0,255,15,0.15)`,letterSpacing:"0.02em"}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.05)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.4),0 4px 16px rgba(0,255,15,0.2)`;}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.25),0 2px 8px rgba(0,255,15,0.15)`;}}>Get Started</button>
         </div>
@@ -368,24 +1085,33 @@ function HeroSection(){
       <div style={{position:"absolute",top:"38%",right:"12%",width:"280px",height:"280px",borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,0.035) 0%,transparent 68%)",animation:"orb 11s ease-in-out infinite 2s",pointerEvents:"none"}}/>
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.018) 1px,transparent 1px)",backgroundSize:"80px 80px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 80% 70% at 50% 50%,black 30%,transparent 100%)"}}/>
 
-      {/* Title — no live badge */}
       <h1 className="reveal hero-title" ref={useReveal(0.05)} style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(4rem,10.5vw,10rem)",lineHeight:0.86,letterSpacing:"-0.065em",marginBottom:"24px"}}>
         <span style={{background:"linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.8) 52%,rgba(0,204,255,0.65) 82%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 0 40px rgba(0,255,15,0.12))"}}>Research</span>
         <br/>
         <span style={{background:"linear-gradient(165deg,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0.16) 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>beyond answers.</span>
       </h1>
 
-      <p className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"48px",fontWeight:400,transitionDelay:"0.14s"}}>
+      <p className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"24px",fontWeight:400,transitionDelay:"0.14s"}}>
         Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses.
       </p>
 
-      <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"18px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
+      {/* ── NEW SECTION 2: Live Stats Counter (below subtitle) ── */}
+      <div className="reveal" ref={useReveal(0.05)} style={{transitionDelay:"0.16s",marginBottom:"32px"}}>
+        <LiveStatsCounter/>
+      </div>
+
+      <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"10px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
         <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:"rgba(255,255,255,0.18)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
         <input value={query} onChange={e=>setQuery(e.target.value)} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="What do you want to research?" style={{flex:1,height:"50px",padding:"0 8px",background:"transparent",border:"none",outline:"none",color:"#fff",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",fontWeight:400}}/>
         <button onClick={()=>go()} style={{height:"50px",padding:"0 26px",borderRadius:"9999px",border:"none",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,flexShrink:0,transition:"all 0.22s",letterSpacing:"0.04em",boxShadow:`0 0 20px rgba(0,255,15,0.3)`}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.5)`;}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.3)`;}}>Research →</button>
       </div>
 
-      <div className="reveal" ref={useReveal(0.05)} style={{display:"flex",flexWrap:"wrap",justifyContent:"center",marginBottom:"44px",transitionDelay:"0.25s"}}>
+      {/* ── NEW SECTION 3: Semantic Search Bar ── */}
+      <div className="reveal" ref={useReveal(0.05)} style={{transitionDelay:"0.22s",marginBottom:"16px"}}>
+        <SemanticSearchBar/>
+      </div>
+
+      <div className="reveal" ref={useReveal(0.05)} style={{display:"flex",flexWrap:"wrap",justifyContent:"center",marginBottom:"32px",transitionDelay:"0.25s"}}>
         {QEXS.map((ex,i)=>(
           <button key={ex} onClick={()=>go(ex)} style={{background:"transparent",border:"none",color:"rgba(100,118,150,0.65)",cursor:"pointer",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",padding:"0 2px",transition:"color 0.2s",letterSpacing:"0.01em"}} onMouseOver={e=>e.currentTarget.style.color=C.cyan} onMouseOut={e=>e.currentTarget.style.color="rgba(100,118,150,0.65)"}>
             {ex}{i<QEXS.length-1&&<span style={{color:"rgba(35,45,65,0.9)",padding:"0 10px"}}>·</span>}
@@ -399,12 +1125,15 @@ function HeroSection(){
             Start Research →
           </button>
         </div>
+        {/* ── NEW SECTION 4: Try a Debate Button ── */}
+        <DebateQuickButton/>
         <a href="#how-it-works" style={{padding:"12px 28px",border:"1px solid rgba(255,255,255,0.09)",color:"rgba(255,255,255,0.55)",fontWeight:600,borderRadius:"9999px",background:"transparent",fontFamily:"Sora,sans-serif",fontSize:"16px",textDecoration:"none",transition:"all 0.25s",display:"inline-flex",alignItems:"center"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
           See How It Works ↓
         </a>
       </div>
 
-      <div className="reveal terminal-bg" ref={useReveal(0.1)} style={{padding:"22px 26px",borderRadius:"16px",width:"100%",maxWidth:"420px",textAlign:"left",transitionDelay:"0.38s",position:"relative",overflow:"hidden",boxShadow:`0 24px 64px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.04)`}}>
+      {/* Code block — standalone, clean */}
+      <div className="reveal terminal-bg" ref={useReveal(0.1)} style={{padding:"22px 26px",borderRadius:"16px",width:"min(440px,100%)",textAlign:"left",transitionDelay:"0.38s",position:"relative",overflow:"hidden",boxShadow:`0 24px 64px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.04)`}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.green}50,transparent)`}}/>
         <div style={{position:"absolute",top:"10%",left:0,right:0,height:"1px",background:"rgba(0,255,15,0.03)",animation:"scanH 5s linear infinite"}}/>
         <div style={{display:"flex",gap:"7px",marginBottom:"14px"}}>
@@ -416,6 +1145,28 @@ function HeroSection(){
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>npm run polynous</div>
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:"rgba(130,148,170,0.5)",marginTop:"10px",lineHeight:2}}>
           &gt; Initializing Neural Mesh...<br/>&gt; Connecting 7 Sub-Agents...<span style={{color:C.green,opacity:0.75}}> ✓</span><br/>&gt; Logic Lab: Online <span style={{color:C.green}}>[Ready]</span><br/>&gt; <span style={{color:C.cyan}}>Synaptic Bridge established.</span>
+        </div>
+        {/* BYOK Badge sits naturally at the bottom of the terminal */}
+        <div style={{marginTop:"14px"}}>
+          <BYOKBadge/>
+        </div>
+      </div>
+
+      {/* ── Confidence Ring + PDF Drop — side by side below terminal, breathing room ── */}
+      <div className="reveal" ref={useReveal(0.1)} style={{display:"flex",flexWrap:"wrap",gap:"16px",justifyContent:"center",alignItems:"stretch",transitionDelay:"0.44s",width:"min(540px,100%)"}}>
+        {/* Confidence Ring card */}
+        <div style={{
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"8px",
+          padding:"22px 28px",borderRadius:"16px",
+          background:"rgba(6,6,18,0.85)",border:"1px solid rgba(0,255,15,0.1)",
+          backdropFilter:"blur(16px)",flex:"0 0 auto"
+        }}>
+          <ConfidenceRing/>
+        </div>
+
+        {/* PDF Drop Zone — its own clean card */}
+        <div style={{flex:"1",minWidth:"200px"}}>
+          <PDFDropZone/>
         </div>
       </div>
 
@@ -439,7 +1190,6 @@ function HowItWorksSection(){
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>A quiet sequence of agents. Ask, gather, challenge, synthesize. Each step leaves a trace.</p>
         </div>
       </div>
-
       <div style={{display:"flex",flexDirection:"column"}}>
         {STEPS.map((s,idx)=>{
           const ref=useReveal(0.1);
@@ -468,6 +1218,18 @@ function HowItWorksSection(){
           );
         })}
         <div style={{height:"1px",background:"rgba(255,255,255,0.04)"}}/>
+      </div>
+
+      {/* ── NEW SECTION 11: Memory Bank Timeline (below How It Works) ── */}
+      <div className="reveal" ref={useReveal(0.1)} style={{marginTop:"56px",padding:"24px",borderRadius:"20px",background:"rgba(8,8,20,0.7)",border:"1px solid rgba(168,85,247,0.1)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Memory Bank</p>
+            <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(130,148,168,0.6)",margin:"3px 0 0"}}>Your research sessions, tracked over time.</p>
+          </div>
+          <div style={{width:"8px",height:"8px",borderRadius:"50%",background:C.purple,animation:"pulse 2s ease-in-out infinite",boxShadow:`0 0 10px ${C.purple}`}}/>
+        </div>
+        <MemoryTimeline/>
       </div>
     </section>
   );
@@ -520,7 +1282,7 @@ function ApiSection(){
   );
 }
 
-/* ── Features — redesigned large-format cards ─────────────────────────────── */
+/* ── Features ─────────────────────────────────────────────────────────────── */
 function FeaturesSection(){
   const headRef=useReveal(0.1),gridRef=useReveal(0.07);
   return(
@@ -533,52 +1295,19 @@ function FeaturesSection(){
         </div>
         <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Every feature built for inquiry that needs to be inspected, traced, and revisited.</p>
       </div>
-
-      {/* 4-col grid, large cards */}
       <div ref={gridRef} className="reveal-stagger features-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px"}}>
         {FEATURES.map(f=>(
-          <button
-            key={f.title}
-            className={`feat-card ${f.cls}`}
-            onClick={()=>window.location.href=f.route}
-            style={{
-              minHeight:"260px",
-              display:"flex",
-              flexDirection:"column",
-              alignItems:"flex-start",
-              textAlign:"left",
-              padding:"28px 26px 24px",
-              borderRadius:"20px",
-              border:`1px solid rgba(255,255,255,0.055)`,
-              background:"rgba(10,10,22,0.85)",
-              cursor:"pointer",
-              position:"relative",
-              backdropFilter:"blur(16px)",
-            }}
-          >
-            {/* Top gradient line */}
+          <button key={f.title} className={`feat-card ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)"}}>
             <div className="feat-top-line" style={{position:"absolute",top:0,left:"15%",right:"15%",height:"2px",background:`linear-gradient(90deg,transparent,${f.color}80,transparent)`,borderRadius:"1px",opacity:0,transition:"opacity 0.4s ease"}}/>
-
-            {/* Route tag */}
             <div style={{position:"absolute",top:"18px",right:"18px",padding:"3px 9px",borderRadius:"9999px",background:`${f.color}10`,border:`1px solid ${f.color}25`}}>
               <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:f.color,letterSpacing:"0.12em",opacity:0.85}}>{f.tag}</span>
             </div>
-
-            {/* Arrow */}
             <span className="feat-arrow" style={{position:"absolute",bottom:"22px",right:"22px",fontFamily:"Material Symbols Outlined",fontSize:"18px",color:f.color,opacity:0.3,transition:"opacity 0.3s ease, transform 0.3s ease"}}>arrow_outward</span>
-
-            {/* Icon */}
             <div style={{width:"52px",height:"52px",borderRadius:"14px",background:`${f.color}0c`,border:`1px solid ${f.color}22`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"18px",flexShrink:0,position:"relative",zIndex:1}}>
               <span style={{fontFamily:"Material Symbols Outlined",fontSize:"26px",color:f.color}}>{f.icon}</span>
             </div>
-
-            {/* Title */}
             <span style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"16px",color:"#fff",display:"block",marginBottom:"10px",lineHeight:1.2,position:"relative",zIndex:1,letterSpacing:"-0.01em"}}>{f.title}</span>
-
-            {/* Desc */}
             <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13.5px",color:"rgba(145,160,178,0.78)",lineHeight:1.72,position:"relative",zIndex:1,flex:1}}>{f.desc}</span>
-
-            {/* Bottom color line */}
             <div style={{marginTop:"20px",height:"1.5px",width:"100%",borderRadius:"9999px",background:`linear-gradient(90deg,${f.color}45,${f.color}10,transparent)`,position:"relative",zIndex:1}}/>
           </button>
         ))}
@@ -604,6 +1333,22 @@ function PipelineSection(){
         </div>
         <div style={{position:"relative",zIndex:10}}><NeuralPipeline/></div>
       </div>
+
+      {/* ── NEW SECTION 6: Agent Pipeline Mini-Animation label (visual already above) ── */}
+      {/* The NeuralPipeline above already implements the animated agent pipeline.
+          Below we add the explicit section 6 label / caption as specified. */}
+      <div className="reveal" ref={useReveal(0.1)} style={{textAlign:"center",marginTop:"28px",padding:"16px"}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:"24px",flexWrap:"wrap",justifyContent:"center"}}>
+          {[{name:"Search",color:C.green},{name:"Summarise",color:C.indigo},{name:"Critique",color:C.crimson},{name:"Write",color:C.purple}].map((s,i)=>(
+            <div key={s.name} style={{display:"flex",alignItems:"center",gap:"8px"}}>
+              <div style={{width:"10px",height:"10px",borderRadius:"50%",background:s.color,boxShadow:`0 0 8px ${s.color}80`}}/>
+              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:s.color,letterSpacing:"0.08em"}}>{s.name}</span>
+              {i<3&&<span style={{color:"rgba(60,70,90,0.6)",fontSize:"18px",marginLeft:"8px"}}>→</span>}
+            </div>
+          ))}
+        </div>
+        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(130,148,168,0.4)",marginTop:"10px",letterSpacing:"0.01em"}}>Multi-agent pipeline · Animated in real time above</p>
+      </div>
     </section>
   );
 }
@@ -612,12 +1357,8 @@ function PipelineSection(){
 function TechHighlights(){
   const hRef=useReveal(0.1),gRef=useReveal(0.07);
   const GLOW_RGB = {
-    [C.green]:  "0,255,15",
-    [C.purple]: "168,85,247",
-    [C.cyan]:   "0,204,255",
-    [C.crimson]:"255,32,64",
-    [C.amber]:  "255,170,0",
-    [C.gold]:   "255,215,0",
+    [C.green]:"0,255,15",[C.purple]:"168,85,247",[C.cyan]:"0,204,255",
+    [C.crimson]:"255,32,64",[C.amber]:"255,170,0",[C.gold]:"255,215,0",
   };
   return(
     <section style={{padding:"96px 0"}}>
@@ -683,6 +1424,44 @@ function ExampleSection(){
             </button>
           );
         })}
+      </div>
+
+      {/* ── NEW SECTION 12: Analytics Dashboard Mini-Preview ── */}
+      <div style={{marginTop:"28px"}}>
+        <AnalyticsMiniPreview/>
+      </div>
+    </section>
+  );
+}
+
+/* ── Knowledge Graph Section (NEW Section 8 + 13 combined) ───────────────── */
+function KnowledgeGraphSection() {
+  const ref = useReveal(0.08);
+  return (
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"36px"}} className="hiw-grid">
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.cyan,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Knowledge Graph</p>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your mind,<br/>mapped.</h2>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every research session builds a living graph of knowledge. Click to explore — drag to rearrange.</p>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:"20px",alignItems:"start"}}>
+          {/* ── NEW SECTION 13: Interactive graph (drag & click) ── */}
+          <InteractiveKnowledgeGraph/>
+
+          {/* ── NEW SECTION 8: Static preview thumbnail ── */}
+          <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+            <KnowledgeGraphPreview/>
+            <div style={{padding:"16px",borderRadius:"16px",background:"rgba(8,8,20,0.7)",border:"1px solid rgba(0,204,255,0.08)"}}>
+              <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.cyan,letterSpacing:"0.1em",marginBottom:"8px",opacity:0.7}}>HOW IT WORKS</p>
+              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(130,148,168,0.7)",lineHeight:1.65,margin:0}}>Entities extracted from every research session auto-connect in your Neo4j graph. Click a node to deep-dive.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -793,6 +1572,9 @@ function FinalCTA(){
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(130,148,168,0.55)",letterSpacing:"0.01em"}}>Free to start · No credit card required</p>
         </div>
+
+        {/* ── NEW SECTION 10: Export & Quick Actions Row ── */}
+        <QuickActionsRow/>
       </div>
     </section>
   );
@@ -850,8 +1632,10 @@ function Footer(){
   );
 }
 
-/* ── App ──────────────────────────────────────────────────────────────────── */
-export default function App(){
+/* ══════════════════════════════════════════════════════════════════════════
+   ROOT APP
+══════════════════════════════════════════════════════════════════════════ */
+export default function LandingPage(){
   useEffect(()=>{
     const el=document.createElement("style");
     el.setAttribute("data-polynous","1");
@@ -880,6 +1664,8 @@ export default function App(){
           <PipelineSection/>
           <TechHighlights/>
           <ExampleSection/>
+          {/* ── NEW: Knowledge Graph full section (combines sections 8 + 13) ── */}
+          <KnowledgeGraphSection/>
           <AgentPlayground/>
         </div>
         <FinalCTA/>

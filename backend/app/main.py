@@ -446,6 +446,41 @@ async def ask_stream(request: QueryRequest, req: Request):
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+# ========== DEBUG: LAST API KEY USED (TESTING ONLY) ==========
+@app.get("/debug/last-key")
+async def debug_last_key(request: Request, db=Depends(get_db)):
+    """
+    WARNING: Exposes API key info – only for testing!
+    Shows the provider and a preview of the decrypted key for the
+    authenticated user.
+    """
+    user_public_id = getattr(request.state, 'user_public_id', None)
+    if not user_public_id:
+        return {"error": "Not authenticated"}
+
+    user = db.query(User).filter(User.public_id == user_public_id).first()
+    if not user:
+        return {"error": "User not found"}
+
+    # Determine provider from user's preference (default anthropic)
+    provider = getattr(user, 'preferred_provider', 'anthropic') or 'anthropic'
+    encrypted_key = getattr(user, f'{provider}_api_key', None)
+
+    if not encrypted_key:
+        return {"error": f"No {provider} key stored"}
+
+    try:
+        decrypted = decrypt_api_key(encrypted_key, user.encryption_key)
+        key_preview = decrypted[:15] + "..." if decrypted else None
+        return {
+            "provider": provider,
+            "key_preview": key_preview,
+            "key_used_in_last_request": True  # simplified – always True if key exists
+        }
+    except Exception as e:
+        return {"error": f"Decryption failed: {str(e)}"}
+
+
 @app.get("/stats/vector-count")
 async def vector_count():
     """Return actual vector count from semantic search"""

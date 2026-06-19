@@ -1,4 +1,4 @@
-# database.py — PostgreSQL ONLY, no SQLite fallback
+# database.py — PostgreSQL preferred, SQLite fallback for local dev
 from sqlalchemy import (
     create_engine,
     Column,
@@ -6,8 +6,12 @@ from sqlalchemy import (
     DateTime,
     Text,
     Boolean,
+    Integer,
+    JSON,
+    Float,
+    ForeignKey,
 )
-from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, relationship
 import os
 import sys
 import re
@@ -23,105 +27,194 @@ print(f"🌍 Environment: {ENVIRONMENT}")
 print(f"🏭 Production mode: {IS_PRODUCTION}")
 
 # ============================================================
-# DATABASE URL – PostgreSQL REQUIRED
+# DATABASE URL – PostgreSQL required in production, SQLite in dev
 # ============================================================
-raw_url = os.getenv("DATABASE_URL", "")
+raw_url = os.getenv("DATABASE_URL", "").strip()
+
 if not raw_url:
-    print("=" * 60)
-    print("❌ FATAL: DATABASE_URL is not set! PostgreSQL is required.")
-    print("=" * 60)
     if IS_PRODUCTION:
+        print("=" * 60)
+        print("❌ FATAL: DATABASE_URL is not set! PostgreSQL is required.")
+        print("=" * 60)
         print("   On Railway:")
         print("   1. Add a PostgreSQL service")
         print("   2. DATABASE_URL will be injected automatically")
-        print("   3. Or set it manually in Variables tab")
+        sys.exit(1)
     else:
-        print("   For local development, set DATABASE_URL to your PostgreSQL instance.")
-    sys.exit(1)
+        raw_url = "sqlite:///./polynous.db"
+        print("ℹ️  No DATABASE_URL set – using local SQLite for development")
 
 # Fix scheme: Railway may give postgres://, but SQLAlchemy wants postgresql://
 if raw_url.startswith("postgres://"):
     raw_url = raw_url.replace("postgres://", "postgresql://", 1)
     print("🔧 Fixed URL scheme: postgres:// → postgresql://")
+elif raw_url.startswith("sqlite:///"):
+    print("ℹ️  Using SQLite for local development")
 elif not raw_url.startswith("postgresql://"):
     print("=" * 60)
     print(f"❌ Unsupported database scheme: {raw_url.split('://')[0]}")
-    print("   Only PostgreSQL is allowed (postgresql://) ")
+    print("   Only PostgreSQL (postgresql://) or SQLite (sqlite:///) are supported")
     print("=" * 60)
     sys.exit(1)
 
+DATABASE_URL = raw_url
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./polynous.db")
-print(f"🗄️  PostgreSQL database: {re.sub(r'://[^:]+:[^@]+@', r'://****:****@', DATABASE_URL)}")
-
-# ============================================================
-# ENGINE – Optimised for PostgreSQL
-# ============================================================
-connect_args = {}
-if IS_PRODUCTION:
-    connect_args["sslmode"] = "require"
-    print("🔒 SSL mode: require (production)")
+# Mask password for logging
+if DATABASE_URL.startswith("postgresql://"):
+    safe_url = re.sub(r'://[^:]+:[^@]+@', r'://****:****@', DATABASE_URL)
 else:
-    # In development you might want to allow plain connections
-    connect_args["sslmode"] = "prefer"
-
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=5,
-    max_overflow=10,
-    pool_pre_ping=True,          # Survives idle connection drops
-    pool_recycle=3600,           # Recycle connections hourly
-    pool_timeout=30,             # Wait max 30s for a connection
-    connect_args=connect_args,
-    echo=False,                  # Set to True for SQL debug logging
-)
-
-print("⚙️  Database engine configured:")
-print("   • pool_size: 5")
-print("   • max_overflow: 10")
-print("   • pool_pre_ping: True")
-print("   • pool_recycle: 3600s")
-print("   • pool_timeout: 30s")
+    safe_url = DATABASE_URL
+print(f"🗄️  Database: {safe_url}")
 
 # ============================================================
-# SESSION FACTORY – Thread‑safe scoped session
+# ENGINE – Optimised for PostgreSQL, simple for SQLite
+# ============================================================
+if DATABASE_URL.startswith("postgresql://"):
+    connect_args = {"sslmode": "require" if IS_PRODUCTION else "prefer"}
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        pool_timeout=30,
+        connect_args=connect_args,
+        echo=False,
+    )
+    print("⚙️  PostgreSQL engine configured")
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=False,
+    )
+    print("⚙️  SQLite engine configured (local dev)")
+
+# ============================================================
+# SESSION FACTORY
 # ============================================================
 SessionLocal = scoped_session(
     sessionmaker(
         autocommit=False,
         autoflush=False,
         bind=engine,
-        expire_on_commit=False,  # Keep objects usable after commit
+        expire_on_commit=False,
     )
 )
-
 print("✅ Session factory created (scoped_session)")
 
 # ============================================================
-# DECLARATIVE BASE & MODELS
+# DECLARATIVE BASE
 # ============================================================
 Base = declarative_base()
 
+# ============================================================
+# MERGED USER MODEL – All columns from both files
+# ============================================================
 class User(Base):
     __tablename__ = "users"
-    id = Column(String, primary_key=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    username = Column(String, nullable=True)
-    hashed_password = Column(String, nullable=True)
+
+    # ── Primary Keys ──────────────────────────────
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    public_id = Column(String(36), unique=True, index=True, nullable=False)
+
+    # ── Auth ───────────────────────────────────────
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    username = Column(String(100), unique=False, index=True, nullable=True)
+    hashed_password = Column(String(255), nullable=False)
+
+    # ── OAuth ──────────────────────────────────────
     google_id = Column(String, nullable=True)
     github_id = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    # BYOK fields (encrypted)
-    anthropic_api_key_enc = Column(Text, nullable=True)
-    openai_api_key_enc = Column(Text, nullable=True)
+
+    # ── Security ───────────────────────────────────
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
+    password_changed_at = Column(DateTime, default=datetime.utcnow)
+    encryption_key = Column(String(255), nullable=True)
+
+    # ── BYOK – Encrypted with user's encryption_key ─
+    anthropic_api_key = Column(Text, nullable=True)
+    openai_api_key = Column(Text, nullable=True)
+    tavily_api_key = Column(Text, nullable=True)
+    voyage_api_key = Column(Text, nullable=True)
+
+    # ── Pinecone / Neo4j BYO ───────────────────────
     pinecone_api_key_enc = Column(Text, nullable=True)
     pinecone_environment = Column(String, nullable=True)
     pinecone_index_name = Column(String, nullable=True)
-    tavily_api_key_enc = Column(Text, nullable=True)
     neo4j_uri = Column(String, nullable=True)
     neo4j_user = Column(String, nullable=True)
     neo4j_password_enc = Column(Text, nullable=True)
 
+    # ── Preferences & Notifications ────────────────
+    preferred_provider = Column(String(50), default="anthropic")
+    preferences = Column(JSON, default=lambda: {
+        "default_mode": "research",
+        "response_style": "academic",
+        "streaming_enabled": True,
+        "auto_save": True,
+        "confidence_threshold": 70,
+    })
+    notifications = Column(JSON, default=lambda: {
+        "email": False,
+        "research": True,
+        "weekly": False,
+        "rate_limit": True,
+    })
+    integrations = Column(JSON, default=lambda: {
+        "google": {"connected": False},
+        "github": {"connected": False},
+        "notion": {"connected": False},
+    })
+
+    # ── Profile ────────────────────────────────────
+    tier = Column(String(20), default="free")
+    is_active = Column(Boolean, default=True)
+    email_verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # ── Relationships ──────────────────────────────
+    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+
+
+# ============================================================
+# CONVERSATION & MESSAGE MODELS
+# ============================================================
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    public_id = Column(String(36), unique=True, default=lambda: None)
+    title = Column(String(200), default="New Research")
+    mode = Column(String(20), default="research")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="conversations")
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
+    role = Column(String(20), nullable=False)
+    content = Column(String(10000))
+    sources = Column(JSON, default=[])
+    confidence = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    conversation = relationship("Conversation", back_populates="messages")
+
+
+# ============================================================
+# USER PREFERENCES (separate table)
+# ============================================================
 class UserPreferences(Base):
     __tablename__ = "user_preferences"
     user_id = Column(String, primary_key=True)
@@ -131,13 +224,11 @@ class UserPreferences(Base):
     research_depth = Column(String, default="standard")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
 # ============================================================
 # DATABASE INITIALIZATION
 # ============================================================
 def init_db():
-    """
-    Create all tables. Safe to call multiple times – create_all() is idempotent.
-    """
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created/verified!")
@@ -147,6 +238,7 @@ def init_db():
             raise
         else:
             print("⚠️  Continuing without database – some features may not work")
+
 
 # ============================================================
 # DEPENDENCY INJECTION for FastAPI
@@ -162,8 +254,9 @@ def get_db():
         db.close()
         SessionLocal.remove()
 
+
 # ============================================================
-# HEALTH CHECK utility
+# HEALTH CHECK
 # ============================================================
 def check_database_connection():
     try:
@@ -174,6 +267,7 @@ def check_database_connection():
     except Exception as e:
         return False, f"Database connection failed: {str(e)}"
 
+
 # ============================================================
 # EXPORTS
 # ============================================================
@@ -182,6 +276,8 @@ __all__ = [
     "SessionLocal",
     "Base",
     "User",
+    "Conversation",
+    "Message",
     "UserPreferences",
     "init_db",
     "get_db",
