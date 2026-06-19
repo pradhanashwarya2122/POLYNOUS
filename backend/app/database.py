@@ -50,7 +50,8 @@ elif not raw_url.startswith("postgresql://"):
     print("=" * 60)
     sys.exit(1)
 
-DATABASE_URL = raw_url
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./polynous.db")
 print(f"🗄️  PostgreSQL database: {re.sub(r'://[^:]+:[^@]+@', r'://****:****@', DATABASE_URL)}")
 
 # ============================================================
