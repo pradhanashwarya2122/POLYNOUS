@@ -8,33 +8,36 @@ from app.semantic_search import semantic_search
 from app.chat_history import save_debate
 from app.services.embedding_pipeline import pipeline
 
+
 def debate_search_node(state: AgentState) -> AgentState:
     """Search for debate sources"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  DEBATE: Searching for sources...")
-    print("="*60)
-    
+    print("=" * 60)
+
     user_id = state.get('session_id', 'guest_user')
-    
+
     results = search_web(state['query'])
     state['retrieved_docs'] = results
-    
+
     context = [
         f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
         for doc in results
     ]
-    
+
     if 'debate_history' not in state:
         state['debate_history'] = []
-    
+
     state['debate_history'].append({"step": "search", "sources_found": len(results)})
-    
+
     print(f"✅ Found {len(results)} sources for debate (user: {user_id[:20]})")
     return state
 
+
 def for_agent_node(state: AgentState) -> AgentState:
     print("\n🟢 FOR AGENT")
-    user = state.get('user')
+    # ✅ Read resolved API key and provider from state (set by main.py)
+    api_key = state.get('user_api_key')
     provider = state.get('preferred_provider', 'anthropic')
 
     context = [
@@ -42,13 +45,18 @@ def for_agent_node(state: AgentState) -> AgentState:
         for doc in state.get('retrieved_docs', [])
     ]
 
-    argument = argue_for_position(user, state['query'], context, provider)
+    argument = argue_for_position(
+        state['query'], context,
+        api_key=api_key,
+        provider=provider,
+    )
     state['debate_history'].append({"side": "FOR", "argument": argument})
     return state
 
+
 def against_agent_node(state: AgentState) -> AgentState:
     print("\n🔴 AGAINST AGENT")
-    user = state.get('user')
+    api_key = state.get('user_api_key')
     provider = state.get('preferred_provider', 'anthropic')
 
     context = [
@@ -56,21 +64,27 @@ def against_agent_node(state: AgentState) -> AgentState:
         for doc in state.get('retrieved_docs', [])
     ]
 
-    argument = argue_against_position(user, state['query'], context, provider)
+    argument = argue_against_position(
+        state['query'], context,
+        api_key=api_key,
+        provider=provider,
+    )
     state['debate_history'].append({"side": "AGAINST", "argument": argument})
     return state
 
+
 def judge_node(state: AgentState) -> AgentState:
     """Judge the debate"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("⚖️ JUDGE")
-    print("="*60)
-    
-    user = state.get('user')
+    print("=" * 60)
+
+    # ✅ Read resolved API key and provider from state
+    api_key = state.get('user_api_key')
     provider = state.get('preferred_provider', 'anthropic')
     user_id = state.get('session_id', 'guest_user')
     print(f"  👤 User ID: {user_id[:30] if len(user_id) > 30 else user_id}")
-    
+
     # Ensure user profile exists before storing debate
     try:
         user_memory.create_user_profile(
@@ -81,27 +95,30 @@ def judge_node(state: AgentState) -> AgentState:
         print(f"  👤 User profile ensured for debate: {user_id[:20]}...")
     except Exception as e:
         print(f"  ⚠️ User profile creation skipped: {e}")
-    
+
     # Get last FOR and AGAINST arguments
     for_arg = ""
     against_arg = ""
-    
     for entry in state.get('debate_history', []):
         if entry.get('side') == 'FOR':
             for_arg = entry.get('argument', '')
         elif entry.get('side') == 'AGAINST':
             against_arg = entry.get('argument', '')
-    
-    # ✅ Correct argument order: (user, for_arg, against_arg, query, provider)
-    verdict = judge_debate(user, for_arg, against_arg, state['query'], provider)
+
+    # ✅ Pass api_key and provider directly, no user object
+    verdict = judge_debate(
+        for_arg, against_arg, state['query'],
+        api_key=api_key,
+        provider=provider,
+    )
     state['judge_verdict'] = verdict
-    
+
     winner = verdict.get('winner', 'FOR')
     reasoning = verdict.get('reasoning', '')
     strongest = verdict.get('strongest_point', '')
     for_score = verdict.get('for_score', 5)
     against_score = verdict.get('against_score', 5)
-    
+
     debate_summary = f"""📋 DEBATE RESULT: {state['query']}
 
 🟢 FOR POSITION ({for_score}/10)
@@ -122,14 +139,14 @@ def judge_node(state: AgentState) -> AgentState:
 • FOR: {for_score}/10
 • AGAINST: {against_score}/10
 """
-    
+
     state['final_answer'] = debate_summary
-    
+
     state['citations'] = [
         {'title': doc.get('title', 'Untitled'), 'url': doc.get('url', '')}
         for doc in state.get('retrieved_docs', [])
     ]
-    
+
     # ========== Store debate in user memory ==========
     print(f"    Storing debate for user_id: {user_id[:30]}")
     try:
@@ -138,12 +155,12 @@ def judge_node(state: AgentState) -> AgentState:
             topic=state['query'],
             for_score=for_score,
             against_score=against_score,
-            winner=winner
+            winner=winner,
         )
         print("  ✅ Stored in User Memory")
     except Exception as e:
         print(f"  ⚠️ Memory storage error: {e}")
-    
+
     # ========== Index debate in semantic search ==========
     try:
         semantic_search.add_to_index(
@@ -152,12 +169,12 @@ def judge_node(state: AgentState) -> AgentState:
             mode="debate",
             confidence=for_score * 10,
             sources=state.get('citations', []),
-            user_id=user_id
+            user_id=user_id,
         )
         print("    Indexed debate for Semantic Search")
     except Exception as e:
         print(f"  ⚠️ Search indexing error: {e}")
-    
+
     # ========== Save debate to chat history ==========
     try:
         save_debate(
@@ -166,12 +183,12 @@ def judge_node(state: AgentState) -> AgentState:
             for_score=for_score,
             against_score=against_score,
             winner=winner,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
         print("  💾 Saved debate to Chat History")
     except Exception as e:
         print(f"  ⚠️ Chat history save error: {e}")
-    
+
     # ========== Embed debate in Unified Pipeline ==========
     try:
         pipeline.embed_and_store(
@@ -182,8 +199,8 @@ def judge_node(state: AgentState) -> AgentState:
                 "session_id": user_id,
                 "for_score": for_score,
                 "against_score": against_score,
-                "winner": winner
-            }
+                "winner": winner,
+            },
         )
         pipeline.embed_and_store(
             content=for_arg,
@@ -193,8 +210,8 @@ def judge_node(state: AgentState) -> AgentState:
                 "session_id": user_id,
                 "side": "FOR",
                 "score": for_score,
-                "topic": state['query'][:200]
-            }
+                "topic": state['query'][:200],
+            },
         )
         pipeline.embed_and_store(
             content=against_arg,
@@ -204,20 +221,20 @@ def judge_node(state: AgentState) -> AgentState:
                 "session_id": user_id,
                 "side": "AGAINST",
                 "score": against_score,
-                "topic": state['query'][:200]
-            }
+                "topic": state['query'][:200],
+            },
         )
         cross_connections = pipeline.find_cross_module_connections(
             query=state['query'],
             source_module="debate",
-            target_modules=["research", "memory"]
+            target_modules=["research", "memory"],
         )
         if cross_connections:
             print(f"  🔗 Found {len(cross_connections)} cross-module connections")
         print("🧬 Debate embedded in Unified Pipeline")
     except Exception as e:
         print(f"⚠️ Pipeline embedding error: {e}")
-    
+
     # ========== PHASE 3: Create Rich Graph Nodes ==========
     try:
         kg.create_argument_node(
@@ -226,7 +243,7 @@ def judge_node(state: AgentState) -> AgentState:
             score=for_score,
             debate_topic=state['query'],
             session_id=user_id,
-            user_id=user_id
+            user_id=user_id,
         )
         kg.create_argument_node(
             argument_text=against_arg[:300],
@@ -234,20 +251,16 @@ def judge_node(state: AgentState) -> AgentState:
             score=against_score,
             debate_topic=state['query'],
             session_id=user_id,
-            user_id=user_id
+            user_id=user_id,
         )
-        kg.link_argument_to_counterargument(
-            for_arg[:300], 
-            against_arg[:300],
-            user_id=user_id
-        )
+        kg.link_argument_to_counterargument(for_arg[:300], against_arg[:300], user_id=user_id)
         if reasoning:
             kg.create_claim_node(
                 claim_text=f"Debate verdict on '{state['query'][:100]}': {reasoning[:200]}",
                 source_module="debate",
                 confidence=max(for_score, against_score) * 10,
                 session_id=user_id,
-                user_id=user_id
+                user_id=user_id,
             )
         try:
             from app.knowledge_graph.hybrid_search import hybrid
@@ -257,17 +270,18 @@ def judge_node(state: AgentState) -> AgentState:
                     research_query=state['query'],
                     debate_topic=entity,
                     similarity_score=0.7,
-                    user_id=user_id
+                    user_id=user_id,
                 )
         except:
             pass
         print(". Created rich debate graph nodes (Arguments + Claims)")
     except Exception as e:
         print(f"⚠️ Rich debate graph error: {e}")
-    
+
     print(f"✅ Debate complete! Winner: {winner} (user: {user_id[:20]})")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
     return state
+
 
 def create_debate_graph():
     workflow = StateGraph(AgentState)
@@ -281,6 +295,7 @@ def create_debate_graph():
     workflow.add_edge("against_agent", "judge")
     workflow.add_edge("judge", END)
     return workflow.compile()
+
 
 debate_graph = create_debate_graph()
 print("✅ Debate Orchestrator Ready!")

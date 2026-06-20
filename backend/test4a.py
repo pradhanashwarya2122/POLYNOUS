@@ -16,7 +16,7 @@ else:
         
         # Try Haiku 4.5 (the current version)
         message = client.messages.create(
-            model="claude-haiku-4-5-20251001",  # Current Haiku version
+            model="claude-haiku-4-5",  # Current Haiku version
             max_tokens=100,
             messages=[{"role": "user", "content": "Say 'Haiku 4.5 is working!'"}]
         )
