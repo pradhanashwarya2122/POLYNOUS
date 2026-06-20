@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.database import SessionLocal
 from app.models.user import User
 from app.utils.encryption import decrypt_api_key
+from app.utils.key_resolver import get_user_provider_and_key  # ← NEW: unified helper
 from app.middleware.auth_middleware import extract_user_middleware
 from app.middleware.input_sanitizer import input_sanitizer_middleware
 from app.middleware.security_headers import security_headers_middleware
@@ -245,39 +246,80 @@ async def debate_history(session_id: str = None, limit: int = 20):
 async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
     """Research or Debate endpoint — user object attached to state with BYO API key."""
     
+    print("\n" + "=" * 70)
+    print("📥 /ask ENDPOINT CALLED")
+    print(f"   Query: {request.query[:80]}...")
+    print(f"   Mode: {'DEBATE' if request.debate_mode else 'RESEARCH'}")
+    print(f"   Session: {request.session_id or 'not provided'}")
+    
     # ─── INPUT VALIDATION ─────────────────
     if not is_safe_input(request.query):
+        print("❌ INPUT VALIDATION FAILED: Unsafe input detected")
         raise HTTPException(status_code=400, detail="Invalid query detected")
     
     request.query = sanitize_query(request.query)
     if not request.query:
+        print("❌ INPUT VALIDATION FAILED: Empty query after sanitization")
         raise HTTPException(status_code=400, detail="Query cannot be empty")
+    
+    print(f"✅ Input validation passed")
     
     # ✅ Fetch the authenticated user from DB using public_id (UUID)
     user_public_id = getattr(req.state, 'user_public_id', None)
+    print(f"\n🔍 AUTH MIDDLEWARE STATE:")
+    print(f"   user_public_id: {user_public_id}")
+    print(f"   user_id: {getattr(req.state, 'user_id', 'N/A')}")
+    print(f"   user_email: {getattr(req.state, 'user_email', 'N/A')}")
+    print(f"   is_authenticated: {getattr(req.state, 'is_authenticated', False)}")
+    
     user = None
-    user_api_key = None  # ← will hold the decrypted BYO key
+    provider = "anthropic"
+    user_api_key = None
     
     if user_public_id:
+        print(f"\n🔍 LOOKING UP USER IN DATABASE: {user_public_id}")
         user = db.query(User).filter(User.public_id == user_public_id).first()
+        
         if user:
-            # Determine which provider's key to use (defaults to anthropic)
-            provider = getattr(user, 'preferred_provider', 'anthropic') or 'anthropic'
-            encrypted_key = getattr(user, f'{provider}_api_key', None)
-            if encrypted_key:
-                user_api_key = decrypt_api_key(encrypted_key, user.encryption_key)
-                print(f"  🔑 Using user's {provider.upper()} API key")
+            print(f"✅ User found:")
+            print(f"   DB id: {user.id}")
+            print(f"   email: {user.email}")
+            print(f"   preferred_provider: {getattr(user, 'preferred_provider', 'anthropic')}")
+            print(f"   anthropic_api_key stored: {bool(user.anthropic_api_key)}")
+            print(f"   openai_api_key stored: {bool(user.openai_api_key)}")
+            print(f"   encryption_key: {'SET' if user.encryption_key else 'NULL'}")
+            
+            # ─── USE UNIFIED KEY RESOLVER ─────────────────
+            provider, user_api_key = get_user_provider_and_key(user)
+            
+            if user_api_key:
+                print(f"✅ BYO KEY RESOLVED:")
+                print(f"   Provider: {provider}")
+                print(f"   Key preview: {user_api_key[:15]}...{user_api_key[-4:]}")
+                print(f"   Key length: {len(user_api_key)}")
             else:
-                print(f"  ℹ️  No {provider} key stored – falling back to system key")
+                print(f"⚠️  NO BYO KEY FOUND:")
+                print(f"   Provider: {provider}")
+                print(f"   No encrypted key stored for this provider")
+                print(f"   Will fall back to system environment variable")
+        else:
+            print(f"❌ USER NOT FOUND in database for public_id: {user_public_id}")
+    else:
+        print(f"⚠️  NO user_public_id in request.state — using guest session")
     
     session_id = user_public_id or 'guest'
-    print(f"  👤 User: {session_id} (authenticated: {user is not None})")
+    print(f"\n📋 FINAL STATE:")
+    print(f"   session_id: {session_id}")
+    print(f"   user object: {'Present' if user else 'None'}")
+    print(f"   provider: {provider}")
+    print(f"   user_api_key: {'SET' if user_api_key else 'NOT SET'}")
     
     state = AgentState(
         query=request.query,
         session_id=session_id,
         user=user,
-        user_api_key=user_api_key,          # ← NEW: user's API key (or None)
+        user_api_key=user_api_key,
+        preferred_provider=provider,
         retrieved_docs=[],
         summaries=[],
         critique={},
@@ -291,6 +333,8 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
         current_agent="start",
         response_style=request.response_style,
     )
+    
+    print(f"\n🚀 INVOKING {'DEBATE' if request.debate_mode else 'RESEARCH'} ORCHESTRATOR...")
     
     try:
         if request.debate_mode:
@@ -308,7 +352,7 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
             except Exception as e:
                 print(f"⚠️ Failed to save debate history: {e}")
         else:
-            print("\n    RESEARCH MODE ACTIVATED")
+            print("\n🔬 RESEARCH MODE ACTIVATED")
             result = orchestrator.invoke(state)
             try:
                 save_chat(
@@ -320,14 +364,26 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
                 print("💾 Saved chat to history")
             except Exception as e:
                 print(f"⚠️ Failed to save chat history: {e}")
+        
+        print(f"\n✅ ORCHESTRATOR COMPLETED SUCCESSFULLY")
+        
     except Exception as e:
-        print(f"Research/debate error: {e}")
+        print(f"\n❌ ORCHESTRATOR FAILED: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail="Research request failed. Please rephrase your query.")
     
     citations = result.get('citations', [])
     final_answer = result.get('final_answer', 'No answer generated')
     critique = result.get('critique', {})
     verdict = result.get('judge_verdict', {})
+    
+    print(f"\n📤 RESPONSE SUMMARY:")
+    print(f"   Answer length: {len(final_answer)} chars")
+    print(f"   Sources: {len(citations)}")
+    print(f"   Confidence: {critique.get('overall_confidence', 'N/A')}%")
+    print(f"   Debate verdict: {verdict.get('winner', 'N/A') if verdict else 'N/A'}")
+    print("=" * 70 + "\n")
     
     sources = [
         {
@@ -360,27 +416,29 @@ async def ask_stream(request: QueryRequest, req: Request):
     async def gen():
         db = next(get_db())
         try:
-            # ✅ Fetch the authenticated user from DB using public_id (UUID)
             user_public_id = getattr(req.state, 'user_public_id', None)
             user = None
+            provider = "anthropic"
             user_api_key = None
             
             if user_public_id:
                 user = db.query(User).filter(User.public_id == user_public_id).first()
                 if user:
-                    provider = getattr(user, 'preferred_provider', 'anthropic') or 'anthropic'
-                    encrypted_key = getattr(user, f'{provider}_api_key', None)
-                    if encrypted_key:
-                        user_api_key = decrypt_api_key(encrypted_key, user.encryption_key)
+                    provider, user_api_key = get_user_provider_and_key(user)
             
             session_id = user_public_id or 'guest'
             print(f"  👤 User (stream): {session_id} (authenticated: {user is not None})")
+            if user_api_key:
+                print(f"  🔑 Using user's {provider.upper()} API key (stream)")
+            else:
+                print(f"  ℹ️  No {provider} key — falling back to system key (stream)")
             
             state = AgentState(
                 query=request.query,
                 session_id=session_id,
                 user=user,
-                user_api_key=user_api_key,   # ← NEW
+                user_api_key=user_api_key,
+                preferred_provider=provider,
                 retrieved_docs=[], summaries=[], critique={}, final_answer="", citations=[],
                 debate_mode=request.debate_mode, debate_history=[], judge_verdict={},
                 errors=[], warnings=[], current_agent="",
@@ -475,7 +533,7 @@ async def debug_last_key(request: Request, db=Depends(get_db)):
         return {
             "provider": provider,
             "key_preview": key_preview,
-            "key_used_in_last_request": True  # simplified – always True if key exists
+            "key_used_in_last_request": True
         }
     except Exception as e:
         return {"error": f"Decryption failed: {str(e)}"}

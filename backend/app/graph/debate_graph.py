@@ -33,65 +33,31 @@ def debate_search_node(state: AgentState) -> AgentState:
     return state
 
 def for_agent_node(state: AgentState) -> AgentState:
-    """Argue FOR"""
-    print("\n" + "="*60)
-    print("🟢 FOR AGENT")
-    print("="*60)
-    
-    user     = state.get('user')
+    print("\n🟢 FOR AGENT")
+    user = state.get('user')
     provider = state.get('preferred_provider', 'anthropic')
-    user_id  = state.get('session_id', 'guest_user')
-    
+
     context = [
         f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
         for doc in state.get('retrieved_docs', [])
     ]
-    
-    # ✅ Correct argument order: (query, context, user=..., provider=...)
-    argument = argue_for_position(
-        state['query'],
-        context,
-        user=user,
-        provider=provider
-    )
-    
-    state['debate_history'].append({
-        "side": "FOR",
-        "argument": argument
-    })
-    
-    print(f"✅ FOR argument built (user: {user_id[:20]})")
+
+    argument = argue_for_position(user, state['query'], context, provider)
+    state['debate_history'].append({"side": "FOR", "argument": argument})
     return state
 
 def against_agent_node(state: AgentState) -> AgentState:
-    """Argue AGAINST"""
-    print("\n" + "="*60)
-    print("🔴 AGAINST AGENT")
-    print("="*60)
-    
-    user     = state.get('user')
+    print("\n🔴 AGAINST AGENT")
+    user = state.get('user')
     provider = state.get('preferred_provider', 'anthropic')
-    user_id  = state.get('session_id', 'guest_user')
-    
+
     context = [
         f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
         for doc in state.get('retrieved_docs', [])
     ]
-    
-    # ✅ Correct argument order: (query, context, user=..., provider=...)
-    argument = argue_against_position(
-        state['query'],
-        context,
-        user=user,
-        provider=provider
-    )
-    
-    state['debate_history'].append({
-        "side": "AGAINST",
-        "argument": argument
-    })
-    
-    print(f"✅ AGAINST argument built (user: {user_id[:20]})")
+
+    argument = argue_against_position(user, state['query'], context, provider)
+    state['debate_history'].append({"side": "AGAINST", "argument": argument})
     return state
 
 def judge_node(state: AgentState) -> AgentState:
@@ -100,9 +66,9 @@ def judge_node(state: AgentState) -> AgentState:
     print("⚖️ JUDGE")
     print("="*60)
     
-    user     = state.get('user')
+    user = state.get('user')
     provider = state.get('preferred_provider', 'anthropic')
-    user_id  = state.get('session_id', 'guest_user')
+    user_id = state.get('session_id', 'guest_user')
     print(f"  👤 User ID: {user_id[:30] if len(user_id) > 30 else user_id}")
     
     # Ensure user profile exists before storing debate
@@ -126,14 +92,8 @@ def judge_node(state: AgentState) -> AgentState:
         elif entry.get('side') == 'AGAINST':
             against_arg = entry.get('argument', '')
     
-    # ✅ Correct argument order: (for_arg, against_arg, query, user=..., provider=...)
-    verdict = judge_debate(
-        for_arg,
-        against_arg,
-        state['query'],
-        user=user,
-        provider=provider
-    )
+    # ✅ Correct argument order: (user, for_arg, against_arg, query, provider)
+    verdict = judge_debate(user, for_arg, against_arg, state['query'], provider)
     state['judge_verdict'] = verdict
     
     winner = verdict.get('winner', 'FOR')

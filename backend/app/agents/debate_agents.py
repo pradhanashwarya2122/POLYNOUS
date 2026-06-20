@@ -1,179 +1,95 @@
-# app/agents/debate_agents.py
-import json
-import random
 from app.llm_client import ask_llm
+from app.utils.key_resolver import get_anthropic_key, get_openai_key
+import json
+import os
+from dotenv import load_dotenv
 
-def argue_for_position(query: str, context: list, user=None, provider: str = "anthropic") -> str:
-    """Argue FOR the main proposition using the user's own API key."""
+load_dotenv()
+
+def argue_for_position(user, query: str, context: list, provider: str = "anthropic") -> str:
+    """
+    Argue FOR the proposition using the user's own API key.
+    """
     print("  🟢 FOR: Building argument...")
 
+    context_text = "\n".join(context[:2]) if context else "No sources provided"
+
+    system_prompt = (
+        "You are a debate champion arguing FOR a proposition. "
+        "Use evidence from the provided sources. Make 2‑3 strong points with citations. "
+        "Be persuasive but factual. Start with: 'ARGUMENT FOR:'"
+    )
+    messages = [{
+        "role": "user",
+        "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue FOR this proposition:"
+    }]
+
     try:
-        context_text = "\n".join(context[:2]) if context else "No sources provided"
-
-        system_prompt = (
-            "You are an expert debate advocate arguing FOR a proposition.\n\n"
-            "RULES:\n"
-            "1. Provide 4-6 detailed, substantive points\n"
-            "2. Each point must be a complete paragraph with specific evidence, examples, or data\n"
-            "3. Use concrete numbers, studies, or real-world examples where possible\n"
-            "4. Address potential counter-arguments within your points\n"
-            "5. Be thorough and analytical, not just persuasive\n"
-            "6. Start each point on a new line with a clear topic sentence\n"
-            "7. Make each point at least 3-4 sentences long\n"
-            "8. Label each point clearly as 'Point 1:', 'Point 2:', etc.\n\n"
-            "FORMAT:\n"
-            "Point 1: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis and implications].\n\n"
-            "Point 2: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis and implications].\n\n"
-            "...etc"
-        )
-
-        answer = ask_llm(
-            user=user,
-            provider=provider,
-            system_prompt=system_prompt,
-            messages=[{
-                "role": "user",
-                "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue FOR this proposition:"
-            }],
-            max_tokens=1000,
-            temperature=0.8,
-        )
-        print("  ✅ FOR argument ready")
-        return answer
-
+        response = ask_llm(user, provider, system_prompt, messages, max_tokens=400, temperature=0.8)
+        return response
     except Exception as e:
         print(f"  ❌ FOR error: {e}")
         return f"ERROR: {str(e)}"
 
 
-def argue_against_position(query: str, context: list, user=None, provider: str = "anthropic") -> str:
-    """Argue AGAINST the main proposition using the user's own API key."""
+def argue_against_position(user, query: str, context: list, provider: str = "anthropic") -> str:
+    """
+    Argue AGAINST the proposition using the user's own API key.
+    """
     print("  🔴 AGAINST: Building counter-argument...")
 
+    context_text = "\n".join(context[:2]) if context else "No sources provided"
+
+    system_prompt = (
+        "You are a debate champion arguing AGAINST a proposition. "
+        "Use evidence from the provided sources. Make 2‑3 strong counter-points with citations. "
+        "Be persuasive but factual. Start with: 'ARGUMENT AGAINST:'"
+    )
+    messages = [{
+        "role": "user",
+        "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue AGAINST this proposition:"
+    }]
+
     try:
-        context_text = "\n".join(context[:2]) if context else "No sources provided"
-
-        system_prompt = (
-            "You are an expert debate advocate arguing AGAINST a proposition.\n\n"
-            "RULES:\n"
-            "1. Provide 4-6 detailed, substantive counter-points\n"
-            "2. Each point must be a complete paragraph with specific evidence, examples, or data\n"
-            "3. Use concrete numbers, studies, or real-world examples where possible\n"
-            "4. Directly address and refute the FOR position's likely arguments\n"
-            "5. Be thorough and analytical, not just persuasive\n"
-            "6. Start each point on a new line with a clear topic sentence\n"
-            "7. Make each point at least 3-4 sentences long\n"
-            "8. Label each point clearly as 'Counter-Point 1:', 'Counter-Point 2:', etc.\n\n"
-            "FORMAT:\n"
-            "Counter-Point 1: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis and implications].\n\n"
-            "Counter-Point 2: [Clear topic sentence]. [Detailed explanation with evidence]. [Analysis and implications].\n\n"
-            "...etc"
-        )
-
-        answer = ask_llm(
-            user=user,
-            provider=provider,
-            system_prompt=system_prompt,
-            messages=[{
-                "role": "user",
-                "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue AGAINST this proposition:"
-            }],
-            max_tokens=1000,
-            temperature=0.8,
-        )
-        print("  ✅ AGAINST argument ready")
-        return answer
-
+        response = ask_llm(user, provider, system_prompt, messages, max_tokens=400, temperature=0.8)
+        return response
     except Exception as e:
         print(f"  ❌ AGAINST error: {e}")
         return f"ERROR: {str(e)}"
 
 
-def judge_debate(for_arg: str, against_arg: str, query: str, user=None, provider: str = "anthropic") -> dict:
-    """Judge which side won the debate using the user's own API key."""
+def judge_debate(user, for_arg: str, against_arg: str, query: str, provider: str = "anthropic") -> dict:
+    """
+    Judge which side won the debate, using the user's own API key.
+    """
     print("  ⚖️ JUDGE: Evaluating...")
 
+    system_prompt = (
+        "You are an impartial debate judge. Evaluate both arguments and return JSON only:\n"
+        '{"winner": "FOR" or "AGAINST" or "TIE", '
+        '"reasoning": "Brief explanation", '
+        '"strongest_point": "Best argument", '
+        '"for_score": 7, "against_score": 8}'
+    )
+    messages = [{
+        "role": "user",
+        "content": f"Topic: {query}\n\nFOR:\n{for_arg[:1500]}\n\nAGAINST:\n{against_arg[:1500]}\n\nJudge and return JSON:"
+    }]
+
     try:
-        system_prompt = (
-            "You are an impartial debate judge. You MUST pick a winner – never declare a tie.\n\n"
-            "Evaluate both arguments based on:\n"
-            "1. Quality of evidence and citations\n"
-            "2. Logical reasoning and structure\n"
-            "3. How well they address counter-arguments\n"
-            "4. Persuasiveness and clarity\n\n"
-            "Score each side from 1-10 (10 being perfect).\n\n"
-            "Return ONLY valid JSON:\n"
-            '{"winner":"FOR","for_score":7,"against_score":5,'
-            '"reasoning":"FOR won because they provided stronger evidence...",'
-            '"strongest_point":"The strongest argument was..."}'
-        )
-
-        text = ask_llm(
-            user=user,
-            provider=provider,
-            system_prompt=system_prompt,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"Topic: {query}\n\n"
-                    f"FOR ARGUMENT:\n{for_arg[:1500]}\n\n"
-                    f"AGAINST ARGUMENT:\n{against_arg[:1500]}\n\n"
-                    "You MUST pick a winner (FOR or AGAINST). Never say TIE. Return JSON:"
-                )
-            }],
-            max_tokens=500,
-            temperature=0.3,
-        )
-
-        # ── Robust JSON extraction ──
-        try:
-            if "```json" in text:
-                start = text.find("```json") + 7
-                end = text.find("```", start)
-                text = text[start:end].strip()
-            elif "```" in text:
-                start = text.find("```") + 3
-                end = text.find("```", start)
-                text = text[start:end].strip()
-
-            verdict = json.loads(text)
-
-            # Force a winner if TIE
-            if verdict.get('winner', '').upper() == 'TIE':
-                if verdict.get('for_score', 5) >= verdict.get('against_score', 5):
-                    verdict['winner'] = 'FOR'
-                else:
-                    verdict['winner'] = 'AGAINST'
-                verdict['reasoning'] = (verdict.get('reasoning', '') +
-                                        ' Although close, one side had marginally better arguments.').strip()
-
-            # Ensure scores differ
-            if verdict.get('for_score') == verdict.get('against_score'):
-                if verdict['winner'] == 'FOR':
-                    verdict['for_score'] = min(10, verdict['for_score'] + 1)
-                else:
-                    verdict['against_score'] = min(10, verdict['against_score'] + 1)
-
-        except Exception:
-            # Fallback verdict
-            winner = random.choice(['FOR', 'AGAINST'])
-            verdict = {
-                "winner": winner,
-                "for_score": 7 if winner == 'FOR' else 5,
-                "against_score": 5 if winner == 'FOR' else 7,
-                "reasoning": f"{winner} presented more compelling arguments with better evidence and reasoning.",
-                "strongest_point": "Evidence-based arguments were more persuasive."
-            }
-
-        print(f"  ✅ Winner: {verdict.get('winner', '?')}")
+        response = ask_llm(user, provider, system_prompt, messages, max_tokens=300, temperature=0.3)
+        # Parse JSON from response
+        if "```json" in response:
+            response = response.split("```json")[1].split("```")[0]
+        verdict = json.loads(response)
+        print(f"  ✅ Winner: {verdict.get('winner', 'TIE')}")
         return verdict
-
     except Exception as e:
         print(f"  ❌ Judge error: {e}")
         return {
-            "winner": "FOR",
-            "for_score": 6,
-            "against_score": 5,
-            "reasoning": "FOR arguments were more structured and evidence-based.",
-            "strongest_point": "FOR provided clearer reasoning."
+            "winner": "TIE",
+            "reasoning": f"Error in judgment: {str(e)[:100]}",
+            "strongest_point": "N/A",
+            "for_score": 5,
+            "against_score": 5
         }

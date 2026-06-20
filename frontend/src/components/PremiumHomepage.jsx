@@ -46,6 +46,12 @@ const GLOBAL_STYLES = `
   @keyframes tooltipFade { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
   @keyframes timelinePulse{ 0%,100%{transform:scale(1);opacity:0.7} 50%{transform:scale(1.4);opacity:1} }
   @keyframes sparkle     { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
+  @keyframes crimsonPulse{ 0%,100%{box-shadow:0 0 18px rgba(255,32,64,0.4),0 0 40px rgba(255,32,64,0.18),inset 0 1px 0 rgba(255,100,120,0.15)} 50%{box-shadow:0 0 28px rgba(255,32,64,0.65),0 0 64px rgba(255,32,64,0.3),inset 0 1px 0 rgba(255,100,120,0.2)} }
+  @keyframes graphRotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes barRise     { from{transform:scaleY(0);opacity:0} to{transform:scaleY(1);opacity:1} }
+  @keyframes drawLine    { from{stroke-dashoffset:240} to{stroke-dashoffset:0} }
+  @keyframes ringSweep   { from{transform:rotate(-90deg)} to{transform:rotate(270deg)} }
+  @keyframes scanSweep   { from{left:-30%} to{left:110%} }
   .reveal { opacity:0; transform:translateY(36px); transition:opacity 0.9s cubic-bezier(0.22,1,0.36,1),transform 0.9s cubic-bezier(0.22,1,0.36,1); will-change:opacity,transform; }
   .reveal.visible { opacity:1; transform:translateY(0); }
   .reveal-stagger > * { opacity:0; transform:translateY(24px); transition:opacity 0.75s cubic-bezier(0.22,1,0.36,1),transform 0.75s cubic-bezier(0.22,1,0.36,1); }
@@ -90,6 +96,7 @@ const GLOBAL_STYLES = `
   .agent-btn:active { transform:scale(0.97); }
   .search-focus:focus-within { border-color:rgba(0,255,15,0.5) !important;box-shadow:0 0 0 3px rgba(0,255,15,0.07),0 4px 28px rgba(0,255,15,0.05) !important; }
   .noise-overlay { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .no-scrollbar::-webkit-scrollbar { display:none; height:0; }
   /* NEW: byok tooltip */
   .byok-tooltip { display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:rgba(8,8,22,0.97);border:1px solid rgba(0,204,255,0.3);border-radius:10px;padding:8px 12px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(0,204,255,0.9);pointer-events:none;z-index:100;animation:tooltipFade 0.2s ease; }
   .byok-wrap:hover .byok-tooltip { display:block; }
@@ -219,25 +226,6 @@ function useReveal(threshold=0.13) {
     return()=>obs.disconnect();
   },[threshold]);
   return ref;
-}
-
-// ── useCountUp ─────────────────────────────────────────────────────────────────
-function useCountUp(target, duration=2200, start=false) {
-  const [val, setVal] = useState(0);
-  useEffect(()=>{
-    if(!start) return;
-    let frame, startTime=null;
-    function tick(ts){
-      if(!startTime) startTime=ts;
-      const progress=Math.min((ts-startTime)/duration, 1);
-      const ease=1-Math.pow(1-progress,3);
-      setVal(Math.round(ease*target));
-      if(progress<1) frame=requestAnimationFrame(tick);
-    }
-    frame=requestAnimationFrame(tick);
-    return()=>cancelAnimationFrame(frame);
-  },[target,duration,start]);
-  return val;
 }
 
 /* ── NeuralCanvas ─────────────────────────────────────────────────────────── */
@@ -392,47 +380,6 @@ function BYOKBadge() {
   );
 }
 
-/* ── NEW SECTION 2: Live Mini-Stats Counter ───────────────────────────────── */
-function LiveStatsCounter() {
-  const ref = useRef(null);
-  const [started, setStarted] = useState(false);
-  useEffect(()=>{
-    const el = ref.current; if(!el) return;
-    const obs = new IntersectionObserver(([e])=>{if(e.isIntersecting){setStarted(true);obs.unobserve(el);}},{threshold:0.3});
-    obs.observe(el);
-    return()=>obs.disconnect();
-  },[]);
-  const sessions = useCountUp(12847, 2400, started);
-  const debates  = useCountUp(4391,  2000, started);
-  const conf     = useCountUp(92,    1800, started);
-
-  const stats = [
-    {label:"Research Sessions", value:sessions, suffix:"", color:C.green},
-    {label:"Debates Judged",    value:debates,  suffix:"", color:C.cyan},
-    {label:"Avg Confidence %",  value:conf,     suffix:"%",color:C.purple},
-  ];
-  return (
-    <div ref={ref} style={{display:"flex",justifyContent:"center",gap:"48px",flexWrap:"wrap",margin:"28px 0 0"}}>
-      {stats.map(s=>(
-        <div key={s.label} style={{textAlign:"center",position:"relative"}}>
-          {/* shimmer badge for "live" */}
-          <div style={{
-            fontFamily:"JetBrains Mono,monospace",fontWeight:600,
-            fontSize:"clamp(1.6rem,3vw,2.2rem)",
-            color:s.color,letterSpacing:"-0.04em",
-            animation:"shimmerLive 2.5s ease-in-out infinite",
-            textShadow:`0 0 20px ${s.color}55`
-          }}>
-            {started ? s.value.toLocaleString() : "0"}{s.suffix}
-          </div>
-          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.6)",letterSpacing:"0.1em",marginTop:"4px",textTransform:"uppercase"}}>{s.label}</div>
-          <div style={{position:"absolute",bottom:"-8px",left:"50%",transform:"translateX(-50%)",width:"30px",height:"1px",background:`linear-gradient(90deg,transparent,${s.color}50,transparent)`}}/>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ── NEW SECTION 3: Semantic Search Bar ──────────────────────────────────── */
 function SemanticSearchBar() {
   const [val, setVal] = useState("");
@@ -482,25 +429,27 @@ function DebateQuickButton() {
       style={{
         padding:"13px 28px",borderRadius:"9999px",
         border:`1.5px solid ${C.crimson}`,
-        background:`linear-gradient(135deg,rgba(255,32,64,0.14),rgba(255,32,64,0.06))`,
-        color:"#ff4060",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",
+        background:`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`,
+        color:"#ff4868",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",
         cursor:"pointer",letterSpacing:"0.02em",
         transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",
         display:"inline-flex",alignItems:"center",gap:"8px",
-        boxShadow:`0 0 18px rgba(255,32,64,0.35), 0 0 40px rgba(255,32,64,0.15), inset 0 1px 0 rgba(255,100,120,0.15)`,
-        textShadow:`0 0 12px rgba(255,32,64,0.8)`,
+        animation:"crimsonPulse 2.4s ease-in-out infinite",
+        textShadow:`0 0 14px rgba(255,32,64,0.9)`,
       }}
       onMouseOver={e=>{
-        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.24),rgba(255,32,64,0.12))`;
-        e.currentTarget.style.boxShadow=`0 0 28px rgba(255,32,64,0.55), 0 0 60px rgba(255,32,64,0.25), inset 0 1px 0 rgba(255,100,120,0.2)`;
-        e.currentTarget.style.transform="scale(1.05)";
-        e.currentTarget.style.color="#ff6070";
+        e.currentTarget.style.animation="none";
+        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.28),rgba(255,32,64,0.14))`;
+        e.currentTarget.style.boxShadow=`0 0 32px rgba(255,32,64,0.7), 0 0 70px rgba(255,32,64,0.35), inset 0 1px 0 rgba(255,100,120,0.25)`;
+        e.currentTarget.style.transform="scale(1.06)";
+        e.currentTarget.style.color="#ff7080";
       }}
       onMouseOut={e=>{
-        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.14),rgba(255,32,64,0.06))`;
-        e.currentTarget.style.boxShadow=`0 0 18px rgba(255,32,64,0.35), 0 0 40px rgba(255,32,64,0.15), inset 0 1px 0 rgba(255,100,120,0.15)`;
+        e.currentTarget.style.animation="crimsonPulse 2.4s ease-in-out infinite";
+        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`;
+        e.currentTarget.style.boxShadow="";
         e.currentTarget.style.transform="scale(1)";
-        e.currentTarget.style.color="#ff4060";
+        e.currentTarget.style.color="#ff4868";
       }}
     >
       ⚖️ Try a Debate
@@ -619,88 +568,6 @@ function UserProfileWidget() {
   );
 }
 
-/* ── NEW SECTION 8: Knowledge Graph Preview ──────────────────────────────── */
-function KnowledgeGraphPreview() {
-  const canvasRef = useRef(null);
-  const nodesRef = useRef(GRAPH_NODES_DATA.map(n=>({...n, vx:0, vy:0, ox:n.x, oy:n.y})));
-  const rafRef = useRef(null);
-  const timeRef = useRef(0);
-
-  useEffect(()=>{
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    function draw(ts) {
-      timeRef.current = ts;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      const nodes = nodesRef.current;
-      // gentle float animation
-      nodes.forEach((n,i)=>{
-        n.x = n.ox + Math.sin(ts*0.0007 + i*1.2)*5;
-        n.y = n.oy + Math.cos(ts*0.0009 + i*0.8)*4;
-      });
-      // draw edges
-      GRAPH_EDGES.forEach(([a,b])=>{
-        const na=nodes[a], nb=nodes[b];
-        const glow = (Math.sin(ts*0.001+a*0.5)+1)/2;
-        ctx.beginPath();
-        ctx.moveTo(na.x, na.y);
-        ctx.lineTo(nb.x, nb.y);
-        ctx.strokeStyle=`rgba(80,120,180,${0.12+glow*0.1})`;
-        ctx.lineWidth=1;
-        ctx.stroke();
-      });
-      // draw nodes
-      nodes.forEach((n)=>{
-        // glow
-        const grad = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*3);
-        grad.addColorStop(0,n.color+"44");
-        grad.addColorStop(1,"transparent");
-        ctx.beginPath();
-        ctx.arc(n.x,n.y,n.r*3,0,Math.PI*2);
-        ctx.fillStyle=grad;
-        ctx.fill();
-        // node
-        ctx.beginPath();
-        ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
-        ctx.fillStyle=n.color+"22";
-        ctx.fill();
-        ctx.strokeStyle=n.color+"aa";
-        ctx.lineWidth=1.5;
-        ctx.stroke();
-        // label
-        ctx.fillStyle="rgba(200,215,230,0.7)";
-        ctx.font="bold 8px JetBrains Mono, monospace";
-        ctx.textAlign="center";
-        ctx.textBaseline="middle";
-        ctx.fillText(n.label,n.x,n.y);
-      });
-      rafRef.current = requestAnimationFrame(draw);
-    }
-    rafRef.current = requestAnimationFrame(draw);
-    return ()=>cancelAnimationFrame(rafRef.current);
-  },[]);
-
-  return (
-    <div
-      onClick={()=>window.location.href="/graph"}
-      style={{
-        borderRadius:"20px",overflow:"hidden",cursor:"pointer",
-        border:"1px solid rgba(0,204,255,0.15)",
-        background:"rgba(5,5,15,0.85)",position:"relative",
-        transition:"all 0.3s ease",display:"inline-block"
-      }}
-      onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.4)";e.currentTarget.style.boxShadow="0 0 32px rgba(0,204,255,0.12)";}}
-      onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.15)";e.currentTarget.style.boxShadow="none";}}
-    >
-      <canvas ref={canvasRef} width={400} height={360} style={{display:"block"}}/>
-      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"14px 18px",background:"linear-gradient(to top,rgba(5,5,15,0.95),transparent)"}}>
-        <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"13px",color:"rgba(0,204,255,0.9)",margin:0,letterSpacing:"0.04em"}}>Explore your knowledge graph →</p>
-        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK TO LAUNCH FULL GRAPH</p>
-      </div>
-    </div>
-  );
-}
-
 /* ── NEW SECTION 9: Confidence Score Ring ────────────────────────────────── */
 function ConfidenceRing() {
   const circumference = 2 * Math.PI * 35;
@@ -774,47 +641,69 @@ function QuickActionsRow() {
   );
 }
 
-/* ── NEW SECTION 11: Memory Bank Timeline Preview ────────────────────────── */
+/* ── NEW SECTION 11: Memory Bank Timeline Preview — premium card rail ───── */
 function MemoryTimeline() {
-  const [activeId, setActiveId] = useState(null);
-  const active = MEMORY_DOTS.find(d=>d.id===activeId);
+  const [activeId, setActiveId] = useState(MEMORY_DOTS[0].id);
+  const scrollRef = useRef(null);
+
   return (
     <div style={{padding:"28px 0 0"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
-        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",letterSpacing:"0.1em",textTransform:"uppercase"}}>Recent Research Timeline</p>
-        <a href="/memory" style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.purple,letterSpacing:"0.06em",textDecoration:"none"}} onMouseOver={e=>e.currentTarget.style.color="#c084fc"} onMouseOut={e=>e.currentTarget.style.color=C.purple}>View All →</a>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"22px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+          <div style={{width:"7px",height:"7px",borderRadius:"50%",background:C.purple,boxShadow:`0 0 10px ${C.purple}`,animation:"pulse 2s ease-in-out infinite"}}/>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(180,160,235,0.65)",letterSpacing:"0.14em",textTransform:"uppercase",margin:0}}>Memory Bank · Recent Sessions</p>
+        </div>
+        <a href="/memory" style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.purple,letterSpacing:"0.06em",textDecoration:"none",display:"flex",alignItems:"center",gap:"4px"}} onMouseOver={e=>e.currentTarget.style.color="#c084fc"} onMouseOut={e=>e.currentTarget.style.color=C.purple}>Open Memory Bank →</a>
       </div>
-      {/* Gradient line */}
-      <div style={{position:"relative",height:"40px",display:"flex",alignItems:"center"}}>
-        <div style={{position:"absolute",left:0,right:0,height:"2px",background:`linear-gradient(90deg,transparent,${C.purple}40,${C.cyan}40,${C.green}40,transparent)`,borderRadius:"1px"}}/>
-        {/* Timeline dots */}
-        {MEMORY_DOTS.map(dot=>(
-          <div
-            key={dot.id}
-            onClick={()=>window.location.href="/memory"}
-            onMouseEnter={()=>setActiveId(dot.id)}
-            onMouseLeave={()=>setActiveId(null)}
-            style={{
-              position:"absolute",left:`${dot.x}%`,transform:"translateX(-50%)",
-              width:"10px",height:"10px",borderRadius:"50%",cursor:"pointer",
-              background:activeId===dot.id?C.purple:"rgba(130,100,220,0.5)",
-              border:`1.5px solid ${activeId===dot.id?C.purple:"rgba(130,100,220,0.35)"}`,
-              boxShadow:activeId===dot.id?`0 0 12px ${C.purple}60`:"none",
-              animation:`timelinePulse ${2+dot.id*0.3}s ease-in-out infinite`,
-              transition:"all 0.2s ease",zIndex:2
-            }}
-          />
-        ))}
-      </div>
-      {/* Tooltip */}
-      <div style={{minHeight:"36px",marginTop:"8px",textAlign:"center"}}>
-        {active && (
-          <div style={{animation:"fadeUp 0.2s ease"}}>
-            <p style={{fontFamily:"Sora,sans-serif",fontSize:"13px",color:"rgba(200,215,230,0.85)",fontWeight:600,margin:0}}>{active.query}</p>
-            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0"}}>{active.date}</p>
-          </div>
-        )}
-        {!active && <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(80,95,115,0.4)"}}>hover a dot to preview</p>}
+
+      <div style={{position:"relative"}}>
+        {/* Glowing horizontal spine */}
+        <div style={{position:"absolute",top:"34px",left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.purple}55 6%,${C.cyan}35 50%,${C.green}35 94%,transparent)`,zIndex:0}}/>
+        <div style={{position:"absolute",top:"33px",left:0,right:0,height:"3px",background:`linear-gradient(90deg,transparent,${C.purple}18 6%,${C.cyan}12 50%,${C.green}12 94%,transparent)`,filter:"blur(3px)",zIndex:0}}/>
+
+        <div
+          ref={scrollRef}
+          className="no-scrollbar"
+          style={{display:"flex",gap:"14px",overflowX:"auto",paddingBottom:"6px",position:"relative",zIndex:1,scrollbarWidth:"none"}}
+        >
+          {MEMORY_DOTS.map((dot,i)=>{
+            const isActive = activeId===dot.id;
+            const dotColor = [C.purple,C.cyan,C.green,C.amber,C.crimson,C.purple][i%5];
+            return (
+              <div
+                key={dot.id}
+                onMouseEnter={()=>setActiveId(dot.id)}
+                onClick={()=>window.location.href="/memory"}
+                style={{flex:"0 0 auto",width:"168px",cursor:"pointer",position:"relative",paddingTop:"48px"}}
+              >
+                {/* node on the spine */}
+                <div style={{position:"absolute",top:"28px",left:"50%",transform:"translateX(-50%)",width:isActive?"13px":"9px",height:isActive?"13px":"9px",borderRadius:"50%",background:isActive?dotColor:"rgba(255,255,255,0.12)",border:`1.5px solid ${isActive?dotColor:"rgba(255,255,255,0.2)"}`,boxShadow:isActive?`0 0 16px ${dotColor}90,0 0 32px ${dotColor}40`:"none",transition:"all 0.3s cubic-bezier(0.23,1,0.32,1)",zIndex:2}}/>
+                {isActive && (
+                  <div style={{position:"absolute",top:"24px",left:"50%",transform:"translateX(-50%)",width:"21px",height:"21px",borderRadius:"50%",border:`1px solid ${dotColor}`,animation:"ripple 1.4s ease-out infinite"}}/>
+                )}
+                {/* card */}
+                <div style={{
+                  borderRadius:"14px",padding:"14px 14px 16px",
+                  background:isActive?`linear-gradient(160deg,${dotColor}14,rgba(10,10,22,0.9))`:"rgba(10,10,22,0.7)",
+                  border:`1px solid ${isActive?dotColor+"50":"rgba(255,255,255,0.05)"}`,
+                  transition:"all 0.35s cubic-bezier(0.23,1,0.32,1)",
+                  transform:isActive?"translateY(-4px)":"translateY(0)",
+                  boxShadow:isActive?`0 16px 32px rgba(0,0,0,0.4),0 0 24px ${dotColor}18`:"none",
+                  minHeight:"96px",display:"flex",flexDirection:"column",justifyContent:"space-between"
+                }}>
+                  <div>
+                    <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:dotColor,letterSpacing:"0.08em",opacity:0.85,margin:"0 0 6px"}}>{dot.date}</p>
+                    <p style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"12.5px",color:isActive?"#fff":"rgba(200,210,225,0.7)",lineHeight:1.4,margin:0,transition:"color 0.3s"}}>{dot.query}</p>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:"5px",marginTop:"10px",opacity:isActive?0.9:0.35,transition:"opacity 0.3s"}}>
+                    <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px",color:dotColor}}>biotech</span>
+                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:dotColor}}>research session</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -822,70 +711,140 @@ function MemoryTimeline() {
 
 /* ── NEW SECTION 12: Analytics Mini-Preview ──────────────────────────────── */
 function AnalyticsMiniPreview() {
-  const ref = useReveal(0.1);
+  const wrapRef = useRef(null);
+  const [visible, setVisible] = useState(false);
   const maxR = Math.max(...SPARKLINE_RESEARCH);
-  const maxC = Math.max(...SPARKLINE_CONF);
+
+  useEffect(()=>{
+    const el = wrapRef.current; if(!el) return;
+    const obs = new IntersectionObserver(([e])=>{if(e.isIntersecting){setVisible(true);obs.unobserve(el);}},{threshold:0.25});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
 
   const sparklinePath = (data, max, w, h) => {
     const pts = data.map((v,i)=>`${(i/(data.length-1))*w},${h-(v/max)*h}`);
     return `M ${pts.join(" L ")}`;
   };
+  const resPath = sparklinePath(SPARKLINE_RESEARCH,maxR,150,52);
+  const confPath = sparklinePath(SPARKLINE_CONF,100,150,52);
 
   return (
     <div
-      ref={ref}
-      className="reveal"
+      ref={wrapRef}
       onClick={()=>window.location.href="/analytics"}
       style={{
-        borderRadius:"20px",padding:"24px",background:"rgba(8,8,20,0.85)",
-        border:"1px solid rgba(255,255,255,0.06)",cursor:"pointer",
-        transition:"all 0.3s ease",backdropFilter:"blur(16px)"
+        borderRadius:"22px",padding:"2px",cursor:"pointer",position:"relative",
+        background:visible?"linear-gradient(135deg,rgba(255,170,0,0.22),rgba(0,204,255,0.08),rgba(168,85,247,0.1),transparent)":"rgba(255,255,255,0.04)",
+        transition:"background 1s ease"
       }}
-      onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,170,0,0.25)";e.currentTarget.style.transform="translateY(-3px)";}}
-      onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.06)";e.currentTarget.style.transform="translateY(0)";}}
     >
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"18px"}}>
-        <div>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Analytics Dashboard</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK TO OPEN FULL DASHBOARD →</p>
-        </div>
-        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"20px",color:C.amber,opacity:0.7}}>insights</span>
-      </div>
+      <div
+        style={{
+          borderRadius:"21px",padding:"26px 28px",background:"rgba(7,7,18,0.95)",
+          border:"1px solid rgba(255,255,255,0.04)",backdropFilter:"blur(20px)",
+          transition:"transform 0.35s cubic-bezier(0.23,1,0.32,1)",overflow:"hidden",position:"relative"
+        }}
+        onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";}}
+        onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";}}
+      >
+        {/* ambient scan sweep, plays once on reveal */}
+        {visible && <div style={{position:"absolute",top:0,left:"-30%",width:"30%",height:"100%",background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent)",animation:"scanSweep 1.6s ease-out forwards",pointerEvents:"none"}}/>}
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"14px"}}>
-        {/* Research over time sparkline */}
-        <div>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.green,letterSpacing:"0.08em",marginBottom:"8px",opacity:0.8}}>RESEARCH / WEEK</p>
-          <svg width="100%" height="40" viewBox="0 0 80 40" preserveAspectRatio="none">
-            <path d={sparklinePath(SPARKLINE_RESEARCH,maxR,80,38)} fill="none" stroke={C.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d={sparklinePath(SPARKLINE_RESEARCH,maxR,80,38)+" L 80,40 L 0,40 Z"} fill={`url(#resGrad)`} opacity="0.15"/>
-            <defs><linearGradient id="resGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green}/><stop offset="100%" stopColor="transparent"/></linearGradient></defs>
-          </svg>
-        </div>
-
-        {/* Top Topics mini bars */}
-        <div>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.cyan,letterSpacing:"0.08em",marginBottom:"8px",opacity:0.8}}>TOP TOPICS</p>
-          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            {TOP_TOPICS.map(t=>(
-              <div key={t.label} style={{display:"flex",alignItems:"center",gap:"5px"}}>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8px",color:"rgba(130,148,168,0.5)",minWidth:"32px"}}>{t.label}</span>
-                <div style={{flex:1,height:"4px",borderRadius:"2px",background:"rgba(255,255,255,0.04)"}}>
-                  <div style={{width:`${t.val}%`,height:"100%",borderRadius:"2px",background:t.color,transition:"width 1s ease"}}/>
-                </div>
-              </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"22px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+            <div style={{width:"34px",height:"34px",borderRadius:"10px",background:"rgba(255,170,0,0.1)",border:"1px solid rgba(255,170,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"18px",color:C.amber}}>insights</span>
+            </div>
+            <div>
+              <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Analytics Dashboard</p>
+              <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.5)",margin:"2px 0 0",letterSpacing:"0.06em"}}>OPEN FULL DASHBOARD →</p>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:"4px"}}>
+            {[C.green,C.cyan,C.purple].map((c,i)=>(
+              <div key={i} style={{width:"5px",height:"5px",borderRadius:"50%",background:c,animation:`pulse 1.8s ${i*0.25}s ease-in-out infinite`}}/>
             ))}
           </div>
         </div>
 
-        {/* Confidence trend sparkline */}
-        <div>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.purple,letterSpacing:"0.08em",marginBottom:"8px",opacity:0.8}}>CONFIDENCE %</p>
-          <svg width="100%" height="40" viewBox="0 0 80 40" preserveAspectRatio="none">
-            <path d={sparklinePath(SPARKLINE_CONF,100,80,38)} fill="none" stroke={C.purple} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d={sparklinePath(SPARKLINE_CONF,100,80,38)+" L 80,40 L 0,40 Z"} fill={`url(#confTrendGrad)`} opacity="0.12"/>
-            <defs><linearGradient id="confTrendGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.purple}/><stop offset="100%" stopColor="transparent"/></linearGradient></defs>
-          </svg>
+        <div style={{display:"grid",gridTemplateColumns:"1.1fr 0.9fr 1.1fr",gap:"22px"}}>
+          {/* Research over time — drawn sparkline with rising fill */}
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.green,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>RESEARCH / WEEK</p>
+            <svg width="100%" height="52" viewBox="0 0 150 52" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="resGradFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C.green} stopOpacity="0.35"/>
+                  <stop offset="100%" stopColor={C.green} stopOpacity="0"/>
+                </linearGradient>
+              </defs>
+              <path
+                d={resPath+" L 150,52 L 0,52 Z"}
+                fill="url(#resGradFill)"
+                style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.6s"}}
+              />
+              <path
+                d={resPath}
+                fill="none" stroke={C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                strokeDasharray="240" strokeDashoffset={visible?0:240}
+                style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.1s",filter:`drop-shadow(0 0 4px ${C.green}80)`}}
+              />
+              {SPARKLINE_RESEARCH.map((v,i)=>{
+                const x=(i/(SPARKLINE_RESEARCH.length-1))*150, y=52-(v/maxR)*52;
+                return i===SPARKLINE_RESEARCH.length-1 ? (
+                  <circle key={i} cx={x} cy={y} r="3" fill={C.green} style={{opacity:visible?1:0,transition:"opacity 0.4s ease 1.5s",filter:`drop-shadow(0 0 6px ${C.green})`}}/>
+                ) : null;
+              })}
+            </svg>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"15px",color:"#fff",fontWeight:600,margin:"6px 0 0",letterSpacing:"-0.02em"}}>+40<span style={{fontSize:"10px",color:C.green,marginLeft:"4px"}}>this week</span></p>
+          </div>
+
+          {/* Top Topics — bars rise in with stagger */}
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.cyan,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>TOP TOPICS</p>
+            <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
+              {TOP_TOPICS.map((t,i)=>(
+                <div key={t.label} style={{display:"flex",alignItems:"center",gap:"7px"}}>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:"rgba(150,165,180,0.6)",minWidth:"40px"}}>{t.label}</span>
+                  <div style={{flex:1,height:"5px",borderRadius:"3px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+                    <div style={{
+                      width:visible?`${t.val}%`:"0%",height:"100%",borderRadius:"3px",
+                      background:`linear-gradient(90deg,${t.color}aa,${t.color})`,
+                      boxShadow:`0 0 6px ${t.color}60`,
+                      transition:`width 0.9s cubic-bezier(0.22,1,0.36,1) ${0.3+i*0.12}s`
+                    }}/>
+                  </div>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:t.color,minWidth:"20px",textAlign:"right",opacity:visible?1:0,transition:`opacity 0.4s ease ${0.8+i*0.12}s`}}>{t.val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Confidence trend — drawn sparkline */}
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.purple,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>CONFIDENCE TREND</p>
+            <svg width="100%" height="52" viewBox="0 0 150 52" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="confGradFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C.purple} stopOpacity="0.3"/>
+                  <stop offset="100%" stopColor={C.purple} stopOpacity="0"/>
+                </linearGradient>
+              </defs>
+              <path
+                d={confPath+" L 150,52 L 0,52 Z"}
+                fill="url(#confGradFill)"
+                style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.9s"}}
+              />
+              <path
+                d={confPath}
+                fill="none" stroke={C.purple} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                strokeDasharray="240" strokeDashoffset={visible?0:240}
+                style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.4s",filter:`drop-shadow(0 0 4px ${C.purple}80)`}}
+              />
+            </svg>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"15px",color:"#fff",fontWeight:600,margin:"6px 0 0",letterSpacing:"-0.02em"}}>94<span style={{fontSize:"10px",color:C.purple,marginLeft:"2px"}}>% avg</span></p>
+          </div>
         </div>
       </div>
     </div>
@@ -893,7 +852,7 @@ function AnalyticsMiniPreview() {
 }
 
 /* ── NEW SECTION 13: Interactive Knowledge Graph (drag/click nodes) ─────── */
-function InteractiveKnowledgeGraph() {
+function InteractiveKnowledgeGraph({ embedded=false }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({
     nodes: GRAPH_NODES_DATA.map(n=>({...n, vx:0, vy:0, dragging:false})),
@@ -935,6 +894,14 @@ function InteractiveKnowledgeGraph() {
     function draw(ts) {
       ctx.clearRect(0,0,canvas.width,canvas.height);
       physics();
+      // subtle dot-grid backdrop for depth
+      const gridSize=34;
+      ctx.fillStyle="rgba(255,255,255,0.025)";
+      for(let gx=gridSize/2; gx<canvas.width; gx+=gridSize){
+        for(let gy=gridSize/2; gy<canvas.height; gy+=gridSize){
+          ctx.beginPath(); ctx.arc(gx,gy,1,0,Math.PI*2); ctx.fill();
+        }
+      }
       // edges
       s.edges.forEach(([a,b])=>{
         if(!s.nodes[a]||!s.nodes[b]) return;
@@ -942,20 +909,20 @@ function InteractiveKnowledgeGraph() {
         ctx.beginPath();
         ctx.moveTo(s.nodes[a].x,s.nodes[a].y);
         ctx.lineTo(s.nodes[b].x,s.nodes[b].y);
-        ctx.strokeStyle=`rgba(80,120,200,${0.08+glow*0.12})`;
-        ctx.lineWidth=1; ctx.stroke();
+        ctx.strokeStyle=`rgba(100,150,220,${0.1+glow*0.14})`;
+        ctx.lineWidth=1.1; ctx.stroke();
       });
       // nodes
       s.nodes.forEach(n=>{
-        const glow=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*2.5);
-        glow.addColorStop(0,n.color+"55"); glow.addColorStop(1,"transparent");
-        ctx.beginPath(); ctx.arc(n.x,n.y,n.r*2.5,0,Math.PI*2);
+        const glow=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*2.8);
+        glow.addColorStop(0,n.color+"50"); glow.addColorStop(1,"transparent");
+        ctx.beginPath(); ctx.arc(n.x,n.y,n.r*2.8,0,Math.PI*2);
         ctx.fillStyle=glow; ctx.fill();
         ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
-        ctx.fillStyle=n.color+"1a"; ctx.fill();
-        ctx.strokeStyle=n.color+(n.dragging?"ff":"99"); ctx.lineWidth=n.dragging?2:1.5; ctx.stroke();
-        ctx.fillStyle="rgba(220,235,245,0.8)";
-        ctx.font=`bold 7px JetBrains Mono, monospace`;
+        ctx.fillStyle=n.color+"20"; ctx.fill();
+        ctx.strokeStyle=n.color+(n.dragging?"ff":"aa"); ctx.lineWidth=n.dragging?2.2:1.5; ctx.stroke();
+        ctx.fillStyle="rgba(225,238,248,0.88)";
+        ctx.font=`600 7.5px JetBrains Mono, monospace`;
         ctx.textAlign="center"; ctx.textBaseline="middle";
         ctx.fillText(n.label,n.x,n.y);
       });
@@ -1012,26 +979,28 @@ function InteractiveKnowledgeGraph() {
   },[]);
 
   return (
-    <div style={{borderRadius:"24px",overflow:"hidden",border:"1px solid rgba(0,204,255,0.12)",background:"rgba(4,4,14,0.9)",position:"relative"}}>
-      <div style={{padding:"18px 22px",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Interactive Knowledge Graph</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK EMPTY SPACE TO ADD NODES · DRAG TO REPOSITION · {nodeCount} NODES</p>
+    <div style={embedded?{position:"relative"}:{borderRadius:"24px",overflow:"hidden",border:"1px solid rgba(0,204,255,0.12)",background:"rgba(4,4,14,0.9)",position:"relative"}}>
+      {!embedded && (
+        <div style={{padding:"18px 22px",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Interactive Knowledge Graph</p>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK EMPTY SPACE TO ADD NODES · DRAG TO REPOSITION · {nodeCount} NODES</p>
+          </div>
+          <button
+            onClick={()=>window.location.href="/graph"}
+            style={{padding:"7px 16px",borderRadius:"9999px",border:`1px solid ${C.cyan}30`,background:"rgba(0,204,255,0.06)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12px",fontWeight:700,cursor:"pointer",transition:"all 0.2s"}}
+            onMouseOver={e=>{e.currentTarget.style.background="rgba(0,204,255,0.14)";e.currentTarget.style.borderColor=`${C.cyan}70`;}}
+            onMouseOut={e=>{e.currentTarget.style.background="rgba(0,204,255,0.06)";e.currentTarget.style.borderColor=`${C.cyan}30`;}}
+          >
+            Launch Full Graph →
+          </button>
         </div>
-        <button
-          onClick={()=>window.location.href="/graph"}
-          style={{padding:"7px 16px",borderRadius:"9999px",border:`1px solid ${C.cyan}30`,background:"rgba(0,204,255,0.06)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12px",fontWeight:700,cursor:"pointer",transition:"all 0.2s"}}
-          onMouseOver={e=>{e.currentTarget.style.background="rgba(0,204,255,0.14)";e.currentTarget.style.borderColor=`${C.cyan}70`;}}
-          onMouseOut={e=>{e.currentTarget.style.background="rgba(0,204,255,0.06)";e.currentTarget.style.borderColor=`${C.cyan}30`;}}
-        >
-          Launch Full Graph →
-        </button>
-      </div>
+      )}
       <canvas
         ref={canvasRef}
-        width={800}
-        height={340}
-        style={{width:"100%",height:"340px",display:"block",cursor:"crosshair"}}
+        width={1000}
+        height={420}
+        style={{width:"100%",height:embedded?"420px":"340px",display:"block",cursor:"crosshair"}}
       />
     </div>
   );
@@ -1095,11 +1064,6 @@ function HeroSection(){
         Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses.
       </p>
 
-      {/* ── NEW SECTION 2: Live Stats Counter (below subtitle) ── */}
-      <div className="reveal" ref={useReveal(0.05)} style={{transitionDelay:"0.16s",marginBottom:"32px"}}>
-        <LiveStatsCounter/>
-      </div>
-
       <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"10px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
         <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:"rgba(255,255,255,0.18)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
         <input value={query} onChange={e=>setQuery(e.target.value)} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="What do you want to research?" style={{flex:1,height:"50px",padding:"0 8px",background:"transparent",border:"none",outline:"none",color:"#fff",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",fontWeight:400}}/>
@@ -1149,24 +1113,6 @@ function HeroSection(){
         {/* BYOK Badge sits naturally at the bottom of the terminal */}
         <div style={{marginTop:"14px"}}>
           <BYOKBadge/>
-        </div>
-      </div>
-
-      {/* ── Confidence Ring + PDF Drop — side by side below terminal, breathing room ── */}
-      <div className="reveal" ref={useReveal(0.1)} style={{display:"flex",flexWrap:"wrap",gap:"16px",justifyContent:"center",alignItems:"stretch",transitionDelay:"0.44s",width:"min(540px,100%)"}}>
-        {/* Confidence Ring card */}
-        <div style={{
-          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"8px",
-          padding:"22px 28px",borderRadius:"16px",
-          background:"rgba(6,6,18,0.85)",border:"1px solid rgba(0,255,15,0.1)",
-          backdropFilter:"blur(16px)",flex:"0 0 auto"
-        }}>
-          <ConfidenceRing/>
-        </div>
-
-        {/* PDF Drop Zone — its own clean card */}
-        <div style={{flex:"1",minWidth:"200px"}}>
-          <PDFDropZone/>
         </div>
       </div>
 
@@ -1312,6 +1258,22 @@ function FeaturesSection(){
           </button>
         ))}
       </div>
+
+      {/* ── PDF Lab live demo + Confidence scoring, given real room to breathe ── */}
+      <div className="reveal-stagger" style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:"14px",marginTop:"14px"}}>
+        <div style={{borderRadius:"20px",padding:"30px 32px",background:"rgba(10,10,22,0.85)",border:"1px solid rgba(255,255,255,0.055)",backdropFilter:"blur(16px)",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+          <div style={{marginBottom:"18px"}}>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.gold,letterSpacing:"0.12em",opacity:0.85,marginBottom:"8px"}}>PDF LAB · LIVE DEMO</p>
+            <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"18px",color:"#fff",margin:0,letterSpacing:"-0.015em"}}>Try the document-grounded Q&A engine</h3>
+          </div>
+          <PDFDropZone/>
+        </div>
+        <div style={{borderRadius:"20px",padding:"30px 32px",background:"rgba(10,10,22,0.85)",border:"1px solid rgba(255,255,255,0.055)",backdropFilter:"blur(16px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"16px",textAlign:"center"}}>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.12em",opacity:0.85}}>SCORED OUTPUT</p>
+          <ConfidenceRing/>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(130,148,168,0.6)",lineHeight:1.6,margin:0,maxWidth:"200px"}}>Every answer ships with a calibrated confidence score, not just a citation.</p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -1441,24 +1403,57 @@ function KnowledgeGraphSection() {
     <section style={{padding:"80px 0"}}>
       <SectionDivider/>
       <div ref={ref} className="reveal">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"36px"}} className="hiw-grid">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.cyan,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Knowledge Graph</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your mind,<br/>mapped.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Knowledge that<br/>connects itself.</h2>
           </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every research session builds a living graph of knowledge. Click to explore — drag to rearrange.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every session feeds a living Neo4j graph. Entities link automatically — try it below.</p>
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:"20px",alignItems:"start"}}>
-          {/* ── NEW SECTION 13: Interactive graph (drag & click) ── */}
-          <InteractiveKnowledgeGraph/>
+        {/* Single premium interactive graph card — no duplicate canvases */}
+        <div style={{
+          borderRadius:"26px",padding:"2px",
+          background:"linear-gradient(135deg,rgba(0,204,255,0.2),rgba(168,85,247,0.1),rgba(0,255,15,0.06),transparent)",
+          boxShadow:"0 40px 90px rgba(0,0,0,0.45)"
+        }}>
+          <div style={{borderRadius:"25px",overflow:"hidden",background:"rgba(4,4,14,0.96)"}}>
+            {/* Header bar inside the card, integrated rather than a separate caption box */}
+            <div style={{padding:"22px 28px",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"14px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"14px"}}>
+                <div style={{width:"40px",height:"40px",borderRadius:"12px",background:"rgba(0,204,255,0.08)",border:"1px solid rgba(0,204,255,0.22)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"21px",color:C.cyan}}>hub</span>
+                </div>
+                <div>
+                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Live Knowledge Graph</p>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.05em"}}>Click empty space to add a node · drag to rearrange</p>
+                </div>
+              </div>
+              <button
+                onClick={()=>window.location.href="/graph"}
+                style={{padding:"9px 20px",borderRadius:"9999px",border:`1px solid ${C.cyan}40`,background:"rgba(0,204,255,0.07)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.2s",display:"flex",alignItems:"center",gap:"6px",flexShrink:0}}
+                onMouseOver={e=>{e.currentTarget.style.background="rgba(0,204,255,0.16)";e.currentTarget.style.borderColor=`${C.cyan}80`;}}
+                onMouseOut={e=>{e.currentTarget.style.background="rgba(0,204,255,0.07)";e.currentTarget.style.borderColor=`${C.cyan}40`;}}
+              >
+                Launch full graph <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
+              </button>
+            </div>
 
-          {/* ── NEW SECTION 8: Static preview thumbnail ── */}
-          <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
-            <KnowledgeGraphPreview/>
-            <div style={{padding:"16px",borderRadius:"16px",background:"rgba(8,8,20,0.7)",border:"1px solid rgba(0,204,255,0.08)"}}>
-              <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.cyan,letterSpacing:"0.1em",marginBottom:"8px",opacity:0.7}}>HOW IT WORKS</p>
-              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(130,148,168,0.7)",lineHeight:1.65,margin:0}}>Entities extracted from every research session auto-connect in your Neo4j graph. Click a node to deep-dive.</p>
+            {/* The interactive canvas itself */}
+            <InteractiveKnowledgeGraph embedded/>
+
+            {/* Footer stat strip instead of a redundant second graph */}
+            <div style={{padding:"16px 28px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:"32px",flexWrap:"wrap"}}>
+              {[
+                {label:"Entities tracked", val:"1,204", color:C.cyan},
+                {label:"Avg connections / node", val:"3.6", color:C.purple},
+                {label:"Updated", val:"in real time", color:C.green},
+              ].map(s=>(
+                <div key={s.label} style={{display:"flex",alignItems:"baseline",gap:"6px"}}>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",fontWeight:600,color:s.color}}>{s.val}</span>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"11.5px",color:"rgba(130,148,168,0.55)"}}>{s.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
