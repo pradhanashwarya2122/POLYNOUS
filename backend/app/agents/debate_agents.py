@@ -77,7 +77,7 @@ def argue_against_position(query: str, context: list, api_key: str = None, provi
         else:
             client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
             response = client.messages.create(
-                model="haiku-4-5",
+                model="claude-haiku-4-5",
                 max_tokens=400,
                 temperature=0.8,
                 system=system_prompt,
