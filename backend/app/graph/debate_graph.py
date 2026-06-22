@@ -15,9 +15,11 @@ def debate_search_node(state: AgentState) -> AgentState:
     print("  DEBATE: Searching for sources...")
     print("=" * 60)
 
+    # ✅ Get the user object from state (same as in orchestrator)
+    user = state.get('user')
     user_id = state.get('session_id', 'guest_user')
 
-    results = search_web(state['query'])
+    results = search_web(user, state['query'])   # ← fixed
     state['retrieved_docs'] = results
 
     context = [
