@@ -7,48 +7,66 @@ from app.models.user import User
 
 load_dotenv()
 
-# The global fallback key used before user-specific keys existed
-GLOBAL_KEY = os.getenv("ENCRYPTION_KEY")  # this must be exactly the one that was used originally
+# The global fallback key that was used before user-specific keys existed
+GLOBAL_KEY = os.getenv("ENCRYPTION_KEY")
 
-def add_missing_encryption_keys():
+def ensure_user_encryption_keys():
     """
-    1. Generate a personal encryption key for users who don't have one.
-    2. If they have stored API keys, re‑encrypt them with the new personal key.
+    1. Generate a personal encryption key for any user who doesn't have one.
+    2. For ALL users who have stored API keys, try to re‑encrypt them with
+       the user's personal key (handles keys that were originally encrypted
+       with the global key).
     """
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.encryption_key == None).all()
-        if not users:
-            print("✅ All users have personal encryption keys")
-            return
+        users = db.query(User).all()
+        fixed = 0
 
         for user in users:
-            # Generate a fresh key for the user
-            new_key = Fernet.generate_key().decode()
-            old_fernet = Fernet(GLOBAL_KEY.encode()) if GLOBAL_KEY else None
-            new_fernet = Fernet(new_key.encode())
+            # Step 1: generate missing encryption key
+            if not user.encryption_key:
+                user.encryption_key = Fernet.generate_key().decode()
+                print(f"🔑 Generated new encryption key for {user.email}")
+                db.flush()  # make sure the new key is available for re‑encryption
 
-            # Re‑encrypt API keys that were stored with the old global key
+            # Step 2: re‑encrypt any stored API keys that might be using the global key
+            re_encrypted = False
             for provider in ["anthropic", "openai", "tavily", "voyage"]:
                 encrypted_value = getattr(user, f"{provider}_api_key", None)
-                if encrypted_value:
-                    try:
-                        # Decrypt with old global key
-                        old_fernet = old_fernet or new_fernet  # fallback if GLOBAL_KEY missing
-                        decrypted = old_fernet.decrypt(encrypted_value.encode()).decode()
-                        # Re‑encrypt with new user key
-                        setattr(user, f"{provider}_api_key", new_fernet.encrypt(decrypted.encode()).decode())
-                        print(f"   ✅ Re‑encrypted {provider} key for {user.email}")
-                    except Exception:
-                        # Could not decrypt → clear the key (user must re‑enter)
-                        setattr(user, f"{provider}_api_key", None)
-                        print(f"   ⚠️  Could not migrate {provider} key for {user.email} – cleared")
+                if not encrypted_value:
+                    continue
 
-            user.encryption_key = new_key
-            print(f"🔑 Generated encryption key for user {user.email}")
+                # Try to decrypt with the user's current personal key
+                try:
+                    user_fernet = Fernet(user.encryption_key.encode())
+                    user_fernet.decrypt(encrypted_value.encode())  # just test
+                    # Already encrypted with user's own key – nothing to do
+                except Exception:
+                    # Could not decrypt with user's key → try global key
+                    if not GLOBAL_KEY:
+                        print(f"   ⚠️  Cannot migrate {provider} key for {user.email} – global key missing")
+                        continue
+                    try:
+                        global_fernet = Fernet(GLOBAL_KEY.encode())
+                        decrypted = global_fernet.decrypt(encrypted_value.encode()).decode()
+                        # Re‑encrypt with user's personal key
+                        setattr(user, f"{provider}_api_key",
+                                user_fernet.encrypt(decrypted.encode()).decode())
+                        re_encrypted = True
+                        print(f"   ✅ Re‑encrypted {provider} key for {user.email}")
+                    except Exception as e:
+                        # Completely unreadable – clear the key so user re‑enters it
+                        setattr(user, f"{provider}_api_key", None)
+                        print(f"   ⚠️  Could not migrate {provider} key for {user.email} – cleared ({e})")
+
+            if re_encrypted:
+                fixed += 1
 
         db.commit()
-        print(f"✅ Fixed {len(users)} user(s)")
+        if fixed:
+            print(f"✅ Re‑encrypted stored API keys for {fixed} user(s)")
+        else:
+            print("✅ All API keys are already using user‑specific encryption")
     except Exception as e:
         print(f"❌ Error fixing users: {e}")
         db.rollback()

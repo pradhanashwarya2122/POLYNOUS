@@ -64,7 +64,7 @@ def store_research(user_id: str, session_id: str, query: str, documents: list, a
         
         combined_text = f"Query: {query}\nAnswer: {answer[:500]}"
         
-        embedding = create_embedding(combined_text)
+        embedding = create_embedding(None, combined_text)
         if not embedding:
             return False
         

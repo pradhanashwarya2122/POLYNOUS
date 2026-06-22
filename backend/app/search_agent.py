@@ -5,11 +5,21 @@ from tavily import TavilyClient
 
 def search_web(user, query: str, session_id: str = None):
     """
-    Search the web using the user's Tavily key.
-    The key is resolved from the user object via the centralized key resolver.
+    Search the web using ONLY the user's personal Tavily key.
+    No fallback to system key — empty result if user has no key.
     """
+    api_key = None
+    if user:
+        try:
+            api_key = get_tavily_key(user)
+        except ValueError:
+            api_key = None  # User has no Tavily key stored
+
+    if not api_key:
+        print("  Search error: No Tavily API key configured for this user")
+        return []
+
     try:
-        api_key = get_tavily_key(user)
         client = TavilyClient(api_key=api_key)
         response = client.search(query, max_results=3, search_depth="basic")
         print(f"  Searching for: {query} (user: {user.id if user else '?'})")

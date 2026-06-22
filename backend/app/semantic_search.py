@@ -6,9 +6,10 @@ import json
 from dotenv import load_dotenv
 from pinecone import Pinecone
 
-load_dotenv()
+# Import the centralised, user‑aware embedding function (strict user key only)
+from app.llm_client import create_embedding
 
-from app.embeddings import create_embedding, create_query_embedding
+load_dotenv()
 
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
@@ -40,10 +41,11 @@ class SemanticSearchEngine:
             self.index = None
 
     # ------------------------------------------------------------------
-    # USER‑SCOPED: Add entry with user_id
+    # USER‑SCOPED: Add entry – now requires `user` for embedding
     # ------------------------------------------------------------------
     def add_to_index(
         self,
+        user,                    # ← NEW: authenticated user object
         query: str,
         answer: str,
         mode: str = "research",
@@ -52,7 +54,6 @@ class SemanticSearchEngine:
         user_id: str = "guest",
     ):
         """Add research entry to search index, scoped to user namespace"""
-        # Convert source objects to a list of titles for Pinecone compatibility
         source_titles = []
         if sources:
             source_titles = [
@@ -72,10 +73,11 @@ class SemanticSearchEngine:
             "timestamp": time.time(),
         }
 
-        # ✅ Store in Pinecone under user’s namespace
+        # ✅ Store in Pinecone under user’s namespace – using user's own embedding key
         if self.use_pinecone and self.index:
             try:
-                embedding = create_embedding(query + " " + answer[:500])
+                # Use the centralised create_embedding that requires the user object
+                embedding = create_embedding(user, query + " " + answer[:500])
                 if embedding:
                     namespace = f"user_{user_id}"
                     self.index.upsert(
@@ -91,15 +93,16 @@ class SemanticSearchEngine:
             except Exception as e:
                 print(f"⚠️ Pinecone index error: {e}")
 
-        # Also keep in fallback memory (already scoped by user_id in the dict)
+        # Also keep in fallback memory
         self.fallback_memory.append(entry)
         return entry
 
     # ------------------------------------------------------------------
-    # USER‑SCOPED: Search within user’s namespace
+    # USER‑SCOPED: Search – now requires `user` for query embedding
     # ------------------------------------------------------------------
     def search(
         self,
+        user,                    # ← NEW: authenticated user object
         query: str,
         top_k: int = 10,
         filters: Dict = None,
@@ -114,14 +117,15 @@ class SemanticSearchEngine:
         if self.use_pinecone and self.index:
             try:
                 namespace = f"user_{user_id}"
-                q_embedding = create_query_embedding(query)  # query‑specific embedding
+                # Create query embedding using the user's own key
+                q_embedding = create_embedding(user, query)
                 if q_embedding:
                     pine_results = self.index.query(
                         vector=q_embedding,
                         top_k=top_k,
                         include_metadata=True,
                         filter=filters,
-                        namespace=namespace,          # ✅ user scoping
+                        namespace=namespace,
                     )
                     for match in pine_results.get("matches", []):
                         if match.score > 0.3:
@@ -193,7 +197,7 @@ class SemanticSearchEngine:
         return results[:top_k]
 
     # ------------------------------------------------------------------
-    # Suggestions – optionally scoped to user
+    # Suggestions – optionally scoped to user (no embedding required)
     # ------------------------------------------------------------------
     def get_suggestions(
         self,

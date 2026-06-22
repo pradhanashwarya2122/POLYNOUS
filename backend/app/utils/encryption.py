@@ -1,6 +1,7 @@
 """
 POLYNOUS API Key Encryption
-User-specific encryption — each user has their own Fernet key
+User-specific encryption — each user has their own Fernet key.
+No global fallback is ever used.
 """
 import os
 from cryptography.fernet import Fernet
@@ -9,26 +10,19 @@ from typing import Optional
 
 load_dotenv()
 
-# Global fallback key (used only if user has no personal key)
-GLOBAL_ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
-
 def get_user_fernet(user_encryption_key: Optional[str] = None) -> Fernet:
     """
     Get Fernet instance for a specific user.
-    Falls back to global key if user has no personal key.
+    Raises ValueError if no user encryption key is provided.
     """
-    if user_encryption_key:
-        try:
-            return Fernet(user_encryption_key.encode())
-        except Exception:
-            pass
-    
-    # Fallback to global key
-    return Fernet(GLOBAL_ENCRYPTION_KEY.encode() if isinstance(GLOBAL_ENCRYPTION_KEY, str) else GLOBAL_ENCRYPTION_KEY)
+    if not user_encryption_key:
+        raise ValueError("User encryption key is missing – cannot decrypt")
+    return Fernet(user_encryption_key.encode())
 
 def encrypt_api_key(api_key: str, user_encryption_key: Optional[str] = None) -> Optional[str]:
     """
     Encrypt an API key using user-specific encryption.
+    Requires a valid user encryption key.
     
     Args:
         api_key: The raw API key to encrypt
@@ -39,7 +33,11 @@ def encrypt_api_key(api_key: str, user_encryption_key: Optional[str] = None) -> 
     """
     if not api_key or not api_key.strip():
         return None
-    
+
+    if not user_encryption_key:
+        print("Encryption error: User encryption key is missing – cannot encrypt")
+        return None
+
     try:
         fernet = get_user_fernet(user_encryption_key)
         return fernet.encrypt(api_key.strip().encode()).decode()

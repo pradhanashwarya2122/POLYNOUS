@@ -291,6 +291,25 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
             print(f"   openai_api_key stored: {bool(user.openai_api_key)}")
             print(f"   encryption_key: {'SET' if user.encryption_key else 'NULL'}")
             
+            # ─── TEMP DEBUG: inspect raw key and encryption ─────────────────
+            print(f"🔍 DEBUG: user.anthropic_api_key = {user.anthropic_api_key[:50] if user.anthropic_api_key else 'None'}")
+            print(f"🔍 DEBUG: user.encryption_key = {user.encryption_key[:20] if user.encryption_key else 'None'}")
+
+            provider = getattr(user, 'preferred_provider', 'anthropic') or 'anthropic'
+            encrypted_key = getattr(user, f'{provider}_api_key', None)
+
+            if encrypted_key:
+                print(f"🔓 Attempting to decrypt {provider} key (length: {len(encrypted_key)})")
+                print(f"   User encryption_key: {'SET' if user.encryption_key else 'MISSING'}")
+                user_api_key = decrypt_api_key(encrypted_key, user.encryption_key)
+                if user_api_key:
+                    print(f"🔑 SUCCESS: Using user's {provider.upper()} API key")
+                else:
+                    print(f"❌ DECRYPTION FAILED for {provider} key")
+            else:
+                print(f"⚠️ NO BYO KEY FOUND: No encrypted key stored for this provider")
+            # ─── END TEMP DEBUG ────────────────────────────────────────────
+            
             # ─── USE UNIFIED KEY RESOLVER ─────────────────
             provider, user_api_key = get_user_provider_and_key(user)
             
