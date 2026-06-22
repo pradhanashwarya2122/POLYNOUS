@@ -1,49 +1,41 @@
-# app/agents/critic_agent.py
 import json
 from app.llm_client import ask_llm
 
-def critic_agent(user, summaries, query="", provider="anthropic"):
-    """
-    Analyze summaries for contradictions and confidence.
-    `user` is the User object (used to resolve API keys).
-    `provider` is 'anthropic' or 'openai' (from state).
-    """
-    print("  🔎 Critic: Analyzing...")
+def critic_agent(user, summaries, query, provider="anthropic"):
+    """Analyse summaries for contradictions and confidence using the user's own key."""
+    print("🔍 Critic: Analyzing...")
 
     try:
         combined = "\n\n".join(summaries)[:4000]
 
-        system_prompt = """You are a fact-checker for POLYNOUS. Analyze research summaries critically.
+        system_prompt = (
+            "You are a fact-checker for POLYNOUS. Analyze research summaries critically.\n\n"
+            "Return a JSON object with:\n"
+            '{\n'
+            '    "claims": [\n'
+            '        {"claim": "specific claim text", "confidence": 85, "sources_supporting": 2}\n'
+            '    ],\n'
+            '    "contradictions": [\n'
+            '        {"claim1": "first claim", "claim2": "contradicting claim", "explanation": "why they conflict"}\n'
+            '    ],\n'
+            '    "overall_confidence": 75,\n'
+            '    "weak_claims": ["claims with insufficient evidence"],\n'
+            '    "strengths": ["what the research does well"],\n'
+            '    "recommendations": ["how to improve the answer"]\n'
+            '}\n\n'
+            "Score confidence: 80-100 (strong agreement), 60-79 (minor disagreements), "
+            "40-59 (limited evidence), below 40 (unreliable)"
+        )
 
-Return a JSON object with:
-{
-    "claims": [
-        {"claim": "specific claim text", "confidence": 85, "sources_supporting": 2}
-    ],
-    "contradictions": [
-        {"claim1": "first claim", "claim2": "contradicting claim", "explanation": "why they conflict"}
-    ],
-    "overall_confidence": 75,
-    "weak_claims": ["claims with insufficient evidence"],
-    "strengths": ["what the research does well"],
-    "recommendations": ["how to improve the answer"]
-}
+        user_message = f"Query: {query}\n\nSummaries:\n{combined}\n\nProvide JSON analysis:"
 
-Score confidence: 80-100 (strong agreement), 60-79 (minor disagreements), 40-59 (limited evidence), below 40 (unreliable)"""
-
-        messages = [{
-            "role": "user",
-            "content": f"Query: {query}\n\nSummaries:\n{combined}\n\nProvide JSON analysis:"
-        }]
-
-        # ✅ Single call – provider routing and key resolution handled internally
         response_text = ask_llm(
             user=user,
             provider=provider,
             system_prompt=system_prompt,
-            messages=messages,
+            messages=[{"role": "user", "content": user_message}],
             max_tokens=500,
-            temperature=0.2,
+            temperature=0.2
         )
 
         # Parse JSON from response
@@ -53,7 +45,7 @@ Score confidence: 80-100 (strong agreement), 60-79 (minor disagreements), 40-59 
                 end = response_text.find("```", start)
                 response_text = response_text[start:end]
             analysis = json.loads(response_text)
-        except Exception:
+        except:
             analysis = {
                 "claims": [],
                 "contradictions": [],
