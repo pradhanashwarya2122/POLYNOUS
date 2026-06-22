@@ -34,6 +34,17 @@ def ask_openai(user, messages, max_tokens=1024, temperature=0.7):
     )
     return resp.choices[0].message.content
 
+def ask_llm(user, provider, system_prompt=None, messages=None, max_tokens=1024, temperature=0.7):
+    """
+    Unified helper that routes to the correct provider.
+    `provider` should be either 'anthropic' (default) or 'openai'.
+    """
+    if provider == "openai":
+        msgs = [{"role": "system", "content": system_prompt}] + (messages or [])
+        return ask_openai(user, msgs, max_tokens, temperature)
+    else:
+        return ask_claude(user, system_prompt, messages or [], max_tokens, temperature)
+
 def create_embedding(user, text: str) -> list:
     """Create an embedding using the user's own OpenAI key. Returns [] if no key."""
     key = get_embedding_key(user)
