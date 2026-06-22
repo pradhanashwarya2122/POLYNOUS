@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from '../config';
 
@@ -226,6 +227,8 @@ function ThreeMountain() {
       window.addEventListener("resize", onResize);
       return () => { cancelAnimationFrame(animId); window.removeEventListener("mousemove",onMouse); window.removeEventListener("resize",onResize); renderer.dispose(); if(container.contains(renderer.domElement)) container.removeChild(renderer.domElement); };
     };
+    // Use named import first, then window.THREE, then CDN fallback
+    try { if (THREE) return init(THREE); } catch(e) {}
     if (window.THREE) return init(window.THREE);
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
@@ -886,14 +889,17 @@ function LandingHero({ query, setQuery, onSearch, loading }) {
           </div>
         </div>
 
-        {/* Try one of these */}
-        <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:18 }}>
+        {/* Auto-shuffling pills */}
+        <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:16 }}>
           <div style={{ flex:1,height:1,background:`linear-gradient(to right, transparent, ${C.greenGlow})` }} />
           <span style={{ fontFamily:"'IBM Plex Sans',sans-serif",fontSize:9,color:C.green,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.22em",display:"flex",alignItems:"center",gap:6 }}>
             <Icon name="play_circle" style={{ fontSize:10,color:C.green }} /> Try one of these
           </span>
           <div style={{ flex:1,height:1,background:`linear-gradient(to left, transparent, ${C.greenGlow})` }} />
         </div>
+        <ShufflingPills onSelect={handlePill} />
+
+        {/* Static suggestion cards below pills */}
         <SuggestionCards onSelect={handlePill} />
       </div>
     </div>
