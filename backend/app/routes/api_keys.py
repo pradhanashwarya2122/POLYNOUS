@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, validator
 from typing import Optional
+import traceback
 
 from app.database import get_db
 from app.models.user import User
 from app.utils.encryption import (
     encrypt_api_key, decrypt_api_key, mask_api_key, validate_key_format
 )
+from app.routes.auth import get_current_user   # ← added
 
 router = APIRouter(prefix="/settings/api-keys", tags=["api-keys"])
 
@@ -41,7 +43,7 @@ class APIKeysResponse(BaseModel):
     preferred_provider: str = "anthropic"
 
 # ============================================================
-# HELPER: Get current user
+# HELPER: Get current user (used by other endpoints)
 # ============================================================
 
 def get_current_db_user(request: Request, db: Session = Depends(get_db)) -> User:
@@ -62,28 +64,29 @@ def get_current_db_user(request: Request, db: Session = Depends(get_db)) -> User
 # ============================================================
 
 @router.get("", response_model=APIKeysResponse)
-async def get_api_keys(user: User = Depends(get_current_db_user)):
+async def get_api_keys(user: User = Depends(get_current_user)):
     """
     Get API key status for all providers.
     NEVER returns full keys — only masked previews.
     """
-    
-    response = APIKeysResponse(
-        preferred_provider=user.preferred_provider or "anthropic"
-    )
-    
-    # Decrypt and mask each key
-    for provider in ['anthropic', 'openai', 'tavily', 'voyage']:
-        encrypted = getattr(user, f"{provider}_api_key", None)
-        if encrypted:
-            decrypted = decrypt_api_key(encrypted, user.encryption_key)
-            response.__dict__[provider] = {
-                "has_key": True,
-                "preview": mask_api_key(decrypted),
-                "is_valid": bool(decrypted)
-            }
-    
-    return response
+    try:
+        response = APIKeysResponse(
+            preferred_provider=user.preferred_provider or "anthropic"
+        )
+        for provider in ['anthropic', 'openai', 'tavily', 'voyage']:
+            encrypted = getattr(user, f"{provider}_api_key", None)
+            if encrypted:
+                decrypted = decrypt_api_key(encrypted, user.encryption_key)
+                response.__dict__[provider] = {
+                    "has_key": True,
+                    "preview": mask_api_key(decrypted),
+                    "is_valid": bool(decrypted)
+                }
+        return response
+    except Exception as e:
+        print(f"Error in get_api_keys: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Could not fetch API keys")
 
 @router.put("")
 async def save_api_key(

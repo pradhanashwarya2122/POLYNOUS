@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import flag_modified   # ← ADDED
+from sqlalchemy.orm.attributes import flag_modified   # ← important for JSON columns
 from datetime import datetime
 import json
 import io
+import traceback
 from typing import Optional
 from fastapi.responses import StreamingResponse
 from app.database import get_db
@@ -18,13 +19,18 @@ router = APIRouter(prefix="/settings", tags=["settings-extended"])
 @router.get("/preferences")
 async def get_preferences(user: User = Depends(get_current_user)):
     """Get user's saved preferences (or defaults if never saved)"""
-    return user.preferences or {
-        "default_mode": "research",
-        "response_style": "academic",
-        "streaming_enabled": True,
-        "auto_save": True,
-        "confidence_threshold": 70,
-    }
+    try:
+        return user.preferences or {
+            "default_mode": "research",
+            "response_style": "academic",
+            "streaming_enabled": True,
+            "auto_save": True,
+            "confidence_threshold": 70,
+        }
+    except Exception as e:
+        print(f"Error in get_preferences: {e}")
+        traceback.print_exc()
+        raise HTTPException(500, "Internal error fetching preferences")
 
 @router.put("/preferences")
 async def save_preferences(
@@ -33,13 +39,19 @@ async def save_preferences(
     db: Session = Depends(get_db)
 ):
     """Merge partial preferences update with existing preferences"""
-    current = user.preferences or {}
-    current.update(data)
-    user.preferences = current
-    flag_modified(user, "preferences")      # ← ADDED: marks JSON column as changed
-    db.commit()
-    db.refresh(user)
-    return {"message": "Preferences saved", "preferences": user.preferences}
+    try:
+        current = user.preferences or {}
+        current.update(data)
+        user.preferences = current
+        flag_modified(user, "preferences")      # mark JSON column as changed
+        db.commit()
+        db.refresh(user)
+        return {"message": "Preferences saved", "preferences": user.preferences}
+    except Exception as e:
+        print(f"Error in save_preferences: {e}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(500, "Internal error saving preferences")
 
 # ============================================================
 # NOTIFICATIONS
@@ -47,12 +59,17 @@ async def save_preferences(
 @router.get("/notifications")
 async def get_notifications(user: User = Depends(get_current_user)):
     """Get user's notification settings"""
-    return user.notifications or {
-        "email": False,
-        "research": True,
-        "weekly": False,
-        "rate_limit": True,
-    }
+    try:
+        return user.notifications or {
+            "email": False,
+            "research": True,
+            "weekly": False,
+            "rate_limit": True,
+        }
+    except Exception as e:
+        print(f"Error in get_notifications: {e}")
+        traceback.print_exc()
+        raise HTTPException(500, "Internal error fetching notifications")
 
 @router.put("/notifications")
 async def save_notifications(
@@ -61,10 +78,16 @@ async def save_notifications(
     db: Session = Depends(get_db)
 ):
     """Update notification preferences"""
-    user.notifications = data
-    flag_modified(user, "notifications")   # ← ADDED: marks JSON column as changed
-    db.commit()
-    return {"message": "Notifications saved", "notifications": data}
+    try:
+        user.notifications = data
+        flag_modified(user, "notifications")   # mark JSON column as changed
+        db.commit()
+        return {"message": "Notifications saved", "notifications": data}
+    except Exception as e:
+        print(f"Error in save_notifications: {e}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(500, "Internal error saving notifications")
 
 # ============================================================
 # INTEGRATIONS
@@ -72,11 +95,16 @@ async def save_notifications(
 @router.get("/integrations")
 async def get_integrations(user: User = Depends(get_current_user)):
     """Get user's connected integrations"""
-    return user.integrations or {
-        "google": {"connected": False},
-        "github": {"connected": False},
-        "notion": {"connected": False},
-    }
+    try:
+        return user.integrations or {
+            "google": {"connected": False},
+            "github": {"connected": False},
+            "notion": {"connected": False},
+        }
+    except Exception as e:
+        print(f"Error in get_integrations: {e}")
+        traceback.print_exc()
+        raise HTTPException(500, "Internal error fetching integrations")
 
 @router.post("/integrations/{name}/connect")
 async def connect_integration(name: str, user: User = Depends(get_current_user)):
@@ -88,11 +116,10 @@ async def connect_integration(name: str, user: User = Depends(get_current_user))
     if name not in allowed:
         raise HTTPException(status_code=400, detail=f"Integration must be one of: {allowed}")
     
-    # Return the redirect URL for OAuth flows
     oauth_urls = {
         "google": f"http://localhost:8000/oauth/google",
         "github": f"http://localhost:8000/oauth/github",
-        "notion": None,  # Notion requires API key, not OAuth
+        "notion": None,
     }
     
     redirect_url = oauth_urls.get(name)
@@ -112,12 +139,17 @@ async def disconnect_integration(
     if name not in allowed:
         raise HTTPException(status_code=400, detail=f"Integration must be one of: {allowed}")
     
-    integrations = user.integrations or {}
-    integrations[name] = {"connected": False}
-    user.integrations = integrations
-    db.commit()
-    
-    return {"message": f"{name} disconnected"}
+    try:
+        integrations = user.integrations or {}
+        integrations[name] = {"connected": False}
+        user.integrations = integrations
+        flag_modified(user, "integrations")
+        db.commit()
+        return {"message": f"{name} disconnected"}
+    except Exception as e:
+        print(f"Error disconnecting {name}: {e}")
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal error disconnecting {name}")
 
 # ============================================================
 # EXPORT USER DATA
@@ -128,52 +160,54 @@ async def export_user_data(
     db: Session = Depends(get_db)
 ):
     """Export all user data as a downloadable JSON file"""
-    
-    # Gather research sessions from chat history
-    from app.chat_history import get_chat_history, get_debate_history
-    
-    research_history = get_chat_history(user.public_id, limit=100)
-    debate_history = get_debate_history(user.public_id, limit=100)
-    
-    # Gather memory stats
     try:
-        from app.knowledge_graph.user_memory import user_memory
-        stats = user_memory.get_user_stats(user.public_id)
-        interests = user_memory.get_user_interests(user.public_id, limit=20)
-    except:
-        stats = {}
-        interests = []
-    
-    export_data = {
-        "export_date": datetime.utcnow().isoformat(),
-        "user": {
-            "username": user.username,
-            "email": user.email,
-            "tier": user.tier,
-            "member_since": str(user.created_at),
-        },
-        "preferences": user.preferences,
-        "notifications": user.notifications,
-        "research_summary": {
-            "total_research": stats.get("total_research", 0),
-            "total_debates": stats.get("total_debates", 0),
-            "avg_confidence": stats.get("avg_confidence", 0),
-            "unique_topics": stats.get("unique_topics", 0),
-        },
-        "top_interests": interests,
-        "recent_research": research_history[:50],
-        "recent_debates": debate_history[:50],
-    }
-    
-    json_str = json.dumps(export_data, indent=2, default=str)
-    
-    return StreamingResponse(
-        io.StringIO(json_str),
-        media_type="application/json",
-        headers={
-            "Content-Disposition": f"attachment; filename=polynous_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        from app.chat_history import get_chat_history, get_debate_history
+        
+        research_history = get_chat_history(user.public_id, limit=100)
+        debate_history = get_debate_history(user.public_id, limit=100)
+        
+        try:
+            from app.knowledge_graph.user_memory import user_memory
+            stats = user_memory.get_user_stats(user.public_id)
+            interests = user_memory.get_user_interests(user.public_id, limit=20)
+        except:
+            stats = {}
+            interests = []
+        
+        export_data = {
+            "export_date": datetime.utcnow().isoformat(),
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "tier": user.tier,
+                "member_since": str(user.created_at),
+            },
+            "preferences": user.preferences,
+            "notifications": user.notifications,
+            "research_summary": {
+                "total_research": stats.get("total_research", 0),
+                "total_debates": stats.get("total_debates", 0),
+                "avg_confidence": stats.get("avg_confidence", 0),
+                "unique_topics": stats.get("unique_topics", 0),
+            },
+            "top_interests": interests,
+            "recent_research": research_history[:50],
+            "recent_debates": debate_history[:50],
         }
-    )
+        
+        json_str = json.dumps(export_data, indent=2, default=str)
+        
+        return StreamingResponse(
+            io.StringIO(json_str),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename=polynous_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            }
+        )
+    except Exception as e:
+        print(f"Error exporting data: {e}")
+        traceback.print_exc()
+        raise HTTPException(500, "Internal error exporting data")
 
 # ============================================================
 # CLEAR RESEARCH HISTORY
@@ -194,7 +228,7 @@ async def clear_research_history(
     # 1. Clear SQLite chat history
     try:
         from app.chat_history import clear_user_chats
-        clear_user_chats(user.public_id)          # ← removed await
+        clear_user_chats(user.public_id)          # not async, so no await
         results["chat_history"] = "cleared"
     except Exception as e:
         results["chat_history"] = f"error: {str(e)}"
@@ -240,39 +274,46 @@ async def reset_all_user_data(
     Complete reset: clears research + resets preferences/notifications to defaults.
     Does NOT delete the user account itself.
     """
-    # Reset preferences to defaults
-    user.preferences = {
-        "default_mode": "research",
-        "response_style": "academic",
-        "streaming_enabled": True,
-        "auto_save": True,
-        "confidence_threshold": 70,
-    }
-    user.notifications = {
-        "email": False,
-        "research": True,
-        "weekly": False,
-        "rate_limit": True,
-    }
-    user.integrations = {
-        "google": {"connected": False},
-        "github": {"connected": False},
-        "notion": {"connected": False},
-    }
-    db.commit()
+    try:
+        # Reset preferences to defaults
+        user.preferences = {
+            "default_mode": "research",
+            "response_style": "academic",
+            "streaming_enabled": True,
+            "auto_save": True,
+            "confidence_threshold": 70,
+        }
+        user.notifications = {
+            "email": False,
+            "research": True,
+            "weekly": False,
+            "rate_limit": True,
+        }
+        user.integrations = {
+            "google": {"connected": False},
+            "github": {"connected": False},
+            "notion": {"connected": False},
+        }
+        flag_modified(user, "preferences")
+        flag_modified(user, "notifications")
+        flag_modified(user, "integrations")
+        db.commit()
+    except Exception as e:
+        print(f"Error resetting preferences: {e}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(500, "Internal error resetting preferences")
     
     # Clear all research data
     clear_results = {}
     
-    # Clear chat history
     try:
         from app.chat_history import clear_user_chats
-        clear_user_chats(user.public_id)          # ← removed await
+        clear_user_chats(user.public_id)
         clear_results["chat_history"] = "cleared"
     except Exception as e:
         clear_results["chat_history"] = str(e)
     
-    # Clear Neo4j
     try:
         from app.knowledge_graph.graph_manager import kg
         if kg.driver:
@@ -285,7 +326,6 @@ async def reset_all_user_data(
     except Exception as e:
         clear_results["knowledge_graph"] = str(e)
     
-    # Clear Pinecone
     try:
         from pinecone import Pinecone
         import os
