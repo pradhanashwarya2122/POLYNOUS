@@ -78,7 +78,7 @@ export default function EmptyGraphState({ onNavigate, graphData }) {
         
         {[
           { icon: '   ', text: 'Ask research questions about related topics', action: 'Research' },
-          { icon: '   ', text: 'Debate controversial topics to create contrast nodes', action: 'Debate' },
+          { icon: '🗣️', text: 'Debate controversial topics to create contrast nodes', action: 'Debate' },
           { icon: '🔗', text: 'The more you explore, the richer your connections become', action: null },
         ].map((tip, i) => (
           <div key={i} style={{

@@ -26,7 +26,7 @@ export default function MemoryTimeline({ history, onStartResearch }) {
   return (
     <div style={{ marginBottom: '24px' }}>
       <h3 style={{ color: '#fff', fontSize: '15px', marginBottom: '16px' }}>
-        📅 Research Timeline
+         Research Timeline
       </h3>
 
       {history.length === 0 && (

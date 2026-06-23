@@ -1,4 +1,4 @@
-# backend/app/utils/key_resolver.py
+# app/utils/key_resolver.py
 import os
 from app.utils.encryption import decrypt_api_key
 
@@ -6,7 +6,8 @@ from app.utils.encryption import decrypt_api_key
 def _get_decrypted_key(user, provider_attr):
     """
     Decrypt a user's stored API key for the given provider attribute.
-    Returns the decrypted key if available, otherwise raises ValueError.
+    Returns the decrypted key if available, otherwise raises ValueError
+    with a clear message.
     """
     if not user:
         raise ValueError("No user provided – cannot retrieve API key")
@@ -28,25 +29,20 @@ def _get_decrypted_key(user, provider_attr):
     return decrypted
 
 
-# ── Individual Key Getters ────────────────────────────────
+# ── Individual Key Getters (using real column names) ────────
 
 def get_anthropic_key(user):
-    """Return the user's Anthropic API key (raises ValueError if missing)."""
-    return _get_decrypted_key(user, "anthropic_api_key_enc")
+    return _get_decrypted_key(user, "anthropic_api_key")
 
 
 def get_openai_key(user):
-    """Return the user's OpenAI API key (raises ValueError if missing)."""
-    return _get_decrypted_key(user, "openai_api_key_enc")
+    return _get_decrypted_key(user, "openai_api_key")
 
 
 def get_tavily_key(user):
-    """
-    Return the user's Tavily API key if available, otherwise fall back
-    to the TAVILY_API_KEY environment variable.
-    """
+    """Try user key first, fall back to TAVILY_API_KEY env variable."""
     try:
-        return _get_decrypted_key(user, "tavily_api_key_enc")
+        return _get_decrypted_key(user, "tavily_api_key")
     except ValueError:
         return os.getenv("TAVILY_API_KEY")
 
@@ -57,8 +53,8 @@ def get_embedding_key(user):
 
 
 def get_pinecone_key(user):
-    """Return the user's Pinecone API key (raises ValueError if missing)."""
-    return _get_decrypted_key(user, "pinecone_api_key_enc")
+    """Return the user's Pinecone API key (if stored)."""
+    return _get_decrypted_key(user, "pinecone_api_key")
 
 
 # ── Convenience Helper ────────────────────────────────────

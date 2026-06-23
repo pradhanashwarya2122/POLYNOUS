@@ -1,15 +1,16 @@
 import os
 import hashlib
 import time
-from typing import List, Dict
+from typing import List, Dict, Optional
 from PyPDF2 import PdfReader
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.embeddings import create_embedding, create_query_embedding
+# ✅ Use centralised embedding function that requires (user, text)
+from app.llm_client import create_embedding, ask_llm
+from app.utils.key_resolver import get_user_provider_and_key
 
-# Pinecone v9.x initialization
 from pinecone import Pinecone
 
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
@@ -22,12 +23,11 @@ EMBEDDING_DIM = 1536
 upload_progress = {}
 
 def get_pdf_index():
-    """Get or create PDF-specific Pinecone index with dimension validation"""
+    """Get or create PDF‑specific Pinecone index with dimension validation"""
     try:
-        # Get list of index names
         index_list = pc.list_indexes()
         index_names = [idx.name for idx in index_list]
-        
+
         if PDF_INDEX_NAME not in index_names:
             print(f"📦 Creating PDF index: {PDF_INDEX_NAME}")
             pc.create_index(
@@ -39,13 +39,10 @@ def get_pdf_index():
             time.sleep(5)
             print(f"✅ PDF index created successfully")
         else:
-            # Check if existing index has correct dimension
             try:
-                index = pc.Index(PDF_INDEX_NAME)
-                # Try a test query with correct dimension
                 test_query = pc.Index(PDF_INDEX_NAME)
                 test_query.query(
-                    vector=[0.0] * EMBEDDING_DIM, 
+                    vector=[0.0] * EMBEDDING_DIM,
                     top_k=1,
                     include_metadata=False
                 )
@@ -54,11 +51,9 @@ def get_pdf_index():
             except Exception as dim_error:
                 error_msg = str(dim_error).lower()
                 if "dimension" in error_msg or "shape" in error_msg:
-                    print(f"⚠️ Dimension mismatch detected! Deleting old index and recreating...")
-                    # Delete the old index
+                    print(f"⚠️ Dimension mismatch detected! Recreating index...")
                     pc.delete_index(PDF_INDEX_NAME)
                     time.sleep(3)
-                    # Create new index with correct dimension
                     pc.create_index(
                         name=PDF_INDEX_NAME,
                         dimension=EMBEDDING_DIM,
@@ -68,11 +63,10 @@ def get_pdf_index():
                     time.sleep(5)
                     print(f"✅ Recreated index with correct dimension {EMBEDDING_DIM}")
                 else:
-                    # If it's not a dimension error, re-raise
                     raise dim_error
-        
+
         return pc.Index(PDF_INDEX_NAME)
-            
+
     except Exception as e:
         print(f"❌ Error accessing Pinecone: {e}")
         raise Exception(f"Unable to connect to Pinecone: {str(e)}")
@@ -83,7 +77,7 @@ def extract_text_from_pdf(file_path: str) -> str:
         reader = PdfReader(file_path)
         text = ""
         total_pages = len(reader.pages)
-        
+
         for i, page in enumerate(reader.pages):
             try:
                 page_text = page.extract_text()
@@ -94,10 +88,10 @@ def extract_text_from_pdf(file_path: str) -> str:
             except Exception as e:
                 print(f"⚠️ Error extracting page {i + 1}: {e}")
                 continue
-        
+
         print(f"✅ Extracted {len(text)} characters from {total_pages} pages")
         return text.strip()
-        
+
     except Exception as e:
         print(f"❌ PDF extraction error: {e}")
         return ""
@@ -107,31 +101,32 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVE
     chunks = []
     if not text:
         return chunks
-    
+
     start = 0
     while start < len(text):
         end = start + chunk_size
         chunks.append(text[start:end])
         start = end - overlap
-    
+
     print(f"✅ Created {len(chunks)} chunks")
     return chunks
 
-def process_pdf(file_path: str, pdf_name: str) -> Dict:
-    """Complete PDF processing pipeline"""
+def process_pdf(file_path: str, pdf_name: str, user=None) -> Dict:
+    """
+    Complete PDF processing pipeline.
+    `user` is the authenticated SQLAlchemy User object (for API keys).
+    """
     file_key = pdf_name
     upload_progress[file_key] = {
-        'extraction': 0, 'chunking': 0, 'embedding': 0, 
+        'extraction': 0, 'chunking': 0, 'embedding': 0,
         'storing': 0, 'status': 'starting'
     }
-    
+
     print(f"\n📄 Processing PDF: {pdf_name}")
-    
-    # Generate unique hash
+
     with open(file_path, 'rb') as f:
         file_hash = hashlib.md5(f.read()).hexdigest()
-    
-    # Check if already processed
+
     try:
         index = get_pdf_index()
         existing = index.query(
@@ -140,43 +135,41 @@ def process_pdf(file_path: str, pdf_name: str) -> Dict:
         )
         if existing.get('matches'):
             upload_progress[file_key] = {
-                'extraction': 100, 'chunking': 100, 
+                'extraction': 100, 'chunking': 100,
                 'embedding': 100, 'storing': 100, 'status': 'complete'
             }
             return {
-                "status": "already_exists", 
+                "status": "already_exists",
                 "message": "PDF already processed",
                 "file_hash": file_hash,
                 "progress": 100
             }
     except Exception as e:
         print(f"⚠️ Duplicate check error: {e}")
-    
-    # Extract text
+
     upload_progress[file_key]['status'] = 'extracting'
     text = extract_text_from_pdf(file_path)
     if not text:
         upload_progress[file_key]['status'] = 'error'
         return {"status": "error", "message": "Could not extract text"}
     upload_progress[file_key]['extraction'] = 50
-    
-    # Chunk text
+
     upload_progress[file_key]['status'] = 'chunking'
     chunks = chunk_text(text)
     upload_progress[file_key]['chunking'] = 60
-    
+
     if not chunks:
         return {"status": "error", "message": "Text too short for chunks"}
-    
-    # Create embeddings and store
+
     upload_progress[file_key]['status'] = 'embedding'
-    print(". Creating embeddings with OpenAI...")
+    print("🔹 Creating embeddings (using user's own key)...")
     index = get_pdf_index()
-    
+
     total_chunks = len(chunks)
     for i, chunk in enumerate(chunks):
         try:
-            embedding = create_embedding(chunk[:8000])
+            # ✅ Pass the user object so the correct API key is used
+            embedding = create_embedding(user, chunk[:8000])
             if embedding:
                 chunk_id = f"{file_hash}_{i}"
                 index.upsert(vectors=[{
@@ -191,20 +184,20 @@ def process_pdf(file_path: str, pdf_name: str) -> Dict:
                         "timestamp": time.time()
                     }
                 }])
-            
+
             progress = 60 + int(((i + 1) / total_chunks) * 40)
             upload_progress[file_key]['embedding'] = progress
             upload_progress[file_key]['storing'] = progress
-            
+
         except Exception as e:
             print(f"⚠️ Chunk {i} error: {e}")
-    
+
     upload_progress[file_key]['status'] = 'complete'
     upload_progress[file_key]['extraction'] = 100
     upload_progress[file_key]['chunking'] = 100
     upload_progress[file_key]['embedding'] = 100
     upload_progress[file_key]['storing'] = 100
-    
+
     print(f"✅ Stored {total_chunks} chunks in Pinecone")
     return {
         "status": "success",
@@ -216,42 +209,37 @@ def process_pdf(file_path: str, pdf_name: str) -> Dict:
     }
 
 def get_progress(file_key: str) -> Dict:
-    """Get upload progress"""
     return upload_progress.get(file_key, {
-        'extraction': 0, 'chunking': 0, 
+        'extraction': 0, 'chunking': 0,
         'embedding': 0, 'storing': 0, 'status': 'unknown'
     })
 
-def search_pdf(query: str, pdf_name: str = None, top_k: int = 5) -> List[Dict]:
-    """Semantic search across PDF chunks"""
+def search_pdf(query: str, pdf_name: str = None, top_k: int = 5, user=None) -> List[Dict]:
+    """
+    Semantic search across PDF chunks.
+    `user` is required for the embedding call.
+    """
     try:
         index = get_pdf_index()
-        query_embedding = create_query_embedding(user, query)
-        
+        # ✅ Use the user object for embedding
+        query_embedding = create_embedding(user, query)
         if not query_embedding:
             print("❌ Failed to create query embedding")
             return []
-        
-        print(f"  Searching for: '{query}'")
-        print(f"   Embedding dim: {len(query_embedding)}")
-        
+
         filter_dict = {}
         if pdf_name:
             filter_dict["pdf_name"] = pdf_name
-        
+
         results = index.query(
-            vector=query_embedding, 
+            vector=query_embedding,
             top_k=top_k,
             filter=filter_dict if filter_dict else None,
             include_metadata=True
         )
-        
-        print(f"   Raw matches: {len(results.get('matches', []))}")
-        
+
         chunks = []
         for match in results.get('matches', []):
-            print(f"   Match score: {match.score:.4f} | PDF: {match.metadata.get('pdf_name', '?')[:30]}")
-            # LOWERED THRESHOLD from 0.3 to 0.05
             if match.score > 0.05:
                 chunks.append({
                     "text": match.metadata.get('text', '')[:500],
@@ -259,28 +247,34 @@ def search_pdf(query: str, pdf_name: str = None, top_k: int = 5) -> List[Dict]:
                     "chunk_index": match.metadata.get('chunk_index', 0),
                     "score": round(match.score * 100, 1)
                 })
-        
+
         print(f"   Returned {len(chunks)} chunks (threshold: 0.05)")
         return chunks
-        
+
     except Exception as e:
         print(f"❌ PDF search error: {e}")
         return []
 
-def rag_answer_from_pdf(query: str, pdf_name: str = None, top_k: int = 5) -> Dict:
-    """RAG: Search PDF + Generate structured answer with Claude"""
-    from anthropic import Anthropic
-    
-    chunks = search_pdf(query, pdf_name, top_k)
-    
+def rag_answer_from_pdf(query: str, pdf_name: str = None, top_k: int = 5, user=None) -> Dict:
+    """
+    RAG: Search PDF + Generate structured answer using the user's own LLM key.
+    `user` is the authenticated SQLAlchemy User object.
+    """
+    # Determine the user's provider and key
+    provider, api_key = get_user_provider_and_key(user)
+
+    chunks = search_pdf(query, pdf_name, top_k, user=user)
+
     if not chunks:
         return {
-            "answer": "📋 **No relevant information found** in the uploaded PDFs.\n\nTry:\n- Uploading relevant documents\n- Rephrasing your question\n- Selecting a specific PDF from your library",
-            "sources": [], 
+            "answer": "📋 **No relevant information found** in the uploaded PDFs.\n\n"
+                      "Try:\n- Uploading relevant documents\n"
+                      "- Rephrasing your question\n"
+                      "- Selecting a specific PDF from your library",
+            "sources": [],
             "confidence": 0
         }
-    
-    # Build well-formatted context
+
     context_parts = []
     for i, c in enumerate(chunks, 1):
         context_parts.append(
@@ -288,16 +282,9 @@ def rag_answer_from_pdf(query: str, pdf_name: str = None, top_k: int = 5) -> Dic
             f"Source: {c['pdf_name']}\n"
             f"Content: {c['text']}\n"
         )
-    
     context = "\n".join(context_parts)
-    
-    try:
-        anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        message = anthropic.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=800,
-            temperature=0.3,
-            system="""You are a precise research assistant answering questions from PDF documents.
+
+    system_prompt = """You are a precise research assistant answering questions from PDF documents.
 
 FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 
@@ -320,34 +307,40 @@ RULES:
 - Include actual names, numbers, dates from the text
 - If context partially answers, say what's known and what's missing
 - Keep it concise but complete
-- Always cite which chunks you used""",
-            messages=[{
-                "role": "user",
-                "content": f"""PDF DOCUMENT CONTEXT:
+- Always cite which chunks you used"""
+
+    user_message = f"""PDF DOCUMENT CONTEXT:
 {context[:6000]}
 
 USER QUESTION: {query}
 
 Provide a structured answer following the format above. Only use information from the provided context."""
-            }]
+
+    try:
+        # ✅ Use ask_llm with the user object – no hardcoded key
+        answer = ask_llm(
+            user=user,
+            provider=provider,
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+            max_tokens=800,
+            temperature=0.3
         )
-        answer = message.content[0].text
-        
-        # Calculate confidence
+
         scores = [c['score'] for c in chunks]
         avg_score = sum(scores) / len(scores) if scores else 0
         max_score = max(scores) if scores else 0
-        
+
         return {
             "answer": answer,
             "sources": [
                 {
-                    "pdf_name": c['pdf_name'], 
+                    "pdf_name": c['pdf_name'],
                     "chunk_id": c['chunk_index'],
                     "chunk_index": c['chunk_index'],
                     "relevance": c['score'],
                     "text_preview": c['text'][:150] + "..."
-                } 
+                }
                 for c in chunks
             ],
             "confidence": round(avg_score, 1),
@@ -362,12 +355,11 @@ Provide a structured answer following the format above. Only use information fro
         }
 
 def get_uploaded_pdfs() -> List[Dict]:
-    """Get list of all uploaded PDFs"""
     try:
         index = get_pdf_index()
         results = index.query(
-            vector=[0.0] * EMBEDDING_DIM, 
-            top_k=100, 
+            vector=[0.0] * EMBEDDING_DIM,
+            top_k=100,
             include_metadata=True
         )
         pdfs = {}

@@ -1,3 +1,4 @@
+from app.llm_client import create_embedding   # now expects (user, text)
 from pinecone import Pinecone, ServerlessSpec
 from anthropic import Anthropic
 import os
@@ -30,32 +31,13 @@ def get_or_create_index():
     
     return pc.Index(INDEX_NAME)
 
-def create_embedding(text: str):
-    """Create embedding vector using text hashing (no OpenAI needed)"""
-    try:
-        text = text.lower().strip()[:2000]
-        words = re.findall(r'\b\w+\b', text)
-        
-        vector = [0.0] * 1536
-        for i, word in enumerate(words):
-            hash_val = int(hashlib.md5(word.encode()).hexdigest(), 16)
-            idx = hash_val % 1536
-            vector[idx] += 1.0
-        
-        norm = sum(v * v for v in vector) ** 0.5
-        if norm > 0:
-            vector = [v / norm for v in vector]
-        
-        return vector
-    except Exception as e:
-        print(f"❌ Embedding error: {e}")
-        return None
 
 # ============================================================
 # USER‑SCOPED: Store research in user‑specific namespace
 # ============================================================
 
-def store_research(user_id: str, session_id: str, query: str, documents: list, answer: str, metadata: dict = {}):
+def store_research(user_id: str, session_id: str, query: str, documents: list, answer: str,
+                   metadata: dict = {}, user=None):   # ← user parameter added
     """Store research results in Pinecone — scoped to user namespace"""
     try:
         index = get_or_create_index()
@@ -64,7 +46,8 @@ def store_research(user_id: str, session_id: str, query: str, documents: list, a
         
         combined_text = f"Query: {query}\nAnswer: {answer[:500]}"
         
-        embedding = create_embedding(None, combined_text)
+        # ✅ Pass user to create_embedding (if user is None, fallback to None)
+        embedding = create_embedding(user, combined_text)
         if not embedding:
             return False
         
@@ -101,14 +84,15 @@ def store_research(user_id: str, session_id: str, query: str, documents: list, a
 # USER‑SCOPED: Search similar research within user's namespace
 # ============================================================
 
-def search_similar_research(user_id: str, query: str, top_k: int = 5):
+def search_similar_research(user_id: str, query: str, top_k: int = 5, user=None):
     """Find similar previous research — only within user's namespace"""
     try:
         index = get_or_create_index()
         # ✅ USER‑SPECIFIC NAMESPACE — searches only user's data
         namespace = f"user_{user_id}"
         
-        embedding = create_embedding(query)
+        # ✅ Pass user to create_embedding
+        embedding = create_embedding(user, query)
         if not embedding:
             return []
         
@@ -147,16 +131,14 @@ def get_session_history(user_id: str, session_id: str, limit: int = 10):
     """Get all research history for a session — scoped to user namespace"""
     try:
         index = get_or_create_index()
-        # ✅ USER‑SPECIFIC NAMESPACE
         namespace = f"user_{user_id}"
         
-        # ✅ Query with namespace and session filter
         results = index.query(
             vector=[0.0] * 1536,
             top_k=limit,
             filter={"session_id": session_id},
             include_metadata=True,
-            namespace=namespace  # ✅ USER NAMESPACE
+            namespace=namespace
         )
         
         history = []
@@ -184,15 +166,13 @@ def get_user_history(user_id: str, limit: int = 20):
     """Get all research history for a user — across all sessions"""
     try:
         index = get_or_create_index()
-        # ✅ USER‑SPECIFIC NAMESPACE
         namespace = f"user_{user_id}"
         
-        # ✅ Query with namespace (no session filter — gets all)
         results = index.query(
             vector=[0.0] * 1536,
             top_k=limit,
             include_metadata=True,
-            namespace=namespace  # ✅ USER NAMESPACE
+            namespace=namespace
         )
         
         history = []

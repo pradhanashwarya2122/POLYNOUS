@@ -69,7 +69,7 @@ POLYNOUS is not a chatbot. It is a **neural research operating system** — a pl
 - **Structured output** — Summary · Key Findings · Limitations · Sources
 - **Neural thinking canvas** — 7 rotating agent nodes visualize activity in real-time
 
-###     Debate Mode
+### 🗣️ Debate Mode
 - **FOR vs AGAINST** — Two agents argue directly opposing positions
 - **AI Judge** — Evaluates evidence quality and declares a winner with reasoning
 - **Score visualization** — Animated bar comparing argument strength

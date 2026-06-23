@@ -198,6 +198,7 @@ def writer_node(state: AgentState) -> AgentState:
             query=state['query'],
             documents=state.get('retrieved_docs', []),
             answer=answer,
+            user=user,
             metadata={
                 'confidence': state.get('critique', {}).get('overall_confidence', 0),
                 'mode': 'research',

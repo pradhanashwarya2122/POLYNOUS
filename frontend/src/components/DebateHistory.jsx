@@ -3,7 +3,7 @@ export default function DebateHistory({ debates, onStartDebate }) {
     return (
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ color: '#fff', fontSize: '15px', marginBottom: '16px' }}>
-              Debate History
+          🗣️ Debate History
         </h3>
         <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
           <p>No debates yet. Try debating a topic!</p>
@@ -15,7 +15,7 @@ export default function DebateHistory({ debates, onStartDebate }) {
   return (
     <div style={{ marginBottom: '24px' }}>
       <h3 style={{ color: '#fff', fontSize: '15px', marginBottom: '16px' }}>
-            Debate History ({debates.length})
+        🗣️ Debate History ({debates.length})
       </h3>
 
       {debates.map((debate, i) => (

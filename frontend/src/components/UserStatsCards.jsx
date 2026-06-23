@@ -3,7 +3,7 @@ export default function UserStatsCards({ stats }) {
 
   const cards = [
     { icon: '.', label: 'Research Sessions', value: stats.total_research || 0, color: '#00ff0f' },
-    { icon: '   ', label: 'Debates', value: stats.total_debates || 0, color: '#ff3264' },
+    { icon: '🗣️', label: 'Debates', value: stats.total_debates || 0, color: '#ff3264' },
     { icon: '📊', label: 'Avg Confidence', value: (stats.avg_confidence || 0) + '%', color: '#00ccff' },
     { icon: '🏷️', label: 'Unique Topics', value: stats.unique_topics || 0, color: '#ffaa00' }
   ]

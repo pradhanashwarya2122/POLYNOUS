@@ -5,7 +5,7 @@ export default function NeuralSidebar({ user, onLogout, currentPage, onNavigate 
 
   const menuItems = [
     { id: 'dashboard', icon: '   ', label: 'Research', path: '/dashboard' },
-    { id: 'debate', icon: '   ', label: 'Debate', path: '/debate' },
+    { id: 'debate', icon: '🗣️', label: 'Debate', path: '/debate' },
     { id: 'memory', icon: '💾', label: 'Memory Bank', path: '/memory' },
     { id: 'graph', icon: '.', label: 'Knowledge Graph', path: '/graph' },
     { id: 'search', icon: ' ', label: 'Semantic Search', path: '/search' },
