@@ -1,44 +1,44 @@
+# backend/app/llm_client.py
 from anthropic import Anthropic
 from openai import OpenAI
 from app.utils.key_resolver import get_anthropic_key, get_openai_key, get_embedding_key
 
 def get_anthropic_client(user):
-    key = get_anthropic_key(user)
-    if not key:
-        raise ValueError("No Anthropic API key configured for this user")
-    return Anthropic(api_key=key)
+    api_key = get_anthropic_key(user)
+    return Anthropic(api_key=api_key)
 
 def get_openai_client(user):
-    key = get_openai_key(user)
-    if not key:
-        raise ValueError("No OpenAI API key configured for this user")
-    return OpenAI(api_key=key)
+    api_key = get_openai_key(user)
+    return OpenAI(api_key=api_key)
 
-def ask_claude(user, system_prompt, messages, max_tokens=1024, temperature=0.7):
+def get_embedding_client(user):
+    api_key = get_embedding_key(user)
+    return OpenAI(api_key=api_key)
+
+def ask_claude(user, system_prompt: str, messages: list, max_tokens=1024, temperature=0.7):
     client = get_anthropic_client(user)
-    return client.messages.create(
-        model="claude-haiku-4-5",
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",   # ✅ valid model
         max_tokens=max_tokens,
         temperature=temperature,
         system=system_prompt,
         messages=messages,
     )
+    # ✅ return only the text string
+    return response.content[0].text
 
-def ask_openai(user, messages, max_tokens=1024, temperature=0.7):
+def ask_openai(user, messages: list, max_tokens=1024, temperature=0.7):
     client = get_openai_client(user)
-    resp = client.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         max_tokens=max_tokens,
         temperature=temperature,
         messages=messages,
     )
-    return resp.choices[0].message.content
+    # ✅ return only the text string
+    return response.choices[0].message.content
 
 def ask_llm(user, provider, system_prompt=None, messages=None, max_tokens=1024, temperature=0.7):
-    """
-    Unified helper that routes to the correct provider.
-    `provider` should be either 'anthropic' (default) or 'openai'.
-    """
     if provider == "openai":
         msgs = [{"role": "system", "content": system_prompt}] + (messages or [])
         return ask_openai(user, msgs, max_tokens, temperature)
@@ -46,7 +46,6 @@ def ask_llm(user, provider, system_prompt=None, messages=None, max_tokens=1024, 
         return ask_claude(user, system_prompt, messages or [], max_tokens, temperature)
 
 def create_embedding(user, text: str) -> list:
-    """Create an embedding using the user's own OpenAI key. Returns [] if no key."""
     key = get_embedding_key(user)
     if not key:
         print("⚠️  No embedding API key – skipping")
