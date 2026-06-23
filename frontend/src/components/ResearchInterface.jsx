@@ -13,7 +13,7 @@ const C = {
   amber:              "#ffaa00",
   gold:               "#ffd700",
   purple:             "#a855f7",
-  void:               "#051424",
+  void:               "#0a0a1e",
   sidebar:            "#010f1f",
   panel:              "#0d1c2d",
   card:               "#122131",
