@@ -6,7 +6,7 @@ from app.models.user import User
 from app.utils.encryption import decrypt_api_key
 from app.middleware.auth_middleware import extract_user_middleware
 from app.middleware.input_sanitizer import input_sanitizer_middleware
-from app.utils.fix_users import ensure_user_encryption_keys, add_missing_columns   # ← added add_missing_columns
+from app.utils.fix_users import add_missing_encryption_keys, add_missing_columns   # ← added add_missing_columns
 from app.middleware.security_headers import security_headers_middleware
 from app.utils.sanitizer import sanitize_query, is_safe_input
 from app.routes.api_keys import router as api_keys_router
@@ -142,7 +142,7 @@ async def startup():
         init_db()
         print("✅ Database initialized!")
         add_missing_columns()                # ← ensures any new DB columns are created
-        ensure_user_encryption_keys()        # ← ensures every user has an encryption key
+        add_missing_encryption_keys()        # ← ensures every user has an encryption key
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         if os.getenv("ENVIRONMENT", "").lower() == "production":

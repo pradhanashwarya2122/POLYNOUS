@@ -8,15 +8,13 @@ from app.models.user import User
 
 load_dotenv()
 
-GLOBAL_KEY = os.getenv("ENCRYPTION_KEY")  # used only for re‑encrypting old keys
+# Global fallback key used to re‑encrypt old keys that were stored with the system key
+GLOBAL_KEY = os.getenv("ENCRYPTION_KEY")
 
 def add_missing_columns():
     """Ensure the new JSON columns exist (for SQLite and PostgreSQL)."""
-    # Check if 'preferences' column exists; if not, add it.
-    # We use raw SQL because Alembic isn't set up.
     try:
         with engine.connect() as conn:
-            # For SQLite
             if 'sqlite' in str(engine.url):
                 conn.execute(text("ALTER TABLE users ADD COLUMN preferences JSON"))
                 conn.execute(text("ALTER TABLE users ADD COLUMN notifications JSON"))
