@@ -82,7 +82,7 @@ def judge_node(state: AgentState) -> AgentState:
     api_key = state.get('user_api_key')
     provider = state.get('preferred_provider', 'anthropic')
     user_id = state.get('session_id', 'guest_user')
-    user = state.get('user')                     # ✅ user object needed for index/embed
+    user = state.get('user')
     print(f"  👤 User ID: {user_id[:30] if len(user_id) > 30 else user_id}")
 
     # Ensure user profile exists
@@ -162,7 +162,7 @@ def judge_node(state: AgentState) -> AgentState:
     # ---------- Index debate in semantic search ----------
     try:
         semantic_search.add_to_index(
-            user,                                    # ← FIXED: pass user object first
+            user,
             query=state['query'],
             answer=state.get('final_answer', ''),
             mode="debate",
@@ -191,7 +191,7 @@ def judge_node(state: AgentState) -> AgentState:
     # ---------- Embed debate in Unified Pipeline ----------
     try:
         pipeline.embed_and_store(
-            user,                 # ← FIXED: pass user first
+            user,
             content=state['query'],
             module="debate",
             content_type="topic",
@@ -203,7 +203,7 @@ def judge_node(state: AgentState) -> AgentState:
             },
         )
         pipeline.embed_and_store(
-            user,                 # ← FIXED: pass user first
+            user,
             content=for_arg,
             module="debate",
             content_type="argument",
@@ -215,7 +215,7 @@ def judge_node(state: AgentState) -> AgentState:
             },
         )
         pipeline.embed_and_store(
-            user,                 # ← FIXED: pass user first
+            user,
             content=against_arg,
             module="debate",
             content_type="counterargument",
@@ -227,6 +227,7 @@ def judge_node(state: AgentState) -> AgentState:
             },
         )
         cross_connections = pipeline.find_cross_module_connections(
+            user,                                             # ← FIXED: user argument added
             query=state['query'],
             source_module="debate",
             target_modules=["research", "memory"],
