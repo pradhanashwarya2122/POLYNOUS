@@ -206,7 +206,8 @@ async def test_api_key(api_key: str, provider: str) -> dict:
         elif provider == "openai":
             from openai import OpenAI
             client = OpenAI(api_key=api_key)
-            client.models.list(limit=1)
+    # Just list models – no arguments needed (free call)
+            client.models.list()
             return {"valid": True, "message": "OpenAI key is valid ✅"}
         
         elif provider == "tavily":
