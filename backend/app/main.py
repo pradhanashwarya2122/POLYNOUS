@@ -56,12 +56,7 @@ ALLOWED_ORIGINS = [
     "https://polynous.pages.dev",
 ]
 
-env_frontend = os.getenv("FRONTEND_URL", "").strip()
-if env_frontend:
-    for url in env_frontend.split(","):
-        url = url.strip()
-        if url and url not in ALLOWED_ORIGINS:
-            ALLOWED_ORIGINS.append(url)
+
 
 ALLOWED_ORIGINS = list(set([url for url in ALLOWED_ORIGINS if url]))
 print(f"🌐 Allowed CORS origins: {ALLOWED_ORIGINS}")

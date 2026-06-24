@@ -9,8 +9,9 @@ load_dotenv()
 class UserMemoryGraph:
     def __init__(self):
         uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-        user = os.getenv("NEO4J_USER", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "password")
+        user = os.getenv("NEO4J_USER", "neo4j").strip()
+        password = os.getenv("NEO4J_PASSWORD", "password").strip()
+        
         
         try:
             self.driver = GraphDatabase.driver(uri, auth=(user, password))
