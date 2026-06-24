@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.database import SessionLocal
 from app.models.user import User
 from app.utils.encryption import decrypt_api_key
+from app.utils.startup_checks import run_startup_checks
 from app.middleware.auth_middleware import extract_user_middleware
 from app.middleware.input_sanitizer import input_sanitizer_middleware
 from app.utils.fix_users import add_missing_encryption_keys, add_missing_columns   # ← added add_missing_columns
@@ -142,7 +143,8 @@ async def startup():
         init_db()
         print("✅ Database initialized!")
         add_missing_columns()                # ← ensures any new DB columns are created
-        add_missing_encryption_keys()        # ← ensures every user has an encryption key
+        add_missing_encryption_keys()
+        run_startup_checks()        # ← ensures every user has an encryption key
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         if os.getenv("ENVIRONMENT", "").lower() == "production":
