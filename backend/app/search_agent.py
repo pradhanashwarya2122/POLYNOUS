@@ -1,6 +1,6 @@
 # backend/app/search_agent.py
 from app.utils.key_resolver import get_tavily_key
-from app.llm_client import ask_claude, ask_openai
+from app.llm_client import ask_llm
 from tavily import TavilyClient
 
 def search_web(user, query: str, session_id: str = None):
@@ -12,8 +12,8 @@ def search_web(user, query: str, session_id: str = None):
     if user:
         try:
             api_key = get_tavily_key(user)
-        except ValueError:
-            api_key = None  # User has no Tavily key stored
+        except Exception:
+            api_key = None
 
     if not api_key:
         print("  Search error: No Tavily API key configured for this user")
@@ -28,11 +28,12 @@ def search_web(user, query: str, session_id: str = None):
         print(f"  Search error: {e}")
         return []
 
+
 def format_search_results(results):
     """Format search results for the LLM."""
     if not results:
         return "No search results found."
-    
+
     formatted = []
     for i, result in enumerate(results, 1):
         formatted.append(
@@ -43,50 +44,40 @@ def format_search_results(results):
         )
     return "\n---\n".join(formatted)
 
+
 def ask_claude_with_context(user, query: str, context: str, provider=None, session_id: str = None) -> str:
     """
     Ask the user's preferred LLM with search context.
-    The LLM provider (Anthropic or OpenAI) is chosen based on the user's available keys,
-    falling back automatically if the preferred one is missing.
+    Uses the centralized ask_llm which handles key resolution and
+    provider switching automatically.
     """
-    # ── Provider resolution ──
+    # ── Determine provider from user preferences ──
     if provider is None:
         provider = getattr(user, 'preferred_provider', None) or 'anthropic'
-    if provider == 'anthropic' and not getattr(user, 'anthropic_api_key_enc', None):
-        if getattr(user, 'openai_api_key_enc', None):
-            provider = 'openai'
-            print("  ℹ️ Anthropic key missing, using OpenAI")
-    elif provider == 'openai' and not getattr(user, 'openai_api_key_enc', None):
-        if getattr(user, 'anthropic_api_key_enc', None):
-            provider = 'anthropic'
-            print("  ℹ️ OpenAI key missing, using Anthropic")
 
-    system = "You are a research assistant. Use the provided search results to answer questions. Always cite your sources by number [1], [2], etc. If search results don't contain the answer, say so."
-    messages = [{
-        "role": "user",
-        "content": f"Search Results:\n{context}\n\nQuestion: {query}\n\nAnswer (with source citations):"
-    }]
+    system_prompt = (
+        "You are a research assistant. Use the provided search results to answer "
+        "questions. Always cite your sources by number [1], [2], etc. If search "
+        "results don't contain the answer, say so."
+    )
+
+    user_message = (
+        f"Search Results:\n{context}\n\n"
+        f"Question: {query}\n\n"
+        f"Answer (with source citations):"
+    )
 
     try:
         print(f"  Asking LLM about: {query} (provider: {provider})")
-        if provider == 'openai':
-            resp = ask_openai(
-                user,
-                system=system,
-                messages=messages,
-                model="gpt-4o",
-                max_tokens=500,
-                temperature=0.3,
-            )
-        else:
-            resp = ask_claude(
-                user,
-                system=system,
-                messages=messages,
-                model="claude-haiku-4-5",
-                max_tokens=500,
-                temperature=0.3,
-            )
-        return resp.content[0].text
+        result = ask_llm(
+            user=user,
+            provider=provider,
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+            max_tokens=500,
+            temperature=0.3,
+        )
+        # ask_llm always returns a string, so we can return it directly
+        return result
     except Exception as e:
         return f"Error getting AI response: {str(e)}"

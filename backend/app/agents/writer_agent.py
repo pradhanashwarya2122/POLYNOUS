@@ -6,7 +6,7 @@ def writer_agent(user, query, summaries, critique, citations,
                  response_style="academic", provider="anthropic"):
     """
     Create world‑class research answers with the user's preferred LLM.
-    
+
     Args:
         user: SQLAlchemy User object (for key resolution)
         query: Original research query
@@ -15,7 +15,7 @@ def writer_agent(user, query, summaries, critique, citations,
         citations: List of citation dicts
         response_style: "academic", "casual", "eli5", or "technical"
         provider: "anthropic" or "openai"
-    
+
     Returns:
         Formatted research answer string
     """
@@ -117,14 +117,14 @@ def writer_agent(user, query, summaries, critique, citations,
     contradiction_text = ""
     if contradictions:
         contradiction_text = "CONTRADICTIONS BETWEEN SOURCES:\n" + "\n".join([
-            f"• {c.get('topic', 'Unknown')}: {c.get('description', 'No details')}"
+            f"• {c.get('claim1', 'Unknown')} vs {c.get('claim2', 'Unknown')}: {c.get('explanation', 'No details')}"
             for c in contradictions
         ])
 
     agreement_text = ""
     if agreements:
         agreement_text = "AREAS OF STRONG AGREEMENT:\n" + "\n".join([
-            f"• {a.get('topic', 'Unknown')}: {a.get('description', 'No details')}"
+            f"• {a.get('claim1', 'Unknown')} agrees with {a.get('claim2', 'Unknown')}: {a.get('explanation', 'No details')}"
             for a in agreements
         ])
 
@@ -157,7 +157,7 @@ Acknowledge uncertainty and conflicting evidence honestly."""
 
     # ── Primary call with full context ──
     try:
-        answer = ask_llm(
+        raw_answer = ask_llm(
             user=user,
             provider=provider,
             system_prompt=system_prompt,
@@ -165,6 +165,14 @@ Acknowledge uncertainty and conflicting evidence honestly."""
             max_tokens=1500,
             temperature=0.4,
         )
+
+        # ✅ Ensure we have a plain string
+        if isinstance(raw_answer, str):
+            answer = raw_answer
+        else:
+            # If it's a Message object, extract the text
+            answer = raw_answer.content[0].text
+
         print(f"  ✅ World-class answer created! (style: {response_style}, provider: {provider}, tokens: ~{len(answer.split())})")
         return answer
 
@@ -173,7 +181,7 @@ Acknowledge uncertainty and conflicting evidence honestly."""
         # Fallback: try again with reduced context
         try:
             print("  🔄 Falling back with reduced context...")
-            answer = ask_llm(
+            raw_answer = ask_llm(
                 user=user,
                 provider=provider,
                 system_prompt=system_prompt[:2000],
@@ -181,8 +189,16 @@ Acknowledge uncertainty and conflicting evidence honestly."""
                 max_tokens=800,
                 temperature=0.5,
             )
+
+            # ✅ Same safety check in fallback
+            if isinstance(raw_answer, str):
+                answer = raw_answer
+            else:
+                answer = raw_answer.content[0].text
+
             print("  ✅ Fallback answer created!")
             return answer
+
         except Exception as fallback_error:
             print(f"  ❌ Fallback also failed: {fallback_error}")
             return (

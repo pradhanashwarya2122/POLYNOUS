@@ -1,4 +1,5 @@
 import json
+import re
 from app.llm_client import ask_llm
 
 def critic_agent(user, summaries, query, provider="anthropic"):
@@ -9,8 +10,8 @@ def critic_agent(user, summaries, query, provider="anthropic"):
         combined = "\n\n".join(summaries)[:4000]
 
         system_prompt = (
-            "You are a fact-checker for POLYNOUS. Analyze research summaries critically.\n\n"
-            "Return a JSON object with:\n"
+            "You are a fact-checker for POLYNOUS. Analyze the provided research summaries critically.\n\n"
+            "Return ONLY a valid JSON object (no explanations, no markdown). The JSON must follow this structure:\n"
             '{\n'
             '    "claims": [\n'
             '        {"claim": "specific claim text", "confidence": 85, "sources_supporting": 2}\n'
@@ -23,11 +24,10 @@ def critic_agent(user, summaries, query, provider="anthropic"):
             '    "strengths": ["what the research does well"],\n'
             '    "recommendations": ["how to improve the answer"]\n'
             '}\n\n'
-            "Score confidence: 80-100 (strong agreement), 60-79 (minor disagreements), "
-            "40-59 (limited evidence), below 40 (unreliable)"
+            "Confidence scale: 80-100 (strong agreement), 60-79 (minor disagreements), 40-59 (limited evidence), below 40 (unreliable)."
         )
 
-        user_message = f"Query: {query}\n\nSummaries:\n{combined}\n\nProvide JSON analysis:"
+        user_message = f"Query: {query}\n\nSummaries:\n{combined}\n\nProvide ONLY the JSON object as described, without any additional text."
 
         response_text = ask_llm(
             user=user,
@@ -38,14 +38,28 @@ def critic_agent(user, summaries, query, provider="anthropic"):
             temperature=0.2
         )
 
-        # Parse JSON from response
-        try:
-            if "```json" in response_text:
-                start = response_text.find("```json") + 7
-                end = response_text.find("```", start)
-                response_text = response_text[start:end]
-            analysis = json.loads(response_text)
-        except:
+        # Extract JSON from response – handle common cases
+        analysis = None
+        # Try to find a JSON code block
+        code_block_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', response_text, re.DOTALL)
+        if code_block_match:
+            try:
+                analysis = json.loads(code_block_match.group(1))
+            except:
+                pass
+
+        # If no code block, try to parse the whole response as JSON
+        if analysis is None:
+            try:
+                # Remove any markdown fences that might be present but not matched
+                clean = re.sub(r'```\w*\n?', '', response_text).strip()
+                analysis = json.loads(clean)
+            except:
+                pass
+
+        # Fallback if parsing still fails
+        if analysis is None or not isinstance(analysis, dict):
+            print("  ⚠️ Could not parse JSON from critic response, using defaults")
             analysis = {
                 "claims": [],
                 "contradictions": [],
@@ -54,6 +68,14 @@ def critic_agent(user, summaries, query, provider="anthropic"):
                 "strengths": [],
                 "recommendations": ["Verify sources manually"]
             }
+
+        # Ensure expected keys exist
+        analysis.setdefault("claims", [])
+        analysis.setdefault("contradictions", [])
+        analysis.setdefault("overall_confidence", 60)
+        analysis.setdefault("weak_claims", [])
+        analysis.setdefault("strengths", [])
+        analysis.setdefault("recommendations", [])
 
         print(f"  ✅ Confidence: {analysis.get('overall_confidence', 'N/A')}%")
         return analysis

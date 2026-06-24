@@ -29,7 +29,7 @@ def _get_decrypted_key(user, provider_attr):
     return decrypted
 
 
-# ── Individual Key Getters (using real column names) ────────
+# ── Individual Key Getters ─────────────────────────────────
 
 def get_anthropic_key(user):
     return _get_decrypted_key(user, "anthropic_api_key")
@@ -44,6 +44,7 @@ def get_tavily_key(user):
     try:
         return _get_decrypted_key(user, "tavily_api_key")
     except ValueError:
+        # Fallback to system key – search can work without BYO key
         return os.getenv("TAVILY_API_KEY")
 
 
