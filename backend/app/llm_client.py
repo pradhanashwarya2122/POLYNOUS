@@ -18,7 +18,7 @@ def get_embedding_client(user):
 def ask_claude(user, system_prompt: str, messages: list, max_tokens=1024, temperature=0.7):
     client = get_anthropic_client(user)
     response = client.messages.create(
-        model="claude-3-haiku-20240307",   # ✅ valid model
+        model="claude-haiku-4-5",   # ✅ valid model
         max_tokens=max_tokens,
         temperature=temperature,
         system=system_prompt,
