@@ -9,7 +9,6 @@ from app.agents.critic_agent import critic_agent
 from app.agents.writer_agent import writer_agent
 from app.search_agent import search_web
 from app.chat_history import save_chat
-from app.services.embedding_pipeline import pipeline
 from app.memory.vector_store import store_research
 
 
@@ -24,7 +23,6 @@ def search_node(state: AgentState) -> AgentState:
     user = state.get('user')
     user_id = getattr(user, 'public_id', 'guest') if user else 'guest'
 
-    # ✅ search_web now expects (user, query)
     results = search_web(user, state['query'])
     state['retrieved_docs'] = results
 
@@ -45,7 +43,6 @@ def search_node(state: AgentState) -> AgentState:
         state['graph_results'] = []
         graph_count = 0
 
-    # Extract citations
     state['citations'] = [
         {
             'title': doc.get('title', 'Untitled'),
@@ -124,7 +121,6 @@ def writer_node(state: AgentState) -> AgentState:
     if graph_context:
         enhanced_summaries.append(f"KNOWLEDGE GRAPH INSIGHTS:\n{graph_context}")
 
-    # ✅ writer_agent now expects (user, query, summaries, critique, citations, provider)
     answer = writer_agent(
         user=user,
         query=state['query'],
@@ -135,7 +131,7 @@ def writer_node(state: AgentState) -> AgentState:
     )
     state['final_answer'] = answer
 
-    # Extract entities for knowledge graph storage
+    # Extract entities
     try:
         entities = hybrid._extract_entities(state['query'])
         entities = [e.strip() for e in entities if e.strip() and len(e.strip()) < 80 and e.strip().lower() != 'unknown']
@@ -178,7 +174,7 @@ def writer_node(state: AgentState) -> AgentState:
     # ========== INDEX IN SEMANTIC SEARCH ==========
     try:
         semantic_search.add_to_index(
-            user=user,
+            user,                                    # ← positional, consistent with debate_graph
             query=state['query'],
             answer=answer,
             mode="research",
@@ -198,7 +194,7 @@ def writer_node(state: AgentState) -> AgentState:
             query=state['query'],
             documents=state.get('retrieved_docs', []),
             answer=answer,
-            user=user,
+            user=user,                               # ← now accepted by vector_store
             metadata={
                 'confidence': state.get('critique', {}).get('overall_confidence', 0),
                 'mode': 'research',

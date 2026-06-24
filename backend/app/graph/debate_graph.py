@@ -15,11 +15,10 @@ def debate_search_node(state: AgentState) -> AgentState:
     print("  DEBATE: Searching for sources...")
     print("=" * 60)
 
-    # ✅ Get the user object from state (same as in orchestrator)
     user = state.get('user')
     user_id = state.get('session_id', 'guest_user')
 
-    results = search_web(user, state['query'])   # ← fixed
+    results = search_web(user, state['query'])
     state['retrieved_docs'] = results
 
     context = [
@@ -38,7 +37,6 @@ def debate_search_node(state: AgentState) -> AgentState:
 
 def for_agent_node(state: AgentState) -> AgentState:
     print("\n🟢 FOR AGENT")
-    # ✅ Read resolved API key and provider from state (set by main.py)
     api_key = state.get('user_api_key')
     provider = state.get('preferred_provider', 'anthropic')
 
@@ -81,13 +79,13 @@ def judge_node(state: AgentState) -> AgentState:
     print("⚖️ JUDGE")
     print("=" * 60)
 
-    # ✅ Read resolved API key and provider from state
     api_key = state.get('user_api_key')
     provider = state.get('preferred_provider', 'anthropic')
     user_id = state.get('session_id', 'guest_user')
+    user = state.get('user')                     # ✅ user object needed for index/embed
     print(f"  👤 User ID: {user_id[:30] if len(user_id) > 30 else user_id}")
 
-    # Ensure user profile exists before storing debate
+    # Ensure user profile exists
     try:
         user_memory.create_user_profile(
             user_id=user_id,
@@ -107,7 +105,6 @@ def judge_node(state: AgentState) -> AgentState:
         elif entry.get('side') == 'AGAINST':
             against_arg = entry.get('argument', '')
 
-    # ✅ Pass api_key and provider directly, no user object
     verdict = judge_debate(
         for_arg, against_arg, state['query'],
         api_key=api_key,
@@ -143,13 +140,12 @@ def judge_node(state: AgentState) -> AgentState:
 """
 
     state['final_answer'] = debate_summary
-
     state['citations'] = [
         {'title': doc.get('title', 'Untitled'), 'url': doc.get('url', '')}
         for doc in state.get('retrieved_docs', [])
     ]
 
-    # ========== Store debate in user memory ==========
+    # ---------- Store debate in user memory ----------
     print(f"    Storing debate for user_id: {user_id[:30]}")
     try:
         user_memory.record_debate(
@@ -163,9 +159,10 @@ def judge_node(state: AgentState) -> AgentState:
     except Exception as e:
         print(f"  ⚠️ Memory storage error: {e}")
 
-    # ========== Index debate in semantic search ==========
+    # ---------- Index debate in semantic search ----------
     try:
         semantic_search.add_to_index(
+            user,                                    # ← FIXED: pass user object first
             query=state['query'],
             answer=state.get('final_answer', ''),
             mode="debate",
@@ -177,7 +174,7 @@ def judge_node(state: AgentState) -> AgentState:
     except Exception as e:
         print(f"  ⚠️ Search indexing error: {e}")
 
-    # ========== Save debate to chat history ==========
+    # ---------- Save debate to chat history ----------
     try:
         save_debate(
             session_id=user_id,
@@ -191,9 +188,10 @@ def judge_node(state: AgentState) -> AgentState:
     except Exception as e:
         print(f"  ⚠️ Chat history save error: {e}")
 
-    # ========== Embed debate in Unified Pipeline ==========
+    # ---------- Embed debate in Unified Pipeline ----------
     try:
         pipeline.embed_and_store(
+            user,                 # ← FIXED: pass user first
             content=state['query'],
             module="debate",
             content_type="topic",
@@ -205,6 +203,7 @@ def judge_node(state: AgentState) -> AgentState:
             },
         )
         pipeline.embed_and_store(
+            user,                 # ← FIXED: pass user first
             content=for_arg,
             module="debate",
             content_type="argument",
@@ -216,6 +215,7 @@ def judge_node(state: AgentState) -> AgentState:
             },
         )
         pipeline.embed_and_store(
+            user,                 # ← FIXED: pass user first
             content=against_arg,
             module="debate",
             content_type="counterargument",
@@ -237,7 +237,7 @@ def judge_node(state: AgentState) -> AgentState:
     except Exception as e:
         print(f"⚠️ Pipeline embedding error: {e}")
 
-    # ========== PHASE 3: Create Rich Graph Nodes ==========
+    # ---------- PHASE 3: Create Rich Graph Nodes ----------
     try:
         kg.create_argument_node(
             argument_text=for_arg[:300],
