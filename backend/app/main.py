@@ -7,7 +7,7 @@ from app.utils.encryption import decrypt_api_key
 from app.utils.startup_checks import run_startup_checks
 from app.middleware.auth_middleware import extract_user_middleware
 from app.middleware.input_sanitizer import input_sanitizer_middleware
-from app.utils.fix_users import add_missing_encryption_keys, add_missing_columns   # ← added add_missing_columns
+from app.utils.fix_users import add_missing_encryption_keys, add_missing_columns
 from app.middleware.security_headers import security_headers_middleware
 from app.utils.sanitizer import sanitize_query, is_safe_input
 from app.routes.api_keys import router as api_keys_router
@@ -20,6 +20,8 @@ from app.routes.semantic_search import router as search_router
 from app.routes.knowledge import router as knowledge_router
 from app.routes.oauth import router as oauth_router
 from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi.exceptions import RequestValidationError                 # ← NEW
+from starlette.exceptions import HTTPException as StarletteHTTPException  # ← NEW
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
@@ -55,8 +57,6 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:5174",
     "https://polynous.pages.dev",
 ]
-
-
 
 ALLOWED_ORIGINS = list(set([url for url in ALLOWED_ORIGINS if url]))
 print(f"🌐 Allowed CORS origins: {ALLOWED_ORIGINS}")
@@ -98,28 +98,22 @@ app = FastAPI(title="POLYNOUS API")
 # MIDDLEWARE (order matters!)
 # ============================================================
 
+# 1. CORS – must be first
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS if ALLOWED_ORIGINS else ["http://localhost:5174"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=[
-        "Authorization", 
-        "Content-Type", 
-        "X-Requested-With", 
-        "Accept", 
-        "Origin",
-        "Cookie",
-        "Set-Cookie",
-    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
     expose_headers=[
-        "Content-Length", 
+        "Content-Length",
         "Content-Type",
         "Set-Cookie",
     ],
     max_age=3600,
 )
 
+# 2. Security headers
 app.middleware("http")(security_headers_middleware)
 app.middleware("http")(extract_user_middleware)
 app.middleware("http")(input_sanitizer_middleware)
@@ -137,9 +131,9 @@ async def startup():
     try:
         init_db()
         print("✅ Database initialized!")
-        add_missing_columns()                # ← ensures any new DB columns are created
+        add_missing_columns()
         add_missing_encryption_keys()
-        run_startup_checks()        # ← ensures every user has an encryption key
+        run_startup_checks()
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         if os.getenv("ENVIRONMENT", "").lower() == "production":
@@ -218,6 +212,10 @@ async def health():
 @app.get("/history/chats")
 async def chat_history(session_id: str = None, limit: int = 20):
     return {"history": get_chat_history(session_id, limit)}
+
+@app.get("/debug/cors")
+async def debug_cors():
+    return {"allowed_origins": ALLOWED_ORIGINS}
 
 @app.get("/history/debates")
 async def debate_history(session_id: str = None, limit: int = 20):
@@ -435,6 +433,59 @@ async def vector_count():
         return {"count": total, "memory_count": memory_count, "pinecone_count": pinecone_count}
     except Exception as e:
         return {"count": 0, "error": str(e)}
+
+# ============================================================
+# EXCEPTION HANDLERS
+# ============================================================
+
+# 1. Handle HTTP exceptions (400, 401, 403, 404, 500 etc.)
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "type": "http_error",
+            "message": str(exc.detail),
+            "status_code": exc.status_code,
+        },
+    )
+
+# 2. Handle validation errors (422 – missing fields, bad types)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for error in exc.errors():
+        errors.append({
+            "field": " -> ".join(str(loc) for loc in error["loc"]),
+            "message": error["msg"],
+            "type": error["type"],
+        })
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": True,
+            "type": "validation_error",
+            "message": "Validation error",
+            "detail": {"errors": errors[:5]},
+        },
+    )
+
+# 3. Catch ALL unhandled exceptions (500 – internal server errors)
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    is_production = os.getenv("ENVIRONMENT") == "production"
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "type": "internal_error",
+            "message": "An internal error occurred" if is_production else str(exc),
+            "status_code": 500,
+        },
+    )
 
 if __name__ == "__main__":
     import uvicorn
