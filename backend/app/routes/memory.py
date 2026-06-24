@@ -106,7 +106,10 @@ async def get_debate_history(request: Request):
     print(f"🔍 Memory debates requested for user: {user_id}")
     
     try:
-        with user_memory.driver.session() as session:
+        driver = user_memory._get_driver()   # use the resilient getter
+        if not driver:
+            return {"user_id": user_id, "debates": [], "error": "Neo4j unavailable"}
+        with driver.session() as session:
             result = session.run("""
                 MATCH (u:User {id: $user_id})-[:DEBATED]->(d:DebateSession)
                 RETURN d.topic as topic, d.winner as winner,
@@ -130,4 +133,4 @@ async def get_debate_history(request: Request):
             return {"user_id": user_id, "debates": debates, "total": len(debates)}
     except Exception as e:
         print(f"⚠️ Debate history error: {e}")
-        return {"user_id": user_id, "debates": [], "total": 0}
+        return {"user_id": user_id, "debates": [], "error": str(e)}

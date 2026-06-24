@@ -217,6 +217,14 @@ async def chat_history(session_id: str = None, limit: int = 20):
 async def debug_cors():
     return {"allowed_origins": ALLOWED_ORIGINS}
 
+@app.get("/debug/user-memory")
+async def debug_user_memory(request: Request):
+    user_id = getattr(request.state, 'user_public_id', 'guest')
+    stats = user_memory.get_user_stats(user_id)
+    interests = user_memory.get_user_interests(user_id)
+    history = user_memory.get_recent_research(user_id)
+    return {"user_id": user_id, "stats": stats, "interests": interests, "history": history}
+
 @app.get("/history/debates")
 async def debate_history(session_id: str = None, limit: int = 20):
     return {"history": get_debate_history(session_id, limit)}
