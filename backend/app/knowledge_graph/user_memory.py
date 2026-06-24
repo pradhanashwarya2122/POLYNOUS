@@ -8,10 +8,9 @@ load_dotenv()
 
 class UserMemoryGraph:
     def __init__(self):
-        # 🔧 TEMPORARY HARDCODE – REMOVE AFTER TESTING
-        uri = "neo4j+s://bccd60cb.databases.neo4j.io"      # ← your real URI
+        uri = "neo4j+s://bccd60cb.databases.neo4j.io"
         user = "neo4j"
-        password = "qdFEa3EJEqHukJw7z5PQn4VopaN4Jl2R9QgvX-FEYwk"                         # ← your new simple password
+        password = "qdFEa3EJEqHukJw7z5PQn4VopaN4Jl2R9QgvX-FEYwk"
 
         try:
             self.driver = GraphDatabase.driver(uri, auth=(user, password))
@@ -22,22 +21,20 @@ class UserMemoryGraph:
             self.driver = None
 
     def _get_driver(self):
-        """Re‑create the driver if it was lost, so the graph survives temporary outages."""
         if self.driver is None:
-            uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-            user = os.getenv("NEO4J_USER", "neo4j").strip()
-            password = os.getenv("NEO4J_PASSWORD", "password").strip()
+            uri = "neo4j+s://bccd60cb.databases.neo4j.io"
+            user = "neo4j"
+            password = "qdFEa3EJEqHukJw7z5PQn4VopaN4Jl2R9QgvX-FEYwk"
             try:
                 self.driver = GraphDatabase.driver(uri, auth=(user, password))
                 self.driver.verify_connectivity()
-                print("✅ User Memory Graph re‑connected!")
+                print("✅ User Memory Graph re-connected!")
             except Exception as e:
                 print(f"⚠️ User Memory Graph still unavailable: {e}")
                 self.driver = None
         return self.driver
 
     def create_user_profile(self, user_id: str, username: str, email: str):
-        """Create or update a user profile node"""
         driver = self._get_driver()
         if not driver:
             return
@@ -53,15 +50,13 @@ class UserMemoryGraph:
         except Exception as e:
             print(f"❌ User profile error: {e}")
 
-    def record_research(self, user_id: str, query: str, answer: str, 
+    def record_research(self, user_id: str, query: str, answer: str,
                         topics: List[str], confidence: float, mode: str = "research",
                         sources: List[Dict] = None):
-        """Record a research interaction with user isolation and topic filtering"""
         driver = self._get_driver()
         if not driver:
             return
-        
-        # ✅ FIX: Ensure user profile exists first
+
         try:
             with driver.session() as session:
                 session.run("""
@@ -71,11 +66,9 @@ class UserMemoryGraph:
                 """, uid=user_id)
         except:
             pass
-        
+
         try:
             with driver.session() as session:
-                # ✅ FIX: Use different variable names to avoid Neo4j keyword conflict
-                # $uid, $q, $ans, $conf, $m instead of $user_id, $query (which conflicts with Neo4j's query keyword)
                 session.run("""
                     MATCH (u:User {id: $uid})
                     CREATE (r:ResearchSession {
@@ -89,8 +82,7 @@ class UserMemoryGraph:
                     CREATE (u)-[:CONDUCTED]->(r)
                 """, uid=user_id, q=query[:300], ans=answer[:500],
                     conf=confidence, m=mode)
-                
-                # Create topics and link — with filtering
+
                 valid_topic_count = 0
                 for topic in topics:
                     topic = topic.strip() if topic else ""
@@ -106,26 +98,23 @@ class UserMemoryGraph:
                             SET i.strength = coalesce(i.strength, 0) + 1,
                                 i.last_researched = datetime()
                         """, uid=user_id, q=query[:300], topic=topic)
-                
+
                 print(f"  ✅ Recorded research: {valid_topic_count} topics for user {user_id[:20]}")
         except Exception as e:
             print(f"  ⚠️ Record research error: {e}")
 
-    def record_debate(self, user_id: str, topic: str, for_score: float, 
+    def record_debate(self, user_id: str, topic: str, for_score: float,
                       against_score: float, winner: str):
-        """Record a debate session for a specific user with user isolation"""
         driver = self._get_driver()
         if not driver:
             return
         try:
             with driver.session() as session:
-                # Ensure User node exists
                 session.run("""
                     MERGE (u:User {id: $uid})
                     SET u.last_active = datetime()
                 """, uid=user_id)
-                
-                # Create DebateSession with user_id
+
                 session.run("""
                     MATCH (u:User {id: $uid})
                     CREATE (d:DebateSession {
@@ -141,15 +130,14 @@ class UserMemoryGraph:
                     SET t.user_id = $uid
                     CREATE (d)-[:DEBATE_ABOUT]->(t)
                 """, uid=user_id, topic=topic[:200],
-                    for_score=for_score, against_score=against_score, 
+                    for_score=for_score, against_score=against_score,
                     winner=winner)
-                
+
                 print(f"✅ Recorded debate for user {user_id}: {topic[:50]}")
         except Exception as e:
             print(f"❌ Record debate error: {e}")
 
     def get_user_interests(self, user_id: str, limit: int = 10) -> List[Dict]:
-        """Get interests for a SPECIFIC user only"""
         driver = self._get_driver()
         if not driver:
             return []
@@ -166,7 +154,6 @@ class UserMemoryGraph:
             return []
 
     def get_recent_research(self, user_id: str, limit: int = 10) -> List[Dict]:
-        """Get recent research for a SPECIFIC user only"""
         driver = self._get_driver()
         if not driver:
             return []
@@ -194,13 +181,12 @@ class UserMemoryGraph:
             return []
 
     def get_user_stats(self, user_id: str) -> Dict:
-        """Get stats for a SPECIFIC user only"""
         driver = self._get_driver()
         if not driver:
             return {
-                "total_research": 0, 
-                "total_debates": 0, 
-                "avg_confidence": 0, 
+                "total_research": 0,
+                "total_debates": 0,
+                "avg_confidence": 0,
                 "unique_topics": 0
             }
         try:
@@ -228,14 +214,13 @@ class UserMemoryGraph:
         except:
             pass
         return {
-            "total_research": 0, 
-            "total_debates": 0, 
-            "avg_confidence": 0, 
+            "total_research": 0,
+            "total_debates": 0,
+            "avg_confidence": 0,
             "unique_topics": 0
         }
 
     def get_related_suggestions(self, user_id: str, current_topic: str, limit: int = 5) -> List[str]:
-        """Get related topic suggestions for a SPECIFIC user"""
         driver = self._get_driver()
         if not driver:
             return []
@@ -253,7 +238,6 @@ class UserMemoryGraph:
             return []
 
     def get_user_debates(self, user_id: str, limit: int = 10) -> List[Dict]:
-        """Get debate history for a SPECIFIC user only"""
         driver = self._get_driver()
         if not driver:
             return []
@@ -281,7 +265,6 @@ class UserMemoryGraph:
             return []
 
     def get_user_research_history(self, user_id: str, limit: int = 20) -> List[Dict]:
-        """Get full research history for a SPECIFIC user with answers"""
         driver = self._get_driver()
         if not driver:
             return []
