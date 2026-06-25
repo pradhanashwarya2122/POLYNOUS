@@ -1,16 +1,109 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Polynous - AI Memory OS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Hanken+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+    <!-- ============================================= -->
+    <!-- PRIMARY SEO TAGS                               -->
+    <!-- ============================================= -->
+    <title>Polynous — Multi-Agent AI Research Platform with Memory & Knowledge Graphs</title>
+    <meta name="description" content="Polynous is a multi-agent AI research platform where specialized AI agents search, summarize, critique, and debate to deliver cited, confidence-scored answers. Includes a knowledge graph, semantic search, and persistent memory across sessions." />
+    <meta name="keywords" content="multi-agent AI, AI research assistant, AI memory, knowledge graph AI, AI debate tool, semantic search, LangGraph, AI research platform" />
+    <link rel="canonical" href="https://polynous.pages.dev/" />
+
+    <!-- ============================================= -->
+    <!-- OPEN GRAPH (Facebook, LinkedIn, Slack, Discord) -->
+    <!-- ============================================= -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://polynous.pages.dev/" />
+    <meta property="og:title" content="Polynous — Multi-Agent AI Research Platform" />
+    <meta property="og:description" content="Seven specialized AI agents research, debate, and reason together — with citations, confidence scores, a living knowledge graph, and memory that persists across sessions." />
+    <meta property="og:image" content="https://polynous.pages.dev/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Polynous" />
+
+    <!-- ============================================= -->
+    <!-- TWITTER / X CARD                                -->
+    <!-- ============================================= -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Polynous — Multi-Agent AI Research Platform" />
+    <meta name="twitter:description" content="AI agents that search, debate, and remember. Citations, confidence scores, and a living knowledge graph for every research session." />
+    <meta name="twitter:image" content="https://polynous.pages.dev/og-image.png" />
+
+    <!-- ============================================= -->
+    <!-- FAVICON / ICONS                                -->
+    <!-- ============================================= -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- ============================================= -->
+    <!-- STRUCTURED DATA (JSON-LD) — helps Google AND   -->
+    <!-- AI answer engines understand what this is      -->
+    <!-- ============================================= -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Polynous",
+      "alternateName": "Polynous AI Memory OS",
+      "url": "https://polynous.pages.dev/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "description": "Polynous is a multi-agent AI research platform where specialized agents search, summarize, critique, debate, and write cited, confidence-scored answers. Features a Neo4j-powered knowledge graph, Pinecone-backed semantic search, and a persistent memory bank that tracks research interests over time.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Multi-agent research (search, summarize, critique, write)",
+        "Debate mode with FOR, AGAINST, and Judge agents",
+        "Neo4j knowledge graph visualization",
+        "Semantic search with Voyage AI embeddings",
+        "Persistent memory bank across sessions",
+        "PDF upload and retrieval-augmented Q&A",
+        "Bring-your-own API key support"
+      ]
+    }
+    </script>
   </head>
+
   <body>
+    <!-- ============================================= -->
+    <!-- NOSCRIPT FALLBACK (visible to crawlers)        -->
+    <!-- ============================================= -->
+    <noscript>
+      <div style="padding: 40px; font-family: sans-serif; max-width: 700px; margin: 0 auto;">
+        <h1>Polynous — Multi-Agent AI Research Platform</h1>
+        <p>
+          Polynous is an AI research operating system built on seven specialized agents
+          that work together like a research team: a Search Agent finds sources, a
+          Summariser condenses them, a Critic checks for contradictions and assigns
+          confidence scores, and a Writer assembles the final cited answer.
+        </p>
+        <h2>Debate Mode</h2>
+        <p>
+          Ask a question and watch a FOR agent and an AGAINST agent argue both sides,
+          with an impartial AI Judge scoring the debate and declaring a winner.
+        </p>
+        <h2>Knowledge Graph &amp; Memory</h2>
+        <p>
+          Every research session feeds a personal, interactive knowledge graph
+          (powered by Neo4j) and a memory bank that tracks your research interests,
+          timeline, and past debates — so Polynous gets more useful the more you use it.
+        </p>
+        <h2>Semantic Search</h2>
+        <p>
+          Search past research by meaning, not just keywords, using Voyage AI
+          embeddings and a Pinecone vector index.
+        </p>
+        <p>Enable JavaScript to use the full interactive Polynous experience.</p>
+      </div>
+    </noscript>
+
+    <!-- React root -->
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
