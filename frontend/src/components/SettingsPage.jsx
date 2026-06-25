@@ -22,10 +22,10 @@ const C = {
   green:            "#5ec97e",
   greenFaint:       "rgba(94,201,126,0.09)",
 
-  void:             "#0b0c10",
-  surface:          "rgba(18,20,26,0.80)",
-  surfaceHigh:      "rgba(30,33,42,0.85)",
-  inputBg:          "#08090d",
+  void:             "#0a0a1e",
+  surface:          "rgba(38,38,52,0.90)",
+  surfaceHigh:      "rgba(52,52,68,0.92)",
+  inputBg:          "#0d0d22",
 
   onSurface:        "#dde1e9",
   onSurfaceVariant: "#8e98a8",
@@ -40,15 +40,6 @@ const C = {
   fontDisplay: "'Anton',sans-serif",
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// API LAYER — now uses centralized apiFetch from ../config
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Thin wrapper around the centralized apiFetch.
- * - apiFetch already attaches auth headers and prepends API_BASE_URL.
- * - This wrapper adds JSON parsing and structured error handling.
- */
 async function safeFetch(path, opts = {}) {
   let res;
   try {
@@ -74,59 +65,47 @@ async function safeFetch(path, opts = {}) {
 }
 
 const api = {
-  // ── API Keys ──────────────────────────────────────────────────────────────
   getApiKeys:   ()               => safeFetch('/settings/api-keys'),
   saveApiKey:   (provider, key)  => safeFetch('/settings/api-keys', { method: "PUT",    body: JSON.stringify({ provider, api_key: key }) }),
   deleteApiKey: (provider)       => safeFetch(`/settings/api-keys/${provider}`, { method: "DELETE" }),
   testApiKey:   (provider, key)  => safeFetch('/settings/api-keys/test', { method: "POST", body: JSON.stringify({ provider, api_key: key }) }),
 
-  // ── Preferences ───────────────────────────────────────────────────────────
   getPreferences:  ()      => safeFetch('/settings/preferences'),
   savePreferences: (prefs) => safeFetch('/settings/preferences', { method: "PUT", body: JSON.stringify(prefs) }),
 
-  // ── Profile ───────────────────────────────────────────────────────────────
   getProfile:    ()     => safeFetch('/auth/me'),
   updateProfile: (data) => safeFetch('/auth/me', { method: "PUT", body: JSON.stringify(data) }),
   changePassword: (data) => safeFetch('/auth/change-password', { method: "POST", body: JSON.stringify(data) }),
   revokeAllSessions: () => safeFetch('/auth/revoke-sessions', { method: "POST" }),
   deleteAccount: ()     => safeFetch('/auth/me', { method: "DELETE" }),
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
   getStats:   ()           => safeFetch('/memory/stats'),
   exportData: ()           => safeFetch('/settings/export'),
   clearHistory: ()         => safeFetch('/memory/clear', { method: "DELETE" }),
   clearAllData: ()         => safeFetch('/settings/reset', { method: "POST" }),
 
-  // ── Notifications ─────────────────────────────────────────────────────────
-  getNotifications:  ()      => safeFetch('/settings/notifications'),
-  saveNotifications: (prefs) => safeFetch('/settings/notifications', { method: "PUT", body: JSON.stringify(prefs) }),
-
-  // ── Integrations ──────────────────────────────────────────────────────────
   getIntegrations:      ()       => safeFetch('/settings/integrations'),
   connectIntegration:   (name)   => safeFetch(`/settings/integrations/${name}/connect`, { method: "POST" }),
   disconnectIntegration:(name)   => safeFetch(`/settings/integrations/${name}/disconnect`, { method: "DELETE" }),
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ICON
-// ─────────────────────────────────────────────────────────────────────────────
-function Icon({ name, style: extra }) {
+function Icon({ name, style }) {
   return (
-    <span style={{
-      fontFamily: "Material Symbols Outlined",
-      fontVariationSettings: "'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24",
-      lineHeight: 1, userSelect: "none",
-      display: "inline-block", flexShrink: 0,
-      ...(extra || {}),
-    }}>
+    <span
+      style={{
+        fontFamily: "Material Symbols Outlined",
+        fontVariationSettings: "'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24",
+        lineHeight: 1,
+        display: "inline-block",
+        userSelect: "none",
+        ...(style || {}),
+      }}
+    >
       {name}
     </span>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GLOBAL STYLES
-// ─────────────────────────────────────────────────────────────────────────────
 function Styles() {
   return (
     <style>{`
@@ -135,7 +114,7 @@ function Styles() {
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html { font-size: 16px; }
       body {
-        background: #0b0c10;
+        background: #0a0a1e;
         color: #dde1e9;
         font-family: 'Hanken Grotesk', sans-serif;
         overflow-x: hidden;
@@ -189,7 +168,7 @@ function Styles() {
         background-position: right 0.85rem center;
         cursor: pointer;
       }
-      select option { background: #0b0c10; color: #dde1e9; }
+      select option { background: #0a0a1e; color: #dde1e9; }
 
       .poly-btn-base {
         transition: background 0.18s, border-color 0.18s, color 0.18s, opacity 0.18s;
@@ -198,13 +177,18 @@ function Styles() {
         opacity: 0.45;
         cursor: not-allowed !important;
       }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
     `}</style>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NEURAL CANVAS
-// ─────────────────────────────────────────────────────────────────────────────
 function NeuralCanvas() {
   const ref = useRef(null);
   useEffect(() => {
@@ -307,127 +291,389 @@ function NeuralCanvas() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SIDEBAR
-// ─────────────────────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { icon: "travel_explore", label: "Research",        path: "/research"  },
-  { icon: "forum",          label: "Debate Chamber",  path: "/debate"    },
-  { icon: "account_tree",   label: "Knowledge Graph", path: "/graph"     },
-  { icon: "search",         label: "Semantic Search", path: "/search"    },
-  { icon: "database",       label: "Memory Bank",     path: "/memory"    },
-  { icon: "picture_as_pdf", label: "PDF Lab",         path: "/pdf-lab"   },
-  { icon: "monitoring",     label: "Analytics",       path: "/analytics" },
-  { icon: "settings",       label: "Settings",        path: "/settings", active: true },
+const NAV = [
+  { icon: "travel_explore", label: "Research", path: "/research" },
+  { icon: "forum", label: "Debate Chamber", path: "/debate" },
+  { icon: "account_tree", label: "Knowledge Graph", path: "/graph" },
+  { icon: "search", label: "Semantic Search", path: "/search" },
+  { icon: "database", label: "Memory Bank", path: "/memory" },
+  { icon: "picture_as_pdf", label: "PDF Lab", path: "/pdf-lab" },
+  { icon: "analytics", label: "Analytics", path: "/analytics" },
+  { icon: "settings", label: "Settings", path: "/settings", active: true },
 ];
 
-function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
-  const go  = useCallback((p) => { if (onNavigate) onNavigate(p); else window.location.href = p; }, [onNavigate]);
-  const bye = useCallback(() => { if (onLogout) onLogout(); else { localStorage.clear(); window.location.href = "/"; } }, [onLogout]);
-  const W   = collapsed ? 58 : 288;
+// ─────────────────────────────────────────────────────────────────────────────
+// SIDEBAR — persona-aware
+// ─────────────────────────────────────────────────────────────────────────────
+function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona }) {
+  const go = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
+  const bye = () =>
+    onLogout
+      ? onLogout()
+      : (localStorage.clear(), (window.location.href = "/"));
+
+  const avatarBg = persona ? persona.gradient : "#14143a";
+  const avatarBorder = persona ? `${persona.color}88` : C.silver;
+
+  if (collapsed)
+    return (
+      <aside
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          height: "100%",
+          width: 56,
+          background: "rgba(10,10,30,0.96)",
+        }}
+      >
+        <button
+          onClick={() => setCollapsed(false)}
+          style={{
+            background: "none",
+            border: "none",
+            color: C.silver,
+            cursor: "pointer",
+            marginBottom: 32,
+          }}
+        >
+          <Icon name="chevron_right" style={{ fontSize: 22 }} />
+        </button>
+
+        {NAV.map(({ icon, label, path, active }) => (
+          <div
+            key={label}
+            onClick={() => go(path)}
+            title={label}
+            style={{
+              padding: "12px 0",
+              cursor: "pointer",
+              color: active ? C.silverBright : C.onSurfaceVariant,
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name={icon} style={{ fontSize: 20, color: "inherit" }} />
+          </div>
+        ))}
+
+        <div
+          style={{
+            marginTop: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <div
+            onClick={() => go("/research")}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: C.silver,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="add" style={{ fontSize: 16, color: C.void }} />
+          </div>
+          <div
+            title={persona ? `${persona.name} — ${persona.role}` : "Account"}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: avatarBg,
+              border: `1px solid ${avatarBorder}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
+            {persona ? (
+              <>
+                <img
+                  src={persona.img}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                  onError={e => { e.currentTarget.style.display = "none"; }}
+                />
+                <span style={{ position: "relative", zIndex: 1, fontFamily: C.fontDisplay, fontSize: 12, color: persona.color }}>
+                  {persona.name[0]}
+                </span>
+              </>
+            ) : (
+              <Icon name="face" style={{ color: C.silver, fontSize: 14 }} />
+            )}
+          </div>
+          <div onClick={bye} style={{ cursor: "pointer", color: C.silver }}>
+            <Icon name="logout" style={{ fontSize: 14 }} />
+          </div>
+        </div>
+      </aside>
+    );
 
   return (
-    <aside style={{
-      position: "fixed", left: 0, top: 0, height: "100%", width: W,
-      background: "rgba(11,12,16,0.92)", backdropFilter: "blur(28px)",
-      borderRight: `1px solid ${C.white10}`,
-      display: "flex", flexDirection: "column",
-      padding: collapsed ? "18px 8px" : "24px 20px",
-      zIndex: 30, overflow: "hidden",
-      transition: "width 0.35s cubic-bezier(0.4,0,0.2,1), padding 0.35s cubic-bezier(0.4,0,0.2,1)",
-    }}>
-      {collapsed ? (
-        <>
-          <button onClick={() => setCollapsed(false)} style={{ background: "none", border: "none", color: C.silver, cursor: "pointer", marginBottom: 30, display: "flex", justifyContent: "center" }}>
-            <Icon name="chevron_right" style={{ fontSize: 22 }} />
-          </button>
-          {NAV_ITEMS.map(({ icon, label, path, active }) => (
-            <div key={label} onClick={() => go(path)} title={label} style={{
-              padding: "12px 0", cursor: "pointer",
-              color: active ? C.silverBright : C.onSurfaceVariant,
-              width: "100%", display: "flex", justifyContent: "center",
-              borderLeft: `2px solid ${active ? C.silver : "transparent"}`,
-            }}>
-              <Icon name={icon} style={{ fontSize: 21, color: "inherit" }} />
-            </div>
-          ))}
-          <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-            <div onClick={() => go("/research")} title="New Research" style={{ width: 36, height: 36, borderRadius: "50%", background: C.silverFaint, border: `1px solid ${C.silverBorder}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-              <Icon name="add" style={{ fontSize: 18, color: C.silver }} />
-            </div>
-            <div title={user?.username || "Guest"} style={{ width: 32, height: 32, borderRadius: "50%", background: "#14161c", border: `1px solid ${C.silverBorder}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="face" style={{ color: C.silver, fontSize: 16 }} />
-            </div>
-            <div onClick={bye} title="Disconnect" style={{ cursor: "pointer", color: C.crimson }}>
-              <Icon name="logout" style={{ fontSize: 15 }} />
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 42, minWidth: 0 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontFamily: C.fontHead, fontSize: 26, fontWeight: 800, color: C.silverBright, letterSpacing: "-0.04em", whiteSpace: "nowrap", animation: "wordmarkPulse 3.5s ease-in-out infinite" }}>POLYNOUS</h1>
-              <p style={{ fontFamily: C.fontMono, fontSize: 10, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "0.22em", marginTop: 5, whiteSpace: "nowrap" }}>Cerebral Vitality Engine</p>
-            </div>
-            <button onClick={() => setCollapsed(true)} style={{ background: "none", border: "none", color: C.textSecondary, cursor: "pointer", padding: 4, flexShrink: 0, marginLeft: 8, transition: "color 0.18s" }}
-              onMouseEnter={e => e.currentTarget.style.color = C.silverBright}
-              onMouseLeave={e => e.currentTarget.style.color = C.textSecondary}>
-              <Icon name="chevron_left" style={{ fontSize: 20 }} />
-            </button>
-          </div>
-          <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
-            {NAV_ITEMS.map(({ icon, label, path, active }) => (
-              <div key={label} onClick={() => go(path)} style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "11px 14px", borderRadius: 9999, cursor: "pointer",
-                color: active ? C.silverBright : C.onSurfaceVariant,
-                background: active ? C.silverFaint : "transparent",
-                fontFamily: C.fontMono, fontSize: 13.5, fontWeight: active ? 600 : 400,
-                borderLeft: `2px solid ${active ? C.silver : "transparent"}`,
-                transition: "all 0.18s", whiteSpace: "nowrap", overflow: "hidden",
-              }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.silverBright; e.currentTarget.style.background = C.silverFaint; } }}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.color = C.onSurfaceVariant; e.currentTarget.style.background = "transparent"; } }}
-              >
-                <Icon name={icon} style={{ fontSize: 20, color: "inherit", flexShrink: 0 }} />
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
-              </div>
-            ))}
-          </nav>
-          <div style={{ borderTop: `1px solid ${C.white5}`, paddingTop: 22, marginTop: 22 }}>
-            <button onClick={() => go("/research")} style={{
-              width: "100%", padding: "12px",
-              background: C.silverFaint, border: `1px solid ${C.silverBorder}`,
-              color: C.silverBright, fontWeight: 700, borderRadius: 9999,
-              cursor: "pointer", fontFamily: C.fontHead, fontSize: 14,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              transition: "background 0.18s",
+    <aside
+      style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        height: "100%",
+        width: 320,
+        background: "rgba(10,10,30,0.96)",
+        backdropFilter: "blur(24px)",
+        borderRight: "1px solid " + C.white10,
+        boxShadow: "0 0 20px rgba(200,205,214,0.08)",
+        display: "flex",
+        flexDirection: "column",
+        padding: 24,
+        zIndex: 30,
+        transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          marginBottom: 40,
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              fontFamily: "'Sora',sans-serif",
+              fontSize: 28,
+              fontWeight: 800,
+              color: C.silverBright,
+              letterSpacing: "-0.03em",
+              whiteSpace: "nowrap",
             }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(200,205,214,0.13)"}
-              onMouseLeave={e => e.currentTarget.style.background = C.silverFaint}>
-              <Icon name="add" style={{ fontSize: 18, color: "inherit", flexShrink: 0 }} />
-              New Research
-            </button>
-            <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#14161c", border: `1px solid ${C.silverBorder}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon name="face" style={{ color: C.silver, fontSize: 22 }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontFamily: C.fontMono, fontSize: 13.5, fontWeight: 600, color: C.onSurface, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.username || "Guest"}</p>
-                <button onClick={bye} style={{ fontSize: 10.5, color: C.crimson, background: "none", border: "none", cursor: "pointer", fontFamily: C.fontMono, textTransform: "uppercase", letterSpacing: "0.06em", padding: 0 }}>Disconnect</button>
-              </div>
-            </div>
+          >
+            POLYNOUS
+          </h1>
+          <p
+            style={{
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 10,
+              color: C.onSurfaceVariant,
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              opacity: 0.7,
+            }}
+          >
+            Cerebral Vitality Engine
+          </p>
+        </div>
+        <button
+          onClick={() => setCollapsed(true)}
+          style={{
+            background: "none",
+            border: "none",
+            color: C.textSecondary,
+            cursor: "pointer",
+            padding: 4,
+            marginLeft: 8,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = C.textSecondary)}
+        >
+          <Icon name="chevron_left" style={{ fontSize: 20 }} />
+        </button>
+      </div>
+
+      <nav
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          overflow: "hidden",
+        }}
+      >
+        {NAV.map(({ icon, label, path, active }) => (
+          <div
+            key={label}
+            onClick={() => go(path)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 16px",
+              borderRadius: 9999,
+              cursor: "pointer",
+              color: active ? C.silverBright : C.onSurfaceVariant,
+              background: active ? C.silverFaint : "transparent",
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 13,
+              fontWeight: active ? 700 : 400,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = C.silverBright;
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = C.onSurfaceVariant;
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            <Icon
+              name={icon}
+              style={{ fontSize: 20, color: "inherit", flexShrink: 0 }}
+            />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {label}
+            </span>
           </div>
-        </>
-      )}
+        ))}
+      </nav>
+
+      <div
+        style={{
+          borderTop: "1px solid " + C.white5,
+          paddingTop: 24,
+          marginTop: 24,
+        }}
+      >
+        <button
+          onClick={() => go("/research")}
+          style={{
+            width: "100%",
+            padding: 12,
+            background: C.silver,
+            color: C.void,
+            fontWeight: 700,
+            borderRadius: 9999,
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "'Sora',sans-serif",
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            transition: "transform 0.2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          <Icon name="add" style={{ fontSize: 18, color: C.void }} /> New Research
+        </button>
+
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: avatarBg,
+              border: `1px solid ${avatarBorder}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              overflow: "hidden",
+              position: "relative",
+              transition: "border-color 0.3s, background 0.3s",
+            }}
+          >
+            {persona ? (
+              <>
+                <img
+                  src={persona.img}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                  onError={e => { e.currentTarget.style.display = "none"; }}
+                />
+                <span style={{ position: "relative", zIndex: 1, fontFamily: C.fontDisplay, fontSize: 16, color: persona.color }}>
+                  {persona.name[0]}
+                </span>
+              </>
+            ) : (
+              <Icon name="face" style={{ color: C.silver, fontSize: 22 }} />
+            )}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: "'JetBrains Mono',monospace",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#fff",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {user?.username || "Guest"}
+            </p>
+            {persona ? (
+              <p style={{
+                fontSize: 10.5, color: persona.color, fontFamily: "'JetBrains Mono',monospace",
+                letterSpacing: "0.04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>
+                {persona.name}
+              </p>
+            ) : (
+              <button
+                onClick={bye}
+                style={{
+                  fontSize: 10,
+                  color: C.silver,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "'JetBrains Mono',monospace",
+                  padding: 0,
+                }}
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
+          {persona && (
+            <button
+              onClick={bye}
+              title="Disconnect"
+              style={{
+                fontSize: 10, color: C.textSecondary, background: "none", border: "none",
+                cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", flexShrink: 0,
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = C.silver}
+              onMouseLeave={e => e.currentTarget.style.color = C.textSecondary}
+            >
+              <Icon name="logout" style={{ fontSize: 14 }} />
+            </button>
+          )}
+        </div>
+      </div>
     </aside>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TOAST
-// ─────────────────────────────────────────────────────────────────────────────
 function useToast() {
   const [toasts, setToasts] = useState([]);
   const push = useCallback((msg, type = "ok") => {
@@ -462,9 +708,6 @@ function ToastBox({ toasts }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MODAL
-// ─────────────────────────────────────────────────────────────────────────────
 function Modal({ open, onClose, title, children, width = 440 }) {
   useEffect(() => {
     if (!open) return;
@@ -477,12 +720,12 @@ function Modal({ open, onClose, title, children, width = 440 }) {
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 1000,
-      background: "rgba(11,12,16,0.72)", backdropFilter: "blur(8px)",
+      background: "rgba(10,10,30,0.78)", backdropFilter: "blur(8px)",
       display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         width: "100%", maxWidth: width,
-        background: "rgba(18,20,26,0.97)",
+        background: "rgba(22,22,44,0.98)",
         border: `1px solid ${C.silverBorder}`,
         borderRadius: 18, padding: 28,
         boxShadow: "0 0 60px rgba(0,0,0,0.7), 0 0 24px rgba(200,205,214,0.08)",
@@ -502,9 +745,6 @@ function Modal({ open, onClose, title, children, width = 440 }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONFIRM DIALOG
-// ─────────────────────────────────────────────────────────────────────────────
 function ConfirmModal({ open, onClose, onConfirm, title, body, confirmLabel = "Confirm", danger = false, loading = false }) {
   return (
     <Modal open={open} onClose={onClose} title={title}>
@@ -528,9 +768,6 @@ function ConfirmModal({ open, onClose, onConfirm, title, body, confirmLabel = "C
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SHARED UI PRIMITIVES
-// ─────────────────────────────────────────────────────────────────────────────
 function SectionHead({ icon, title, subtitle }) {
   return (
     <div style={{ marginBottom: 22 }}>
@@ -642,9 +879,6 @@ function ErrorBanner({ msg, onRetry }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PROVIDERS CONFIG
-// ─────────────────────────────────────────────────────────────────────────────
 const PROVIDERS = {
   anthropic: { label: "Anthropic Claude", icon: "psychology",      color: C.silver, placeholder: "sk-ant-api03-…" },
   openai:    { label: "OpenAI GPT",        icon: "smart_toy",      color: C.cyan,   placeholder: "sk-…"           },
@@ -652,9 +886,235 @@ const PROVIDERS = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROFILE SECTION
+// PERSONA DATA
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfileSection({ user: initialUser, push }) {
+const PERSONAS = [
+  {
+    id: "nova",
+    name: "NOVA",
+    role: "The Neural Architect",
+    desc: "Designs the intelligence backbone of POLYNOUS, transforming ideas into structured neural systems and research workflows.",
+    trait: "Creation · Precision · Machine Reasoning",
+    color: "#00ff66",
+    colorFaint: "rgba(0,255,102,0.08)",
+    colorGlow: "rgba(0,255,102,0.35)",
+    img: "/avatars/nova.png",
+    gradient: "linear-gradient(135deg, #001a0d 0%, #003318 60%, #00ff6612 100%)",
+  },
+  {
+    id: "sage",
+    name: "SAGE",
+    role: "The Augmented Scientist",
+    desc: "Analyzes and validates research using evidence, logic, and machine-enhanced scientific thinking.",
+    trait: "Rigor · Trust · AI-Augmented Expertise",
+    color: "#00ccff",
+    colorFaint: "rgba(0,204,255,0.08)",
+    colorGlow: "rgba(0,204,255,0.35)",
+    img: "/avatars/sage.png",
+    gradient: "linear-gradient(135deg, #001a22 0%, #00334a 60%, #00ccff12 100%)",
+  },
+  {
+    id: "vexa",
+    name: "VEXA",
+    role: "The Holographic Visionary",
+    desc: "Connects abstract ideas, sees patterns early, and imagines future possibilities with speculative intelligence.",
+    trait: "Foresight · Experimentation · Pattern Recognition",
+    color: "#a855f7",
+    colorFaint: "rgba(168,85,247,0.08)",
+    colorGlow: "rgba(168,85,247,0.35)",
+    img: "/avatars/vexa.png",
+    gradient: "linear-gradient(135deg, #0d0014 0%, #1a0033 60%, #a855f712 100%)",
+  },
+  {
+    id: "spark",
+    name: "SPARK",
+    role: "The Curious Mind",
+    desc: "Learns through exploration, questions, and wonder-driven discovery via first-principles thinking.",
+    trait: "Curiosity · Energy · First-Principles Thinking",
+    color: "#39e8a0",
+    colorFaint: "rgba(57,232,160,0.08)",
+    colorGlow: "rgba(57,232,160,0.35)",
+    img: "/avatars/spark.png",
+    gradient: "linear-gradient(135deg, #001a12 0%, #003326 60%, #39e8a012 100%)",
+  },
+  {
+    id: "orion",
+    name: "ORION",
+    role: "The Cybernetic Mentor",
+    desc: "Guides the system with wisdom, memory, and strategic perspective — trustworthy and experienced.",
+    trait: "Leadership · Experience · Trusted Intelligence",
+    color: "#818cf8",
+    colorFaint: "rgba(129,140,248,0.08)",
+    colorGlow: "rgba(129,140,248,0.35)",
+    img: "/avatars/orion.png",
+    gradient: "linear-gradient(135deg, #080014 0%, #130033 60%, #818cf812 100%)",
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PERSONA SELECTOR — animation layer
+// ─────────────────────────────────────────────────────────────────────────────
+function PersonaStyles() {
+  return (
+    <style>{`
+      @keyframes personaEnter {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .persona-card {
+        transition: transform 220ms cubic-bezier(0.22,1,0.36,1),
+                    border-color 220ms ease,
+                    background 220ms ease;
+      }
+      .persona-card:hover {
+        transform: translateY(-2px);
+      }
+      .persona-card:focus-visible {
+        outline: 2px solid rgba(200,205,214,0.55);
+        outline-offset: 2px;
+      }
+      .persona-portrait {
+        transition: transform 320ms cubic-bezier(0.22,1,0.36,1);
+      }
+      .persona-card:hover .persona-portrait {
+        transform: scale(1.04);
+      }
+      .persona-detail {
+        animation: personaEnter 260ms cubic-bezier(0.22,1,0.36,1) both;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .persona-card, .persona-card:hover, .persona-portrait, .persona-detail {
+          transition: none !important;
+          animation: none !important;
+          transform: none !important;
+        }
+      }
+    `}</style>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SINGLE PERSONA CARD
+// ─────────────────────────────────────────────────────────────────────────────
+function PersonaCard({ persona, isActive, isAnyActive, onSelect }) {
+  const [hovered, setHovered] = useState(false);
+  const dimmed = isAnyActive && !isActive;
+  const tint = isActive ? persona.color : hovered ? persona.color : null;
+
+  return (
+    <div
+      className="persona-card"
+      role="button"
+      tabIndex={0}
+      aria-pressed={isActive}
+      onClick={() => onSelect(persona.id)}
+      onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onSelect(persona.id))}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative",
+        borderRadius: 14,
+        cursor: "pointer",
+        flex: "1 1 160px",
+        minWidth: 148,
+        maxWidth: 210,
+        background: isActive ? `linear-gradient(180deg, ${persona.colorFaint}, rgba(20,20,36,0.7) 65%)` : "rgba(20,20,36,0.62)",
+        border: `1px solid ${tint ? tint + "4a" : "rgba(255,255,255,0.07)"}`,
+        opacity: dimmed ? 0.55 : 1,
+        overflow: "hidden",
+        userSelect: "none",
+      }}
+    >
+      {/* Signature accent — a single quiet hairline at the top when active */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 2,
+        background: isActive ? persona.color : "transparent",
+        opacity: isActive ? 0.85 : 0,
+        transition: "opacity 220ms ease",
+      }} />
+
+      <div style={{ position: "relative", zIndex: 1, padding: "18px 14px 16px" }}>
+
+        {/* Portrait */}
+        <div style={{
+          width: "100%", aspectRatio: "1 / 1",
+          borderRadius: 10, overflow: "hidden", marginBottom: 14,
+          border: `1px solid ${isActive ? persona.color + "55" : "rgba(255,255,255,0.06)"}`,
+          background: persona.gradient,
+          position: "relative",
+        }}>
+          <img
+            src={persona.img}
+            alt={persona.name}
+            className="persona-portrait"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            onError={e => { e.currentTarget.style.display = "none"; }}
+          />
+          
+        </div>
+
+        {/* Name */}
+        <div style={{
+          fontFamily: C.fontDisplay, fontSize: 16, letterSpacing: "0.05em",
+          color: isActive ? persona.color : C.silverBright,
+          marginBottom: 2,
+          transition: "color 220ms",
+        }}>
+          {persona.name}
+        </div>
+
+        {/* Role */}
+        <div style={{
+          fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.1em",
+          textTransform: "uppercase", color: isActive ? persona.color + "b0" : C.textSecondary,
+          marginBottom: 12, lineHeight: 1.3,
+          transition: "color 220ms",
+        }}>
+          {persona.role}
+        </div>
+
+        {/* Description — only on the active card */}
+        {isActive && (
+          <div className="persona-detail" style={{
+            fontFamily: C.fontBody, fontSize: 13, color: C.onSurfaceVariant,
+            lineHeight: 1.6, marginBottom: 10,
+          }}>
+            {persona.desc}
+          </div>
+        )}
+
+        {/* Trait tags */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 2 }}>
+          {persona.trait.split(" · ").map(t => (
+            <div key={t} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontFamily: C.fontMono, fontSize: 11, letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: isActive ? persona.color + "99" : C.textSecondary,
+              opacity: isActive ? 1 : 0.65,
+              transition: "color 220ms, opacity 220ms",
+            }}>
+              <span style={{
+                width: 3, height: 3, borderRadius: "50%", flexShrink: 0,
+                background: isActive ? persona.color : C.textSecondary,
+                opacity: isActive ? 0.7 : 0.4,
+              }} />
+              {t}
+            </div>
+          ))}
+        </div>
+
+      
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROFILE SECTION (persona selector embedded; persona state lifted via props)
+// ─────────────────────────────────────────────────────────────────────────────
+function ProfileSection({ user: initialUser, push, activePersona, onPersonaChange }) {
   const [user,     setUser]     = useState(initialUser || {});
   const [editing,  setEditing]  = useState(false);
   const [username, setUsername] = useState(initialUser?.username || "");
@@ -664,11 +1124,16 @@ function ProfileSection({ user: initialUser, push }) {
   useEffect(() => {
     setLoading(true);
     api.getProfile()
-      .then(data => { setUser(data); setUsername(data.username || ""); })
+      .then(data => {
+        setUser(data);
+        setUsername(data.username || "");
+        if (data.persona) onPersonaChange(data.persona);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
+  const currentPersona = PERSONAS.find(p => p.id === activePersona) || null;
   const initials = (username || "PL").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
   const save = async () => {
@@ -690,77 +1155,201 @@ function ProfileSection({ user: initialUser, push }) {
 
   const cancel = () => { setUsername(user.username || ""); setEditing(false); };
 
+  const handleSelectPersona = (id) => {
+    const next = activePersona === id ? null : id;
+    onPersonaChange(next);
+    const p = PERSONAS.find(p => p.id === id);
+    if (next && p) push(`${p.name} — ${p.role} activated`);
+    // Optionally persist to API: api.updateProfile({ persona: next })
+  };
+
   return (
-    <Card>
-      <SectionHead icon="account_circle" title="Profile" subtitle="Identity & account tier" />
-      {loading ? <Spinner size={24} /> : (
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: "50%",
-              background: "conic-gradient(from 200deg, #5a6272, #8e98a8, #c8cdd6, #e2e6ed, #c8cdd6, #8e98a8)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: C.fontHead, fontWeight: 800, fontSize: 20, color: C.void,
-              boxShadow: "0 0 28px rgba(200,205,214,0.18), 0 0 0 2px rgba(200,205,214,0.14)",
-              flexShrink: 0,
-            }}>{initials}</div>
-            <div>
-              {editing ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <input value={username} onChange={e => setUsername(e.target.value)}
-                    placeholder="Username" autoFocus
-                    onKeyDown={e => e.key === "Enter" && save()}
-                    style={{ ...inputStyle, width: 220, fontFamily: C.fontHead, fontWeight: 600 }}
-                    onFocus={onFI} onBlur={onFO} />
-                  <div style={{ fontFamily: C.fontMono, fontSize: 11.5, color: C.textSecondary }}>{user.email}</div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ fontFamily: C.fontHead, fontSize: 18, fontWeight: 700, color: C.onSurface, letterSpacing: "-0.025em" }}>{user.username || "Guest User"}</div>
-                  <div style={{ fontFamily: C.fontMono, fontSize: 13, color: C.textSecondary, marginTop: 5 }}>{user.email || "guest@polynous.ai"}</div>
-                  <div style={{ display: "flex", gap: 7, marginTop: 10, flexWrap: "wrap" }}>
-                    {[
-                      { label: user.plan || "Free Tier", color: C.silver,        bg: C.silverFaint, border: C.silverBorder },
-                      { label: `Since ${user.created_year || "2025"}`, color: C.textSecondary, bg: "transparent", border: C.white10 },
-                    ].map(b => (
-                      <span key={b.label} style={{ fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", background: b.bg, padding: "4px 12px", borderRadius: 9999, color: b.color, border: `1px solid ${b.border}` }}>{b.label}</span>
-                    ))}
+    <>
+      <PersonaStyles />
+      <Card>
+        <SectionHead icon="account_circle" title="Profile" subtitle="Identity & account tier" />
+        {loading ? <Spinner size={24} /> : (
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+
+              {/* Avatar — updates to persona portrait when one is active */}
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: currentPersona
+                  ? currentPersona.gradient
+                  : "conic-gradient(from 200deg, #5a6272, #8e98a8, #c8cdd6, #e2e6ed, #c8cdd6, #8e98a8)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: C.fontDisplay, fontWeight: 800, fontSize: 20,
+                color: currentPersona ? currentPersona.color : C.void,
+                boxShadow: currentPersona
+                  ? `0 0 0 2px ${currentPersona.color}40`
+                  : "0 0 0 2px rgba(200,205,214,0.14)",
+                flexShrink: 0,
+                overflow: "hidden",
+                position: "relative",
+                transition: "box-shadow 320ms ease",
+              }}>
+                {currentPersona ? (
+                  <>
+                    <img
+                      src={currentPersona.img}
+                      alt={currentPersona.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                      onError={e => { e.currentTarget.style.display = "none"; }}
+                    />
+                    
+                  </>
+                ) : initials}
+              </div>
+
+              <div>
+                {editing ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <input value={username} onChange={e => setUsername(e.target.value)}
+                      placeholder="Username" autoFocus
+                      onKeyDown={e => e.key === "Enter" && save()}
+                      style={{ ...inputStyle, width: 220, fontFamily: C.fontHead, fontWeight: 600 }}
+                      onFocus={onFI} onBlur={onFO} />
+                    <div style={{ fontFamily: C.fontMono, fontSize: 11.5, color: C.textSecondary }}>{user.email}</div>
                   </div>
-                </>
+                ) : (
+                  <>
+                    <div style={{ fontFamily: C.fontHead, fontSize: 18, fontWeight: 700, color: C.onSurface, letterSpacing: "-0.025em" }}>{user.username || "Guest User"}</div>
+                    <div style={{ fontFamily: C.fontMono, fontSize: 13, color: C.textSecondary, marginTop: 5 }}>{user.email || "guest@polynous.ai"}</div>
+                    <div style={{ display: "flex", gap: 7, marginTop: 10, flexWrap: "wrap" }}>
+                      {[
+                        { label: user.plan || "Free Tier", color: C.silver, bg: C.silverFaint, border: C.silverBorder },
+                        
+                        ...(currentPersona ? [{ label: currentPersona.name, color: currentPersona.color, bg: currentPersona.colorFaint, border: currentPersona.color + "44" }] : []),
+                      ].map(b => (
+                        <span key={b.label} style={{ fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", background: b.bg, padding: "4px 12px", borderRadius: 9999, color: b.color, border: `1px solid ${b.border}`, transition: "all 220ms ease" }}>{b.label}</span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              {editing && (
+                <button onClick={cancel} disabled={saving} style={{ padding: "9px 20px", borderRadius: 9999, border: `1px solid ${C.white10}`, background: "transparent", color: C.onSurfaceVariant, cursor: "pointer", fontFamily: C.fontHead, fontWeight: 600, fontSize: 14 }}>
+                  Cancel
+                </button>
               )}
+              <button onClick={() => editing ? save() : setEditing(true)} disabled={saving} style={{
+                padding: "9px 22px", borderRadius: 9999,
+                border: editing ? "none" : `1px solid ${C.silverBorder}`,
+                background: editing ? C.silver : "transparent",
+                color: editing ? C.void : C.silver,
+                cursor: saving ? "wait" : "pointer",
+                fontFamily: C.fontHead, fontWeight: 700, fontSize: 14,
+                transition: "all 0.18s", opacity: saving ? 0.6 : 1,
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+                onMouseEnter={e => { if (!editing && !saving) e.currentTarget.style.background = C.silverFaint; }}
+                onMouseLeave={e => { if (!editing) e.currentTarget.style.background = "transparent"; }}
+              >
+                {saving && <InlineSpinner />}
+                {saving ? "Saving…" : editing ? "Save Changes" : "Edit Profile"}
+              </button>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {editing && (
-              <button onClick={cancel} disabled={saving} style={{ padding: "9px 20px", borderRadius: 9999, border: `1px solid ${C.white10}`, background: "transparent", color: C.onSurfaceVariant, cursor: "pointer", fontFamily: C.fontHead, fontWeight: 600, fontSize: 14 }}>
-                Cancel
-              </button>
+        )}
+
+        {/* ── PERSONA SELECTOR ───────────────── */}
+        {!loading && (
+          <div style={{ marginTop: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+              <div style={{ height: 1, background: `linear-gradient(90deg, ${C.silverBorder}, transparent)`, flex: 1 }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 24, height: 24, borderRadius: 6, background: C.silverFaint, border: `1px solid ${C.silverBorder}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="person_pin" style={{ fontSize: 13, color: C.silverDim }} />
+                </div>
+                <span style={{
+                  fontFamily: C.fontHead,
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: C.silverBright,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.18em",
+                  whiteSpace: "nowrap",
+                }}>
+                  AI Persona
+                </span>
+              </div>
+              <div style={{ height: 1, background: `linear-gradient(270deg, ${C.silverBorder}, transparent)`, flex: 1 }} />
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "stretch" }}>
+              {PERSONAS.map(p => (
+                <PersonaCard
+                  key={p.id}
+                  persona={p}
+                  isActive={activePersona === p.id}
+                  isAnyActive={!!activePersona}
+                  onSelect={handleSelectPersona}
+                />
+              ))}
+            </div>
+
+            {currentPersona && (
+              <div className="persona-detail" style={{
+                marginTop: 16,
+                padding: "14px 18px",
+                borderRadius: 12,
+                background: currentPersona.colorFaint,
+                border: `1px solid ${currentPersona.color}33`,
+                display: "flex", alignItems: "center", gap: 14,
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                  background: currentPersona.gradient,
+                  border: `1px solid ${currentPersona.color}44`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: C.fontDisplay, fontSize: 16, color: currentPersona.color,
+                  overflow: "hidden", position: "relative",
+                }}>
+                  <img
+                    src={currentPersona.img}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                    onError={e => { e.currentTarget.style.display = "none"; }}
+                  />
+                  
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: C.fontDisplay, fontSize: 13, letterSpacing: "0.06em", color: currentPersona.color, marginBottom: 2 }}>
+                    {currentPersona.name} — {currentPersona.role}
+                  </div>
+                  <div style={{ fontFamily: C.fontMono, fontSize: 11, color: C.textSecondary, letterSpacing: "0.04em" }}>
+                    {currentPersona.trait}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleSelectPersona(currentPersona.id)}
+                  style={{
+                    padding: "5px 12px", borderRadius: 9999, flexShrink: 0,
+                    border: `1px solid ${C.white10}`, background: "transparent",
+                    color: C.textSecondary, cursor: "pointer",
+                    fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.1em",
+                    textTransform: "uppercase", transition: "all 0.18s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = C.crimson; e.currentTarget.style.borderColor = "rgba(224,80,104,0.35)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = C.textSecondary; e.currentTarget.style.borderColor = C.white10; }}
+                >
+                  Clear
+                </button>
+              </div>
             )}
-            <button onClick={() => editing ? save() : setEditing(true)} disabled={saving} style={{
-              padding: "9px 22px", borderRadius: 9999,
-              border: editing ? "none" : `1px solid ${C.silverBorder}`,
-              background: editing ? C.silver : "transparent",
-              color: editing ? C.void : C.silver,
-              cursor: saving ? "wait" : "pointer",
-              fontFamily: C.fontHead, fontWeight: 700, fontSize: 14,
-              transition: "all 0.18s", opacity: saving ? 0.6 : 1,
-              display: "flex", alignItems: "center", gap: 6,
-            }}
-              onMouseEnter={e => { if (!editing && !saving) e.currentTarget.style.background = C.silverFaint; }}
-              onMouseLeave={e => { if (!editing) e.currentTarget.style.background = "transparent"; }}
-            >
-              {saving && <InlineSpinner />}
-              {saving ? "Saving…" : editing ? "Save Changes" : "Edit Profile"}
-            </button>
           </div>
-        </div>
-      )}
-    </Card>
+        )}
+      </Card>
+    </>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KEY CARD
+// REMAINING SECTIONS (from the second file, unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
   const [val,        setVal]        = useState("");
@@ -817,7 +1406,7 @@ function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
 
   return (
     <div style={{
-      background: "rgba(9,10,14,0.55)", border: `1px solid ${C.white10}`,
+      background: "rgba(28,28,46,0.70)", border: `1px solid ${C.white10}`,
       borderRadius: 13, padding: "18px 20px",
       display: "flex", flexDirection: "column", gap: 14,
       transition: "border-color 0.2s",
@@ -877,9 +1466,6 @@ function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// API KEYS SECTION
-// ─────────────────────────────────────────────────────────────────────────────
 function ApiKeysSection({ push }) {
   const [connected,  setConnected]  = useState({ anthropic: false, openai: false, tavily: false });
   const [previews,   setPreviews]   = useState({ anthropic: null,  openai: null,  tavily: null  });
@@ -960,78 +1546,6 @@ function ApiKeysSection({ push }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// APPEARANCE SECTION
-// ─────────────────────────────────────────────────────────────────────────────
-function AppearanceSection({ push }) {
-  const [theme,      setTheme]      = useState(() => localStorage.getItem("polynous_theme")      || "dark");
-  const [animations, setAnimations] = useState(() => localStorage.getItem("polynous_animations") !== "false");
-  const [fontSize,   setFontSize]   = useState(() => localStorage.getItem("polynous_font_size")  || "Medium");
-  const [density,    setDensity]    = useState(() => localStorage.getItem("polynous_density")    || "Comfortable");
-
-  const handleFontSize = s => {
-    setFontSize(s); localStorage.setItem("polynous_font_size", s);
-    const map = { Small: "15px", Medium: "16px", Large: "18px" };
-    document.documentElement.style.fontSize = map[s] || "16px";
-    push(`Font size set to ${s}`);
-  };
-
-  const handleAnimations = () => {
-    const next = !animations;
-    setAnimations(next);
-    localStorage.setItem("polynous_animations", String(next));
-    push(next ? "Particle field enabled — reloading" : "Particle field disabled — reloading", "warn");
-    setTimeout(() => window.location.reload(), 900);
-  };
-
-  const handleTheme = t => {
-    setTheme(t); localStorage.setItem("polynous_theme", t);
-    push(`Theme set to ${t} — apply on next reload`, "warn");
-  };
-
-  const handleDensity = d => {
-    setDensity(d); localStorage.setItem("polynous_density", d);
-    push(`Density set to ${d}`);
-  };
-
-  return (
-    <Card>
-      <SectionHead icon="palette" title="Appearance" subtitle="Visual theme & display density" />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 18, marginBottom: 20 }}>
-        <div>
-          <Label>Theme</Label>
-          <select value={theme} onChange={e => handleTheme(e.target.value)} style={inputStyle}>
-            <option value="dark">Dark</option>
-            <option value="light">Light (coming soon)</option>
-          </select>
-        </div>
-        <div>
-          <Label>Text Size</Label>
-          <select value={fontSize} onChange={e => handleFontSize(e.target.value)} style={inputStyle}>
-            <option>Small</option><option>Medium</option><option>Large</option>
-          </select>
-        </div>
-        <div>
-          <Label>Density</Label>
-          <select value={density} onChange={e => handleDensity(e.target.value)} style={inputStyle}>
-            <option>Compact</option><option>Comfortable</option><option>Spacious</option>
-          </select>
-        </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 18, borderTop: `1px solid ${C.white10}` }}>
-        <div>
-          <div style={{ fontFamily: C.fontHead, fontSize: 15, fontWeight: 600, color: C.onSurface }}>Neural Particle Field</div>
-          <div style={{ fontFamily: C.fontMono, fontSize: 12, color: C.textSecondary, marginTop: 3 }}>Silver floating-particle background animation</div>
-        </div>
-        <Toggle on={animations} onToggle={handleAnimations} />
-      </div>
-    </Card>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PREFERENCES SECTION
-// ─────────────────────────────────────────────────────────────────────────────
 function PreferencesSection({ push }) {
   const [mode,      setMode]      = useState("research");
   const [style,     setStyle]     = useState("academic");
@@ -1139,74 +1653,6 @@ function PreferencesSection({ push }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NOTIFICATIONS SECTION
-// ─────────────────────────────────────────────────────────────────────────────
-const DEFAULT_NOTIF = [
-  { key: "email",       label: "Email Notifications", sub: "Receive updates to your inbox",    on: false },
-  { key: "research",    label: "Research Alerts",     sub: "New citations and related papers",  on: true  },
-  { key: "weekly",      label: "Weekly Summary",      sub: "Activity digest every Monday",      on: false },
-  { key: "rate_limit",  label: "Rate Limit Warnings", sub: "Alert before API quota exhaustion", on: true  },
-];
-
-function NotificationsSection({ push }) {
-  const [items,   setItems]   = useState(DEFAULT_NOTIF);
-  const [loading, setLoading] = useState(true);
-  const [loadErr, setLoadErr] = useState(null);
-  const saveTimer = useRef(null);
-
-  const load = useCallback(() => {
-    setLoading(true); setLoadErr(null);
-    api.getNotifications()
-      .then(data => {
-        if (data && typeof data === "object") {
-          setItems(prev => prev.map(it => ({ ...it, on: data[it.key] !== undefined ? data[it.key] : it.on })));
-        }
-      })
-      .catch(err => setLoadErr(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const toggle = (i) => {
-    const next = items.map((it, idx) => idx === i ? { ...it, on: !it.on } : it);
-    setItems(next);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      try {
-        const payload = Object.fromEntries(next.map(it => [it.key, it.on]));
-        await api.saveNotifications(payload);
-        push("Notification preferences saved");
-      } catch (err) {
-        push(err.message || "Save failed", "err");
-      }
-    }, 800);
-  };
-
-  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
-
-  return (
-    <Card>
-      <SectionHead icon="notifications" title="Notifications" subtitle="Delivery preferences" />
-      {loading ? <Spinner /> : loadErr ? <ErrorBanner msg={loadErr} onRetry={load} /> : (
-        items.map((item, i) => (
-          <div key={item.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: i < items.length - 1 ? `1px solid ${C.white5}` : "none" }}>
-            <div>
-              <div style={{ fontFamily: C.fontHead, fontSize: 15, fontWeight: 500, color: C.onSurface }}>{item.label}</div>
-              <div style={{ fontFamily: C.fontMono, fontSize: 12, color: C.textSecondary, marginTop: 3 }}>{item.sub}</div>
-            </div>
-            <Toggle on={item.on} onToggle={() => toggle(i)} />
-          </div>
-        ))
-      )}
-    </Card>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// INTEGRATIONS SECTION
-// ─────────────────────────────────────────────────────────────────────────────
 const INTEGRATION_DEFS = [
   { id: "google", monogram: "G",  monogramColor: "#4285F4", label: "Google OAuth",  sub: "Drive, Docs, Calendar"   },
   { id: "github", monogram: "GH", monogramColor: "#8e98a8", label: "GitHub",        sub: "Repos, Issues, Actions"  },
@@ -1265,13 +1711,13 @@ function IntegrationsSection({ push }) {
             const busy      = busyId === row.id;
             return (
               <div key={row.id} style={{
-                background: "rgba(9,10,14,0.55)", border: `1px solid ${C.white10}`,
+                background: "rgba(28,28,46,0.70)", border: `1px solid ${C.white10}`,
                 borderRadius: 12, padding: "14px 18px",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 transition: "border-color 0.18s, background 0.18s",
               }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = C.silverBorder; e.currentTarget.style.background = C.surfaceHigh; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.white10; e.currentTarget.style.background = "rgba(9,10,14,0.55)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.white10; e.currentTarget.style.background = "rgba(28,28,46,0.70)"; }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 9, background: `${row.monogramColor}14`, border: `1px solid ${row.monogramColor}30`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.fontHead, fontWeight: 700, fontSize: 12, color: row.monogramColor, flexShrink: 0 }}>
@@ -1304,9 +1750,6 @@ function IntegrationsSection({ push }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SECURITY SECTION
-// ─────────────────────────────────────────────────────────────────────────────
 const SECURITY_ROWS = [
   { icon: "lock",    color: C.purple, title: "Fernet AES-128",   sub: "All keys encrypted at rest",   status: "Active"   },
   { icon: "shield",  color: C.cyan,   title: "Session Isolation", sub: "Keys scoped to your session",  status: "Enforced" },
@@ -1386,7 +1829,7 @@ function SecuritySection({ push }) {
       <SectionHead icon="security" title="Security" subtitle="Encryption & access controls" />
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
         {SECURITY_ROWS.map(row => (
-          <div key={row.title} style={{ background: "rgba(9,10,14,0.55)", border: `1px solid ${C.white10}`, borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div key={row.title} style={{ background: "rgba(28,28,46,0.70)", border: `1px solid ${C.white10}`, borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
               <div style={{ width: 36, height: 36, borderRadius: 9, background: `${row.color}12`, border: `1px solid ${row.color}28`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icon name={row.icon} style={{ fontSize: 18, color: row.color }} />
@@ -1417,107 +1860,6 @@ function SecuritySection({ push }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DATA & STORAGE SECTION
-// ─────────────────────────────────────────────────────────────────────────────
-function DataStorageSection({ push }) {
-  const [s,           setS]           = useState(null);
-  const [loading,     setLoading]     = useState(true);
-  const [loadErr,     setLoadErr]     = useState(null);
-  const [exporting,   setExporting]   = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
-  const [clearing,    setClearing]    = useState(false);
-
-  const load = useCallback(() => {
-    setLoading(true); setLoadErr(null);
-    api.getStats()
-      .then(d => setS(d || {}))
-      .catch(err => setLoadErr(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const doExport = async () => {
-    setExporting(true);
-    try {
-      // Use apiFetch directly for blob download (safeFetch returns parsed JSON)
-      const res = await apiFetch('/settings/export');
-      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url; a.download = `polynous-export-${Date.now()}.json`;
-      a.click(); URL.revokeObjectURL(url);
-      push("Export downloaded");
-    } catch (err) {
-      push(err.message || "Export failed", "err");
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const doClearHistory = async () => {
-    setClearing(true);
-    try {
-      await api.clearHistory();
-      push("Research history cleared");
-      load();
-    } catch (err) {
-      push(err.message || "Clear failed", "err");
-    } finally {
-      setClearing(false);
-      setConfirmClear(false);
-    }
-  };
-
-  const ITEMS = s ? [
-    { label: "Research Stored",  val: s.total_research  || 0 },
-    { label: "Topics Tracked",   val: s.unique_topics   || 0 },
-    { label: "KG Nodes",         val: s.kg_nodes        || s.unique_topics || 0 },
-    { label: "Pinecone Vectors", val: s.vector_count    || Math.floor((s.total_research || 0) * 3) },
-  ] : [];
-
-  return (
-    <Card>
-      <SectionHead icon="database" title="Data & Storage" subtitle="Vectors, graph nodes & persisted research" />
-      {loading ? <Spinner /> : loadErr ? <ErrorBanner msg={loadErr} onRetry={load} /> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10, marginBottom: 20 }}>
-          {ITEMS.map(({ label, val }) => (
-            <div key={label} style={{ background: "rgba(9,10,14,0.55)", border: `1px solid ${C.white10}`, borderRadius: 13, padding: "14px 12px", textAlign: "center" }}>
-              <div style={{ fontFamily: C.fontMono, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.14em", color: C.textSecondary, marginBottom: 8 }}>{label}</div>
-              <div style={{ fontFamily: C.fontHead, fontSize: 24, fontWeight: 700, color: C.onSurface }}>{val}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button onClick={doExport} disabled={exporting} style={{ padding: "9px 20px", borderRadius: 9999, border: `1px solid ${C.silverBorder}`, background: "transparent", color: C.silver, cursor: exporting ? "wait" : "pointer", fontFamily: C.fontHead, fontSize: 14, fontWeight: 600, transition: "background 0.18s", display: "flex", alignItems: "center", gap: 6, opacity: exporting ? 0.65 : 1 }}
-          onMouseEnter={e => { if (!exporting) e.currentTarget.style.background = C.silverFaint; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-          {exporting && <InlineSpinner />}{exporting ? "Exporting…" : "Export All Data"}
-        </button>
-        <button onClick={() => setConfirmClear(true)} style={{ padding: "9px 20px", borderRadius: 9999, border: "1px solid rgba(126,200,216,0.3)", background: "transparent", color: C.cyan, cursor: "pointer", fontFamily: C.fontHead, fontSize: 14, fontWeight: 600, transition: "background 0.18s" }}
-          onMouseEnter={e => e.currentTarget.style.background = C.cyanFaint}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-          Clear History
-        </button>
-      </div>
-
-      <ConfirmModal
-        open={confirmClear} onClose={() => setConfirmClear(false)}
-        onConfirm={doClearHistory} loading={clearing}
-        title="Clear Research History"
-        body="This will permanently delete all research sessions, saved queries, and chat history. Your API keys and preferences are not affected."
-        confirmLabel="Clear History" danger
-      />
-    </Card>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DANGER ZONE
-// ─────────────────────────────────────────────────────────────────────────────
 function DangerZone({ push }) {
   const [showDelete,     setShowDelete]     = useState(false);
   const [showReset,      setShowReset]      = useState(false);
@@ -1590,18 +1932,27 @@ function DangerZone({ push }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROOT EXPORT
+// SETTINGS PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SettingsPage({ user, onNavigate, onLogout }) {
   const [collapsed, setCollapsed] = useState(false);
   const { toasts, push } = useToast();
   const sidebarW = collapsed ? 58 : 288;
 
+  const [activePersona, setActivePersona] = useState(
+    () => (typeof localStorage !== "undefined" && localStorage.getItem("polynous_persona")) || null
+  );
+  const handlePersonaChange = useCallback((id) => {
+    setActivePersona(id);
+    localStorage.setItem("polynous_persona", id || "");
+  }, []);
+  const personaObj = PERSONAS.find(p => p.id === activePersona) || null;
+
   return (
-    <div style={{ minHeight: "100vh", background: C.void, color: C.onSurface, fontFamily: C.fontBody, overflowX: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0a1e", color: C.onSurface, fontFamily: C.fontBody, overflowX: "hidden" }}>
       <Styles />
       <NeuralCanvas />
-      <Sidebar onNavigate={onNavigate} user={user} onLogout={onLogout} collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar onNavigate={onNavigate} user={user} onLogout={onLogout} collapsed={collapsed} setCollapsed={setCollapsed} persona={personaObj} />
 
       <main style={{
         marginLeft: sidebarW, padding: "36px 36px 80px",
@@ -1630,14 +1981,16 @@ export default function SettingsPage({ user, onNavigate, onLogout }) {
           <div style={{ height: 1, marginTop: 18, background: `linear-gradient(90deg, ${C.silverBorder}, transparent)` }} />
         </header>
 
-        <ProfileSection     user={user}   push={push} />
+        <ProfileSection
+          user={user}
+          push={push}
+          activePersona={activePersona}
+          onPersonaChange={handlePersonaChange}
+        />
         <ApiKeysSection                   push={push} />
-        <AppearanceSection                push={push} />
         <PreferencesSection               push={push} />
-        <NotificationsSection             push={push} />
         <IntegrationsSection              push={push} />
         <SecuritySection                  push={push} />
-        <DataStorageSection               push={push} />
         <DangerZone                       push={push} />
       </main>
 

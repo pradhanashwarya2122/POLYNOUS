@@ -650,105 +650,342 @@ function HowItWorks() {
   );
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// Navigation items
+// ═══════════════════════════════════════════════════════════════
 const NAV = [
-  { icon:"travel_explore",  label:"Research",        path:"/research" },
-  { icon:"forum",           label:"Debate Chamber",  path:"/debate" },
-  { icon:"account_tree",    label:"Knowledge Graph", path:"/graph" },
-  { icon:"search",          label:"Semantic Search", path:"/search" },
-  { icon:"database",        label:"Memory Bank",     path:"/memory" },
-  { icon:"picture_as_pdf",  label:"PDF Lab",         path:"/pdf-lab", active:true },
-  { icon:"analytics",       label:"Analytics",       path:"/analytics" },
-  { icon:"settings",        label:"Settings",        path:"/settings" },
+  { icon: "travel_explore", label: "Research", path: "/research" },
+  { icon: "forum", label: "Debate Chamber", path: "/debate" },
+  { icon: "account_tree", label: "Knowledge Graph", path: "/graph" },
+  { icon: "search", label: "Semantic Search", path: "/search" },
+  { icon: "database", label: "Memory Bank", path: "/memory" },
+  { icon: "picture_as_pdf", label: "PDF Lab", path: "/pdf-lab", active: true },
+  { icon: "analytics", label: "Analytics", path: "/analytics" },
+  { icon: "settings", label: "Settings", path: "/settings" },
 ];
 
-function Sidebar({ user, onNavigate, onLogout, collapsed, setCollapsed }) {
-  const go = p => onNavigate ? onNavigate(p) : (window.location.href = p);
-  const logout = () => onLogout ? onLogout() : (localStorage.clear(), window.location.href = "/");
+// ═══════════════════════════════════════════════════════════════
+// Sidebar component
+// ═══════════════════════════════════════════════════════════════
+function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
+  const go = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
+  const bye = () =>
+    onLogout
+      ? onLogout()
+      : (localStorage.clear(), (window.location.href = "/"));
 
-  if (collapsed) return (
-    <aside style={{
-      position:"fixed", left:0, top:0, height:"100%", width:56,
-      background:"rgba(10,10,30,0.82)", backdropFilter:"blur(22px)",
-      borderRight:`1px solid ${T.border}`, zIndex:30,
-      display:"flex", flexDirection:"column", alignItems:"center", padding:"16px 0",
-    }}>
-      <button onClick={() => setCollapsed(false)} style={{ background:"none", border:"none", color:T.gold, cursor:"pointer", marginBottom:28, padding:8 }}>
-        <Icon name="chevron_right" size={20} />
-      </button>
-      {NAV.map(({ icon, label, path, active }) => (
-        <div key={label} onClick={() => go(path)} title={label} className="nav-item"
-          style={{ padding:"10px 0", cursor:"pointer", color: active ? T.gold : T.textMid, width:"100%", display:"flex", justifyContent:"center" }}>
-          <Icon name={icon} size={19} />
-        </div>
-      ))}
-      <div style={{ marginTop:"auto", display:"flex", flexDirection:"column", alignItems:"center", gap:12, paddingBottom:8 }}>
-        <div onClick={() => go("/research")} style={{ width:32, height:32, borderRadius:"50%", background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-          <Icon name="add" size={15} color="#04090f" />
-        </div>
-        <div style={{ width:28, height:28, borderRadius:"50%", background:T.surfaceHi, border:`1px solid ${T.borderGold}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <Icon name="face" size={14} color={T.gold} />
-        </div>
-        <div onClick={logout} style={{ cursor:"pointer" }} title="Disconnect">
-          <Icon name="logout" size={14} color={T.crimson} />
-        </div>
-      </div>
-    </aside>
-  );
+  // ── Collapsed state ─────────────────────────────────────────
+  if (collapsed)
+    return (
+      <aside
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          height: "100%",
+          width: 56,
+          background: "rgba(10,10,30,0.65)",
+          backdropFilter: "blur(24px)",
+          borderRight: "1px solid rgba(255,255,255,0.1)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "16px 0",
+          zIndex: 30,
+        }}
+      >
+        {/* Expand button */}
+        <button
+          onClick={() => setCollapsed(false)}
+          style={{
+            background: "none",
+            border: "none",
+            color: T.gold,
+            cursor: "pointer",
+            marginBottom: 32,
+          }}
+        >
+          <Icon name="chevron_right" size={22} />
+        </button>
 
+        {/* Nav icons */}
+        {NAV.map(({ icon, label, path, active }) => (
+          <div
+            key={label}
+            onClick={() => go(path)}
+            title={label}
+            style={{
+              padding: "12px 0",
+              cursor: "pointer",
+              color: active ? T.gold : T.textMid,
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name={icon} size={20} color={active ? T.gold : T.textMid} />
+          </div>
+        ))}
+
+        {/* Bottom actions */}
+        <div
+          style={{
+            marginTop: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <div
+            onClick={() => go("/research")}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: T.gold,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="add" size={16} color="#0A0A1E" />
+          </div>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: T.surfaceHi,
+              border: `1px solid ${T.gold}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name="face" size={14} color={T.gold} />
+          </div>
+          <div onClick={bye} style={{ cursor: "pointer", color: T.crimson }}>
+            <Icon name="logout" size={14} color={T.crimson} />
+          </div>
+        </div>
+      </aside>
+    );
+
+  // ── Expanded state ──────────────────────────────────────────
   return (
-    <aside style={{
-      position:"fixed", left:0, top:0, height:"100%", width:300,
-      background:"rgba(10,10,30,0.82)", backdropFilter:"blur(24px)",
-      borderRight:`1px solid ${T.border}`, zIndex:30,
-      display:"flex", flexDirection:"column", padding:"24px 20px",
-      transition:"width 0.32s cubic-bezier(0.4,0,0.2,1)",
-    }}>
-      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:36 }}>
+    <aside
+      style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        height: "100%",
+        width: 320,
+        background: "rgba(10,10,30,0.65)",
+        backdropFilter: "blur(24px)",
+        borderRight: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "0 0 20px rgba(255,214,10,0.08)",
+        display: "flex",
+        flexDirection: "column",
+        padding: 24,
+        zIndex: 30,
+        transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          marginBottom: 40,
+        }}
+      >
         <div>
-          <h1 style={{ fontFamily:T.display, fontSize:26, fontWeight:800, color:T.gold, letterSpacing:"-0.03em", lineHeight:1 }}>POLYNOUS</h1>
-          <p style={{ fontFamily:T.mono, fontSize:9, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.2em", marginTop:4 }}>Cerebral Vitality Engine</p>
+          <h1
+            style={{
+              fontFamily: "'Sora',sans-serif",
+              fontSize: 28,
+              fontWeight: 800,
+              color: T.gold,
+              letterSpacing: "-0.03em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            POLYNOUS
+          </h1>
+          <p
+            style={{
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 10,
+              color: T.textMid,
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              opacity: 0.7,
+            }}
+          >
+            Cerebral Vitality Engine
+          </p>
         </div>
-        <button onClick={() => setCollapsed(true)} style={{ background:"none", border:"none", color:T.textDim, cursor:"pointer", padding:4 }}
-          onMouseEnter={e=>e.target.style.color="#fff"} onMouseLeave={e=>e.target.style.color=T.textDim}>
-          <Icon name="chevron_left" size={18} />
+        <button
+          onClick={() => setCollapsed(true)}
+          style={{
+            background: "none",
+            border: "none",
+            color: T.textDim,
+            cursor: "pointer",
+            padding: 4,
+            marginLeft: 8,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = T.textDim)}
+        >
+          <Icon name="chevron_left" size={20} />
         </button>
       </div>
 
-      <nav style={{ flex:1, display:"flex", flexDirection:"column", gap:2 }}>
+      {/* Navigation */}
+      <nav
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          overflow: "hidden",
+        }}
+      >
         {NAV.map(({ icon, label, path, active }) => (
-          <div key={label} onClick={() => go(path)} className="nav-item"
+          <div
+            key={label}
+            onClick={() => go(path)}
             style={{
-              display:"flex", alignItems:"center", gap:11, padding:"10px 14px",
-              borderRadius:9999, cursor:"pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 16px",
+              borderRadius: 9999,
+              cursor: "pointer",
               color: active ? T.gold : T.textMid,
-              background: active ? "rgba(255,214,10,0.07)" : "transparent",
-              fontFamily:T.mono, fontSize:13, fontWeight: active ? 600 : 400,
-            }}>
-            <Icon name={icon} size={18} />
-            <span>{label}</span>
+              background: active ? `rgba(255,214,10,0.15)` : "transparent",
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 13,
+              fontWeight: active ? 700 : 400,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = T.gold;
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = T.textMid;
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            <Icon
+              name={icon}
+              size={20}
+              color="inherit"
+              style={{ flexShrink: 0 }}
+            />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {label}
+            </span>
           </div>
         ))}
       </nav>
 
-      <div style={{ borderTop:`1px solid ${T.border}`, paddingTop:20, marginTop:20 }}>
-        <button onClick={() => go("/research")} className="btn-primary"
+      {/* Bottom actions (user, logout, new research) */}
+      <div
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+          paddingTop: 24,
+          marginTop: 24,
+        }}
+      >
+        <button
+          onClick={() => go("/research")}
           style={{
-            width:"100%", padding:"11px", background:T.gold, color:"#04090f",
-            fontWeight:700, borderRadius:9999, border:"none", cursor:"pointer",
-            fontFamily:T.display, fontSize:14,
-            display:"flex", alignItems:"center", justifyContent:"center", gap:7,
-          }}>
-          <Icon name="add" size={17} color="#04090f" />
-          New Research
+            width: "100%",
+            padding: 12,
+            background: T.gold,
+            color: "#0A0A1E",
+            fontWeight: 700,
+            borderRadius: 9999,
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "'Sora',sans-serif",
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            transition: "transform 0.2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          <Icon name="add" size={18} color="#0A0A1E" /> New Research
         </button>
-        <div style={{ marginTop:18, display:"flex", alignItems:"center", gap:11 }}>
-          <div style={{ width:38, height:38, borderRadius:"50%", background:T.surfaceHi, border:`1px solid ${T.borderGold}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <Icon name="face" size={20} color={T.gold} />
+
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: T.surfaceHi,
+              border: `1px solid ${T.gold}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="face" size={22} color={T.gold} />
           </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <p style={{ fontFamily:T.mono, fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user?.username || "Guest"}</p>
-            <button onClick={logout} style={{ fontSize:11, color:T.crimson, background:"none", border:"none", cursor:"pointer", fontFamily:T.mono, padding:0 }}>Disconnect</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: "'JetBrains Mono',monospace",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#fff",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {user?.username || "Guest"}
+            </p>
+            <button
+              onClick={bye}
+              style={{
+                fontSize: 10,
+                color: T.crimson,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "'JetBrains Mono',monospace",
+                padding: 0,
+              }}
+            >
+              Disconnect
+            </button>
           </div>
         </div>
       </div>
@@ -987,7 +1224,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
     finally { setSearchLoading(false); }
   };
 
-  const sidebarW = sbCollapsed ? 56 : 300;
+  const sidebarW = sbCollapsed ? 56 : 320;
   const suggestions = ["Summarise this document","What are the key findings?","List main topics covered","Extract important dates and numbers"];
 
   return (
@@ -999,7 +1236,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       <main style={{
         marginLeft:sidebarW, padding:"28px 36px 80px",
         position:"relative", zIndex:10,
-        transition:"margin-left 0.32s cubic-bezier(0.4,0,0.2,1)",
+        transition:"margin-left 0.35s cubic-bezier(0.4,0,0.2,1)",
         minHeight:"100vh",
       }}>
         <div style={{ maxWidth:1060, margin:"0 auto" }}>
@@ -1032,7 +1269,6 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
 
               <h1 style={{
                 fontFamily:T.display, fontWeight:800,
-                // 5-8% smaller than original ~104px max
                 fontSize:"clamp(46px,6.9vw,96px)",
                 lineHeight:0.93, letterSpacing:"-0.03em",
                 transform:"skewX(-7deg)", position:"relative", zIndex:1,
@@ -1046,7 +1282,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
                 <span style={{ color:"#fff" }}>INSIGHTS.</span>
               </h1>
 
-              {/* Subtitle — brighter, more readable */}
+              {/* Subtitle */}
               <p style={{
                 fontFamily:T.body, fontSize:15, color:"#c8d8e8",
                 lineHeight:1.78, maxWidth:390, marginTop:24,
@@ -1058,7 +1294,6 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
 
               {/* CTA buttons */}
               <div style={{ display:"flex", gap:12, marginTop:28, flexWrap:"wrap" }}>
-                {/* Primary */}
                 <button
                   className="cta-primary"
                   onClick={() => fileRef.current?.click()}
@@ -1074,7 +1309,6 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
                   <Icon name="upload_file" size={16} color="#04090f" />
                   Upload PDF
                 </button>
-                {/* Secondary */}
                 <button
                   className="cta-secondary"
                   onClick={() => document.querySelector(".how-it-works-anchor")?.scrollIntoView({ behavior:"smooth" })}
@@ -1095,7 +1329,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
               </div>
             </div>
 
-            {/* Right canvas — shifted up */}
+            {/* Right canvas */}
             <div style={{ flex:"1 1 340px", display:"flex", justifyContent:"center", position:"relative", marginTop:-50 }}>
               <div style={{ position:"absolute", inset:0, background:"radial-gradient(circle at center,rgba(255,214,10,0.09) 0%,transparent 65%)", pointerEvents:"none" }} />
               <DocCanvas3D uploading={uploading} />
@@ -1136,7 +1370,6 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
               Upload research papers, reports, or any PDF document
             </p>
 
-            {/* Upload Error (merged from PdfUpload) */}
             {uploadError && (
               <div style={{
                 padding:"12px 16px", borderRadius:12,
@@ -1147,7 +1380,6 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
               </div>
             )}
 
-            {/* Upload Warnings (merged from PdfUpload) */}
             {uploadWarnings.length > 0 && (
               <div style={{
                 padding:"12px 16px", borderRadius:12,
@@ -1189,7 +1421,6 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
               </div>
             )}
 
-            {/* Security Info (merged from PdfUpload) */}
             <div style={{
               padding:"10px 14px", borderRadius:8,
               background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)",

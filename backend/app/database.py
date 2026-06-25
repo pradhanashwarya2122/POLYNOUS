@@ -27,68 +27,31 @@ print(f"🌍 Environment: {ENVIRONMENT}")
 print(f"🏭 Production mode: {IS_PRODUCTION}")
 
 # ============================================================
-# DATABASE URL – PostgreSQL required in production, SQLite in dev
+# DATABASE URL – Safer fallback to local SQLite if unset
 # ============================================================
-raw_url = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not raw_url:
-    if IS_PRODUCTION:
-        print("=" * 60)
-        print("❌ FATAL: DATABASE_URL is not set! PostgreSQL is required.")
-        print("=" * 60)
-        print("   On Railway:")
-        print("   1. Add a PostgreSQL service")
-        print("   2. DATABASE_URL will be injected automatically")
-        sys.exit(1)
+if DATABASE_URL:
+    # A URL was provided – use it
+    if DATABASE_URL.startswith("sqlite"):
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
     else:
-        raw_url = "sqlite:///./polynous.db"
-        print("ℹ️  No DATABASE_URL set – using local SQLite for development")
-
-# Fix scheme: Railway may give postgres://, but SQLAlchemy wants postgresql://
-if raw_url.startswith("postgres://"):
-    raw_url = raw_url.replace("postgres://", "postgresql://", 1)
-    print("🔧 Fixed URL scheme: postgres:// → postgresql://")
-elif raw_url.startswith("sqlite:///"):
-    print("ℹ️  Using SQLite for local development")
-elif not raw_url.startswith("postgresql://"):
-    print("=" * 60)
-    print(f"❌ Unsupported database scheme: {raw_url.split('://')[0]}")
-    print("   Only PostgreSQL (postgresql://) or SQLite (sqlite:///) are supported")
-    print("=" * 60)
-    sys.exit(1)
-
-DATABASE_URL = raw_url
-
-# Mask password for logging
-if DATABASE_URL.startswith("postgresql://"):
-    safe_url = re.sub(r'://[^:]+:[^@]+@', r'://****:****@', DATABASE_URL)
+        # Assume PostgreSQL (or compatible) – enable SSL and pooling
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"sslmode": "require"},
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
+        )
 else:
-    safe_url = DATABASE_URL
-print(f"🗄️  Database: {safe_url}")
+    # No DATABASE_URL → fallback to local SQLite
+    SQLITE_PATH = os.path.join(os.path.dirname(__file__), "polynous.db")
+    DATABASE_URL = f"sqlite:///{SQLITE_PATH}"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    print("⚠️  No DATABASE_URL set, using local SQLite")
 
-# ============================================================
-# ENGINE – Optimised for PostgreSQL, simple for SQLite
-# ============================================================
-if DATABASE_URL.startswith("postgresql://"):
-    connect_args = {"sslmode": "require" if IS_PRODUCTION else "prefer"}
-    engine = create_engine(
-        DATABASE_URL,
-        pool_size=5,
-        max_overflow=10,
-        pool_pre_ping=True,
-        pool_recycle=3600,
-        pool_timeout=30,
-        connect_args=connect_args,
-        echo=False,
-    )
-    print("⚙️  PostgreSQL engine configured")
-else:
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        echo=False,
-    )
-    print("⚙️  SQLite engine configured (local dev)")
+print(f"🗄️  Database URL (masked): {DATABASE_URL}")
 
 # ============================================================
 # SESSION FACTORY

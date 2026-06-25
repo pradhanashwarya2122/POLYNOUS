@@ -425,91 +425,351 @@ function ThinkingCanvas({ agentStatus, agentProgress }) {
   );
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { icon:"travel_explore", label:"Research",       path:"/research",  active:true },
-  { icon:"forum",          label:"Debate Chamber", path:"/debate" },
-  { icon:"account_tree",   label:"Knowledge Graph",path:"/graph" },
-  { icon:"search",         label:"Semantic Search",path:"/search" },
-  { icon:"database",       label:"Memory Bank",    path:"/memory" },
-  { icon:"picture_as_pdf", label:"PDF Lab",        path:"/pdf-lab" },
-  { icon:"analytics",      label:"Analytics",      path:"/analytics" },
-  { icon:"settings",       label:"Settings",       path:"/settings" },
+// ═══════════════════════════════════════════════════════════════
+// COLOR / STYLE CONSTANTS (for Sidebar)
+// ═══════════════════════════════════════════════════════════════
+const SC = {
+  green:              "#00ff47",
+  void:               "#0a0a1e",
+  surface:            "#111125",
+  surfaceContainer:   "#1e1e32",
+  onSurface:          "#e2e0fc",
+  onSurfaceVariant:   "#b9ccb0",
+  textSecondary:      "#8899aa",
+  white10:            "rgba(255,255,255,0.1)",
+  white5:             "rgba(255,255,255,0.05)",
+};
+
+// ─── Navigation items ────────────────────────────────────────────────────────
+const NAV = [
+  { icon: "travel_explore", label: "Research",        path: "/research", active: true },
+  { icon: "forum",          label: "Debate Chamber",  path: "/debate" },
+  { icon: "account_tree",   label: "Knowledge Graph", path: "/graph" },
+  { icon: "search",         label: "Semantic Search", path: "/search" },
+  { icon: "database",       label: "Memory Bank",     path: "/memory" },
+  { icon: "picture_as_pdf", label: "PDF Lab",         path: "/pdf-lab" },
+  { icon: "analytics",      label: "Analytics",       path: "/analytics" },
+  { icon: "settings",       label: "Settings",        path: "/settings" },
 ];
 
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
 function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
-  const go      = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
-  const logout  = () => (onLogout   ? onLogout()     : (localStorage.clear(), window.location.href = "/"));
+  const go  = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
+  const bye = () =>
+    onLogout
+      ? onLogout()
+      : (localStorage.clear(), (window.location.href = "/"));
 
-  const iconSize = { fontSize:20, color:"inherit" };
+  // ── Collapsed state ─────────────────────────────────────────
+  if (collapsed)
+    return (
+      <aside
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          height: "100%",
+          width: 56,
+          background: "rgba(10,10,30,0.65)",
+          backdropFilter: "blur(24px)",
+          borderRight: "1px solid " + SC.white10,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "16px 0",
+          zIndex: 30,
+        }}
+      >
+        {/* Expand button */}
+        <button
+          onClick={() => setCollapsed(false)}
+          style={{
+            background: "none",
+            border: "none",
+            color: SC.green,
+            cursor: "pointer",
+            marginBottom: 32,
+          }}
+        >
+          <Icon name="chevron_right" style={{ fontSize: 22 }} />
+        </button>
 
-  if (collapsed) return (
-    <aside style={{ position:"fixed", left:0, top:0, height:"100%", width:56, background:"rgba(1,15,31,0.92)", backdropFilter:"blur(24px)", borderRight:"1px solid "+C.white10, display:"flex", flexDirection:"column", alignItems:"center", padding:"16px 0", zIndex:20 }}>
-      <button onClick={() => setCollapsed(false)} style={{ background:"none", border:"none", color:C.green, cursor:"pointer", marginBottom:28 }}>
-        <Icon name="chevron_right" style={{ fontSize:22 }} />
-      </button>
-      {NAV_ITEMS.map(({ icon, label, path, active }) => (
-        <div key={label} onClick={() => go(path)} title={label}
-          style={{ padding:"11px 0", cursor:"pointer", color: active ? C.green : C.onSurfaceVariant, width:"100%", display:"flex", justifyContent:"center" }}>
-          <Icon name={icon} style={iconSize} />
-        </div>
-      ))}
-      <div style={{ marginTop:"auto", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
-        <div onClick={() => go("/research")} style={{ width:32, height:32, borderRadius:"50%", background:C.green, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-          <Icon name="add" style={{ fontSize:16, color:"#000" }} />
-        </div>
-        <div style={{ width:28, height:28, borderRadius:"50%", background:"rgba(18,33,49,0.8)", border:"1px solid rgba(0,255,71,0.3)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <Icon name="face" style={{ color:C.green, fontSize:14 }} />
-        </div>
-        <div onClick={logout} title="Disconnect" style={{ cursor:"pointer", color:C.crimson }}>
-          <Icon name="logout" style={{ fontSize:14 }} />
-        </div>
-      </div>
-    </aside>
-  );
+        {/* Nav icons */}
+        {NAV.map(({ icon, label, path, active }) => (
+          <div
+            key={label}
+            onClick={() => go(path)}
+            title={label}
+            style={{
+              padding: "12px 0",
+              cursor: "pointer",
+              color: active ? SC.green : SC.onSurfaceVariant,
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name={icon} style={{ fontSize: 20, color: "inherit" }} />
+          </div>
+        ))}
 
+        {/* Bottom actions */}
+        <div
+          style={{
+            marginTop: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <div
+            onClick={() => go("/research")}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: SC.green,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="add" style={{ fontSize: 16, color: SC.void }} />
+          </div>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: SC.surfaceContainer,
+              border: `1px solid ${SC.green}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name="face" style={{ color: SC.green, fontSize: 14 }} />
+          </div>
+          <div onClick={bye} style={{ cursor: "pointer", color: SC.green }}>
+            <Icon name="logout" style={{ fontSize: 14 }} />
+          </div>
+        </div>
+      </aside>
+    );
+
+  // ── Expanded state ──────────────────────────────────────────
   return (
-    <aside style={{ position:"fixed", left:0, top:0, height:"100%", width:260, background:"rgba(1,15,31,0.92)", backdropFilter:"blur(24px)", borderRight:"1px solid "+C.white10, boxShadow:"0 0 20px rgba(0,255,71,0.08)", display:"flex", flexDirection:"column", padding:"24px 0 24px", zIndex:20, transition:"width 0.32s cubic-bezier(0.4,0,0.2,1)", overflow:"hidden" }}>
-
-      {/* Logo */}
-      <div style={{ padding:"0 24px 32px", display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
+    <aside
+      style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        height: "100%",
+        width: 320,
+        background: "rgba(10,10,30,0.65)",
+        backdropFilter: "blur(24px)",
+        borderRight: "1px solid " + SC.white10,
+        boxShadow: "0 0 20px rgba(0,255,71,0.08)",
+        display: "flex",
+        flexDirection: "column",
+        padding: 24,
+        zIndex: 30,
+        transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          marginBottom: 40,
+        }}
+      >
         <div>
-          <h1 style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:22, fontWeight:700, color:C.green, letterSpacing:"0.05em" }}>POLYNOUS</h1>
-          <p style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:C.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.22em", marginTop:4 }}>Cerebral Vitality Engine</p>
+          <h1
+            style={{
+              fontFamily: "'Sora',sans-serif",
+              fontSize: 28,
+              fontWeight: 800,
+              color: SC.green,
+              letterSpacing: "-0.03em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            POLYNOUS
+          </h1>
+          <p
+            style={{
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 10,
+              color: SC.onSurfaceVariant,
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              opacity: 0.7,
+            }}
+          >
+            Cerebral Vitality Engine
+          </p>
         </div>
-        <button onClick={() => setCollapsed(true)} style={{ background:"none", border:"none", color:C.onSurfaceVariant, cursor:"pointer", padding:4, marginLeft:8, marginTop:2 }}
-          onMouseEnter={e=>e.target.style.color="#fff"} onMouseLeave={e=>e.target.style.color=C.onSurfaceVariant}>
-          <Icon name="chevron_left" style={{ fontSize:20 }} />
+        <button
+          onClick={() => setCollapsed(true)}
+          style={{
+            background: "none",
+            border: "none",
+            color: SC.textSecondary,
+            cursor: "pointer",
+            padding: 4,
+            marginLeft: 8,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = SC.textSecondary)}
+        >
+          <Icon name="chevron_left" style={{ fontSize: 20 }} />
         </button>
       </div>
 
-      {/* Nav */}
-      <nav className="poly-scroll" style={{ flex:1, padding:"0 12px", display:"flex", flexDirection:"column", gap:2, overflowY:"auto" }}>
-        {NAV_ITEMS.map(({ icon, label, path, active }) => (
-          <div key={label} onClick={() => go(path)} className={`nav-item${active?" active":""}`}
-            style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", borderRadius:8, cursor:"pointer",
-              color: active ? C.green : C.onSurfaceVariant,
-              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, fontWeight: active ? 600 : 400 }}>
-            <Icon name={icon} style={{ fontSize:18, color:"inherit", flexShrink:0 }} />
-            <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{label}</span>
+      {/* Navigation */}
+      <nav
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          overflow: "hidden",
+        }}
+      >
+        {NAV.map(({ icon, label, path, active }) => (
+          <div
+            key={label}
+            onClick={() => go(path)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 16px",
+              borderRadius: 9999,
+              cursor: "pointer",
+              color: active ? SC.green : SC.onSurfaceVariant,
+              background: active ? `${SC.green}15` : "transparent",
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 13,
+              fontWeight: active ? 700 : 400,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = SC.green;
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = SC.onSurfaceVariant;
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            <Icon
+              name={icon}
+              style={{ fontSize: 20, color: "inherit", flexShrink: 0 }}
+            />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {label}
+            </span>
           </div>
         ))}
       </nav>
 
-      {/* Bottom */}
-      <div style={{ padding:"20px 16px 0", borderTop:"1px solid "+C.white5 }}>
-        <button onClick={() => go("/research")}
-          style={{ width:"100%", padding:"12px", background:C.green, color:"#000", fontWeight:700, borderRadius:9999, border:"none", cursor:"pointer", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 0 12px rgba(0,255,71,0.25)", transition:"transform 0.2s" }}
-          onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
-          <Icon name="add" style={{ fontSize:16, color:"#000", flexShrink:0 }} /> New Research
+      {/* Bottom actions (user, logout, new research) */}
+      <div
+        style={{
+          borderTop: "1px solid " + SC.white5,
+          paddingTop: 24,
+          marginTop: 24,
+        }}
+      >
+        <button
+          onClick={() => go("/research")}
+          style={{
+            width: "100%",
+            padding: 12,
+            background: SC.green,
+            color: SC.void,
+            fontWeight: 700,
+            borderRadius: 9999,
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "'Sora',sans-serif",
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            transition: "transform 0.2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          <Icon name="add" style={{ fontSize: 18, color: SC.void }} /> New Research
         </button>
-        <div style={{ marginTop:18, display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:38, height:38, borderRadius:"50%", background:"rgba(18,33,49,0.8)", border:"1px solid rgba(0,255,71,0.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <Icon name="face" style={{ color:C.green, fontSize:20 }} />
+
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: SC.surfaceContainer,
+              border: `1px solid ${SC.green}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="face" style={{ color: SC.green, fontSize: 22 }} />
           </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <p style={{ fontFamily:"'IBM Plex Sans',monospace", fontSize:13, fontWeight:600, color:"#fff", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{user?.username || "Guest"}</p>
-            <button onClick={logout} style={{ fontSize:10, color:C.crimson, background:"none", border:"none", cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", padding:0 }}>Disconnect</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: "'JetBrains Mono',monospace",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#fff",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {user?.username || "Guest"}
+            </p>
+            <button
+              onClick={bye}
+              style={{
+                fontSize: 10,
+                color: SC.green,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "'JetBrains Mono',monospace",
+                padding: 0,
+              }}
+            >
+              Disconnect
+            </button>
           </div>
         </div>
       </div>
@@ -1024,7 +1284,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const handleNew  = () => { setAnswer(""); setQuery(""); setSources([]); setConfidence(0); };
   const handleCopy = () => { navigator.clipboard.writeText(answer); };
   const confColor  = (v) => v>=80?C.green:v>=60?C.amber:C.crimson;
-  const sidebarW   = sidebarCollapsed ? 56 : 260;
+  const sidebarW   = sidebarCollapsed ? 56 : 320;
 
   return (
     <div style={{ minHeight:"100vh",background:`radial-gradient(ellipse at 30% 50%, ${C.panel}, ${C.void})`,position:"relative",overflow:"auto",opacity:mounted?1:0,transform:mounted?"translateY(0)":"translateY(18px)",transition:"opacity 0.6s ease,transform 0.6s ease" }}>
@@ -1034,7 +1294,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
       <Sidebar onNavigate={onNavigate} user={user} onLogout={onLogout} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
       {/* ── Main pane ── */}
-      <div style={{ marginLeft:sidebarW,transition:"margin-left 0.32s cubic-bezier(0.4,0,0.2,1)",position:"relative",zIndex:10,minHeight:"100vh",display:"flex",flexDirection:"column" }}>
+      <div style={{ marginLeft:sidebarW,transition:"margin-left 0.35s cubic-bezier(0.4,0,0.2,1)",position:"relative",zIndex:10,minHeight:"100vh",display:"flex",flexDirection:"column" }}>
 
         {/* Landing state — full-height Code 1 hero */}
         {!loading && !answer && (

@@ -303,158 +303,343 @@ function NeuralStrandCanvas() {
   );
 }
 
-/* ─────────────────────────────────────────────
-   SIDEBAR  (exact copy from JSX file)
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   NAVIGATION ITEMS
+═══════════════════════════════════════════════════════════════ */
+const NAV = [
+  { icon: "travel_explore",  label: "Research",        path: "/research" },
+  { icon: "forum",           label: "Debate Chamber",  path: "/debate"   },
+  { icon: "account_tree",    label: "Knowledge Graph", path: "/graph"    },
+  { icon: "search",          label: "Semantic Search", path: "/search"   },
+  { icon: "database",        label: "Memory Bank",     path: "/memory",  active: true  },
+  { icon: "picture_as_pdf",  label: "PDF Lab",         path: "/pdf-lab"  },
+  { icon: "monitoring",      label: "Analytics",       path: "/analytics"},
+  { icon: "settings",        label: "Settings",        path: "/settings" },
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR  (exact structure from doc 1, orange-themed)
+═══════════════════════════════════════════════════════════════ */
 function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
-  const NAV = [
-    { icon: "travel_explore",  label: "Research",        path: "/research" },
-    { icon: "forum",           label: "Debate Chamber",  path: "/debate"   },
-    { icon: "account_tree",    label: "Knowledge Graph", path: "/graph"    },
-    { icon: "search",          label: "Semantic Search", path: "/search"   },
-    { icon: "database",        label: "Memory Bank",     path: "/memory",  active: true },
-    { icon: "picture_as_pdf",  label: "PDF Lab",         path: "/pdf-lab"  },
-    { icon: "monitoring",      label: "Analytics",       path: "/analytics"},
-    { icon: "settings",        label: "Settings",        path: "/settings" },
-  ];
+  const go  = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
+  const bye = () =>
+    onLogout
+      ? onLogout()
+      : (localStorage.clear(), (window.location.href = "/"));
 
-  const handleNav    = p => onNavigate ? onNavigate(p) : (window.location.href = p);
-  const handleLogout = () => onLogout  ? onLogout()    : (localStorage.clear(), window.location.href = "/");
-  const w = collapsed ? 56 : 280;
+  // ── Collapsed state ─────────────────────────────────────────
+  if (collapsed)
+    return (
+      <aside
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          height: "100%",
+          width: 56,
+          background: "rgba(10,10,30,0.65)",
+          backdropFilter: "blur(24px)",
+          borderRight: "1px solid rgba(255,255,255,0.1)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "16px 0",
+          zIndex: 30,
+        }}
+      >
+        {/* Expand button */}
+        <button
+          onClick={() => setCollapsed(false)}
+          style={{
+            background: "none",
+            border: "none",
+            color: C.orange,
+            cursor: "pointer",
+            marginBottom: 32,
+          }}
+        >
+          <Icon name="chevron_right" style={{ fontSize: 22 }} />
+        </button>
 
-  return (
-    <aside style={{
-      position: "fixed", left: 0, top: 0, height: "100%", width: w,
-      background: "rgba(10,10,30,0.92)", backdropFilter: "blur(24px)",
-      borderRight: `1px solid ${C.border}`,
-      display: "flex", flexDirection: "column",
-      padding: collapsed ? "16px 8px" : "24px 16px",
-      zIndex: 20,
-      transition: "width 0.35s cubic-bezier(0.4,0,0.2,1), padding 0.35s cubic-bezier(0.4,0,0.2,1)",
-      overflow: "hidden",
-    }}>
-      {collapsed ? (
-        /* ── COLLAPSED ── */
-        <>
-          <button
-            onClick={() => setCollapsed(false)}
-            style={{ background:"none", border:"none", color: C.orange, cursor:"pointer", marginBottom:32, display:"flex", justifyContent:"center" }}
+        {/* Nav icons */}
+        {NAV.map(({ icon, label, path, active }) => (
+          <div
+            key={label}
+            onClick={() => go(path)}
+            title={label}
+            style={{
+              padding: "12px 0",
+              cursor: "pointer",
+              color: active ? C.orange : C.textMuted,
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+            }}
           >
-            <Icon name="chevron_right" style={{ fontSize:22 }} />
-          </button>
-          {NAV.map(({ icon, label, path, active }) => (
-            <div key={label} onClick={() => handleNav(path)} title={label}
-              style={{ padding:"12px 0", cursor:"pointer", color: active ? C.orange : C.textMuted,
-                       width:"100%", display:"flex", justifyContent:"center" }}>
-              <Icon name={icon} style={{ fontSize:20, color:"inherit" }} />
-            </div>
-          ))}
-          <div style={{ marginTop:"auto", display:"flex", flexDirection:"column", alignItems:"center", gap:14 }}>
-            <div onClick={() => handleNav("/research")}
-              style={{ width:34, height:34, borderRadius:"50%", background: C.orange,
-                       display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-              <Icon name="add" style={{ fontSize:16, color: C.void }} />
-            </div>
-            <div style={{ width:30, height:30, borderRadius:"50%", background:"#1e1e32",
-                          border:"1px solid rgba(255,140,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Icon name="face" style={{ color: C.orange, fontSize:14 }} />
-            </div>
-            <div onClick={handleLogout} title="Disconnect" style={{ cursor:"pointer", color: C.crimson }}>
-              <Icon name="logout" style={{ fontSize:14 }} />
-            </div>
+            <Icon name={icon} style={{ fontSize: 20, color: "inherit" }} />
           </div>
-        </>
-      ) : (
-        /* ── EXPANDED ── */
-        <>
-          {/* Logo */}
-          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:32, minWidth:0 }}>
-            <div style={{ flex:1, minWidth:0 }}>
-              <h1 style={{ fontFamily: C.fontDisplay, fontSize:34, fontWeight:700, color: C.orange,
-                           letterSpacing:"0.05em", whiteSpace:"nowrap", lineHeight:1 }}>
-                POLYNOUS
-              </h1>
-              <p style={{ fontFamily: C.fontMono, fontSize:9, color: C.textMuted,
-                          textTransform:"uppercase", letterSpacing:"0.2em", opacity:0.75, whiteSpace:"nowrap", marginTop:3 }}>
-                Cerebral Vitality Engine
-              </p>
-            </div>
-            <button onClick={() => setCollapsed(true)}
-              style={{ background:"none", border:"none", color: C.textMuted, cursor:"pointer", padding:4, flexShrink:0, marginLeft:8 }}
-              onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-              onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
+        ))}
+
+        {/* Bottom actions */}
+        <div
+          style={{
+            marginTop: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <div
+            onClick={() => go("/research")}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: C.orange,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="add" style={{ fontSize: 16, color: C.void }} />
+          </div>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: "#1e1e32",
+              border: "1px solid rgba(255,140,0,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name="face" style={{ color: C.orange, fontSize: 14 }} />
+          </div>
+          <div onClick={bye} style={{ cursor: "pointer", color: C.crimson }}>
+            <Icon name="logout" style={{ fontSize: 14 }} />
+          </div>
+        </div>
+      </aside>
+    );
+
+  // ── Expanded state ──────────────────────────────────────────
+  return (
+    <aside
+      style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        height: "100%",
+        width: 320,
+        background: "rgba(10,10,30,0.65)",
+        backdropFilter: "blur(24px)",
+        borderRight: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "0 0 20px rgba(255,140,0,0.08)",
+        display: "flex",
+        flexDirection: "column",
+        padding: 24,
+        zIndex: 30,
+        transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          marginBottom: 40,
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              fontFamily: "'Sora',sans-serif",
+              fontSize: 28,
+              fontWeight: 800,
+              color: C.orange,
+              letterSpacing: "-0.03em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            POLYNOUS
+          </h1>
+          <p
+            style={{
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 10,
+              color: C.textMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              opacity: 0.7,
+            }}
+          >
+            Cerebral Vitality Engine
+          </p>
+        </div>
+        <button
+          onClick={() => setCollapsed(true)}
+          style={{
+            background: "none",
+            border: "none",
+            color: C.textMuted,
+            cursor: "pointer",
+            padding: 4,
+            marginLeft: 8,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = C.textMuted)}
+        >
+          <Icon name="chevron_left" style={{ fontSize: 20 }} />
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          overflow: "hidden",
+        }}
+      >
+        {NAV.map(({ icon, label, path, active }) => (
+          <div
+            key={label}
+            onClick={() => go(path)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 16px",
+              borderRadius: 9999,
+              cursor: "pointer",
+              color: active ? C.orange : C.textMuted,
+              background: active ? "rgba(255,140,0,0.15)" : "transparent",
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 13,
+              fontWeight: active ? 700 : 400,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = C.orange;
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!active) {
+                e.currentTarget.style.color = C.textMuted;
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            <Icon
+              name={icon}
+              style={{ fontSize: 20, color: "inherit", flexShrink: 0 }}
+            />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {label}
+            </span>
+          </div>
+        ))}
+      </nav>
+
+      {/* Bottom actions (user, logout, new research) */}
+      <div
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+          paddingTop: 24,
+          marginTop: 24,
+        }}
+      >
+        <button
+          onClick={() => go("/research")}
+          style={{
+            width: "100%",
+            padding: 12,
+            background: C.orange,
+            color: C.void,
+            fontWeight: 700,
+            borderRadius: 9999,
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "'Sora',sans-serif",
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            transition: "transform 0.2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          <Icon name="add" style={{ fontSize: 18, color: C.void }} /> New Research
+        </button>
+
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "#1e1e32",
+              border: "1px solid rgba(255,140,0,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="face" style={{ color: C.orange, fontSize: 22 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: "'JetBrains Mono',monospace",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#fff",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
             >
-              <Icon name="chevron_left" style={{ fontSize:20 }} />
+              {user?.username || "Guest"}
+            </p>
+            <button
+              onClick={bye}
+              style={{
+                fontSize: 10,
+                color: C.crimson,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "'JetBrains Mono',monospace",
+                padding: 0,
+              }}
+            >
+              Disconnect
             </button>
           </div>
-
-          {/* Nav items */}
-          <nav style={{ flex:1, display:"flex", flexDirection:"column", gap:2, overflow:"hidden" }}>
-            {NAV.map(({ icon, label, path, active }) => (
-              <div key={label} onClick={() => handleNav(path)}
-                className={active ? "nav-active" : ""}
-                style={{
-                  display:"flex", alignItems:"center", gap:14,
-                  padding:"11px 16px", borderRadius: active ? 8 : 8,
-                  cursor:"pointer",
-                  color: active ? C.orange : C.textMuted,
-                  background: active ? C.orangeGlow : "transparent",
-                  border: active ? `1px solid rgba(255,140,0,0.28)` : "1px solid transparent",
-                  fontFamily: C.fontMono, fontSize:13,
-                  fontWeight: active ? 700 : 400,
-                  transition:"all 0.2s",
-                  whiteSpace:"nowrap", overflow:"hidden",
-                  position:"relative",
-                  boxShadow: active ? "inset 0 0 10px rgba(255,140,0,0.1)" : "none",
-                }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.orange; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}}
-              >
-                <Icon name={icon} style={{ fontSize:18, color:"inherit", flexShrink:0 }} />
-                <span style={{ overflow:"hidden", textOverflow:"ellipsis" }}>{label}</span>
-              </div>
-            ))}
-          </nav>
-
-          {/* Bottom area */}
-          <div style={{ borderTop:`1px solid ${C.white5}`, paddingTop:20, marginTop:20 }}>
-            <button onClick={() => handleNav("/research")}
-              style={{ width:"100%", padding:"11px", background: C.orange, color: C.void,
-                       fontWeight:700, borderRadius:8, border:"none", cursor:"pointer",
-                       fontFamily: C.fontDisplay, fontSize:16, letterSpacing:"0.05em",
-                       display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                       transition:"transform 0.2s, box-shadow 0.2s",
-                       clipPath:"polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)" }}
-              onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.boxShadow="0 0 18px rgba(255,140,0,0.5)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform="scale(1)";   e.currentTarget.style.boxShadow="none"; }}
-            >
-              <Icon name="add" style={{ fontSize:18, color: C.void, flexShrink:0 }} />
-              New Research
-            </button>
-            <div style={{ marginTop:18, display:"flex", alignItems:"center", gap:12 }}>
-              <div style={{ width:40, height:40, borderRadius:"50%", background:"#1e1e32",
-                            border:"1px solid rgba(255,140,0,0.3)", display:"flex",
-                            alignItems:"center", justifyContent:"center", flexShrink:0, position:"relative" }}>
-                <Icon name="face" style={{ color: C.orange, fontSize:22 }} />
-                <div style={{ position:"absolute", width:10, height:10, borderRadius:"50%",
-                              background: C.orange, bottom:0, right:0,
-                              boxShadow:"0 0 8px rgba(255,140,0,0.8)", animation:"ping 2s infinite" }} />
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <p style={{ fontFamily: C.fontMono, fontSize:13, fontWeight:700, color:"#fff",
-                            whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                  {user?.username || "test1"}
-                </p>
-                <button onClick={handleLogout}
-                  style={{ fontSize:10, color: C.crimson, background:"none", border:"none",
-                           cursor:"pointer", fontFamily: C.fontMono, padding:0, marginTop:3 }}>
-                  Disconnect
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+        </div>
+      </div>
     </aside>
   );
 }
@@ -560,11 +745,10 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
     onNavigate ? onNavigate(dest) : (window.location.href = dest);
   };
 
-  /* ── API calls — UPDATED: use Authorization header instead of user_id in URL ── */
+  /* ── API calls ── */
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ Get token from memory (secure) or localStorage (fallback)
       const accessToken = window.__POLYNOUS_ACCESS_TOKEN__ || localStorage.getItem('polynous_token') || '';
       const base = API_BASE_URL;
 
@@ -573,7 +757,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
         'Content-Type': 'application/json'
       };
 
-      // ✅ All endpoints now use Authorization header — NO user_id in URL
       const [statsRes, interestsRes, historyRes, debatesRes] = await Promise.all([
         fetch(`${base}/memory/stats`,    { headers }),
         fetch(`${base}/memory/interests`, { headers }),
@@ -620,7 +803,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
     }
   };
 
-  /* ── Grouped timeline (from JSX file) ── */
+  /* ── Grouped timeline ── */
   const groupedHistory = useCallback(() => {
     const g = {};
     history.forEach(h => {
@@ -644,11 +827,10 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
   const getConfColor = v => v >= 80 ? C.orange : v >= 60 ? C.gold : C.crimson;
 
-  const sidebarW = collapsed ? 56 : 280;
+  const sidebarW = collapsed ? 56 : 320;
   const grouped  = groupedHistory();
   const TABS     = ["All Activity","Research","Debates"];
 
-  /* filter grouped for Research tab */
   const filteredGrouped = () => {
     if (activeTab === "All Activity") return grouped;
     if (activeTab === "Research") {
@@ -685,7 +867,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                           display:"flex", alignItems:"flex-end", paddingBottom:48 }}>
           <NeuralStrandCanvas />
 
-          {/* overlay gradient */}
           <div style={{ position:"absolute", inset:0, zIndex:1,
                         background:"linear-gradient(180deg,rgba(10,10,30,0.1) 0%,rgba(10,10,30,0.85) 100%)" }} />
 
@@ -738,7 +919,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
         {/* ══ PAGE BODY ══ */}
         <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 40px 80px" }}>
 
-          {/* Loading state */}
           {loading && !stats && (
             <div style={{ display:"flex", justifyContent:"center", alignItems:"center",
                           minHeight:320, flexDirection:"column", gap:18 }}>
@@ -821,7 +1001,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                 {Object.entries(filteredGrouped()).length > 0 ? (
                   Object.entries(filteredGrouped()).map(([date, items], gi) => (
                     <div key={date}>
-                      {/* date divider */}
                       <div style={{ display:"flex", alignItems:"center", gap:14,
                                     padding:"12px 20px", borderBottom:`1px solid #222244`,
                                     background:"rgba(18,18,43,0.6)" }}>
@@ -937,7 +1116,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                       {d.topic}
                     </h4>
                     <div style={{ display:"flex", gap:16, marginBottom:10 }}>
-                      {/* FOR bar */}
                       <div style={{ flex:1 }}>
                         <div style={{ display:"flex", justifyContent:"space-between",
                                       fontFamily: C.fontMono, fontSize:10, marginBottom:5 }}>
@@ -949,7 +1127,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                                         borderRadius:2, background: C.orange, transition:"width 1s ease" }} />
                         </div>
                       </div>
-                      {/* AGAINST bar */}
                       <div style={{ flex:1 }}>
                         <div style={{ display:"flex", justifyContent:"space-between",
                                       fontFamily: C.fontMono, fontSize:10, marginBottom:5 }}>

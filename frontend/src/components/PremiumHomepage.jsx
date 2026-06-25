@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const PHOTO_SRC = "data:image/jpeg;base64,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";
+const PHOTO_SRC = "data:image/jpeg;base64,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";
 
 const C = {
   green:"#00ff0f", cyan:"#00ccff", crimson:"#ff2040", gold:"#ffd700",
@@ -39,7 +39,6 @@ const GLOBAL_STYLES = `
   @keyframes glitch      { 0%,100%{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)} 20%{clip-path:polygon(0 5%,100% 5%,100% 15%,0 15%)} 40%{clip-path:polygon(0 65%,100% 65%,100% 75%,0 75%)} 60%{clip-path:polygon(0 45%,100% 45%,100% 55%,0 55%)} 80%{clip-path:polygon(0 85%,100% 85%,100% 95%,0 95%)} }
   @keyframes nodeFloat   { 0%,100%{transform:translate(0,0)} 33%{transform:translate(3px,-4px)} 66%{transform:translate(-3px,2px)} }
   @keyframes edgeGlow    { 0%,100%{opacity:0.25} 50%{opacity:0.7} }
-  @keyframes dotTravel   { 0%{offset-distance:0%} 100%{offset-distance:100%} }
   @keyframes progressRing{ from{stroke-dashoffset:220} to{stroke-dashoffset:42} }
   @keyframes shimmerLive { 0%{opacity:0.4} 50%{opacity:1} 100%{opacity:0.4} }
   @keyframes pdfPulse    { 0%,100%{box-shadow:0 0 0 0 rgba(0,204,255,0.3)} 50%{box-shadow:0 0 0 8px rgba(0,204,255,0)} }
@@ -52,6 +51,20 @@ const GLOBAL_STYLES = `
   @keyframes drawLine    { from{stroke-dashoffset:240} to{stroke-dashoffset:0} }
   @keyframes ringSweep   { from{transform:rotate(-90deg)} to{transform:rotate(270deg)} }
   @keyframes scanSweep   { from{left:-30%} to{left:110%} }
+  @keyframes nodePop     { 0%{transform:scale(0);opacity:0} 55%{transform:scale(1.18)} 75%{transform:scale(0.94)} 90%{transform:scale(1.04)} 100%{transform:scale(1);opacity:1} }
+  @keyframes edgeFadeIn  { from{opacity:0;stroke-dashoffset:80} to{opacity:1;stroke-dashoffset:0} }
+  @keyframes haloBreath  { 0%,100%{opacity:0.28;r:22} 50%{opacity:0.55;r:28} }
+  @keyframes particleMove{ 0%{offset-distance:0%;opacity:0} 8%{opacity:0.9} 92%{opacity:0.9} 100%{offset-distance:100%;opacity:0} }
+  /* Memory bank premium animations */
+  @keyframes memorySlideIn{ from{opacity:0;transform:translateX(24px) scale(0.96)} to{opacity:1;transform:translateX(0) scale(1)} }
+  @keyframes memoryGlow   { 0%,100%{box-shadow:0 0 0 0 var(--mc,#a855f7)} 50%{box-shadow:0 0 18px 2px var(--mc,#a855f7)} }
+  @keyframes memoryPulse  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.18)} }
+  @keyframes memoryRipple { 0%{transform:scale(0.6);opacity:0.7} 100%{transform:scale(2.2);opacity:0} }
+  @keyframes timelineFlow { 0%{background-position:0% 0%} 100%{background-position:200% 0%} }
+  @keyframes memCardFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+  @keyframes memSparkle   { 0%,100%{opacity:0;transform:scale(0.4) rotate(0deg)} 50%{opacity:1;transform:scale(1) rotate(180deg)} }
+  @keyframes memOrbit     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
   .reveal { opacity:0; transform:translateY(36px); transition:opacity 0.9s cubic-bezier(0.22,1,0.36,1),transform 0.9s cubic-bezier(0.22,1,0.36,1); will-change:opacity,transform; }
   .reveal.visible { opacity:1; transform:translateY(0); }
   .reveal-stagger > * { opacity:0; transform:translateY(24px); transition:opacity 0.75s cubic-bezier(0.22,1,0.36,1),transform 0.75s cubic-bezier(0.22,1,0.36,1); }
@@ -64,6 +77,7 @@ const GLOBAL_STYLES = `
   .reveal-stagger.visible > *:nth-child(n+7){ opacity:1;transform:translateY(0);transition-delay:0.45s }
   .section-rule { width:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,15,0.35),rgba(0,204,255,0.2),transparent);margin:0 auto 88px;transition:width 1.2s cubic-bezier(0.22,1,0.36,1); }
   .section-rule.visible { width:50%; }
+  .section-rule-tight.visible { margin:0 auto 32px; }
   .glass-card { background:rgba(13,13,31,0.75);backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.06);transition:all 0.5s cubic-bezier(0.23,1,0.32,1); }
   .terminal-bg { background:#05050f;border:1px solid #1c1c34; }
   .animate-pulse-dot { animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
@@ -97,14 +111,20 @@ const GLOBAL_STYLES = `
   .search-focus:focus-within { border-color:rgba(0,255,15,0.5) !important;box-shadow:0 0 0 3px rgba(0,255,15,0.07),0 4px 28px rgba(0,255,15,0.05) !important; }
   .noise-overlay { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
   .no-scrollbar::-webkit-scrollbar { display:none; height:0; }
-  /* NEW: byok tooltip */
   .byok-tooltip { display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:rgba(8,8,22,0.97);border:1px solid rgba(0,204,255,0.3);border-radius:10px;padding:8px 12px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(0,204,255,0.9);pointer-events:none;z-index:100;animation:tooltipFade 0.2s ease; }
   .byok-wrap:hover .byok-tooltip { display:block; }
-  /* NEW: user dropdown */
   .user-dropdown { display:none;position:absolute;top:calc(100% + 8px);right:0;background:rgba(8,8,22,0.97);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:6px;min-width:180px;z-index:200; }
   .user-wrap:hover .user-dropdown { display:block; }
   .user-dropdown-item { display:block;width:100%;padding:9px 14px;background:transparent;border:none;color:rgba(200,210,220,0.75);font-family:'Hanken Grotesk',sans-serif;font-size:13px;text-align:left;cursor:pointer;border-radius:8px;transition:background 0.2s,color 0.2s; }
   .user-dropdown-item:hover { background:rgba(255,255,255,0.04);color:#fff; }
+
+  /* Premium KG node entrance */
+  .kg-node-new { animation: nodePop 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+  /* Memory card hover */
+  .mem-card { transition: all 0.4s cubic-bezier(0.23,1,0.32,1); }
+  .mem-card:hover { animation: memCardFloat 2s ease-in-out infinite; }
+
   @media (max-width:1100px) { .features-grid { grid-template-columns:1fr 1fr !important; } }
   @media (max-width:900px) { .nav-center { display:none !important; } .features-grid { grid-template-columns:1fr 1fr !important; } .tech-3 { grid-template-columns:1fr 1fr !important; } .hiw-grid { grid-template-columns:1fr !important; } .api-grid { grid-template-columns:1fr !important; } }
   @media (max-width:600px) { .features-grid,.tech-3,.example-4 { grid-template-columns:1fr !important; } .search-bar { flex-direction:column;border-radius:20px !important;padding:12px !important; } .hero-title { font-size:clamp(3rem,14vw,5rem) !important; } }
@@ -185,17 +205,19 @@ const AGENT_QUIPS = {
   judge:    ["Weighing all arguments…","Confidence score: 91%.","Ruling: Affirmative wins by evidence margin.","Session archived to Knowledge Graph."],
 };
 
-// ── NEW: Mock memory timeline data ────────────────────────────────────────────
 const MEMORY_DOTS = [
-  {id:1, query:"Quantum entanglement basics", date:"Jun 18, 2025", x:8},
-  {id:2, query:"CRISPR gene editing ethics", date:"Jun 15, 2025", x:22},
-  {id:3, query:"Mars colonization feasibility", date:"Jun 12, 2025", x:38},
-  {id:4, query:"AI regulation global impact", date:"Jun 9, 2025",  x:55},
-  {id:5, query:"Fusion energy milestones",    date:"Jun 5, 2025",  x:70},
-  {id:6, query:"Neuroplasticity research",    date:"Jun 1, 2025",  x:85},
+  {id:1, query:"Quantum entanglement basics",    date:"Jun 18, 2025", tag:"Physics",    icon:"science"},
+  {id:2, query:"CRISPR gene editing ethics",     date:"Jun 15, 2025", tag:"Biology",    icon:"biotech"},
+  {id:3, query:"Mars colonization feasibility",  date:"Jun 12, 2025", tag:"Space",      icon:"rocket_launch"},
+  {id:4, query:"AI regulation global impact",    date:"Jun 9, 2025",  tag:"Policy",     icon:"policy"},
+  {id:5, query:"Fusion energy milestones",       date:"Jun 5, 2025",  tag:"Energy",     icon:"bolt"},
+  {id:6, query:"Neuroplasticity research",       date:"Jun 1, 2025",  tag:"Neuroscience",icon:"neurology"},
+  {id:7, query:"Blockchain & decentralization",  date:"May 28, 2025", tag:"Tech",       icon:"hub"},
+  {id:8, query:"Climate tipping points",         date:"May 24, 2025", tag:"Climate",    icon:"eco"},
 ];
 
-// ── NEW: Sparkline data ────────────────────────────────────────────────────────
+const MEMORY_COLORS = [C.purple, C.cyan, C.crimson, C.green, C.amber, C.teal, C.indigo, C.gold];
+
 const SPARKLINE_RESEARCH = [3,5,4,7,6,9,8,12,10,14];
 const SPARKLINE_CONF = [80,82,85,83,88,87,91,90,92,94];
 const TOP_TOPICS = [
@@ -205,15 +227,14 @@ const TOP_TOPICS = [
   {label:"Energy", val:43, color:C.amber},
 ];
 
-// ── NEW: Force graph nodes ─────────────────────────────────────────────────────
 const GRAPH_NODES_DATA = [
-  {id:0, label:"AI Ethics",   x:200, y:130, color:C.green,  r:18},
-  {id:1, label:"CRISPR",      x:100, y:200, color:C.cyan,   r:14},
-  {id:2, label:"Quantum",     x:280, y:210, color:C.purple, r:15},
-  {id:3, label:"Mars",        x:150, y:290, color:C.crimson,r:13},
-  {id:4, label:"Fusion",      x:250, y:290, color:C.amber,  r:12},
-  {id:5, label:"Memory",      x:80,  y:310, color:C.teal,   r:11},
-  {id:6, label:"Regulation",  x:320, y:140, color:C.gold,   r:13},
+  {id:0, label:"AI Ethics",   x:200, y:130, color:C.green,  r:20},
+  {id:1, label:"CRISPR",      x:100, y:200, color:C.cyan,   r:16},
+  {id:2, label:"Quantum",     x:290, y:210, color:C.purple, r:17},
+  {id:3, label:"Mars",        x:150, y:295, color:C.crimson,r:15},
+  {id:4, label:"Fusion",      x:260, y:295, color:C.amber,  r:14},
+  {id:5, label:"Memory",      x:80,  y:315, color:C.teal,   r:13},
+  {id:6, label:"Regulation",  x:330, y:140, color:C.gold,   r:15},
 ];
 const GRAPH_EDGES = [[0,1],[0,2],[0,6],[1,3],[2,4],[3,5],[4,5],[2,6],[0,3]];
 
@@ -348,116 +369,25 @@ function NeuralPipeline(){
   );
 }
 
-function SectionDivider(){
+function SectionDivider({tight=false}){
   const ref=useReveal(0.3);
-  return <div ref={ref} className="section-rule reveal"/>;
+  return <div ref={ref} className={`section-rule reveal${tight?" section-rule-tight":""}`}/>;
 }
 
-/* ── NEW SECTION 1: BYOK Badge ────────────────────────────────────────────── */
 function BYOKBadge() {
   return (
     <div className="byok-wrap" style={{display:"inline-flex",alignItems:"center",position:"relative",cursor:"default"}}>
-      <div style={{
-        display:"inline-flex",alignItems:"center",gap:"7px",
-        padding:"5px 13px",borderRadius:"9999px",
-        border:"1px solid rgba(192,192,220,0.22)",
-        background:"rgba(12,12,28,0.7)",backdropFilter:"blur(12px)",
-        fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(192,210,220,0.75)",
-        letterSpacing:"0.06em",transition:"border-color 0.25s",
-        boxShadow:"0 1px 8px rgba(0,0,0,0.3)"
-      }}>
-        {/* Key icon */}
+      <div style={{display:"inline-flex",alignItems:"center",gap:"7px",padding:"5px 13px",borderRadius:"9999px",border:"1px solid rgba(192,192,220,0.22)",background:"rgba(12,12,28,0.7)",backdropFilter:"blur(12px)",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(192,210,220,0.75)",letterSpacing:"0.06em",transition:"border-color 0.25s",boxShadow:"0 1px 8px rgba(0,0,0,0.3)"}}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(192,210,220,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2L11 12m0 0l2 4m-2-4l4 2"/>
         </svg>
         Bring Your Own Key – Anthropic · OpenAI
       </div>
-      {/* Tooltip */}
-      <div className="byok-tooltip">
-        🔒 Keys encrypted with Fernet · Never stored in plaintext
-      </div>
+      <div className="byok-tooltip">🔒 Keys encrypted with Fernet · Never stored in plaintext</div>
     </div>
   );
 }
 
-/* ── NEW SECTION 3: Semantic Search Bar ──────────────────────────────────── */
-function SemanticSearchBar() {
-  const [val, setVal] = useState("");
-  const [focused, setFocused] = useState(false);
-  const go = () => {
-    const q = val.trim();
-    if(q) window.location.href = `/search?query=${encodeURIComponent(q)}`;
-  };
-  return (
-    <div style={{
-      display:"flex",alignItems:"center",gap:"8px",
-      padding:"6px 6px 6px 14px",borderRadius:"9999px",
-      background:"rgba(8,8,20,0.7)",backdropFilter:"blur(16px)",
-      border:`1px solid ${focused?"rgba(0,204,255,0.45)":"rgba(255,255,255,0.05)"}`,
-      width:"min(560px,100%)",margin:"16px auto 0",
-      transition:"border-color 0.25s,box-shadow 0.25s",
-      boxShadow:focused?"0 0 0 3px rgba(0,204,255,0.06)":"none"
-    }}>
-      {/* Magnifying glass */}
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(0,204,255,0.5)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
-        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-      </svg>
-      <input
-        value={val}
-        onChange={e=>setVal(e.target.value)}
-        onFocus={()=>setFocused(true)}
-        onBlur={()=>setFocused(false)}
-        onKeyDown={e=>e.key==="Enter"&&go()}
-        placeholder="Search your memory…"
-        style={{flex:1,height:"36px",background:"transparent",border:"none",outline:"none",color:"rgba(200,215,230,0.85)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px"}}
-      />
-      <button
-        onClick={go}
-        style={{padding:"6px 16px",borderRadius:"9999px",border:"none",background:"rgba(0,204,255,0.12)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0,transition:"background 0.2s",letterSpacing:"0.04em"}}
-        onMouseOver={e=>e.currentTarget.style.background="rgba(0,204,255,0.22)"}
-        onMouseOut={e=>e.currentTarget.style.background="rgba(0,204,255,0.12)"}
-      >Search →</button>
-    </div>
-  );
-}
-
-/* ── NEW SECTION 4: Try a Debate Button ─────────────────────────────────── */
-function DebateQuickButton() {
-  return (
-    <button
-      onClick={()=>window.location.href="/debate?topic=Should+AI+be+regulated%3F"}
-      style={{
-        padding:"13px 28px",borderRadius:"9999px",
-        border:`1.5px solid ${C.crimson}`,
-        background:`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`,
-        color:"#ff4868",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",
-        cursor:"pointer",letterSpacing:"0.02em",
-        transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",
-        display:"inline-flex",alignItems:"center",gap:"8px",
-        animation:"crimsonPulse 2.4s ease-in-out infinite",
-        textShadow:`0 0 14px rgba(255,32,64,0.9)`,
-      }}
-      onMouseOver={e=>{
-        e.currentTarget.style.animation="none";
-        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.28),rgba(255,32,64,0.14))`;
-        e.currentTarget.style.boxShadow=`0 0 32px rgba(255,32,64,0.7), 0 0 70px rgba(255,32,64,0.35), inset 0 1px 0 rgba(255,100,120,0.25)`;
-        e.currentTarget.style.transform="scale(1.06)";
-        e.currentTarget.style.color="#ff7080";
-      }}
-      onMouseOut={e=>{
-        e.currentTarget.style.animation="crimsonPulse 2.4s ease-in-out infinite";
-        e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`;
-        e.currentTarget.style.boxShadow="";
-        e.currentTarget.style.transform="scale(1)";
-        e.currentTarget.style.color="#ff4868";
-      }}
-    >
-      ⚖️ Try a Debate
-    </button>
-  );
-}
-
-/* ── NEW SECTION 5: PDF Drop Zone ────────────────────────────────────────── */
 function PDFDropZone() {
   const [hovering, setHovering] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -481,24 +411,13 @@ function PDFDropZone() {
       onDragOver={e=>{e.preventDefault();setHovering(true);}}
       onDragLeave={()=>setHovering(false)}
       onDrop={handleDrop}
-      style={{
-        borderRadius:"16px",border:`1.5px dashed ${hovering||uploading?C.cyan:"rgba(180,200,220,0.18)"}`,
-        background:hovering?"rgba(0,204,255,0.04)":"rgba(8,8,20,0.6)",
-        backdropFilter:"blur(12px)",
-        padding:"28px 24px",textAlign:"center",
-        transition:"all 0.3s ease",cursor:"pointer",
-        boxShadow:hovering?`0 0 0 3px rgba(0,204,255,0.08),0 0 24px rgba(0,204,255,0.12)`:"none",
-        animation:hovering?"pdfPulse 1.5s ease-in-out infinite":"none",
-        marginTop:"20px",width:"min(500px,100%)",marginLeft:"auto",marginRight:"auto"
-      }}
+      style={{borderRadius:"16px",border:`1.5px dashed ${hovering||uploading?C.cyan:"rgba(180,200,220,0.18)"}`,background:hovering?"rgba(0,204,255,0.04)":"rgba(8,8,20,0.6)",backdropFilter:"blur(12px)",padding:"28px 24px",textAlign:"center",transition:"all 0.3s ease",cursor:"pointer",boxShadow:hovering?`0 0 0 3px rgba(0,204,255,0.08),0 0 24px rgba(0,204,255,0.12)`:"none",animation:hovering?"pdfPulse 1.5s ease-in-out infinite":"none",marginTop:"20px",width:"min(500px,100%)",marginLeft:"auto",marginRight:"auto"}}
       onClick={()=>{
-        // simulate file drop via click
         setUploading(true);setProgress(0);
         let p=0;
         const iv=setInterval(()=>{p+=Math.random()*18+5;if(p>=100){clearInterval(iv);setProgress(100);setTimeout(()=>window.location.href="/pdf-lab",400);}else setProgress(Math.min(p,99));},120);
       }}
     >
-      {/* PDF icon */}
       <div style={{marginBottom:"12px"}}>
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{margin:"0 auto",display:"block"}}>
           <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke={hovering?C.cyan:"rgba(180,200,220,0.4)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -520,11 +439,9 @@ function PDFDropZone() {
   );
 }
 
-/* ── NEW SECTION 7: User Profile Quick-Access ─────────────────────────────── */
 function UserProfileWidget() {
   const [user] = useState(()=>{
     try{ const t=localStorage.getItem("token"); if(t) return JSON.parse(atob(t.split(".")[1]||"")).name||"User"; } catch(_){}
-    // For demo: simulate logged-in state by checking any "user" key
     return localStorage.getItem("polynous_user") || null;
   });
 
@@ -539,11 +456,7 @@ function UserProfileWidget() {
   ];
   return (
     <div className="user-wrap" style={{position:"relative",display:"inline-block"}}>
-      <div style={{
-        display:"flex",alignItems:"center",gap:"8px",cursor:"pointer",padding:"4px 10px 4px 4px",
-        borderRadius:"9999px",border:"1px solid rgba(255,255,255,0.07)",
-        background:"rgba(8,8,20,0.7)",transition:"border-color 0.2s"
-      }}>
+      <div style={{display:"flex",alignItems:"center",gap:"8px",cursor:"pointer",padding:"4px 10px 4px 4px",borderRadius:"9999px",border:"1px solid rgba(255,255,255,0.07)",background:"rgba(8,8,20,0.7)",transition:"border-color 0.2s"}}>
         <div style={{width:"28px",height:"28px",borderRadius:"50%",background:`linear-gradient(135deg,${C.green}30,${C.cyan}20)`,border:`1px solid ${C.green}40`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11px",color:C.green}}>
           {initials}
         </div>
@@ -552,11 +465,7 @@ function UserProfileWidget() {
       </div>
       <div className="user-dropdown">
         {items.map(item=>(
-          <button
-            key={item.label}
-            className="user-dropdown-item"
-            onClick={()=>item.action?item.action():window.location.href=item.route}
-          >
+          <button key={item.label} className="user-dropdown-item" onClick={()=>item.action?item.action():window.location.href=item.route}>
             <span style={{display:"flex",alignItems:"center",gap:"10px"}}>
               <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px",color:"rgba(150,165,180,0.6)"}}>{item.icon}</span>
               {item.label}
@@ -568,7 +477,6 @@ function UserProfileWidget() {
   );
 }
 
-/* ── NEW SECTION 9: Confidence Score Ring ────────────────────────────────── */
 function ConfidenceRing() {
   const circumference = 2 * Math.PI * 35;
   const dashOffset = circumference - (92/100)*circumference;
@@ -586,18 +494,8 @@ function ConfidenceRing() {
               <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
           </defs>
-          {/* Track */}
           <circle cx="45" cy="45" r="35" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6"/>
-          {/* Ring */}
-          <circle
-            cx="45" cy="45" r="35" fill="none"
-            stroke="url(#confGrad)" strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-            filter="url(#confGlow)"
-            style={{animation:"progressRing 1.8s cubic-bezier(0.22,1,0.36,1) forwards",strokeDashoffset:circumference}}
-          />
+          <circle cx="45" cy="45" r="35" fill="none" stroke="url(#confGrad)" strokeWidth="6" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} filter="url(#confGlow)" style={{animation:"progressRing 1.8s cubic-bezier(0.22,1,0.36,1) forwards",strokeDashoffset:circumference}}/>
         </svg>
         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
           <span style={{fontFamily:"JetBrains Mono,monospace",fontWeight:600,fontSize:"16px",color:"#fff",letterSpacing:"-0.03em"}}>92%</span>
@@ -608,7 +506,6 @@ function ConfidenceRing() {
   );
 }
 
-/* ── NEW SECTION 10: Export & Quick Actions Row ──────────────────────────── */
 function QuickActionsRow() {
   const actions = [
     {label:"Export Data",    icon:"download", action:()=>{if(window.confirm("Export all research data?")) fetch("/api/export",{method:"POST"}).catch(()=>alert("Export initiated (demo)"));}},
@@ -619,18 +516,7 @@ function QuickActionsRow() {
     <div style={{display:"flex",flexWrap:"wrap",gap:"6px 24px",justifyContent:"center",alignItems:"center",padding:"20px 0 0"}}>
       {actions.map((a,i)=>(
         <span key={a.label}>
-          <button
-            onClick={a.action}
-            style={{
-              background:"transparent",border:"none",
-              color:"rgba(150,165,180,0.5)",fontFamily:"Hanken Grotesk,sans-serif",
-              fontSize:"13px",cursor:"pointer",padding:"0",letterSpacing:"0.01em",
-              display:"inline-flex",alignItems:"center",gap:"5px",
-              transition:"color 0.2s",textDecoration:"none",position:"relative"
-            }}
-            onMouseOver={e=>{e.currentTarget.style.color="rgba(200,215,230,0.9)";e.currentTarget.style.textDecoration="underline";}}
-            onMouseOut={e=>{e.currentTarget.style.color="rgba(150,165,180,0.5)";e.currentTarget.style.textDecoration="none";}}
-          >
+          <button onClick={a.action} style={{background:"transparent",border:"none",color:"rgba(150,165,180,0.5)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",cursor:"pointer",padding:"0",letterSpacing:"0.01em",display:"inline-flex",alignItems:"center",gap:"5px",transition:"color 0.2s",textDecoration:"none",position:"relative"}} onMouseOver={e=>{e.currentTarget.style.color="rgba(200,215,230,0.9)";e.currentTarget.style.textDecoration="underline";}} onMouseOut={e=>{e.currentTarget.style.color="rgba(150,165,180,0.5)";e.currentTarget.style.textDecoration="none";}}>
             <span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{a.icon}</span>
             {a.label}
           </button>
@@ -641,75 +527,164 @@ function QuickActionsRow() {
   );
 }
 
-/* ── NEW SECTION 11: Memory Bank Timeline Preview — premium card rail ───── */
+/* ══════════════════════════════════════════════════════════════════
+   PREMIUM MEMORY BANK — enlarged, polished, animated with sparkle bursts
+══════════════════════════════════════════════════════════════════ */
 function MemoryTimeline() {
   const [activeId, setActiveId] = useState(MEMORY_DOTS[0].id);
+  const [animating, setAnimating] = useState(null);
+  const [sparkleAt, setSparkleAt] = useState(null);
   const scrollRef = useRef(null);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setActiveId(prev => {
+        const idx = MEMORY_DOTS.findIndex(d => d.id === prev);
+        const next = MEMORY_DOTS[(idx + 1) % MEMORY_DOTS.length];
+        setAnimating(next.id);
+        setSparkleAt(next.id);
+        setTimeout(() => setAnimating(null), 600);
+        setTimeout(() => setSparkleAt(null), 750);
+        if (scrollRef.current) {
+          const cards = scrollRef.current.querySelectorAll("[data-mem-card]");
+          const nextIdx = (idx + 1) % MEMORY_DOTS.length;
+          cards[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        }
+        return next.id;
+      });
+    }, 3200);
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  const handleHover = (id) => {
+    clearInterval(timerRef.current);
+    setActiveId(id);
+    setAnimating(id);
+    setSparkleAt(id);
+    setTimeout(() => setAnimating(null), 600);
+    setTimeout(() => setSparkleAt(null), 750);
+  };
 
   return (
-    <div style={{padding:"28px 0 0"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"22px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-          <div style={{width:"7px",height:"7px",borderRadius:"50%",background:C.purple,boxShadow:`0 0 10px ${C.purple}`,animation:"pulse 2s ease-in-out infinite"}}/>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(180,160,235,0.65)",letterSpacing:"0.14em",textTransform:"uppercase",margin:0}}>Memory Bank · Recent Sessions</p>
+    <div style={{ padding: "36px 0 0" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ position: "relative", width: "36px", height: "36px" }}>
+            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `${C.purple}22`, border: `1px solid ${C.purple}55` }} />
+            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `1.5px solid ${C.purple}`, animation: "memoryRipple 2.5s ease-out infinite" }} />
+            {/* orbiting sparkle dot */}
+            <div style={{ position: "absolute", inset: "-6px", animation: "memOrbit 4s linear infinite" }}>
+              <div style={{ position: "absolute", top: 0, left: "50%", width: "4px", height: "4px", borderRadius: "50%", background: C.cyan, boxShadow: `0 0 6px ${C.cyan}`, transform: "translateX(-50%)" }} />
+            </div>
+            <div style={{ position: "absolute", inset: "10px", borderRadius: "50%", background: C.purple, animation: "pulse 2s ease-in-out infinite", boxShadow: `0 0 12px ${C.purple}` }} />
+          </div>
+          <div>
+            <p style={{ fontFamily: "Sora,sans-serif", fontWeight: 700, fontSize: "14px", color: "#fff", margin: 0 }}>Memory Bank</p>
+            <p style={{ fontFamily: "JetBrains Mono,monospace", fontSize: "9.5px", color: "rgba(180,160,235,0.55)", letterSpacing: "0.12em", margin: "2px 0 0" }}>{MEMORY_DOTS.length} SESSIONS · LIVE SYNC</p>
+          </div>
         </div>
-        <a href="/memory" style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.purple,letterSpacing:"0.06em",textDecoration:"none",display:"flex",alignItems:"center",gap:"4px"}} onMouseOver={e=>e.currentTarget.style.color="#c084fc"} onMouseOut={e=>e.currentTarget.style.color=C.purple}>Open Memory Bank →</a>
+        <a href="/memory" style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 16px", borderRadius: "9999px", border: `1px solid ${C.purple}40`, background: `${C.purple}0a`, color: C.purple, fontFamily: "Sora,sans-serif", fontWeight: 600, fontSize: "12px", textDecoration: "none", transition: "all 0.25s" }} onMouseOver={e => { e.currentTarget.style.background = `${C.purple}18`; e.currentTarget.style.borderColor = `${C.purple}80`; }} onMouseOut={e => { e.currentTarget.style.background = `${C.purple}0a`; e.currentTarget.style.borderColor = `${C.purple}40`; }}>
+          Open Memory Bank
+          <span style={{ fontFamily: "Material Symbols Outlined", fontSize: "14px" }}>arrow_outward</span>
+        </a>
       </div>
 
-      <div style={{position:"relative"}}>
-        {/* Glowing horizontal spine */}
-        <div style={{position:"absolute",top:"34px",left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.purple}55 6%,${C.cyan}35 50%,${C.green}35 94%,transparent)`,zIndex:0}}/>
-        <div style={{position:"absolute",top:"33px",left:0,right:0,height:"3px",background:`linear-gradient(90deg,transparent,${C.purple}18 6%,${C.cyan}12 50%,${C.green}12 94%,transparent)`,filter:"blur(3px)",zIndex:0}}/>
+      {/* Animated timeline line */}
+      <div style={{ position: "relative", marginBottom: "28px" }}>
+        <div style={{ height: "2px", borderRadius: "9999px", background: `linear-gradient(90deg,${C.purple}80,${C.cyan}60,${C.green}50,${C.amber}50,${C.crimson}50,${C.teal}60,${C.indigo}70,${C.gold}60)`, backgroundSize: "200% 100%", animation: "timelineFlow 4s linear infinite", boxShadow: `0 0 12px ${C.purple}50` }} />
+      </div>
 
-        <div
-          ref={scrollRef}
-          className="no-scrollbar"
-          style={{display:"flex",gap:"14px",overflowX:"auto",paddingBottom:"6px",position:"relative",zIndex:1,scrollbarWidth:"none"}}
-        >
-          {MEMORY_DOTS.map((dot,i)=>{
-            const isActive = activeId===dot.id;
-            const dotColor = [C.purple,C.cyan,C.green,C.amber,C.crimson,C.purple][i%5];
-            return (
-              <div
-                key={dot.id}
-                onMouseEnter={()=>setActiveId(dot.id)}
-                onClick={()=>window.location.href="/memory"}
-                style={{flex:"0 0 auto",width:"168px",cursor:"pointer",position:"relative",paddingTop:"48px"}}
-              >
-                {/* node on the spine */}
-                <div style={{position:"absolute",top:"28px",left:"50%",transform:"translateX(-50%)",width:isActive?"13px":"9px",height:isActive?"13px":"9px",borderRadius:"50%",background:isActive?dotColor:"rgba(255,255,255,0.12)",border:`1.5px solid ${isActive?dotColor:"rgba(255,255,255,0.2)"}`,boxShadow:isActive?`0 0 16px ${dotColor}90,0 0 32px ${dotColor}40`:"none",transition:"all 0.3s cubic-bezier(0.23,1,0.32,1)",zIndex:2}}/>
-                {isActive && (
-                  <div style={{position:"absolute",top:"24px",left:"50%",transform:"translateX(-50%)",width:"21px",height:"21px",borderRadius:"50%",border:`1px solid ${dotColor}`,animation:"ripple 1.4s ease-out infinite"}}/>
-                )}
-                {/* card */}
-                <div style={{
-                  borderRadius:"14px",padding:"14px 14px 16px",
-                  background:isActive?`linear-gradient(160deg,${dotColor}14,rgba(10,10,22,0.9))`:"rgba(10,10,22,0.7)",
-                  border:`1px solid ${isActive?dotColor+"50":"rgba(255,255,255,0.05)"}`,
-                  transition:"all 0.35s cubic-bezier(0.23,1,0.32,1)",
-                  transform:isActive?"translateY(-4px)":"translateY(0)",
-                  boxShadow:isActive?`0 16px 32px rgba(0,0,0,0.4),0 0 24px ${dotColor}18`:"none",
-                  minHeight:"96px",display:"flex",flexDirection:"column",justifyContent:"space-between"
-                }}>
-                  <div>
-                    <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:dotColor,letterSpacing:"0.08em",opacity:0.85,margin:"0 0 6px"}}>{dot.date}</p>
-                    <p style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"12.5px",color:isActive?"#fff":"rgba(200,210,225,0.7)",lineHeight:1.4,margin:0,transition:"color 0.3s"}}>{dot.query}</p>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:"5px",marginTop:"10px",opacity:isActive?0.9:0.35,transition:"opacity 0.3s"}}>
-                    <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px",color:dotColor}}>biotech</span>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:dotColor}}>research session</span>
-                  </div>
+      {/* Cards grid */}
+      <div ref={scrollRef} className="no-scrollbar" style={{ display: "flex", gap: "14px", overflowX: "auto", paddingBottom: "16px", scrollbarWidth: "none" }}>
+        {MEMORY_DOTS.map((dot, i) => {
+          const isActive = activeId === dot.id;
+          const isAnim = animating === dot.id;
+          const isSparkling = sparkleAt === dot.id;
+          const dotColor = MEMORY_COLORS[i % MEMORY_COLORS.length];
+
+          return (
+            <div
+              key={dot.id}
+              data-mem-card=""
+              className="mem-card"
+              onMouseEnter={() => handleHover(dot.id)}
+              onClick={() => window.location.href = "/memory"}
+              style={{
+                flex: "0 0 auto",
+                width: "200px",
+                cursor: "pointer",
+                borderRadius: "18px",
+                padding: "20px 18px",
+                background: isActive
+                  ? `linear-gradient(145deg,${dotColor}18,rgba(8,8,22,0.95))`
+                  : "rgba(8,8,22,0.75)",
+                border: `1px solid ${isActive ? dotColor + "70" : "rgba(255,255,255,0.06)"}`,
+                boxShadow: isActive
+                  ? `0 0 0 1px ${dotColor}20, 0 8px 32px rgba(0,0,0,0.4), 0 0 24px ${dotColor}18`
+                  : "none",
+                transition: "all 0.45s cubic-bezier(0.23,1,0.32,1)",
+                transform: isActive ? "translateY(-6px) scale(1.02)" : "translateY(0) scale(1)",
+                animation: isAnim ? "memorySlideIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" : "none",
+                backdropFilter: "blur(16px)",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {/* Top shimmer line */}
+              <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: "1px", background: `linear-gradient(90deg,transparent,${dotColor}${isActive ? "cc" : "30"},transparent)`, transition: "all 0.4s ease" }} />
+
+              {/* Sparkle burst on activation */}
+              {isSparkling && [0,1,2,3].map(k=>(
+                <span key={k} style={{
+                  position:"absolute", top:`${14+k*8}%`, left:`${20+k*22}%`,
+                  fontSize:"10px", color:dotColor, pointerEvents:"none",
+                  animation:`memSparkle 0.7s ${k*0.06}s ease-out`,
+                }}>✦</span>
+              ))}
+
+              {/* Dot indicator */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+                <div style={{ position: "relative", width: "10px", height: "10px" }}>
+                  <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: dotColor, boxShadow: isActive ? `0 0 10px ${dotColor}` : "none", transition: "box-shadow 0.3s", position: "relative", zIndex: 1 }} />
+                  {isActive && <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: dotColor, animation: "memoryRipple 1.2s ease-out infinite" }} />}
                 </div>
+                <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: dotColor, letterSpacing: "0.08em", opacity: 0.85 }}>{dot.date}</span>
               </div>
-            );
-          })}
-        </div>
+
+              {/* Query text */}
+              <p style={{ fontFamily: "Sora,sans-serif", fontWeight: 600, fontSize: "13px", color: isActive ? "#fff" : "rgba(190,205,220,0.65)", lineHeight: 1.45, margin: "0 0 14px", transition: "color 0.3s" }}>
+                {dot.query}
+              </p>
+
+              {/* Footer tag */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontFamily: "Material Symbols Outlined", fontSize: "13px", color: dotColor, opacity: isActive ? 1 : 0.4, transition: "opacity 0.3s" }}>{dot.icon}</span>
+                <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: dotColor, opacity: isActive ? 0.9 : 0.35, letterSpacing: "0.06em", transition: "opacity 0.3s" }}>{dot.tag}</span>
+              </div>
+
+              {/* Session index */}
+              <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: "rgba(255,255,255,0.12)", letterSpacing: "0.06em" }}>#{String(i + 1).padStart(2, "0")}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress indicators */}
+      <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginTop: "20px" }}>
+        {MEMORY_DOTS.map((dot, i) => {
+          const dotColor = MEMORY_COLORS[i % MEMORY_COLORS.length];
+          const isActive = activeId === dot.id;
+          return (
+            <button key={dot.id} onClick={() => handleHover(dot.id)} style={{ width: isActive ? "24px" : "6px", height: "6px", borderRadius: "9999px", background: isActive ? dotColor : "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", padding: 0, transition: "all 0.35s cubic-bezier(0.23,1,0.32,1)", boxShadow: isActive ? `0 0 8px ${dotColor}80` : "none" }} />
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/* ── NEW SECTION 12: Analytics Mini-Preview ──────────────────────────────── */
 function AnalyticsMiniPreview() {
   const wrapRef = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -730,27 +705,9 @@ function AnalyticsMiniPreview() {
   const confPath = sparklinePath(SPARKLINE_CONF,100,150,52);
 
   return (
-    <div
-      ref={wrapRef}
-      onClick={()=>window.location.href="/analytics"}
-      style={{
-        borderRadius:"22px",padding:"2px",cursor:"pointer",position:"relative",
-        background:visible?"linear-gradient(135deg,rgba(255,170,0,0.22),rgba(0,204,255,0.08),rgba(168,85,247,0.1),transparent)":"rgba(255,255,255,0.04)",
-        transition:"background 1s ease"
-      }}
-    >
-      <div
-        style={{
-          borderRadius:"21px",padding:"26px 28px",background:"rgba(7,7,18,0.95)",
-          border:"1px solid rgba(255,255,255,0.04)",backdropFilter:"blur(20px)",
-          transition:"transform 0.35s cubic-bezier(0.23,1,0.32,1)",overflow:"hidden",position:"relative"
-        }}
-        onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";}}
-        onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";}}
-      >
-        {/* ambient scan sweep, plays once on reveal */}
+    <div ref={wrapRef} onClick={()=>window.location.href="/analytics"} style={{borderRadius:"22px",padding:"2px",cursor:"pointer",position:"relative",background:visible?"linear-gradient(135deg,rgba(255,170,0,0.22),rgba(0,204,255,0.08),rgba(168,85,247,0.1),transparent)":"rgba(255,255,255,0.04)",transition:"background 1s ease"}}>
+      <div style={{borderRadius:"21px",padding:"26px 28px",background:"rgba(7,7,18,0.95)",border:"1px solid rgba(255,255,255,0.04)",backdropFilter:"blur(20px)",transition:"transform 0.35s cubic-bezier(0.23,1,0.32,1)",overflow:"hidden",position:"relative"}} onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";}} onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";}}>
         {visible && <div style={{position:"absolute",top:0,left:"-30%",width:"30%",height:"100%",background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent)",animation:"scanSweep 1.6s ease-out forwards",pointerEvents:"none"}}/>}
-
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"22px"}}>
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <div style={{width:"34px",height:"34px",borderRadius:"10px",background:"rgba(255,170,0,0.1)",border:"1px solid rgba(255,170,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -762,45 +719,20 @@ function AnalyticsMiniPreview() {
             </div>
           </div>
           <div style={{display:"flex",gap:"4px"}}>
-            {[C.green,C.cyan,C.purple].map((c,i)=>(
-              <div key={i} style={{width:"5px",height:"5px",borderRadius:"50%",background:c,animation:`pulse 1.8s ${i*0.25}s ease-in-out infinite`}}/>
-            ))}
+            {[C.green,C.cyan,C.purple].map((c,i)=>(<div key={i} style={{width:"5px",height:"5px",borderRadius:"50%",background:c,animation:`pulse 1.8s ${i*0.25}s ease-in-out infinite`}}/>))}
           </div>
         </div>
-
         <div style={{display:"grid",gridTemplateColumns:"1.1fr 0.9fr 1.1fr",gap:"22px"}}>
-          {/* Research over time — drawn sparkline with rising fill */}
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.green,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>RESEARCH / WEEK</p>
             <svg width="100%" height="52" viewBox="0 0 150 52" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="resGradFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={C.green} stopOpacity="0.35"/>
-                  <stop offset="100%" stopColor={C.green} stopOpacity="0"/>
-                </linearGradient>
-              </defs>
-              <path
-                d={resPath+" L 150,52 L 0,52 Z"}
-                fill="url(#resGradFill)"
-                style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.6s"}}
-              />
-              <path
-                d={resPath}
-                fill="none" stroke={C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                strokeDasharray="240" strokeDashoffset={visible?0:240}
-                style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.1s",filter:`drop-shadow(0 0 4px ${C.green}80)`}}
-              />
-              {SPARKLINE_RESEARCH.map((v,i)=>{
-                const x=(i/(SPARKLINE_RESEARCH.length-1))*150, y=52-(v/maxR)*52;
-                return i===SPARKLINE_RESEARCH.length-1 ? (
-                  <circle key={i} cx={x} cy={y} r="3" fill={C.green} style={{opacity:visible?1:0,transition:"opacity 0.4s ease 1.5s",filter:`drop-shadow(0 0 6px ${C.green})`}}/>
-                ) : null;
-              })}
+              <defs><linearGradient id="resGradFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green} stopOpacity="0.35"/><stop offset="100%" stopColor={C.green} stopOpacity="0"/></linearGradient></defs>
+              <path d={resPath+" L 150,52 L 0,52 Z"} fill="url(#resGradFill)" style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.6s"}}/>
+              <path d={resPath} fill="none" stroke={C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="240" strokeDashoffset={visible?0:240} style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.1s",filter:`drop-shadow(0 0 4px ${C.green}80)`}}/>
+              {SPARKLINE_RESEARCH.map((v,i)=>{const x=(i/(SPARKLINE_RESEARCH.length-1))*150,y=52-(v/maxR)*52;return i===SPARKLINE_RESEARCH.length-1?(<circle key={i} cx={x} cy={y} r="3" fill={C.green} style={{opacity:visible?1:0,transition:"opacity 0.4s ease 1.5s",filter:`drop-shadow(0 0 6px ${C.green})`}}/>):null;})}
             </svg>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"15px",color:"#fff",fontWeight:600,margin:"6px 0 0",letterSpacing:"-0.02em"}}>+40<span style={{fontSize:"10px",color:C.green,marginLeft:"4px"}}>this week</span></p>
           </div>
-
-          {/* Top Topics — bars rise in with stagger */}
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.cyan,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>TOP TOPICS</p>
             <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
@@ -808,40 +740,19 @@ function AnalyticsMiniPreview() {
                 <div key={t.label} style={{display:"flex",alignItems:"center",gap:"7px"}}>
                   <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:"rgba(150,165,180,0.6)",minWidth:"40px"}}>{t.label}</span>
                   <div style={{flex:1,height:"5px",borderRadius:"3px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
-                    <div style={{
-                      width:visible?`${t.val}%`:"0%",height:"100%",borderRadius:"3px",
-                      background:`linear-gradient(90deg,${t.color}aa,${t.color})`,
-                      boxShadow:`0 0 6px ${t.color}60`,
-                      transition:`width 0.9s cubic-bezier(0.22,1,0.36,1) ${0.3+i*0.12}s`
-                    }}/>
+                    <div style={{width:visible?`${t.val}%`:"0%",height:"100%",borderRadius:"3px",background:`linear-gradient(90deg,${t.color}aa,${t.color})`,boxShadow:`0 0 6px ${t.color}60`,transition:`width 0.9s cubic-bezier(0.22,1,0.36,1) ${0.3+i*0.12}s`}}/>
                   </div>
                   <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:t.color,minWidth:"20px",textAlign:"right",opacity:visible?1:0,transition:`opacity 0.4s ease ${0.8+i*0.12}s`}}>{t.val}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Confidence trend — drawn sparkline */}
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.purple,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>CONFIDENCE TREND</p>
             <svg width="100%" height="52" viewBox="0 0 150 52" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="confGradFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={C.purple} stopOpacity="0.3"/>
-                  <stop offset="100%" stopColor={C.purple} stopOpacity="0"/>
-                </linearGradient>
-              </defs>
-              <path
-                d={confPath+" L 150,52 L 0,52 Z"}
-                fill="url(#confGradFill)"
-                style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.9s"}}
-              />
-              <path
-                d={confPath}
-                fill="none" stroke={C.purple} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                strokeDasharray="240" strokeDashoffset={visible?0:240}
-                style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.4s",filter:`drop-shadow(0 0 4px ${C.purple}80)`}}
-              />
+              <defs><linearGradient id="confGradFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.purple} stopOpacity="0.3"/><stop offset="100%" stopColor={C.purple} stopOpacity="0"/></linearGradient></defs>
+              <path d={confPath+" L 150,52 L 0,52 Z"} fill="url(#confGradFill)" style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.9s"}}/>
+              <path d={confPath} fill="none" stroke={C.purple} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="240" strokeDashoffset={visible?0:240} style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.4s",filter:`drop-shadow(0 0 4px ${C.purple}80)`}}/>
             </svg>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"15px",color:"#fff",fontWeight:600,margin:"6px 0 0",letterSpacing:"-0.02em"}}>94<span style={{fontSize:"10px",color:C.purple,marginLeft:"2px"}}>% avg</span></p>
           </div>
@@ -851,164 +762,351 @@ function AnalyticsMiniPreview() {
   );
 }
 
-/* ── NEW SECTION 13: Interactive Knowledge Graph (drag/click nodes) ─────── */
-function InteractiveKnowledgeGraph({ embedded=false }) {
+/* ══════════════════════════════════════════════════════════════════════════
+   PREMIUM INTERACTIVE KNOWLEDGE GRAPH — smoothed drag, solid-color nodes
+══════════════════════════════════════════════════════════════════════════ */
+function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({
-    nodes: GRAPH_NODES_DATA.map(n=>({...n, vx:0, vy:0, dragging:false})),
+    nodes: GRAPH_NODES_DATA.map(n => ({
+      ...n,
+      vx: 0, vy: 0,
+      dragging: false,
+      targetX: n.x, targetY: n.y, // smooth-follow target while dragging — no snapping
+      glowPhase: Math.random() * Math.PI * 2,
+      scale: 1, scaleTarget: 1,
+      birthTs: 0, born: true,
+    })),
+    edges: [...GRAPH_EDGES],
     draggingIdx: null,
-    mouse: {x:0, y:0},
-    raf: null,
+    hoveredIdx: null,
     nextId: GRAPH_NODES_DATA.length,
-    edges: [...GRAPH_EDGES]
+    raf: null,
+    lastTs: 0,
+    particles: [],
+    ripples: [],
+    nodeCount: GRAPH_NODES_DATA.length,
   });
   const [nodeCount, setNodeCount] = useState(GRAPH_NODES_DATA.length);
+  const [tooltip, setTooltip] = useState(null);
 
-  useEffect(()=>{
+  const LABEL_POOL = ["Concept","Pattern","Theory","Idea","Link","Model","Node","Fact","Signal","System","Entity","Domain","Insight","Layer","Vector"];
+  const COLOR_POOL = [C.green, C.cyan, C.purple, C.crimson, C.amber, C.teal, C.gold, C.indigo];
+
+  useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: true });
     const s = stateRef.current;
-    const COLORS=[C.green,C.cyan,C.purple,C.crimson,C.amber,C.teal,C.gold];
-    const LABELS=["Concept","Pattern","Theory","Idea","Link","Model","Node","Fact"];
 
-    function physics() {
-      s.nodes.forEach((n,i)=>{
-        if(n.dragging) return;
-        // repulsion
-        s.nodes.forEach((m,j)=>{
-          if(i===j) return;
-          const dx=n.x-m.x, dy=n.y-m.y, d=Math.sqrt(dx*dx+dy*dy)||1;
-          if(d<80){ n.vx+=dx/d*0.8; n.vy+=dy/d*0.8; }
+    s.nodes.forEach(n => { n.birthTs = -2000; });
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function applyPhysics(dt) {
+      const W = canvas.width, H = canvas.height;
+      s.nodes.forEach((n, i) => {
+        if (n.dragging) {
+          // ease smoothly toward the pointer target — eliminates the old hard snap
+          n.x = lerp(n.x, n.targetX, Math.min(1, 0.22 * dt));
+          n.y = lerp(n.y, n.targetY, Math.min(1, 0.22 * dt));
+          return;
+        }
+        s.nodes.forEach((m, j) => {
+          if (i === j) return;
+          const dx = n.x - m.x, dy = n.y - m.y;
+          const d = Math.sqrt(dx*dx + dy*dy) || 1;
+          const ideal = (n.r + m.r) * 5;
+          if (d < ideal) {
+            const f = ((ideal - d) / ideal) * 0.3;
+            n.vx += (dx/d)*f; n.vy += (dy/d)*f;
+          }
         });
-        // center gravity
-        n.vx+=(canvas.width/2-n.x)*0.0006;
-        n.vy+=(canvas.height/2-n.y)*0.0006;
-        n.vx*=0.88; n.vy*=0.88;
-        n.x+=n.vx; n.y+=n.vy;
-        // bounds
-        n.x=Math.max(n.r+4,Math.min(canvas.width-n.r-4,n.x));
-        n.y=Math.max(n.r+4,Math.min(canvas.height-n.r-4,n.y));
+        s.edges.forEach(([a,b]) => {
+          const other = a===i ? s.nodes[b] : b===i ? s.nodes[a] : null;
+          if (!other) return;
+          const dx = other.x - n.x, dy = other.y - n.y;
+          const d = Math.sqrt(dx*dx + dy*dy) || 1;
+          const ideal = 145;
+          const f = ((d - ideal)/ideal)*0.038;
+          n.vx += (dx/d)*f; n.vy += (dy/d)*f;
+        });
+        n.vx += (W/2 - n.x)*0.00035;
+        n.vy += (H/2 - n.y)*0.00035;
+        // heavier damping → calmer, less snappy motion
+        n.vx *= 0.9; n.vy *= 0.9;
+        n.x += n.vx * dt; n.y += n.vy * dt;
+        n.x = Math.max(n.r+14, Math.min(W-n.r-14, n.x));
+        n.y = Math.max(n.r+14, Math.min(H-n.r-14, n.y));
       });
     }
 
     function draw(ts) {
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      physics();
-      // subtle dot-grid backdrop for depth
-      const gridSize=34;
-      ctx.fillStyle="rgba(255,255,255,0.025)";
-      for(let gx=gridSize/2; gx<canvas.width; gx+=gridSize){
-        for(let gy=gridSize/2; gy<canvas.height; gy+=gridSize){
-          ctx.beginPath(); ctx.arc(gx,gy,1,0,Math.PI*2); ctx.fill();
+      if (!s.lastTs) s.lastTs = ts;
+      const dt = Math.min((ts - s.lastTs) / 16.67, 2.5);
+      s.lastTs = ts;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      applyPhysics(dt);
+
+      // subtle dot grid
+      ctx.fillStyle = "rgba(255,255,255,0.015)";
+      for (let gx = 38; gx < canvas.width; gx += 38) {
+        for (let gy = 38; gy < canvas.height; gy += 38) {
+          ctx.beginPath(); ctx.arc(gx, gy, 0.7, 0, Math.PI*2); ctx.fill();
         }
       }
-      // edges
-      s.edges.forEach(([a,b])=>{
-        if(!s.nodes[a]||!s.nodes[b]) return;
-        const glow=(Math.sin(ts*0.0012+a)*0.5+0.5);
+
+      // ── Edges ──
+      s.edges.forEach(([a, b]) => {
+        const na = s.nodes[a], nb = s.nodes[b];
+        if (!na || !nb) return;
+        const hov = s.hoveredIdx === a || s.hoveredIdx === b;
+        const phase = 0.5 + 0.5 * Math.sin(ts * 0.00085 + a * 0.8 + b * 1.3);
+
+        // glow haze
         ctx.beginPath();
-        ctx.moveTo(s.nodes[a].x,s.nodes[a].y);
-        ctx.lineTo(s.nodes[b].x,s.nodes[b].y);
-        ctx.strokeStyle=`rgba(100,150,220,${0.1+glow*0.14})`;
-        ctx.lineWidth=1.1; ctx.stroke();
+        ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
+        ctx.strokeStyle = hov ? `rgba(0,200,255,${0.06+phase*0.1})` : `rgba(70,90,160,${0.03+phase*0.03})`;
+        ctx.lineWidth = hov ? 8 : 4;
+        ctx.filter = "blur(4px)"; ctx.stroke(); ctx.filter = "none";
+
+        // crisp line — brighter than before for clarity
+        ctx.beginPath();
+        ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
+        ctx.strokeStyle = hov ? `rgba(0,200,255,${0.55+phase*0.3})` : `rgba(120,140,210,${0.16+phase*0.08})`;
+        ctx.lineWidth = hov ? 1.8 : 1.1;
+        ctx.setLineDash(hov ? [] : [5, 9]);
+        ctx.lineDashOffset = -(ts * 0.013); // slower dash flow = calmer feel
+        ctx.stroke(); ctx.setLineDash([]);
       });
-      // nodes
-      s.nodes.forEach(n=>{
-        const glow=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*2.8);
-        glow.addColorStop(0,n.color+"50"); glow.addColorStop(1,"transparent");
-        ctx.beginPath(); ctx.arc(n.x,n.y,n.r*2.8,0,Math.PI*2);
-        ctx.fillStyle=glow; ctx.fill();
-        ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
-        ctx.fillStyle=n.color+"20"; ctx.fill();
-        ctx.strokeStyle=n.color+(n.dragging?"ff":"aa"); ctx.lineWidth=n.dragging?2.2:1.5; ctx.stroke();
-        ctx.fillStyle="rgba(225,238,248,0.88)";
-        ctx.font=`600 7.5px JetBrains Mono, monospace`;
-        ctx.textAlign="center"; ctx.textBaseline="middle";
-        ctx.fillText(n.label,n.x,n.y);
+
+      // ── Particles along edges ──
+      s.particles = s.particles.filter(p => p.t < 1);
+      s.particles.forEach(p => {
+        p.t += p.speed * dt;
+        const na = s.nodes[p.a], nb = s.nodes[p.b];
+        if (!na || !nb) return;
+        const x = na.x + (nb.x - na.x) * p.t;
+        const y = na.y + (nb.y - na.y) * p.t;
+        const alpha = Math.sin(p.t * Math.PI);
+        const r = 1.8 + alpha * 2.5;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+        ctx.fillStyle = p.color; ctx.globalAlpha = alpha * 0.85; ctx.fill();
+        const tx2 = na.x + (nb.x - na.x) * Math.max(0, p.t - 0.07);
+        const ty2 = na.y + (nb.y - na.y) * Math.max(0, p.t - 0.07);
+        ctx.beginPath(); ctx.arc(tx2, ty2, r * 0.4, 0, Math.PI*2);
+        ctx.globalAlpha = alpha * 0.2; ctx.fill();
+        ctx.globalAlpha = 1;
       });
+
+      // ── Ripples ──
+      s.ripples = s.ripples.filter(r => r.t < r.maxT);
+      s.ripples.forEach(r => {
+        r.t += dt;
+        const prog = r.t / r.maxT;
+        ctx.beginPath(); ctx.arc(r.x, r.y, prog * 55, 0, Math.PI*2);
+        ctx.strokeStyle = r.color; ctx.globalAlpha = (1-prog) * 0.55;
+        ctx.lineWidth = 1.5; ctx.stroke(); ctx.globalAlpha = 1;
+      });
+
+      // ── Nodes — solid premium fill, crisp legible labels, smooth scaling ──
+      s.nodes.forEach((n, i) => {
+        const isHov = s.hoveredIdx === i;
+        n.scaleTarget = isHov ? 1.14 : (n.dragging ? 1.08 : 1);
+        n.scale = lerp(n.scale, n.scaleTarget, Math.min(1, 0.14 * dt)); // slower lerp = no snap
+        const scale = n.scale;
+        const r = n.r * scale;
+        const glow = 0.5 + 0.5 * Math.sin(ts * 0.0012 + n.glowPhase);
+
+        ctx.save();
+        ctx.translate(n.x, n.y);
+
+        // soft halo — breathes smoothly
+        const haloR = r * 2.6 + glow * 5;
+        const haloA = isHov ? 0.5 : 0.18 + glow * 0.12;
+        const halo = ctx.createRadialGradient(0,0,r*0.6,0,0,haloR);
+        halo.addColorStop(0, n.color + Math.round(haloA * 255).toString(16).padStart(2,"0"));
+        halo.addColorStop(1, "transparent");
+        ctx.beginPath(); ctx.arc(0, 0, haloR, 0, Math.PI*2);
+        ctx.fillStyle = halo; ctx.fill();
+
+        // solid node body — premium flat fill (no washed-out low-alpha gradient)
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+        ctx.fillStyle = n.color;
+        ctx.fill();
+
+        // gentle glass-like inner shading for depth, kept subtle so the fill stays solid
+        const shade = ctx.createRadialGradient(-r*0.25,-r*0.3,0,0,0,r);
+        shade.addColorStop(0, "rgba(255,255,255,0.24)");
+        shade.addColorStop(0.55, "rgba(255,255,255,0)");
+        shade.addColorStop(1, "rgba(0,0,0,0.16)");
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+        ctx.fillStyle = shade; ctx.fill();
+
+        // crisp border ring
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+        ctx.strokeStyle = isHov ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.38)";
+        ctx.lineWidth = isHov ? 2 : 1.2;
+        ctx.stroke();
+
+        // outer pulse ring when hovered
+        if (isHov) {
+          const pr = r + 6 + glow * 4;
+          ctx.beginPath(); ctx.arc(0, 0, pr, 0, Math.PI*2);
+          ctx.strokeStyle = n.color + "60"; ctx.lineWidth = 1; ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Label — dark solid text directly on the bright solid node = always legible
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.font = `${isHov ? "700" : "600"} ${Math.round(8 + (n.r - 10) * 0.34)}px 'JetBrains Mono', monospace`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(5,5,18,0.92)";
+        ctx.fillText(n.label, n.x, n.y);
+        ctx.restore();
+      });
+
       s.raf = requestAnimationFrame(draw);
     }
 
-    const getNode = (x,y)=>s.nodes.findIndex(n=>{const dx=n.x-x,dy=n.y-y;return Math.sqrt(dx*dx+dy*dy)<n.r+4;});
+    // ── helpers ──
+    function getXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height),
+      };
+    }
+    function hitNode(x, y) {
+      return s.nodes.findIndex(n => Math.hypot(n.x - x, n.y - y) < n.r * n.scale + 7);
+    }
 
-    const onDown = e=>{
-      const rect=canvas.getBoundingClientRect();
-      const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
-      const my=(e.clientY-rect.top)*(canvas.height/rect.height);
-      const idx=getNode(mx,my);
-      if(idx>=0){s.draggingIdx=idx;s.nodes[idx].dragging=true;s.nodes[idx].vx=0;s.nodes[idx].vy=0;}
-    };
-    const onMove = e=>{
-      if(s.draggingIdx===null) return;
-      const rect=canvas.getBoundingClientRect();
-      s.nodes[s.draggingIdx].x=(e.clientX-rect.left)*(canvas.width/rect.width);
-      s.nodes[s.draggingIdx].y=(e.clientY-rect.top)*(canvas.height/rect.height);
-    };
-    const onUp = ()=>{
-      if(s.draggingIdx!==null){s.nodes[s.draggingIdx].dragging=false;s.draggingIdx=null;}
-    };
-    const onClick = e=>{
-      const rect=canvas.getBoundingClientRect();
-      const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
-      const my=(e.clientY-rect.top)*(canvas.height/rect.height);
-      const existing=getNode(mx,my);
-      if(existing<0){
-        const newNode={id:s.nextId,x:mx,y:my,r:11,color:COLORS[s.nextId%COLORS.length],label:LABELS[s.nextId%LABELS.length],vx:0,vy:0,dragging:false};
-        // connect to nearest
-        let nearest=0,minD=Infinity;
-        s.nodes.forEach((n,i)=>{const d=Math.hypot(n.x-mx,n.y-my);if(d<minD){minD=d;nearest=i;}});
-        s.edges.push([nearest,s.nextId]);
-        s.nodes.push(newNode);
-        s.nextId++;
-        setNodeCount(s.nodes.length);
+    // periodic particles — slightly slower cadence for a calmer, premium pace
+    const particleTimer = setInterval(() => {
+      if (!s.edges.length) return;
+      const [a, b] = s.edges[Math.floor(Math.random() * s.edges.length)];
+      if (!s.nodes[a] || !s.nodes[b]) return;
+      s.particles.push({ a, b, t: 0, speed: 0.0032 + Math.random() * 0.0026, color: s.nodes[a].color });
+    }, 650);
+
+    const onMouseDown = e => {
+      const { x, y } = getXY(e);
+      const idx = hitNode(x, y);
+      if (idx >= 0) {
+        s.draggingIdx = idx;
+        s.nodes[idx].dragging = true;
+        s.nodes[idx].targetX = x;
+        s.nodes[idx].targetY = y;
+        s.nodes[idx].vx = 0; s.nodes[idx].vy = 0;
       }
     };
 
-    canvas.addEventListener("mousedown",onDown);
-    canvas.addEventListener("mousemove",onMove);
-    canvas.addEventListener("mouseup",onUp);
-    canvas.addEventListener("click",onClick);
-    s.raf=requestAnimationFrame(draw);
-    return ()=>{
-      cancelAnimationFrame(s.raf);
-      canvas.removeEventListener("mousedown",onDown);
-      canvas.removeEventListener("mousemove",onMove);
-      canvas.removeEventListener("mouseup",onUp);
-      canvas.removeEventListener("click",onClick);
+    const onMouseMove = e => {
+      const { x, y } = getXY(e);
+      s.hoveredIdx = hitNode(x, y);
+      if (s.draggingIdx !== null) {
+        s.nodes[s.draggingIdx].targetX = x;
+        s.nodes[s.draggingIdx].targetY = y;
+        s.hoveredIdx = s.draggingIdx;
+      }
+      if (s.hoveredIdx >= 0) {
+        const n = s.nodes[s.hoveredIdx];
+        const rect = canvas.getBoundingClientRect();
+        setTooltip({ x: n.x*(rect.width/canvas.width)+rect.left, y: n.y*(rect.height/canvas.height)+rect.top - n.r*n.scale*(rect.height/canvas.height) - 12, label: n.label, color: n.color });
+        canvas.style.cursor = s.draggingIdx !== null ? "grabbing" : "grab";
+      } else {
+        setTooltip(null);
+        canvas.style.cursor = "crosshair";
+      }
     };
-  },[]);
+
+    const onMouseUp = () => {
+      if (s.draggingIdx !== null) { s.nodes[s.draggingIdx].dragging = false; s.draggingIdx = null; }
+    };
+
+    const onClick = e => {
+      const { x, y } = getXY(e);
+      if (hitNode(x, y) >= 0) return;
+      const id = s.nextId;
+      const color = COLOR_POOL[id % COLOR_POOL.length];
+      const label = LABEL_POOL[id % LABEL_POOL.length];
+      const newNode = {
+        id, x, y, r: 11 + Math.random() * 5, color, label,
+        vx: (Math.random()-0.5)*1.5, vy: (Math.random()-0.5)*1.5,
+        dragging: false, targetX: x, targetY: y, glowPhase: Math.random()*Math.PI*2,
+        scale: 0.01, scaleTarget: 1, // start tiny → animate in smoothly
+        birthTs: ts,
+      };
+      const sorted = s.nodes.map((n,i)=>({i,d:Math.hypot(n.x-x,n.y-y)})).sort((a,b)=>a.d-b.d);
+      sorted.slice(0,Math.min(2,sorted.length)).forEach(({i})=>{
+        s.edges.push([i,id]);
+        s.particles.push({a:i,b:id,t:0,speed:0.006,color});
+      });
+      s.nodes.push(newNode);
+      s.nextId++; s.nodeCount = s.nodes.length;
+      setNodeCount(s.nodes.length);
+      if (onNodeCountChange) onNodeCountChange(s.nodes.length);
+      s.ripples.push({x,y,color,t:0,maxT:22});
+    };
+
+    let ts = 0;
+    const drawWrapped = (t) => { ts = t; draw(t); };
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    canvas.addEventListener("mousemove", onMouseMove);
+    canvas.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("click", onClick);
+    canvas.addEventListener("mouseleave", () => { s.hoveredIdx = null; setTooltip(null); });
+    window.addEventListener("mouseup", onMouseUp);
+
+    s.raf = requestAnimationFrame(drawWrapped);
+
+    return () => {
+      cancelAnimationFrame(s.raf);
+      clearInterval(particleTimer);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("click", onClick);
+      canvas.removeEventListener("mouseleave", () => {});
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
 
   return (
-    <div style={embedded?{position:"relative"}:{borderRadius:"24px",overflow:"hidden",border:"1px solid rgba(0,204,255,0.12)",background:"rgba(4,4,14,0.9)",position:"relative"}}>
-      {!embedded && (
-        <div style={{padding:"18px 22px",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Interactive Knowledge Graph</p>
-            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.06em"}}>CLICK EMPTY SPACE TO ADD NODES · DRAG TO REPOSITION · {nodeCount} NODES</p>
-          </div>
-          <button
-            onClick={()=>window.location.href="/graph"}
-            style={{padding:"7px 16px",borderRadius:"9999px",border:`1px solid ${C.cyan}30`,background:"rgba(0,204,255,0.06)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12px",fontWeight:700,cursor:"pointer",transition:"all 0.2s"}}
-            onMouseOver={e=>{e.currentTarget.style.background="rgba(0,204,255,0.14)";e.currentTarget.style.borderColor=`${C.cyan}70`;}}
-            onMouseOut={e=>{e.currentTarget.style.background="rgba(0,204,255,0.06)";e.currentTarget.style.borderColor=`${C.cyan}30`;}}
-          >
-            Launch Full Graph →
-          </button>
-        </div>
-      )}
+    <div style={{ position: "relative" }}>
       <canvas
         ref={canvasRef}
-        width={1000}
-        height={420}
-        style={{width:"100%",height:embedded?"420px":"340px",display:"block",cursor:"crosshair"}}
+        width={1100}
+        height={460}
+        style={{ width: "100%", height: embedded ? "460px" : "360px", display: "block" }}
       />
+      {tooltip && (
+        <div style={{
+          position: "fixed", left: tooltip.x, top: tooltip.y,
+          transform: "translate(-50%,-100%)",
+          background: "rgba(4,4,18,0.96)",
+          border: `1px solid ${tooltip.color}60`,
+          borderRadius: "9px", padding: "5px 13px",
+          fontFamily: "JetBrains Mono,monospace", fontSize: "11px", color: tooltip.color,
+          pointerEvents: "none", zIndex: 9999,
+          backdropFilter: "blur(14px)",
+          boxShadow: `0 6px 24px rgba(0,0,0,0.55), 0 0 14px ${tooltip.color}22`,
+          whiteSpace: "nowrap",
+          animation: "tooltipFade 0.18s cubic-bezier(0.23,1,0.32,1)",
+          letterSpacing: "0.06em",
+        }}>
+          {tooltip.label}
+          <div style={{ position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)", width: 8, height: 6, overflow: "hidden" }}>
+            <div style={{ width: 8, height: 8, background: "rgba(4,4,18,0.96)", border: `1px solid ${tooltip.color}60`, transform: "rotate(45deg)", transformOrigin: "top left", marginTop: -4 }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   ORIGINAL COMPONENTS BELOW (UNCHANGED)
-═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
 function Header(){
@@ -1016,6 +1114,7 @@ function Header(){
   const[scrolled,setScrolled]=useState(false);
   useEffect(()=>{const fn=()=>setScrolled(window.scrollY>40);window.addEventListener("scroll",fn);return()=>window.removeEventListener("scroll",fn);},[]);
   const go=(id,i)=>{setActiveIdx(i);document.getElementById(id)?.scrollIntoView({behavior:"smooth",block:"start"});};
+
   return(
     <header style={{display:"flex",justifyContent:"center",width:"100%",height:"64px",position:"sticky",top:0,zIndex:50,background:scrolled?"rgba(6,6,16,0.92)":"rgba(6,6,16,0.6)",backdropFilter:"blur(24px)",borderBottom:`1px solid ${scrolled?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.02)"}`,transition:"background 0.4s ease,border-color 0.4s ease"}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",alignItems:"center",width:"100%",maxWidth:"1400px",padding:"0 32px"}}>
@@ -1031,10 +1130,21 @@ function Header(){
           ))}
         </nav>
         <div style={{justifySelf:"end",display:"flex",alignItems:"center",gap:"10px"}}>
-          {/* NEW SECTION 7: User widget */}
           <UserProfileWidget/>
-          <button style={{padding:"7px 18px",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"9999px",background:"transparent",color:"rgba(255,255,255,0.45)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",fontWeight:500,cursor:"pointer",transition:"all 0.25s",letterSpacing:"0.01em"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="rgba(255,255,255,0.45)";}}>Sign In</button>
-          <button style={{padding:"7px 20px",background:`linear-gradient(135deg,${C.green},#19e81f)`,border:"none",borderRadius:"9999px",color:C.void,fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,cursor:"pointer",transition:"all 0.25s",boxShadow:`0 0 20px rgba(0,255,15,0.25),0 2px 8px rgba(0,255,15,0.15)`,letterSpacing:"0.02em"}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.05)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.4),0 4px 16px rgba(0,255,15,0.2)`;}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.25),0 2px 8px rgba(0,255,15,0.15)`;}}>Get Started</button>
+          <button
+            onClick={()=>window.location.href="/login"}
+            style={{padding:"7px 18px",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"9999px",background:"transparent",color:"rgba(255,255,255,0.45)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",fontWeight:500,cursor:"pointer",transition:"all 0.25s",letterSpacing:"0.01em"}}
+            onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}}
+            onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="rgba(255,255,255,0.45)";}}>
+            Sign In
+          </button>
+          <button
+            onClick={()=>window.location.href="/signup"}
+            style={{padding:"7px 20px",background:`linear-gradient(135deg,${C.green},#19e81f)`,border:"none",borderRadius:"9999px",color:C.void,fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,cursor:"pointer",transition:"all 0.25s",boxShadow:`0 0 20px rgba(0,255,15,0.25),0 2px 8px rgba(0,255,15,0.15)`,letterSpacing:"0.02em"}}
+            onMouseOver={e=>{e.currentTarget.style.transform="scale(1.05)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.4),0 4px 16px rgba(0,255,15,0.2)`;}}
+            onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.25),0 2px 8px rgba(0,255,15,0.15)`;}}>
+            Get Started
+          </button>
         </div>
       </div>
     </header>
@@ -1067,12 +1177,7 @@ function HeroSection(){
       <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"10px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
         <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:"rgba(255,255,255,0.18)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
         <input value={query} onChange={e=>setQuery(e.target.value)} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="What do you want to research?" style={{flex:1,height:"50px",padding:"0 8px",background:"transparent",border:"none",outline:"none",color:"#fff",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",fontWeight:400}}/>
-        <button onClick={()=>go()} style={{height:"50px",padding:"0 26px",borderRadius:"9999px",border:"none",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,flexShrink:0,transition:"all 0.22s",letterSpacing:"0.04em",boxShadow:`0 0 20px rgba(0,255,15,0.3)`}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.5)`;}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.3)`;}}>Research →</button>
-      </div>
-
-      {/* ── NEW SECTION 3: Semantic Search Bar ── */}
-      <div className="reveal" ref={useReveal(0.05)} style={{transitionDelay:"0.22s",marginBottom:"16px"}}>
-        <SemanticSearchBar/>
+        <button onClick={()=>go()} style={{height:"50px",padding:"0 26px",borderRadius:"9999px",border:"none",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,flexShrink:0,transition:"all 0.22s",letterSpacing:"0.04em",boxShadow:`0 0 20px rgba(0,255,15,0.3)`}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.5)`;}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.3)`;}}>Go →</button>
       </div>
 
       <div className="reveal" ref={useReveal(0.05)} style={{display:"flex",flexWrap:"wrap",justifyContent:"center",marginBottom:"32px",transitionDelay:"0.25s"}}>
@@ -1085,18 +1190,23 @@ function HeroSection(){
 
       <div className="reveal" ref={useReveal(0.05)} style={{display:"flex",flexWrap:"wrap",gap:"12px",justifyContent:"center",marginBottom:"72px",transitionDelay:"0.3s"}}>
         <div style={{padding:"2px",borderRadius:"9999px",background:"conic-gradient(from 0deg,#ff0000,#ff8800,#ffff00,#00ff0f,#00ccff,#a855f7,#ff0088,#ff0000)",animation:"rainbowSpin 4s linear infinite",boxShadow:"0 0 32px rgba(0,255,15,0.15),0 0 64px rgba(0,204,255,0.08)"}}>
-          <button onClick={()=>go()} style={{padding:"13px 32px",background:"rgba(6,6,16,0.95)",borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"16px",fontWeight:800,color:"#fff",backdropFilter:"blur(20px)",letterSpacing:"-0.01em",transition:"transform 0.25s ease,background 0.25s ease"}} onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.background="rgba(6,6,16,0.85)";}} onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.background="rgba(6,6,16,0.95)";}}>
+          <button onClick={()=>window.location.href="/signup"} style={{padding:"13px 32px",background:"rgba(6,6,16,0.95)",borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"16px",fontWeight:800,color:"#fff",backdropFilter:"blur(20px)",letterSpacing:"-0.01em",transition:"transform 0.25s ease,background 0.25s ease"}} onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.background="rgba(6,6,16,0.85)";}} onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.background="rgba(6,6,16,0.95)";}}>
             Start Research →
           </button>
         </div>
-        {/* ── NEW SECTION 4: Try a Debate Button ── */}
-        <DebateQuickButton/>
+        <button
+          onClick={()=>window.location.href="/debate?topic=Should+AI+be+regulated%3F"}
+          style={{padding:"13px 28px",borderRadius:"9999px",border:`1.5px solid ${C.crimson}`,background:`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`,color:"#ff4868",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",cursor:"pointer",letterSpacing:"0.02em",transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",display:"inline-flex",alignItems:"center",gap:"8px",animation:"crimsonPulse 2.4s ease-in-out infinite",textShadow:`0 0 14px rgba(255,32,64,0.9)`}}
+          onMouseOver={e=>{e.currentTarget.style.animation="none";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.28),rgba(255,32,64,0.14))`;e.currentTarget.style.boxShadow=`0 0 32px rgba(255,32,64,0.7), 0 0 70px rgba(255,32,64,0.35)`;e.currentTarget.style.transform="scale(1.06)";}}
+          onMouseOut={e=>{e.currentTarget.style.animation="crimsonPulse 2.4s ease-in-out infinite";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`;e.currentTarget.style.boxShadow="";e.currentTarget.style.transform="scale(1)";}}
+        >
+          ⚖️ Try a Debate
+        </button>
         <a href="#how-it-works" style={{padding:"12px 28px",border:"1px solid rgba(255,255,255,0.09)",color:"rgba(255,255,255,0.55)",fontWeight:600,borderRadius:"9999px",background:"transparent",fontFamily:"Sora,sans-serif",fontSize:"16px",textDecoration:"none",transition:"all 0.25s",display:"inline-flex",alignItems:"center"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
           See How It Works ↓
         </a>
       </div>
 
-      {/* Code block — standalone, clean */}
       <div className="reveal terminal-bg" ref={useReveal(0.1)} style={{padding:"22px 26px",borderRadius:"16px",width:"min(440px,100%)",textAlign:"left",transitionDelay:"0.38s",position:"relative",overflow:"hidden",boxShadow:`0 24px 64px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.04)`}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.green}50,transparent)`}}/>
         <div style={{position:"absolute",top:"10%",left:0,right:0,height:"1px",background:"rgba(0,255,15,0.03)",animation:"scanH 5s linear infinite"}}/>
@@ -1110,7 +1220,6 @@ function HeroSection(){
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:"rgba(130,148,170,0.5)",marginTop:"10px",lineHeight:2}}>
           &gt; Initializing Neural Mesh...<br/>&gt; Connecting 7 Sub-Agents...<span style={{color:C.green,opacity:0.75}}> ✓</span><br/>&gt; Logic Lab: Online <span style={{color:C.green}}>[Ready]</span><br/>&gt; <span style={{color:C.cyan}}>Synaptic Bridge established.</span>
         </div>
-        {/* BYOK Badge sits naturally at the bottom of the terminal */}
         <div style={{marginTop:"14px"}}>
           <BYOKBadge/>
         </div>
@@ -1166,15 +1275,20 @@ function HowItWorksSection(){
         <div style={{height:"1px",background:"rgba(255,255,255,0.04)"}}/>
       </div>
 
-      {/* ── NEW SECTION 11: Memory Bank Timeline (below How It Works) ── */}
-      <div className="reveal" ref={useReveal(0.1)} style={{marginTop:"56px",padding:"24px",borderRadius:"20px",background:"rgba(8,8,20,0.7)",border:"1px solid rgba(168,85,247,0.1)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Memory Bank</p>
-            <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(130,148,168,0.6)",margin:"3px 0 0"}}>Your research sessions, tracked over time.</p>
-          </div>
-          <div style={{width:"8px",height:"8px",borderRadius:"50%",background:C.purple,animation:"pulse 2s ease-in-out infinite",boxShadow:`0 0 10px ${C.purple}`}}/>
-        </div>
+      {/* ENLARGED MEMORY BANK */}
+      <div className="reveal" ref={useReveal(0.1)} style={{
+        marginTop:"64px",
+        padding:"36px 36px 40px",
+        borderRadius:"28px",
+        background:"linear-gradient(145deg,rgba(168,85,247,0.06),rgba(8,8,22,0.9))",
+        border:"1px solid rgba(168,85,247,0.14)",
+        position:"relative",
+        overflow:"hidden",
+        boxShadow:"0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(168,85,247,0.08)",
+      }}>
+        {/* decorative corner glow */}
+        <div style={{position:"absolute",top:0,right:0,width:"280px",height:"280px",borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,0.1) 0%,transparent 70%)",pointerEvents:"none",transform:"translate(50%,-50%)"}}/>
+        <div style={{position:"absolute",bottom:0,left:0,width:"200px",height:"200px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,204,255,0.06) 0%,transparent 70%)",pointerEvents:"none",transform:"translate(-30%,30%)"}}/>
         <MemoryTimeline/>
       </div>
     </section>
@@ -1202,7 +1316,7 @@ function ApiSection(){
                   </div>
                 ))}
               </div>
-              <button onClick={()=>alert("API Mesh configuration coming soon!")} style={{padding:"13px 26px",background:"#fff",color:C.void,fontWeight:800,borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",display:"inline-flex",alignItems:"center",gap:"8px",transition:"all 0.25s",letterSpacing:"0.02em"}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.03)";e.currentTarget.style.boxShadow="0 0 32px rgba(255,255,255,0.18)";}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="none";}}>
+              <button onClick={()=>window.location.href="/settings"} style={{padding:"13px 26px",background:"#fff",color:C.void,fontWeight:800,borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",display:"inline-flex",alignItems:"center",gap:"8px",transition:"all 0.25s",letterSpacing:"0.02em"}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.03)";e.currentTarget.style.boxShadow="0 0 32px rgba(255,255,255,0.18)";}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="none";}}>
                 <span style={{fontFamily:"Material Symbols Outlined",fontSize:"17px"}}>key</span> Configure API Mesh
               </button>
             </div>
@@ -1232,7 +1346,7 @@ function ApiSection(){
 function FeaturesSection(){
   const headRef=useReveal(0.1),gridRef=useReveal(0.07);
   return(
-    <section id="features" style={{padding:"96px 0"}}>
+    <section id="features" style={{padding:"96px 0 24px"}}>
       <SectionDivider/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"60px"}} className="hiw-grid">
         <div ref={headRef} className="reveal">
@@ -1259,7 +1373,6 @@ function FeaturesSection(){
         ))}
       </div>
 
-      {/* ── PDF Lab live demo + Confidence scoring, given real room to breathe ── */}
       <div className="reveal-stagger" style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:"14px",marginTop:"14px"}}>
         <div style={{borderRadius:"20px",padding:"30px 32px",background:"rgba(10,10,22,0.85)",border:"1px solid rgba(255,255,255,0.055)",backdropFilter:"blur(16px)",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
           <div style={{marginBottom:"18px"}}>
@@ -1282,8 +1395,8 @@ function FeaturesSection(){
 function PipelineSection(){
   const hRef=useReveal(0.1),bRef=useReveal(0.07);
   return(
-    <section id="pipeline" style={{padding:"96px 0",overflow:"hidden"}}>
-      <SectionDivider/>
+    <section id="pipeline" style={{padding:"24px 0 96px",overflow:"hidden"}}>
+      <SectionDivider tight/>
       <div ref={hRef} className="reveal" style={{textAlign:"center",marginBottom:"52px"}}>
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"14px",opacity:0.8}}>↓ Architecture</p>
         <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",letterSpacing:"-0.05em",marginBottom:"12px",color:"#fff"}}>Neural Pipeline</h2>
@@ -1294,22 +1407,6 @@ function PipelineSection(){
           <svg width="100%" height="100%"><defs><pattern id="hex2" width="30" height="52" patternUnits="userSpaceOnUse"><path d="M15 0l15 8.66v17.32L15 34.64 0 25.98V8.66L15 0z" fill="none" stroke="#00ff0f" strokeWidth="1" strokeOpacity="0.15"/></pattern></defs><rect width="100%" height="100%" fill="url(#hex2)"/></svg>
         </div>
         <div style={{position:"relative",zIndex:10}}><NeuralPipeline/></div>
-      </div>
-
-      {/* ── NEW SECTION 6: Agent Pipeline Mini-Animation label (visual already above) ── */}
-      {/* The NeuralPipeline above already implements the animated agent pipeline.
-          Below we add the explicit section 6 label / caption as specified. */}
-      <div className="reveal" ref={useReveal(0.1)} style={{textAlign:"center",marginTop:"28px",padding:"16px"}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:"24px",flexWrap:"wrap",justifyContent:"center"}}>
-          {[{name:"Search",color:C.green},{name:"Summarise",color:C.indigo},{name:"Critique",color:C.crimson},{name:"Write",color:C.purple}].map((s,i)=>(
-            <div key={s.name} style={{display:"flex",alignItems:"center",gap:"8px"}}>
-              <div style={{width:"10px",height:"10px",borderRadius:"50%",background:s.color,boxShadow:`0 0 8px ${s.color}80`}}/>
-              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:s.color,letterSpacing:"0.08em"}}>{s.name}</span>
-              {i<3&&<span style={{color:"rgba(60,70,90,0.6)",fontSize:"18px",marginLeft:"8px"}}>→</span>}
-            </div>
-          ))}
-        </div>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(130,148,168,0.4)",marginTop:"10px",letterSpacing:"0.01em"}}>Multi-agent pipeline · Animated in real time above</p>
       </div>
     </section>
   );
@@ -1388,7 +1485,6 @@ function ExampleSection(){
         })}
       </div>
 
-      {/* ── NEW SECTION 12: Analytics Dashboard Mini-Preview ── */}
       <div style={{marginTop:"28px"}}>
         <AnalyticsMiniPreview/>
       </div>
@@ -1396,9 +1492,13 @@ function ExampleSection(){
   );
 }
 
-/* ── Knowledge Graph Section (NEW Section 8 + 13 combined) ───────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   PREMIUM KNOWLEDGE GRAPH SECTION
+══════════════════════════════════════════════════════════════════════════ */
 function KnowledgeGraphSection() {
   const ref = useReveal(0.08);
+  const [liveNodeCount, setLiveNodeCount] = useState(GRAPH_NODES_DATA.length);
+
   return (
     <section style={{padding:"80px 0"}}>
       <SectionDivider/>
@@ -1411,47 +1511,105 @@ function KnowledgeGraphSection() {
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every session feeds a living Neo4j graph. Entities link automatically — try it below.</p>
         </div>
 
-        {/* Single premium interactive graph card — no duplicate canvases */}
+        {/* Premium card wrapper */}
         <div style={{
-          borderRadius:"26px",padding:"2px",
-          background:"linear-gradient(135deg,rgba(0,204,255,0.2),rgba(168,85,247,0.1),rgba(0,255,15,0.06),transparent)",
-          boxShadow:"0 40px 90px rgba(0,0,0,0.45)"
+          borderRadius:"28px",
+          padding:"2px",
+          background:"linear-gradient(135deg,rgba(0,204,255,0.3),rgba(168,85,247,0.18),rgba(0,255,15,0.1),rgba(0,204,255,0.06))",
+          boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)",
         }}>
-          <div style={{borderRadius:"25px",overflow:"hidden",background:"rgba(4,4,14,0.96)"}}>
-            {/* Header bar inside the card, integrated rather than a separate caption box */}
-            <div style={{padding:"22px 28px",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"14px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"14px"}}>
-                <div style={{width:"40px",height:"40px",borderRadius:"12px",background:"rgba(0,204,255,0.08)",border:"1px solid rgba(0,204,255,0.22)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"21px",color:C.cyan}}>hub</span>
+          <div style={{
+            borderRadius:"27px",
+            overflow:"hidden",
+            background:"rgba(3,3,13,0.98)",
+            backdropFilter:"blur(28px)",
+          }}>
+            {/* Top bar */}
+            <div style={{
+              padding:"22px 32px",
+              borderBottom:"1px solid rgba(255,255,255,0.05)",
+              display:"flex",
+              justifyContent:"space-between",
+              alignItems:"center",
+              flexWrap:"wrap",
+              gap:"14px",
+              background:"linear-gradient(90deg,rgba(0,204,255,0.04),rgba(168,85,247,0.025),transparent)",
+            }}>
+              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+                <div style={{
+                  width:"44px",height:"44px",borderRadius:"14px",
+                  background:"linear-gradient(135deg,rgba(0,204,255,0.12),rgba(168,85,247,0.08))",
+                  border:"1px solid rgba(0,204,255,0.22)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  position:"relative",overflow:"hidden",
+                  boxShadow:"0 0 20px rgba(0,204,255,0.1)",
+                }}>
+                  <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 120%,rgba(0,204,255,0.25),transparent 65%)",pointerEvents:"none"}}/>
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.cyan,position:"relative",zIndex:1}}>hub</span>
                 </div>
                 <div>
                   <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Live Knowledge Graph</p>
-                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.5)",margin:"3px 0 0",letterSpacing:"0.05em"}}>Click empty space to add a node · drag to rearrange</p>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>
+                    CLICK EMPTY SPACE TO ADD A NODE · DRAG TO REARRANGE · {liveNodeCount} NODES
+                  </p>
                 </div>
               </div>
               <button
-                onClick={()=>window.location.href="/graph"}
-                style={{padding:"9px 20px",borderRadius:"9999px",border:`1px solid ${C.cyan}40`,background:"rgba(0,204,255,0.07)",color:C.cyan,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.2s",display:"flex",alignItems:"center",gap:"6px",flexShrink:0}}
-                onMouseOver={e=>{e.currentTarget.style.background="rgba(0,204,255,0.16)";e.currentTarget.style.borderColor=`${C.cyan}80`;}}
-                onMouseOut={e=>{e.currentTarget.style.background="rgba(0,204,255,0.07)";e.currentTarget.style.borderColor=`${C.cyan}40`;}}
+                onClick={() => window.location.href = "/graph"}
+                style={{
+                  padding:"10px 22px",borderRadius:"9999px",
+                  border:`1px solid ${C.cyan}45`,
+                  background:"rgba(0,204,255,0.07)",
+                  color:C.cyan,fontFamily:"Sora,sans-serif",
+                  fontSize:"12.5px",fontWeight:700,cursor:"pointer",
+                  transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",
+                  display:"flex",alignItems:"center",gap:"7px",flexShrink:0,
+                  letterSpacing:"0.02em",
+                }}
+                onMouseOver={e=>{
+                  e.currentTarget.style.background="rgba(0,204,255,0.18)";
+                  e.currentTarget.style.borderColor=`${C.cyan}90`;
+                  e.currentTarget.style.boxShadow=`0 0 24px rgba(0,204,255,0.18)`;
+                  e.currentTarget.style.transform="translateY(-2px)";
+                }}
+                onMouseOut={e=>{
+                  e.currentTarget.style.background="rgba(0,204,255,0.07)";
+                  e.currentTarget.style.borderColor=`${C.cyan}45`;
+                  e.currentTarget.style.boxShadow="none";
+                  e.currentTarget.style.transform="translateY(0)";
+                }}
               >
-                Launch full graph <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
+                Launch full graph
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
               </button>
             </div>
 
-            {/* The interactive canvas itself */}
-            <InteractiveKnowledgeGraph embedded/>
+            {/* Canvas area */}
+            <div style={{position:"relative",background:"radial-gradient(ellipse 80% 55% at 50% 50%,rgba(0,204,255,0.022),transparent)"}}>
+              <PremiumKnowledgeGraph embedded onNodeCountChange={setLiveNodeCount}/>
+            </div>
 
-            {/* Footer stat strip instead of a redundant second graph */}
-            <div style={{padding:"16px 28px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:"32px",flexWrap:"wrap"}}>
+            {/* Footer stat strip */}
+            <div style={{
+              padding:"18px 32px",
+              borderTop:"1px solid rgba(255,255,255,0.04)",
+              display:"flex",
+              gap:"0",
+              background:"rgba(2,2,11,0.65)",
+            }}>
               {[
                 {label:"Entities tracked", val:"1,204", color:C.cyan},
                 {label:"Avg connections / node", val:"3.6", color:C.purple},
-                {label:"Updated", val:"in real time", color:C.green},
-              ].map(s=>(
-                <div key={s.label} style={{display:"flex",alignItems:"baseline",gap:"6px"}}>
-                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",fontWeight:600,color:s.color}}>{s.val}</span>
-                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"11.5px",color:"rgba(130,148,168,0.55)"}}>{s.label}</span>
+                {label:"Graph updates", val:"real-time", color:C.green},
+              ].map((stat, i) => (
+                <div key={stat.label} style={{
+                  display:"flex",alignItems:"baseline",gap:"10px",
+                  flex:1,
+                  paddingLeft: i === 0 ? 0 : "32px",
+                  borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.045)",
+                }}>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}>{stat.val}</span>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(130,148,168,0.4)"}}>{stat.label}</span>
                 </div>
               ))}
             </div>
@@ -1558,7 +1716,7 @@ function FinalCTA(){
           <div style={{position:"relative",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
             <div style={{position:"absolute",inset:"-4px",borderRadius:"9999px",background:"conic-gradient(from 0deg,#ff0000,#ff8800,#ffff00,#00ff0f,#00ccff,#a855f7,#ff0088,#ff0000)",animation:"rainbowSpin 3s linear infinite",filter:"blur(0.5px)",boxShadow:"0 0 40px rgba(0,255,15,0.15),0 0 80px rgba(0,204,255,0.1)"}}/>
             <div style={{position:"relative",padding:"3px",borderRadius:"9999px",background:"#060610"}}>
-              <button onClick={()=>window.location.href="/research"} style={{padding:"20px 52px",background:"rgba(8,8,22,0.98)",borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"19px",fontWeight:900,letterSpacing:"0.04em",color:"#fff",display:"inline-flex",alignItems:"center",gap:"14px",backdropFilter:"blur(24px)",transition:"transform 0.3s cubic-bezier(0.23,1,0.32,1)",position:"relative",overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.06)";}} onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";}}>
+              <button onClick={()=>window.location.href="/signup"} style={{padding:"20px 52px",background:"rgba(8,8,22,0.98)",borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"19px",fontWeight:900,letterSpacing:"0.04em",color:"#fff",display:"inline-flex",alignItems:"center",gap:"14px",backdropFilter:"blur(24px)",transition:"transform 0.3s cubic-bezier(0.23,1,0.32,1)",position:"relative",overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.06)";}} onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";}}>
                 <div style={{position:"absolute",inset:0,borderRadius:"9999px",background:"linear-gradient(135deg,rgba(0,255,15,0.06),rgba(0,204,255,0.04),rgba(168,85,247,0.04))",pointerEvents:"none"}}/>
                 <span style={{fontFamily:"Material Symbols Outlined",fontSize:"26px",background:`linear-gradient(135deg,${C.green},${C.cyan},${C.purple})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",position:"relative",zIndex:1}}>rocket_launch</span>
                 <span style={{background:`linear-gradient(90deg,${C.green} 0%,${C.cyan} 45%,${C.purple} 80%,${C.gold} 100%)`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundSize:"200% 100%",animation:"shimmerGrad 2.5s linear infinite",position:"relative",zIndex:1}}>LET'S GO</span>
@@ -1567,8 +1725,6 @@ function FinalCTA(){
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(130,148,168,0.55)",letterSpacing:"0.01em"}}>Free to start · No credit card required</p>
         </div>
-
-        {/* ── NEW SECTION 10: Export & Quick Actions Row ── */}
         <QuickActionsRow/>
       </div>
     </section>
@@ -1659,7 +1815,6 @@ export default function LandingPage(){
           <PipelineSection/>
           <TechHighlights/>
           <ExampleSection/>
-          {/* ── NEW: Knowledge Graph full section (combines sections 8 + 13) ── */}
           <KnowledgeGraphSection/>
           <AgentPlayground/>
         </div>
