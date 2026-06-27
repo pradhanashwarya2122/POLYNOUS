@@ -64,6 +64,11 @@ const GLOBAL_STYLES = `
   @keyframes memCardFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
   @keyframes memSparkle   { 0%,100%{opacity:0;transform:scale(0.4) rotate(0deg)} 50%{opacity:1;transform:scale(1) rotate(180deg)} }
   @keyframes memOrbit     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  /* Transplanted Polynous pipeline animations */
+  @keyframes pn-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  @keyframes pn-spin{to{transform:rotate(360deg)}}
+  @keyframes pn-pulse-dot{0%,100%{opacity:.6}50%{opacity:1;box-shadow:0 0 6px var(--violet3, #9B5FFF)}}
+  @keyframes pn-glow-breathe{0%,100%{opacity:.35;transform:translateX(-50%) scaleX(.8)}50%{opacity:.7;transform:translateX(-50%) scaleX(1.2)}}
 
   .reveal { opacity:0; transform:translateY(36px); transition:opacity 0.9s cubic-bezier(0.22,1,0.36,1),transform 0.9s cubic-bezier(0.22,1,0.36,1); will-change:opacity,transform; }
   .reveal.visible { opacity:1; transform:translateY(0); }
@@ -125,6 +130,51 @@ const GLOBAL_STYLES = `
   .mem-card { transition: all 0.4s cubic-bezier(0.23,1,0.32,1); }
   .mem-card:hover { animation: memCardFloat 2s ease-in-out infinite; }
 
+  /* ── Transplanted Polynous pipeline styles (SeqNodes / DialecticSVG / DetailPanel / Tooltip) ── */
+  .pn-pipeline-scope{
+    --ink:#040410;--void:#060614;--glass:#0A0A22;--glass2:#0F0F2A;--glass3:#141432;
+    --rim:#1E1E45;--rim2:#2A2A58;--rim3:#38387A;
+    --text:#F0EFFF;--text2:#9090C8;--text3:#505080;
+    --violet:#7B2FFF;--violet2:#9B5FFF;--violet3:#C4A8FF;
+    --teal:#00E5FF;--teal2:#40F0FF;--gold:#E8D5A3;
+    --green:#00D68F;--green2:#40E8A8;--red:#FF4B6E;
+    --amber:#FFB830;--amber2:#FFD080;--pink:#FF2D9F;--indigo:#4F6EFF;--indigo2:#7A90FF;
+    font-family:'Inter',sans-serif;
+  }
+  .pn-seq-row{display:flex;align-items:center;gap:0;position:relative;z-index:2;justify-content:center;flex-wrap:wrap;}
+  .pn-snode{width:110px;border-radius:16px;border:1px solid var(--rim);background:linear-gradient(160deg,rgba(20,20,50,.9) 0%,rgba(10,10,34,.95) 100%);display:flex;flex-direction:column;align-items:center;padding:22px 12px 20px;position:relative;cursor:pointer;transition:all .4s cubic-bezier(.4,0,.2,1);overflow:hidden}
+  .pn-snode::before{content:'';position:absolute;inset:0;border-radius:16px;opacity:0;transition:opacity .4s;pointer-events:none;background:linear-gradient(135deg,rgba(123,47,255,.12) 0%,rgba(0,229,255,.06) 100%)}
+  .pn-snode:hover::before,.pn-snode.running::before{opacity:1}
+  .pn-snode:hover{transform:translateY(-4px);border-color:var(--rim2);z-index:10}
+  .pn-snode.running{border-color:rgba(155,95,255,.5);box-shadow:0 0 0 1px rgba(155,95,255,.15),0 4px 32px rgba(123,47,255,.2),0 0 60px rgba(123,47,255,.08);transform:translateY(-4px)}
+  .pn-snode.done{border-color:rgba(0,214,143,.2);opacity:.82}
+  .pn-snode.idle{opacity:.15}
+  .pn-snode-icon-wrap{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;position:relative}
+  .pn-snode-icon-wrap::after{content:'';position:absolute;inset:0;border-radius:12px;border:1px solid rgba(255,255,255,.06)}
+  .pn-snode-name{font-family:'Sora',sans-serif;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px;text-align:center;letter-spacing:.02em;line-height:1.2}
+  .pn-snode.running .pn-snode-name{color:var(--violet3)}
+  .pn-snode.done .pn-snode-name{color:var(--green2)}
+  .pn-snode-tag{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);text-align:center;opacity:.7}
+  .pn-snode-spin{position:absolute;top:10px;right:10px;width:14px;height:14px;border:2px solid var(--violet3);border-top-color:transparent;border-radius:50%;animation:pn-spin .7s linear infinite}
+  .pn-snode-check-ring{position:absolute;top:10px;right:10px;width:16px;height:16px}
+  .pn-snode-bar{position:absolute;bottom:0;left:0;right:0;height:2px;overflow:hidden;border-radius:0 0 15px 15px;background:var(--rim)}
+  .pn-snode-bar-fill{height:100%;border-radius:0 0 15px 15px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+  .pn-snode-glow{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:60%;height:20px;border-radius:50%;opacity:0;filter:blur(10px)}
+  .pn-snode.running .pn-snode-glow{animation:pn-glow-breathe 2s ease infinite}
+  .pn-sarrow{width:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .pn-detail-overlay{position:absolute;inset:0;z-index:50;background:rgba(4,4,16,.88);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+  .pn-detail-overlay.show{opacity:1;pointer-events:auto}
+  .pn-detail-card{background:linear-gradient(165deg,rgba(20,20,50,.95) 0%,rgba(10,10,34,.98) 100%);border:1px solid var(--rim2);border-radius:18px;width:420px;max-width:90vw;max-height:500px;overflow-y:auto;padding:28px;box-shadow:0 0 0 1px rgba(123,47,255,.1),0 24px 64px rgba(0,0,0,.6)}
+  .pn-detail-card::-webkit-scrollbar{width:4px}
+  .pn-detail-card::-webkit-scrollbar-track{background:var(--glass)}
+  .pn-detail-card::-webkit-scrollbar-thumb{background:var(--rim2);border-radius:2px}
+  .pn-detail-close{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--rim);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:12px;transition:all .15s;flex-shrink:0}
+  .pn-detail-close:hover{background:var(--rim2);color:var(--text)}
+  .pn-detail-thinking-box{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--violet3);margin-bottom:12px;padding:14px 16px;background:rgba(123,47,255,.07);border-radius:10px;border:1px solid rgba(123,47,255,.18);line-height:1.7}
+  .pn-detail-subquery{font-size:10px;color:var(--text3);padding:5px 10px;background:rgba(255,255,255,.025);border-radius:5px;border:1px solid var(--rim);margin-top:4px;display:flex;align-items:center;gap:6px}
+  .pn-detail-subquery::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--violet3);flex-shrink:0}
+  .pn-tooltip{position:fixed;z-index:999;background:rgba(10,10,34,.96);border:1px solid #2A2A58;border-radius:12px;padding:14px 16px;min-width:180px;pointer-events:none;opacity:0;transition:opacity .15s;font-size:12px;box-shadow:0 8px 40px rgba(0,0,0,.6);backdrop-filter:blur(12px)}
+
   @media (max-width:1100px) { .features-grid { grid-template-columns:1fr 1fr !important; } }
   @media (max-width:900px) { .nav-center { display:none !important; } .features-grid { grid-template-columns:1fr 1fr !important; } .tech-3 { grid-template-columns:1fr 1fr !important; } .hiw-grid { grid-template-columns:1fr !important; } .api-grid { grid-template-columns:1fr !important; } }
   @media (max-width:600px) { .features-grid,.tech-3,.example-4 { grid-template-columns:1fr !important; } .search-bar { flex-direction:column;border-radius:20px !important;padding:12px !important; } .hero-title { font-size:clamp(3rem,14vw,5rem) !important; } }
@@ -171,39 +221,267 @@ const EXAMPLES = [
   {title:"Quantum computing breakthroughs",  meta:"Semantic Search · 8 matches", route:"/search?query=Quantum+computing"},
 ];
 
-const RESEARCH_NODES = [
-  {id:"search",    name:"SEARCH",    emoji:" ",color:C.cyan,  tag:"AG-01"},
-  {id:"summarise", name:"SUMMARISE", emoji:"📄",color:C.indigo,tag:"AG-02"},
-  {id:"critic",    name:"CRITIC",    emoji:"⚖️",color:C.amber, tag:"AG-03"},
-  {id:"writer",    name:"WRITER",    emoji:"✍️",color:C.purple,tag:"AG-04"},
-];
+/* ── Transplanted from Polynous__2_.jsx — pipeline agent + dialectic data ── */
+function svgIcon(path, color, size = 16) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d={path} />
+    </svg>
+  );
+}
 
-const DIALECTIC_NODES = [
-  {id:"d-search",name:"SEARCH", emoji:" ",color:C.cyan,   tag:"DX-01",x:75, y:240},
-  {id:"for",     name:"FOR",    emoji:"✅",color:C.green,  tag:"DX-02",x:270,y:100},
-  {id:"against", name:"AGAINST",emoji:"❌",color:C.crimson,tag:"DX-03",x:270,y:380},
-  {id:"judge",   name:"JUDGE",  emoji:"👨‍⚖️",color:C.gold,   tag:"DX-04",x:460,y:240,isJudge:true},
-];
+function nstate(id, step) {
+  const s = STEP_MAP[id];
+  if (s === undefined) return 'idle';
+  return s === step ? 'running' : s < step ? 'done' : 'idle';
+}
 
-const PLAYGROUND_AGENTS = [
-  {id:"search",   name:"SEARCH",   emoji:" ",color:"#00ccff",desc:"I scan knowledge bases and the web to pull raw, unfiltered data on any topic."},
-  {id:"summarise",name:"SUMMARISE",emoji:"📄",color:"#5878d4",desc:"I distill walls of text into crisp, structured summaries without losing nuance."},
-  {id:"for",      name:"FOR",      emoji:"✅",color:"#00ff0f",desc:"My job is to build the strongest possible case in favour of the proposition."},
-  {id:"against",  name:"AGAINST",  emoji:"❌",color:"#ff2040",desc:"I stress-test every argument and poke holes in assumptions. Nothing slips past me."},
-  {id:"critic",   name:"CRITIC",   emoji:"⚖️",color:"#ffaa00",desc:"I cross-examine both sides and flag logical fallacies or citation gaps."},
-  {id:"writer",   name:"WRITER",   emoji:"✍️",color:"#a855f7",desc:"I synthesize everything into polished, publication-ready prose with citations."},
-  {id:"judge",    name:"JUDGE",    emoji:"👨‍⚖️",color:"#ffd700",desc:"Final verdict. I weigh all evidence, assign confidence scores, and deliver the ruling."},
-];
-
-const AGENT_QUIPS = {
-  search:   ["Scanning 14,000 nodes… hit!","Cross-referencing semantic vectors…","Found 847 relevant chunks — filtering top 12.","Knowledge graph query complete."],
-  summarise:["Compressing 4,200 tokens → 180…","Key entities extracted: 6.","Distillation confidence: 94%.","Summary locked and staged."],
-  for:      ["Building affirmative case…","3 strong premises identified.","Constructing syllogism chain…","Case FOR filed — bulletproof."],
-  against:  ["Stress-testing every premise…","Identified 2 logical gaps!","Counter-evidence ratio: 67%.","Opposition case finalized."],
-  critic:   ["Running fallacy detection…","Ad hominem: 0. Straw man: 1. Flagged.","Source reliability score: 88/100.","Critical review complete."],
-  writer:   ["Stitching narrative threads…","Prose coherence index: 97%.","Applying citation layer…","Draft ready for judgment."],
-  judge:    ["Weighing all arguments…","Confidence score: 91%.","Ruling: Affirmative wins by evidence margin.","Session archived to Knowledge Graph."],
+const ICONS = {
+  search: 'M10 10m-7 0a7 7 0 1014 0a7 7 0 10-14 0 M21 21l-4.35-4.35',
+  doc: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  pen: 'M12 20h9 M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z',
+  download: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12',
+  check: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  x: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+  scale: 'M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3',
 };
+
+const AGENTS = [
+  { id: 'search', num: '01', label: 'Search', tag: 'agent/01', color: '#9B5FFF', bg: 'rgba(123,47,255,.18)', icon: ICONS.search, thinking: 'Decomposing query into targeted sub-queries across 6 sources', subqueries: ['arxiv.org — "transformer architectures long context"', 'scholar.google.com — "attention mechanisms context window 2024"', 'ieee.org — "long-context reasoning transformer survey"', 'semantic.scholar.org — "efficient attention linear scaling"'], detail: 'Searches the web across academic databases, news, and journals. Decomposes complex questions into targeted sub-queries for comprehensive coverage.' },
+  { id: 'synthesis', num: '02', label: 'Synthesis', tag: 'agent/02', color: '#00E5FF', bg: 'rgba(0,229,255,.12)', icon: ICONS.doc, thinking: 'Extracting key findings from 24 documents — building structured knowledge graph', subqueries: ['Cluster A · Attention mechanism variants (8 papers)', 'Cluster B · Context window optimization (6 papers)', 'Cluster C · Hardware-efficient implementations (5 papers)', 'Cluster D · Theoretical bounds (5 papers)'], detail: 'Condenses each source into structured key points, extracting salient information while preserving context.' },
+  { id: 'critic', num: '03', label: 'Critic', tag: 'agent/03', color: '#FFB830', bg: 'rgba(255,184,48,.12)', icon: ICONS.shield, thinking: 'Cross-referencing 24 claims — evaluating evidence quality and contradictions', subqueries: ['Verified · Linear attention scales O(n) — Nature 2024', 'Conflict · Ring attention vs Sparse attention efficiency claims', 'Verified · Context windows now exceed 1M tokens', 'Review · Performance claims on custom hardware unverified'], detail: 'Cross-references claims across all sources, identifies contradictions, evaluates evidence quality, and assigns calibrated confidence scores.' },
+  { id: 'writer', num: '04', label: 'Writer', tag: 'agent/04', color: '#00D68F', bg: 'rgba(0,214,143,.12)', icon: ICONS.pen, thinking: 'Assembling final cited answer with structured formatting and inline references', subqueries: ['Structure: Summary → Key Findings → Limitations → Confidence', 'Citations: 24 sources formatted in APA style', 'Confidence: Aggregating critic scores into final assessment', 'Polish: Ensuring readability and academic clarity'], detail: 'Assembles the final answer with inline citations, structured formatting, clear narrative flow, and a comprehensive bibliography.' },
+];
+
+const DIALECTIC = [
+  { id: 'retrieval', num: '05', label: 'Retrieval', tag: 'agent/05', color: '#4F6EFF', bg: 'rgba(79,110,255,.14)', icon: ICONS.download, cx: 80, cy: 120, thinking: 'Gathering evidence corpus from knowledge base and vector store', subqueries: ['Vector DB query: "transformer context" → 12 chunks', 'Retrieved: 8 supporting documents, 4 challenging documents'], detail: 'Gathers evidence from the knowledge base, vector store, and web sources to support both sides of the argument equally.' },
+  { id: 'advocate', num: '06', label: 'FOR', tag: 'agent/06', color: '#00D68F', bg: 'rgba(0,214,143,.14)', icon: ICONS.check, cx: 220, cy: 54, thinking: 'Building affirmative case — transformers CAN handle long context', subqueries: ['Ring Attention achieves O(n) complexity', '1M+ token windows demonstrated by Google (2024)', 'Sparse attention reduces compute by 40%'], detail: 'Argues in favor of the proposition using the strongest available evidence, logical reasoning, and persuasive rhetoric grounded in facts.' },
+  { id: 'dissent', num: '07', label: 'AGAINST', tag: 'agent/07', color: '#FF4B6E', bg: 'rgba(255,75,110,.14)', icon: ICONS.x, cx: 220, cy: 186, thinking: 'Building counter-arguments — limitations remain significant', subqueries: ['Quadratic attention still dominates for < 8K tokens', 'Memory requirements scale with context length', 'Evaluation benchmarks lag behind capability claims'], detail: 'Counters with opposing evidence, highlights weaknesses in the supporting argument, and exposes logical gaps in reasoning.' },
+  { id: 'judge', num: '08', label: 'Judge', tag: 'agent/08', color: '#E8D5A3', bg: 'rgba(232,213,163,.1)', icon: ICONS.scale, cx: 350, cy: 120, thinking: 'Weighing both sides — evidence quality: FOR 8.2 vs AGAINST 6.1', subqueries: ['FOR strengths: Strong empirical evidence, recent benchmarks', 'AGAINST strengths: Valid theoretical concerns, resource constraints', 'Verdict: FOR wins — transformers CAN handle long context with modern techniques'], detail: 'Evaluates both sides impartially, weighs evidence quality, assesses logical coherence, and delivers a final verdict with detailed reasoning.' },
+];
+
+const STEP_MAP = { search: 0, synthesis: 1, critic: 2, writer: 3, retrieval: 4, advocate: 5, dissent: 5, judge: 6 };
+const STEP_DUR = 3400;
+
+/* ── Transplanted: SeqNodes ── */
+function SeqNodes({ step, onNodeClick, onTooltip }) {
+  return (
+    <div className="pn-seq-row">
+      {AGENTS.map((a, i) => {
+        const st = nstate(a.id, step);
+        const isR = st === 'running', isD = st === 'done';
+        const uid = `ar${i}`;
+        const active = step === STEP_MAP[a.id] || step > STEP_MAP[a.id];
+        const col = active ? a.color : '#1E1E45';
+        return (
+          <div key={a.id} style={{ display: 'flex', alignItems: 'center' }}>
+            <div
+              className={`pn-snode ${st}`}
+              onMouseEnter={e => onTooltip(e, a, st)}
+              onMouseMove={e => onTooltip(e, a, st, true)}
+              onMouseLeave={() => onTooltip(null)}
+              onClick={() => onNodeClick(a, st)}
+            >
+              <div className="pn-snode-icon-wrap" style={{ background: a.bg }}>
+                {svgIcon(a.icon, a.color, 17)}
+              </div>
+              <div className="pn-snode-name">{a.label}</div>
+              <div className="pn-snode-tag">{a.tag}</div>
+              {isR && <div className="pn-snode-spin" style={{ borderColor: a.color + '66', borderTopColor: a.color }} />}
+              {isD && (
+                <div className="pn-snode-check-ring">
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill={a.color} fillOpacity=".15" stroke={a.color} strokeWidth="1.5" />
+                    <path d="M8 12l3 3 5-5" fill="none" stroke={a.color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+              <div className="pn-snode-bar">
+                <div className="pn-snode-bar-fill" style={{ width: isD ? '100%' : isR ? '58%' : '0%', background: `linear-gradient(90deg,${a.color}88,${a.color})` }} />
+              </div>
+              {isR && <div className="pn-snode-glow" style={{ background: a.color }} />}
+            </div>
+            {i < AGENTS.length - 1 && (
+              <div className="pn-sarrow">
+                <svg width="40" height="20" viewBox="0 0 40 20">
+                  <defs>
+                    <marker id={uid} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="4" markerHeight="4" orient="auto">
+                      <path d="M1 1L7 4L1 7" fill="none" stroke={col} strokeWidth="1.5" strokeLinecap="round" />
+                    </marker>
+                  </defs>
+                  <line x1="0" y1="10" x2="34" y2="10" stroke={col} strokeWidth={active ? 1.5 : .8} opacity={active ? .65 : .2} markerEnd={`url(#${uid})`} />
+                  {active && isR && (
+                    <circle r="2.5" fill={a.color} opacity=".9">
+                      <animateMotion dur="1.2s" repeatCount="indefinite" path="M0,10 L40,10" />
+                    </circle>
+                  )}
+                </svg>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Transplanted: DialecticSVG ── */
+function DialecticSVG({ step, onNodeClick }) {
+  const N = DIALECTIC;
+  const s4 = step >= 4, s5 = step >= 5;
+  const cw = 80, ch = 70;
+  const conns = [
+    { x1: N[0].cx + cw / 2, y1: N[0].cy, x2: N[1].cx - cw / 2, y2: N[1].cy, col: N[1].color, active: s4 },
+    { x1: N[0].cx + cw / 2, y1: N[0].cy, x2: N[2].cx - cw / 2, y2: N[2].cy, col: N[2].color, active: s4 },
+    { x1: N[1].cx + cw / 2, y1: N[1].cy, x2: N[3].cx - cw / 2, y2: N[3].cy, col: N[3].color, active: s5 },
+    { x1: N[2].cx + cw / 2, y1: N[2].cy, x2: N[3].cx - cw / 2, y2: N[3].cy, col: N[3].color, active: s5 },
+  ];
+  return (
+    <svg id="dialectic-svg" viewBox="0 0 420 240" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', overflow: 'visible' }}
+      onClick={e => {
+        const g = e.target.closest('[data-ni]');
+        if (!g) return;
+        const ni = parseInt(g.getAttribute('data-ni'));
+        onNodeClick(DIALECTIC[ni], nstate(DIALECTIC[ni].id, step));
+      }}>
+      <defs>
+        {conns.map((c, i) => (
+          <marker key={i} id={`dm${i}`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="4" markerHeight="4" orient="auto">
+            <path d="M1 1L7 4L1 7" fill="none" stroke={c.col + (c.active ? 'aa' : '44')} strokeWidth="1.5" />
+          </marker>
+        ))}
+        <filter id="node-glow">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      {conns.map((c, i) => {
+        const mx = (c.x1 + c.x2) / 2;
+        const d = `M${c.x1},${c.y1} C${mx},${c.y1} ${mx},${c.y2} ${c.x2},${c.y2}`;
+        return (
+          <g key={i}>
+            <path d={d} fill="none" stroke={c.col} strokeWidth={c.active ? 1.5 : .8} opacity={c.active ? .55 : .1} markerEnd={`url(#dm${i})`} strokeDasharray={c.active ? undefined : '4 4'} />
+            {c.active && [0, 1, 2].map(j => (
+              <circle key={j} r="2.5" fill={c.col} opacity={.85 - j * .2}>
+                <animateMotion dur="1.7s" begin={`${j * .56}s`} repeatCount="indefinite" path={d} />
+              </circle>
+            ))}
+          </g>
+        );
+      })}
+      {N.map((n, ni) => {
+        const st = nstate(n.id, step);
+        const isR = st === 'running', isD = st === 'done';
+        const isJ = n.id === 'judge';
+        const w = isJ ? 92 : cw, h = isJ ? 82 : ch;
+        const x = n.cx - w / 2, y = n.cy - h / 2;
+        const op = isR ? 1 : isD ? .82 : .18;
+        const si = 6, sx = x + w - 11, sy = y + 11;
+        return (
+          <g key={n.id} opacity={op} style={{ cursor: 'pointer' }} data-ni={ni}>
+            {isR && (
+              <ellipse cx={n.cx} cy={n.cy} rx="50" ry="36" fill={n.color} opacity=".06" filter="url(#node-glow)">
+                <animate attributeName="rx" values="50;68;50" dur="2.4s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values=".06;.12;.06" dur="2.4s" repeatCount="indefinite" />
+              </ellipse>
+            )}
+            <rect x={x} y={y} width={w} height={h} rx="12" fill={n.color} fillOpacity={isR ? .18 : isD ? .1 : .04} stroke={n.color} strokeOpacity={isR ? .6 : isD ? .28 : .12} strokeWidth={isR ? 1.5 : 1} />
+            <rect x={n.cx - 15} y={y + 10} width="30" height="30" rx="8" fill={n.bg} fillOpacity=".9" />
+            <g transform={`translate(${n.cx - 10},${y + 15}) scale(.72)`}>
+              <path d={n.icon} fill="none" stroke={n.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+            <text x={n.cx} y={y + h - 20} textAnchor="middle" fontFamily="Syne,sans-serif" fontSize="10" fontWeight="700" fill={isR ? n.color : isD ? n.color + 'cc' : '#3A3A6A'}>{n.label}</text>
+            <text x={n.cx} y={y + h - 8} textAnchor="middle" fontFamily="JetBrains Mono,monospace" fontSize="7.5" fill={isR || isD ? n.color + '88' : '#252548'}>{n.tag}</text>
+            {isR && (
+              <g>
+                <circle cx={sx} cy={sy} r={si + 2} fill={n.color} opacity=".08">
+                  <animate attributeName="r" values={`${si + 2};${si + 5};${si + 2}`} dur="1.5s" repeatCount="indefinite" />
+                </circle>
+                <circle cx={sx} cy={sy} r={si} fill="none" stroke={n.color} strokeWidth="1.5" strokeDasharray="3 2">
+                  <animateTransform attributeName="transform" type="rotate" from={`0 ${sx} ${sy}`} to={`360 ${sx} ${sy}`} dur=".9s" repeatCount="indefinite" />
+                </circle>
+              </g>
+            )}
+            {isD && (
+              <>
+                <circle cx={sx} cy={sy} r={si} fill={n.color} />
+                <path d={`M${sx - 3},${sy} L${sx - 1},${sy + 2.5} L${sx + 3.5},${sy - 2}`} fill="none" stroke="#000" strokeWidth="1.8" strokeLinecap="round" />
+              </>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ── Transplanted: DetailPanel (used by SeqNodes/DialecticSVG click-to-inspect) ── */
+function PipelineDetailPanel({ detail, onClose }) {
+  if (!detail) return null;
+  const { agent, status } = detail;
+  const sc = { running: 'var(--violet3)', done: 'var(--green2)', idle: 'var(--text3)' };
+  return (
+    <div className="pn-detail-card">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: agent.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,.06)' }}>
+            {svgIcon(agent.icon, agent.color, 16)}
+          </div>
+          <div>
+            <div style={{ fontFamily: 'Syne,sans-serif', fontWeight: 700, color: agent.color, fontSize: 17, letterSpacing: '-.01em' }}>{agent.label}</div>
+            <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 10, color: 'var(--text3)', letterSpacing: '.06em' }}>{agent.tag}</div>
+          </div>
+        </div>
+        <div className="pn-detail-close" onClick={onClose}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </div>
+      </div>
+      <p style={{ color: 'var(--text2)', fontSize: 13, lineHeight: 1.75, marginBottom: 16 }}>{agent.detail}</p>
+      {status === 'running' && (
+        <div className="pn-detail-thinking-box">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--violet3)', animation: 'pn-pulse-dot 1.5s ease infinite' }} />
+            <span style={{ fontWeight: 600, letterSpacing: '.04em' }}>PROCESSING</span>
+          </div>
+          {agent.thinking}
+          {(agent.subqueries || []).map((s, i) => <div key={i} className="pn-detail-subquery">{s}</div>)}
+        </div>
+      )}
+      {status === 'done' && (
+        <div className="pn-detail-thinking-box" style={{ borderColor: 'rgba(0,214,143,.25)', color: 'var(--green2)', background: 'rgba(0,214,143,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            {svgIcon(ICONS.check, '#00D68F', 12)}
+            <span style={{ fontWeight: 600, letterSpacing: '.04em' }}>COMPLETE · Processed {agent.subqueries?.length || 0} items</span>
+          </div>
+        </div>
+      )}
+      {status === 'idle' && (
+        <div className="pn-detail-thinking-box" style={{ opacity: .5, color: 'var(--text3)', borderColor: 'var(--rim)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+            Awaiting upstream completion
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+        <span style={{ padding: '5px 14px', borderRadius: 6, fontSize: 10, fontFamily: 'JetBrains Mono,monospace', color: sc[status], background: 'rgba(255,255,255,.025)', border: '1px solid var(--rim)', letterSpacing: '.08em' }}>{status.toUpperCase()}</span>
+        <span style={{ padding: '5px 14px', borderRadius: 6, fontSize: 10, fontFamily: 'JetBrains Mono,monospace', color: 'var(--text3)', background: 'rgba(255,255,255,.025)', border: '1px solid var(--rim)', letterSpacing: '.04em' }}>{agent.tag}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Transplanted: pipeline tooltip ── */
+function PipelineTooltip({ tooltip }) {
+  return (
+    <div
+      className="pn-tooltip"
+      style={{ left: tooltip.x, top: tooltip.y, opacity: tooltip.visible ? 1 : 0 }}
+      dangerouslySetInnerHTML={{ __html: tooltip.html }}
+    />
+  );
+}
 
 const MEMORY_DOTS = [
   {id:1, query:"Quantum entanglement basics",    date:"Jun 18, 2025", tag:"Physics",    icon:"science"},
@@ -226,17 +504,6 @@ const TOP_TOPICS = [
   {label:"Space", val:55, color:C.purple},
   {label:"Energy", val:43, color:C.amber},
 ];
-
-const GRAPH_NODES_DATA = [
-  {id:0, label:"AI Ethics",   x:200, y:130, color:C.green,  r:20},
-  {id:1, label:"CRISPR",      x:100, y:200, color:C.cyan,   r:16},
-  {id:2, label:"Quantum",     x:290, y:210, color:C.purple, r:17},
-  {id:3, label:"Mars",        x:150, y:295, color:C.crimson,r:15},
-  {id:4, label:"Fusion",      x:260, y:295, color:C.amber,  r:14},
-  {id:5, label:"Memory",      x:80,  y:315, color:C.teal,   r:13},
-  {id:6, label:"Regulation",  x:330, y:140, color:C.gold,   r:15},
-];
-const GRAPH_EDGES = [[0,1],[0,2],[0,6],[1,3],[2,4],[3,5],[4,5],[2,6],[0,3]];
 
 function useReveal(threshold=0.13) {
   const ref=useRef(null);
@@ -271,102 +538,6 @@ function NeuralCanvas() {
     return()=>{window.removeEventListener("resize",onResize);window.removeEventListener("mousemove",onMouseMove);cancelAnimationFrame(state.raf);};
   },[]);
   return <canvas ref={canvasRef} style={{position:"fixed",top:0,left:0,width:"100vw",height:"100vh",zIndex:-1,pointerEvents:"none"}}/>;
-}
-
-/* ── Pipeline internals ───────────────────────────────────────────────────── */
-function PipelineParticle({path,color,delay,duration=1800}){
-  const ref=useRef(null);
-  useEffect(()=>{
-    let raf,start=null;
-    function cubic(t,p0,p1,p2,p3){const u=1-t;return u*u*u*p0+3*u*u*t*p1+3*u*t*t*p2+t*t*t*p3;}
-    function animate(ts){if(!start)start=ts-delay;const t=((ts-start)%duration)/duration;if(ref.current){ref.current.setAttribute("cx",cubic(t,path.x0,path.cx1,path.cx2,path.x1));ref.current.setAttribute("cy",cubic(t,path.y0,path.cy1,path.cy2,path.y1));ref.current.setAttribute("r",Math.max(5-t*3,1));ref.current.setAttribute("opacity",1-t);}raf=requestAnimationFrame(animate);}
-    raf=requestAnimationFrame(animate);
-    return()=>cancelAnimationFrame(raf);
-  },[path,delay,duration]);
-  return <circle ref={ref} cx={path.x0} cy={path.y0} r={5} fill={color} style={{filter:`drop-shadow(0 0 4px ${color})`}}/>;
-}
-
-function Conn({d,color,isActive}){
-  return(
-    <g style={{opacity:isActive?1:0.12,transition:"opacity 0.6s ease"}}>
-      <path d={d} fill="none" stroke={color} strokeWidth={14} strokeLinecap="round" style={{opacity:0.08,filter:"blur(8px)",animation:isActive?"glowBreathe 2.5s ease-in-out infinite":"none"}}/>
-      <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" style={{opacity:0.75}}/>
-      <path d={d} fill="none" stroke="#fff"  strokeWidth={1.5} strokeLinecap="round" strokeDasharray="9 5" style={{opacity:0.8,animation:isActive?"dashFlow 1.5s linear infinite":"dashFlow 4s linear infinite"}}/>
-    </g>
-  );
-}
-
-function AgentNode({data,isActive,isCompleted}){
-  const size=data.isJudge?148:126,color=data.color;
-  const[burst,setBurst]=useState(false);
-  const prev=useRef(false);
-  useEffect(()=>{if(isCompleted&&!prev.current){setBurst(true);const t=setTimeout(()=>setBurst(false),800);prev.current=true;return()=>clearTimeout(t);}if(!isCompleted)prev.current=false;},[isCompleted]);
-  return(
-    <div style={{width:`${size}px`,height:`${size}px`,minWidth:`${size}px`,borderRadius:"22px",background:C.nodeBg,border:`${data.isJudge?"2.5px":"1.8px"} solid ${color}${isActive?"cc":isCompleted?"88":"38"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",position:"relative",transition:"all 0.5s cubic-bezier(0.4,0,0.2,1)",opacity:isActive?1:isCompleted?0.85:0.32,boxShadow:isActive?`0 0 14px ${color}44,0 0 36px ${color}55,0 0 80px ${color}1a`:isCompleted?`0 0 10px ${color}2a,0 0 24px ${color}33`:"none",animation:isActive?"heartbeatFast 1.1s ease-in-out infinite":isCompleted?"heartbeat 3s ease-in-out infinite":"none",overflow:"visible"}}>
-      <div style={{position:"absolute",inset:0,borderRadius:"22px",background:`radial-gradient(circle at center,${color}14 0%,transparent 68%)`,pointerEvents:"none"}}/>
-      {burst&&<div style={{position:"absolute",width:`${size}px`,height:`${size}px`,borderRadius:"22px",border:`2px solid ${color}`,animation:"ripple 0.7s ease-out forwards",pointerEvents:"none",top:0,left:0}}/>}
-      <span style={{fontSize:"27px",marginBottom:"6px",zIndex:1}}>{data.emoji}</span>
-      <span style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"11px",color,letterSpacing:"0.07em",zIndex:1,textAlign:"center",padding:"0 6px"}}>{data.name}</span>
-      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.25,marginTop:"3px",zIndex:1}}>#{data.tag}</span>
-      <div style={{position:"absolute",bottom:0,left:0,right:0,height:"4px",borderRadius:"0 0 20px 20px",background:`${color}18`,overflow:"hidden"}}>
-        <div style={{height:"100%",background:color,borderRadius:"0 0 20px 20px",width:isCompleted?"100%":"0%",animation:isActive?"shimmerBar 2.5s linear forwards":"none",transition:"width 0.4s ease"}}/>
-      </div>
-      {isActive&&!isCompleted&&<div style={{position:"absolute",top:"10px",right:"10px",width:"14px",height:"14px",border:`2px solid ${color}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.85s linear infinite",zIndex:2}}/>}
-      {isCompleted&&<div style={{position:"absolute",top:"10px",right:"10px",width:"16px",height:"16px",background:color,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="4"><path d="M20 6L9 17L4 12" strokeLinecap="round" strokeLinejoin="round"/></svg></div>}
-    </div>
-  );
-}
-
-function NeuralPipeline(){
-  const[step,setStep]=useState(0);
-  useEffect(()=>{const id=setInterval(()=>setStep(s=>(s+1)%8),2600);return()=>clearInterval(id);},[]);
-  const isActive=useCallback((id)=>{const m={search:0,summarise:1,critic:2,writer:3,"d-search":4,for:5,against:5,judge:6};return m[id]===step;},[step]);
-  const isDone=useCallback((id)=>{const m={search:0,summarise:1,critic:2,writer:3,"d-search":4,for:5,against:5,judge:6};return m[id]<step;},[step]);
-  const rLA=(i)=>step===i||step===i+1;
-  const dLA=(min)=>step>=min;
-  const NW=126,GAP=50,BX=60;
-  const rP=[0,1,2].map(i=>({x0:BX+i*(NW+GAP)+NW,cx1:BX+i*(NW+GAP)+NW+28,cx2:BX+(i+1)*(NW+GAP)-28,x1:BX+(i+1)*(NW+GAP),y0:195,cy1:195,cy2:195,y1:195}));
-  const dP=[{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:100,x1:270,y1:100},{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:380,x1:270,y1:380},{x0:270,y0:100,cx1:350,cy1:100,cx2:395,cy2:240,x1:455,y1:240},{x0:270,y0:380,cx1:350,cy1:380,cx2:395,cy2:240,x1:455,y1:240}];
-  return(
-    <div style={{width:"100%",minHeight:"620px",display:"flex",alignItems:"stretch",position:"relative"}}>
-      <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
-        <div style={{marginBottom:"32px",textAlign:"center"}}>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.green,letterSpacing:"0.16em",margin:0}}>RESEARCH PIPELINE</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>SEQUENTIAL SYNTHESIS ARCHITECTURE</p>
-        </div>
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
-          <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",overflow:"visible"}} viewBox="0 0 700 390" preserveAspectRatio="xMidYMid meet">
-            {[0,1,2].map(i=>{const x1=BX+i*(NW+GAP)+NW,x2=BX+(i+1)*(NW+GAP);return <Conn key={i} d={`M ${x1},195 L ${x2},195`} color={RESEARCH_NODES[i].color} isActive={rLA(i)}/>;}) }
-            {[0,1,2].map(i=>rLA(i)&&[0,420,840,1260].map((d,j)=><PipelineParticle key={`rp${i}-${j}`} path={rP[i]} color={RESEARCH_NODES[i].color} delay={d} duration={1650}/>))}
-          </svg>
-          <div style={{display:"flex",gap:`${GAP}px`,alignItems:"center",position:"relative",zIndex:10}}>
-            {RESEARCH_NODES.map(n=><AgentNode key={n.id} data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/>)}
-          </div>
-        </div>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"#fff",opacity:0.25,marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Linear multi-agent processing for structured<br/>data extraction and contextual summarization.</p>
-      </div>
-      <div style={{width:"1px",alignSelf:"stretch",background:"linear-gradient(to bottom,transparent,#00ff0f 30%,#ff2040 70%,transparent)",boxShadow:"0 0 20px #00ff0f44,0 0 20px #ff204044",flexShrink:0}}/>
-      <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
-        <div style={{marginBottom:"32px",textAlign:"center"}}>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.crimson,letterSpacing:"0.16em",margin:0}}>⚖️ DIALECTIC FORK</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>ADVERSARIAL REASONING TOPOLOGY</p>
-        </div>
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
-          <svg width="540" height="480" viewBox="0 0 540 480" style={{overflow:"visible"}}>
-            <Conn d="M 75,240 C 160,240 190,100 270,100"  color={C.green}   isActive={dLA(4)}/>
-            <Conn d="M 75,240 C 160,240 190,380 270,380"  color={C.crimson} isActive={dLA(4)}/>
-            <Conn d="M 270,100 C 350,100 395,240 455,240" color={C.green}   isActive={dLA(5)}/>
-            <Conn d="M 270,380 C 350,380 395,240 455,240" color={C.crimson} isActive={dLA(5)}/>
-            {dLA(4)&&[0,1].map(li=>[0,460,920,1380].map((d,j)=><PipelineParticle key={`dp${li}-${j}`} path={dP[li]} color={li===0?C.green:C.crimson} delay={d} duration={1850}/>))}
-            {dLA(5)&&[2,3].map(li=>[0,460,920,1380].map((d,j)=><PipelineParticle key={`dp${li}-${j}`} path={dP[li]} color={li===2?C.green:C.crimson} delay={d} duration={1850}/>))}
-            {DIALECTIC_NODES.map(n=>{const s=n.isJudge?148:126;return <foreignObject key={n.id} x={n.x-s/2} y={n.y-s/2} width={s} height={s} style={{overflow:"visible"}}><AgentNode data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/></foreignObject>;})}
-          </svg>
-        </div>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"#fff",opacity:0.25,marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Adversarial evaluation where multiple perspectives<br/>are stress-tested for factual consistency.</p>
-      </div>
-      <div style={{position:"absolute",bottom:"12px",left:"50%",transform:"translateX(-50%)",fontFamily:"JetBrains Mono,monospace",fontSize:"8px",color:"#fff",opacity:0.12,letterSpacing:"0.2em",whiteSpace:"nowrap",pointerEvents:"none",zIndex:20}}>POLYNOUS NEURAL ENGINE • AUTONOMOUS MULTI-AGENT MESH</div>
-    </div>
-  );
 }
 
 function SectionDivider({tight=false}){
@@ -762,352 +933,6 @@ function AnalyticsMiniPreview() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PREMIUM INTERACTIVE KNOWLEDGE GRAPH — smoothed drag, solid-color nodes
-══════════════════════════════════════════════════════════════════════════ */
-function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
-  const canvasRef = useRef(null);
-  const stateRef = useRef({
-    nodes: GRAPH_NODES_DATA.map(n => ({
-      ...n,
-      vx: 0, vy: 0,
-      dragging: false,
-      targetX: n.x, targetY: n.y, // smooth-follow target while dragging — no snapping
-      glowPhase: Math.random() * Math.PI * 2,
-      scale: 1, scaleTarget: 1,
-      birthTs: 0, born: true,
-    })),
-    edges: [...GRAPH_EDGES],
-    draggingIdx: null,
-    hoveredIdx: null,
-    nextId: GRAPH_NODES_DATA.length,
-    raf: null,
-    lastTs: 0,
-    particles: [],
-    ripples: [],
-    nodeCount: GRAPH_NODES_DATA.length,
-  });
-  const [nodeCount, setNodeCount] = useState(GRAPH_NODES_DATA.length);
-  const [tooltip, setTooltip] = useState(null);
-
-  const LABEL_POOL = ["Concept","Pattern","Theory","Idea","Link","Model","Node","Fact","Signal","System","Entity","Domain","Insight","Layer","Vector"];
-  const COLOR_POOL = [C.green, C.cyan, C.purple, C.crimson, C.amber, C.teal, C.gold, C.indigo];
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d", { alpha: true });
-    const s = stateRef.current;
-
-    s.nodes.forEach(n => { n.birthTs = -2000; });
-
-    function lerp(a, b, t) { return a + (b - a) * t; }
-
-    function applyPhysics(dt) {
-      const W = canvas.width, H = canvas.height;
-      s.nodes.forEach((n, i) => {
-        if (n.dragging) {
-          // ease smoothly toward the pointer target — eliminates the old hard snap
-          n.x = lerp(n.x, n.targetX, Math.min(1, 0.22 * dt));
-          n.y = lerp(n.y, n.targetY, Math.min(1, 0.22 * dt));
-          return;
-        }
-        s.nodes.forEach((m, j) => {
-          if (i === j) return;
-          const dx = n.x - m.x, dy = n.y - m.y;
-          const d = Math.sqrt(dx*dx + dy*dy) || 1;
-          const ideal = (n.r + m.r) * 5;
-          if (d < ideal) {
-            const f = ((ideal - d) / ideal) * 0.3;
-            n.vx += (dx/d)*f; n.vy += (dy/d)*f;
-          }
-        });
-        s.edges.forEach(([a,b]) => {
-          const other = a===i ? s.nodes[b] : b===i ? s.nodes[a] : null;
-          if (!other) return;
-          const dx = other.x - n.x, dy = other.y - n.y;
-          const d = Math.sqrt(dx*dx + dy*dy) || 1;
-          const ideal = 145;
-          const f = ((d - ideal)/ideal)*0.038;
-          n.vx += (dx/d)*f; n.vy += (dy/d)*f;
-        });
-        n.vx += (W/2 - n.x)*0.00035;
-        n.vy += (H/2 - n.y)*0.00035;
-        // heavier damping → calmer, less snappy motion
-        n.vx *= 0.9; n.vy *= 0.9;
-        n.x += n.vx * dt; n.y += n.vy * dt;
-        n.x = Math.max(n.r+14, Math.min(W-n.r-14, n.x));
-        n.y = Math.max(n.r+14, Math.min(H-n.r-14, n.y));
-      });
-    }
-
-    function draw(ts) {
-      if (!s.lastTs) s.lastTs = ts;
-      const dt = Math.min((ts - s.lastTs) / 16.67, 2.5);
-      s.lastTs = ts;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      applyPhysics(dt);
-
-      // subtle dot grid
-      ctx.fillStyle = "rgba(255,255,255,0.015)";
-      for (let gx = 38; gx < canvas.width; gx += 38) {
-        for (let gy = 38; gy < canvas.height; gy += 38) {
-          ctx.beginPath(); ctx.arc(gx, gy, 0.7, 0, Math.PI*2); ctx.fill();
-        }
-      }
-
-      // ── Edges ──
-      s.edges.forEach(([a, b]) => {
-        const na = s.nodes[a], nb = s.nodes[b];
-        if (!na || !nb) return;
-        const hov = s.hoveredIdx === a || s.hoveredIdx === b;
-        const phase = 0.5 + 0.5 * Math.sin(ts * 0.00085 + a * 0.8 + b * 1.3);
-
-        // glow haze
-        ctx.beginPath();
-        ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
-        ctx.strokeStyle = hov ? `rgba(0,200,255,${0.06+phase*0.1})` : `rgba(70,90,160,${0.03+phase*0.03})`;
-        ctx.lineWidth = hov ? 8 : 4;
-        ctx.filter = "blur(4px)"; ctx.stroke(); ctx.filter = "none";
-
-        // crisp line — brighter than before for clarity
-        ctx.beginPath();
-        ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
-        ctx.strokeStyle = hov ? `rgba(0,200,255,${0.55+phase*0.3})` : `rgba(120,140,210,${0.16+phase*0.08})`;
-        ctx.lineWidth = hov ? 1.8 : 1.1;
-        ctx.setLineDash(hov ? [] : [5, 9]);
-        ctx.lineDashOffset = -(ts * 0.013); // slower dash flow = calmer feel
-        ctx.stroke(); ctx.setLineDash([]);
-      });
-
-      // ── Particles along edges ──
-      s.particles = s.particles.filter(p => p.t < 1);
-      s.particles.forEach(p => {
-        p.t += p.speed * dt;
-        const na = s.nodes[p.a], nb = s.nodes[p.b];
-        if (!na || !nb) return;
-        const x = na.x + (nb.x - na.x) * p.t;
-        const y = na.y + (nb.y - na.y) * p.t;
-        const alpha = Math.sin(p.t * Math.PI);
-        const r = 1.8 + alpha * 2.5;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
-        ctx.fillStyle = p.color; ctx.globalAlpha = alpha * 0.85; ctx.fill();
-        const tx2 = na.x + (nb.x - na.x) * Math.max(0, p.t - 0.07);
-        const ty2 = na.y + (nb.y - na.y) * Math.max(0, p.t - 0.07);
-        ctx.beginPath(); ctx.arc(tx2, ty2, r * 0.4, 0, Math.PI*2);
-        ctx.globalAlpha = alpha * 0.2; ctx.fill();
-        ctx.globalAlpha = 1;
-      });
-
-      // ── Ripples ──
-      s.ripples = s.ripples.filter(r => r.t < r.maxT);
-      s.ripples.forEach(r => {
-        r.t += dt;
-        const prog = r.t / r.maxT;
-        ctx.beginPath(); ctx.arc(r.x, r.y, prog * 55, 0, Math.PI*2);
-        ctx.strokeStyle = r.color; ctx.globalAlpha = (1-prog) * 0.55;
-        ctx.lineWidth = 1.5; ctx.stroke(); ctx.globalAlpha = 1;
-      });
-
-      // ── Nodes — solid premium fill, crisp legible labels, smooth scaling ──
-      s.nodes.forEach((n, i) => {
-        const isHov = s.hoveredIdx === i;
-        n.scaleTarget = isHov ? 1.14 : (n.dragging ? 1.08 : 1);
-        n.scale = lerp(n.scale, n.scaleTarget, Math.min(1, 0.14 * dt)); // slower lerp = no snap
-        const scale = n.scale;
-        const r = n.r * scale;
-        const glow = 0.5 + 0.5 * Math.sin(ts * 0.0012 + n.glowPhase);
-
-        ctx.save();
-        ctx.translate(n.x, n.y);
-
-        // soft halo — breathes smoothly
-        const haloR = r * 2.6 + glow * 5;
-        const haloA = isHov ? 0.5 : 0.18 + glow * 0.12;
-        const halo = ctx.createRadialGradient(0,0,r*0.6,0,0,haloR);
-        halo.addColorStop(0, n.color + Math.round(haloA * 255).toString(16).padStart(2,"0"));
-        halo.addColorStop(1, "transparent");
-        ctx.beginPath(); ctx.arc(0, 0, haloR, 0, Math.PI*2);
-        ctx.fillStyle = halo; ctx.fill();
-
-        // solid node body — premium flat fill (no washed-out low-alpha gradient)
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
-        ctx.fillStyle = n.color;
-        ctx.fill();
-
-        // gentle glass-like inner shading for depth, kept subtle so the fill stays solid
-        const shade = ctx.createRadialGradient(-r*0.25,-r*0.3,0,0,0,r);
-        shade.addColorStop(0, "rgba(255,255,255,0.24)");
-        shade.addColorStop(0.55, "rgba(255,255,255,0)");
-        shade.addColorStop(1, "rgba(0,0,0,0.16)");
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
-        ctx.fillStyle = shade; ctx.fill();
-
-        // crisp border ring
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
-        ctx.strokeStyle = isHov ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.38)";
-        ctx.lineWidth = isHov ? 2 : 1.2;
-        ctx.stroke();
-
-        // outer pulse ring when hovered
-        if (isHov) {
-          const pr = r + 6 + glow * 4;
-          ctx.beginPath(); ctx.arc(0, 0, pr, 0, Math.PI*2);
-          ctx.strokeStyle = n.color + "60"; ctx.lineWidth = 1; ctx.stroke();
-        }
-
-        ctx.restore();
-
-        // Label — dark solid text directly on the bright solid node = always legible
-        ctx.save();
-        ctx.globalAlpha = 1;
-        ctx.font = `${isHov ? "700" : "600"} ${Math.round(8 + (n.r - 10) * 0.34)}px 'JetBrains Mono', monospace`;
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillStyle = "rgba(5,5,18,0.92)";
-        ctx.fillText(n.label, n.x, n.y);
-        ctx.restore();
-      });
-
-      s.raf = requestAnimationFrame(draw);
-    }
-
-    // ── helpers ──
-    function getXY(e) {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (e.clientX - rect.left) * (canvas.width / rect.width),
-        y: (e.clientY - rect.top) * (canvas.height / rect.height),
-      };
-    }
-    function hitNode(x, y) {
-      return s.nodes.findIndex(n => Math.hypot(n.x - x, n.y - y) < n.r * n.scale + 7);
-    }
-
-    // periodic particles — slightly slower cadence for a calmer, premium pace
-    const particleTimer = setInterval(() => {
-      if (!s.edges.length) return;
-      const [a, b] = s.edges[Math.floor(Math.random() * s.edges.length)];
-      if (!s.nodes[a] || !s.nodes[b]) return;
-      s.particles.push({ a, b, t: 0, speed: 0.0032 + Math.random() * 0.0026, color: s.nodes[a].color });
-    }, 650);
-
-    const onMouseDown = e => {
-      const { x, y } = getXY(e);
-      const idx = hitNode(x, y);
-      if (idx >= 0) {
-        s.draggingIdx = idx;
-        s.nodes[idx].dragging = true;
-        s.nodes[idx].targetX = x;
-        s.nodes[idx].targetY = y;
-        s.nodes[idx].vx = 0; s.nodes[idx].vy = 0;
-      }
-    };
-
-    const onMouseMove = e => {
-      const { x, y } = getXY(e);
-      s.hoveredIdx = hitNode(x, y);
-      if (s.draggingIdx !== null) {
-        s.nodes[s.draggingIdx].targetX = x;
-        s.nodes[s.draggingIdx].targetY = y;
-        s.hoveredIdx = s.draggingIdx;
-      }
-      if (s.hoveredIdx >= 0) {
-        const n = s.nodes[s.hoveredIdx];
-        const rect = canvas.getBoundingClientRect();
-        setTooltip({ x: n.x*(rect.width/canvas.width)+rect.left, y: n.y*(rect.height/canvas.height)+rect.top - n.r*n.scale*(rect.height/canvas.height) - 12, label: n.label, color: n.color });
-        canvas.style.cursor = s.draggingIdx !== null ? "grabbing" : "grab";
-      } else {
-        setTooltip(null);
-        canvas.style.cursor = "crosshair";
-      }
-    };
-
-    const onMouseUp = () => {
-      if (s.draggingIdx !== null) { s.nodes[s.draggingIdx].dragging = false; s.draggingIdx = null; }
-    };
-
-    const onClick = e => {
-      const { x, y } = getXY(e);
-      if (hitNode(x, y) >= 0) return;
-      const id = s.nextId;
-      const color = COLOR_POOL[id % COLOR_POOL.length];
-      const label = LABEL_POOL[id % LABEL_POOL.length];
-      const newNode = {
-        id, x, y, r: 11 + Math.random() * 5, color, label,
-        vx: (Math.random()-0.5)*1.5, vy: (Math.random()-0.5)*1.5,
-        dragging: false, targetX: x, targetY: y, glowPhase: Math.random()*Math.PI*2,
-        scale: 0.01, scaleTarget: 1, // start tiny → animate in smoothly
-        birthTs: ts,
-      };
-      const sorted = s.nodes.map((n,i)=>({i,d:Math.hypot(n.x-x,n.y-y)})).sort((a,b)=>a.d-b.d);
-      sorted.slice(0,Math.min(2,sorted.length)).forEach(({i})=>{
-        s.edges.push([i,id]);
-        s.particles.push({a:i,b:id,t:0,speed:0.006,color});
-      });
-      s.nodes.push(newNode);
-      s.nextId++; s.nodeCount = s.nodes.length;
-      setNodeCount(s.nodes.length);
-      if (onNodeCountChange) onNodeCountChange(s.nodes.length);
-      s.ripples.push({x,y,color,t:0,maxT:22});
-    };
-
-    let ts = 0;
-    const drawWrapped = (t) => { ts = t; draw(t); };
-
-    canvas.addEventListener("mousedown", onMouseDown);
-    canvas.addEventListener("mousemove", onMouseMove);
-    canvas.addEventListener("mouseup", onMouseUp);
-    canvas.addEventListener("click", onClick);
-    canvas.addEventListener("mouseleave", () => { s.hoveredIdx = null; setTooltip(null); });
-    window.addEventListener("mouseup", onMouseUp);
-
-    s.raf = requestAnimationFrame(drawWrapped);
-
-    return () => {
-      cancelAnimationFrame(s.raf);
-      clearInterval(particleTimer);
-      canvas.removeEventListener("mousedown", onMouseDown);
-      canvas.removeEventListener("mousemove", onMouseMove);
-      canvas.removeEventListener("mouseup", onMouseUp);
-      canvas.removeEventListener("click", onClick);
-      canvas.removeEventListener("mouseleave", () => {});
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, []);
-
-  return (
-    <div style={{ position: "relative" }}>
-      <canvas
-        ref={canvasRef}
-        width={1100}
-        height={460}
-        style={{ width: "100%", height: embedded ? "460px" : "360px", display: "block" }}
-      />
-      {tooltip && (
-        <div style={{
-          position: "fixed", left: tooltip.x, top: tooltip.y,
-          transform: "translate(-50%,-100%)",
-          background: "rgba(4,4,18,0.96)",
-          border: `1px solid ${tooltip.color}60`,
-          borderRadius: "9px", padding: "5px 13px",
-          fontFamily: "JetBrains Mono,monospace", fontSize: "11px", color: tooltip.color,
-          pointerEvents: "none", zIndex: 9999,
-          backdropFilter: "blur(14px)",
-          boxShadow: `0 6px 24px rgba(0,0,0,0.55), 0 0 14px ${tooltip.color}22`,
-          whiteSpace: "nowrap",
-          animation: "tooltipFade 0.18s cubic-bezier(0.23,1,0.32,1)",
-          letterSpacing: "0.06em",
-        }}>
-          {tooltip.label}
-          <div style={{ position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)", width: 8, height: 6, overflow: "hidden" }}>
-            <div style={{ width: 8, height: 8, background: "rgba(4,4,18,0.96)", border: `1px solid ${tooltip.color}60`, transform: "rotate(45deg)", transformOrigin: "top left", marginTop: -4 }} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── Header ───────────────────────────────────────────────────────────────── */
 function Header(){
   const[activeIdx,setActiveIdx]=useState(-1);
@@ -1391,9 +1216,26 @@ function FeaturesSection(){
   );
 }
 
-/* ── Pipeline ─────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   PIPELINE SECTION — transplanted SeqNodes / DialecticSVG from Polynous__2_.jsx
+══════════════════════════════════════════════════════════════════════════ */
 function PipelineSection(){
   const hRef=useReveal(0.1),bRef=useReveal(0.07);
+  const [step,setStep]=useState(0);
+  const [detail,setDetail]=useState(null);
+  const [tooltip,setTooltip]=useState({visible:false,x:0,y:0,html:""});
+
+  useEffect(()=>{
+    const id=setInterval(()=>setStep(s=>(s+1)%8),STEP_DUR);
+    return()=>clearInterval(id);
+  },[]);
+
+  const handleTooltip=useCallback((e,agent,status)=>{
+    if(!e){setTooltip(t=>({...t,visible:false}));return;}
+    const html=`<div style="font-family:'Sora',sans-serif;font-weight:700;color:${agent.color};margin-bottom:6px;font-size:13px">${agent.label}</div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:3px"><span>status</span><span style="color:var(--text2)">${status}</span></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace"><span>tag</span><span style="color:var(--text2)">${agent.tag}</span></div>`;
+    setTooltip({visible:true,x:e.clientX+14,y:Math.max(8,e.clientY-65),html});
+  },[]);
+
   return(
     <section id="pipeline" style={{padding:"24px 0 96px",overflow:"hidden"}}>
       <SectionDivider tight/>
@@ -1402,12 +1244,41 @@ function PipelineSection(){
         <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",letterSpacing:"-0.05em",marginBottom:"12px",color:"#fff"}}>Neural Pipeline</h2>
         <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.78)",maxWidth:"420px",margin:"0 auto",lineHeight:1.7}}>Real-time multi-agent synthesis, visualized live.</p>
       </div>
-      <div ref={bRef} className="reveal" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)"}}>
+      <div ref={bRef} className="reveal pn-pipeline-scope" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)"}}>
         <div style={{position:"absolute",inset:0,opacity:0.03,pointerEvents:"none",zIndex:1}}>
           <svg width="100%" height="100%"><defs><pattern id="hex2" width="30" height="52" patternUnits="userSpaceOnUse"><path d="M15 0l15 8.66v17.32L15 34.64 0 25.98V8.66L15 0z" fill="none" stroke="#00ff0f" strokeWidth="1" strokeOpacity="0.15"/></pattern></defs><rect width="100%" height="100%" fill="url(#hex2)"/></svg>
         </div>
-        <div style={{position:"relative",zIndex:10}}><NeuralPipeline/></div>
+        <div style={{position:"relative",zIndex:10,padding:"56px 32px",display:"flex",flexDirection:"column",gap:"56px"}}>
+
+          {/* Sequential Research — SeqNodes */}
+          <div>
+            <div style={{textAlign:"center",marginBottom:"32px"}}>
+              <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.green,letterSpacing:"0.16em",margin:0}}>SEQUENTIAL RESEARCH</p>
+              <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>4 AGENTS · CHAIN OF THOUGHT</p>
+            </div>
+            <div style={{position:"relative",display:"flex",justifyContent:"center"}}>
+              <SeqNodes step={step} onNodeClick={(a,st)=>setDetail({agent:a,status:st})} onTooltip={handleTooltip}/>
+              <div className={`pn-detail-overlay${detail?" show":""}`} onClick={e=>{if(e.target===e.currentTarget)setDetail(null);}}>
+                <PipelineDetailPanel detail={detail} onClose={()=>setDetail(null)}/>
+              </div>
+            </div>
+          </div>
+
+          {/* Dialectic Debate — DialecticSVG */}
+          <div>
+            <div style={{textAlign:"center",marginBottom:"24px"}}>
+              <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.crimson,letterSpacing:"0.16em",margin:0}}>⚖️ DIALECTIC DEBATE</p>
+              <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>ADVERSARIAL REASONING · PRO · CON</p>
+            </div>
+            <div style={{position:"relative",maxWidth:"520px",margin:"0 auto"}}>
+              <DialecticSVG step={step} onNodeClick={(a,st)=>setDetail({agent:a,status:st})}/>
+            </div>
+          </div>
+
+        </div>
+        <div style={{position:"absolute",bottom:"12px",left:"50%",transform:"translateX(-50%)",fontFamily:"JetBrains Mono,monospace",fontSize:"8px",color:"#fff",opacity:0.12,letterSpacing:"0.2em",whiteSpace:"nowrap",pointerEvents:"none",zIndex:20}}>POLYNOUS NEURAL ENGINE • AUTONOMOUS MULTI-AGENT MESH</div>
       </div>
+      <PipelineTooltip tooltip={tooltip}/>
     </section>
   );
 }
@@ -1493,11 +1364,703 @@ function ExampleSection(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   PREMIUM KNOWLEDGE GRAPH SECTION
+   KnowledgeGraph component — transplanted verbatim from KnowledgeGraph__1_.jsx
+══════════════════════════════════════════════════════════════════════════ */
+/**
+ * KnowledgeGraph
+ * Canvas-based force-directed knowledge graph with bloom-lit nodes,
+ * animated bezier edges, traveling particles, click-to-spawn nodes,
+ * and drag-to-reposition. 1:1 behavioral port of the original vanilla
+ * canvas build — physics, rendering, and interaction logic preserved.
+ *
+ * No external deps beyond React. Self-contained styles via a <style>
+ * tag scoped with a unique class prefix so it can drop into any app
+ * (e.g. POLYNOUS) without colliding with global CSS.
+ */
+
+const COLORS = [
+  '#00e5a0', '#00c8ff', '#9d8fff', '#ff5075', '#ffbe45', '#00d8cc',
+  '#c47fff', '#ff7055', '#4db8ff', '#aaf07a', '#ff9f60', '#60cfff',
+];
+
+const LABELS = [
+  'Neural', 'Signal', 'Model', 'Vector', 'System', 'Layer', 'Pattern',
+  'Domain', 'Entity', 'Matrix', 'Node', 'Fact', 'Concept', 'Theory',
+  'Cluster', 'Root', 'Axis', 'Field', 'Flux', 'Arc',
+];
+
+const INIT_NODES = [
+  { id: 0, x: 190, y: 160, r: 32, color: COLORS[0], label: 'Neural' },
+  { id: 1, x: 390, y: 100, r: 26, color: COLORS[1], label: 'Signal' },
+  { id: 2, x: 590, y: 170, r: 36, color: COLORS[2], label: 'Model' },
+  { id: 3, x: 760, y: 105, r: 22, color: COLORS[3], label: 'Vector' },
+  { id: 4, x: 900, y: 220, r: 28, color: COLORS[4], label: 'System' },
+  { id: 5, x: 730, y: 340, r: 24, color: COLORS[5], label: 'Layer' },
+  { id: 6, x: 510, y: 420, r: 30, color: COLORS[6], label: 'Pattern' },
+  { id: 7, x: 300, y: 370, r: 22, color: COLORS[7], label: 'Domain' },
+  { id: 8, x: 110, y: 300, r: 26, color: COLORS[8], label: 'Entity' },
+  { id: 9, x: 970, y: 390, r: 20, color: COLORS[9], label: 'Matrix' },
+  { id: 10, x: 400, y: 260, r: 20, color: COLORS[10], label: 'Node' },
+  { id: 11, x: 790, y: 450, r: 20, color: COLORS[11], label: 'Fact' },
+];
+
+const INIT_EDGES = [
+  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 0],
+  [0, 10], [10, 1], [10, 6], [2, 5], [4, 9], [5, 9], [5, 11], [6, 11],
+];
+
+const CANVAS_W = 1100;
+const CANVAS_H = 560;
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function hex2rgb(h) {
+  return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+}
+function rgba(hex, a) {
+  const [r, g, b] = hex2rgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function bezPt(na, nb, t) {
+  const cx = (na.x + nb.x) / 2 + (nb.y - na.y) * 0.1;
+  const cy = (na.y + nb.y) / 2 - (nb.x - na.x) * 0.1;
+  return {
+    x: (1 - t) * (1 - t) * na.x + 2 * (1 - t) * t * cx + t * t * nb.x,
+    y: (1 - t) * (1 - t) * na.y + 2 * (1 - t) * t * cy + t * t * nb.y,
+    cx, cy,
+  };
+}
+
+function makeInitialState() {
+  return {
+    nodes: INIT_NODES.map(n => ({
+      ...n, vx: 0, vy: 0, dragging: false, tx: n.x, ty: n.y,
+      gp: Math.random() * Math.PI * 2, scale: 1, st: 1,
+    })),
+    edges: [...INIT_EDGES],
+    dragIdx: null,
+    hovIdx: null,
+    nextId: INIT_NODES.length,
+    particles: [],
+    ripples: [],
+    lastTs: 0,
+  };
+}
+
+function KnowledgeGraph() {
+  const canvasRef = useRef(null);
+  const stateRef = useRef(makeInitialState());
+  const rafRef = useRef(null);
+  const containerRef = useRef(null);
+
+  const [counts, setCounts] = useState({
+    nodes: INIT_NODES.length,
+    edges: INIT_EDGES.length,
+  });
+  const [tooltip, setTooltip] = useState({
+    visible: false, x: 0, y: 0, label: '', color: '#fff',
+  });
+
+  // ---------- coordinate helpers ----------
+  const getXY = useCallback((e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }, []);
+
+  const hit = useCallback((x, y) => {
+    const S = stateRef.current;
+    return S.nodes.findIndex(n => Math.hypot(n.x - x, n.y - y) < n.r * n.scale + 10);
+  }, []);
+
+  const showTip = useCallback((n) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const sx = n.x * (rect.width / canvas.width);
+    const sy = n.y * (rect.height / canvas.height);
+    const pr = n.r * n.scale * (rect.height / canvas.height);
+    setTooltip({
+      visible: true,
+      x: rect.left + sx,
+      y: rect.top + sy - pr,
+      label: n.label,
+      color: n.color,
+    });
+  }, []);
+
+  const hideTip = useCallback(() => {
+    setTooltip(t => (t.visible ? { ...t, visible: false } : t));
+  }, []);
+
+  // ---------- physics ----------
+  const physics = useCallback((dt) => {
+    const S = stateRef.current;
+    const W = CANVAS_W, H = CANVAS_H;
+    S.nodes.forEach((n, i) => {
+      if (n.dragging) {
+        n.x = lerp(n.x, n.tx, clamp(0.22 * dt, 0, 1));
+        n.y = lerp(n.y, n.ty, clamp(0.22 * dt, 0, 1));
+        return;
+      }
+      S.nodes.forEach((m, j) => {
+        if (i === j) return;
+        const dx = n.x - m.x, dy = n.y - m.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ideal = (n.r + m.r) * 4.2;
+        if (d < ideal) {
+          const f = ((ideal - d) / ideal) * 0.32;
+          n.vx += (dx / d) * f;
+          n.vy += (dy / d) * f;
+        }
+      });
+      S.edges.forEach(([a, b]) => {
+        const o = a === i ? S.nodes[b] : b === i ? S.nodes[a] : null;
+        if (!o) return;
+        const dx = o.x - n.x, dy = o.y - n.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ideal = 190;
+        const f = ((d - ideal) / ideal) * 0.036;
+        n.vx += (dx / d) * f;
+        n.vy += (dy / d) * f;
+      });
+      n.vx += (W / 2 - n.x) * 0.00028;
+      n.vy += (H / 2 - n.y) * 0.00028;
+      n.vx *= 0.87;
+      n.vy *= 0.87;
+      n.x += n.vx * dt;
+      n.y += n.vy * dt;
+      n.x = clamp(n.x, n.r + 22, W - n.r - 22);
+      n.y = clamp(n.y, n.r + 22, H - n.r - 22);
+    });
+  }, []);
+
+  // ---------- main draw loop ----------
+  const drawFrame = useCallback((ts) => {
+    const S = stateRef.current;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { alpha: true });
+
+    if (!S.lastTs) S.lastTs = ts;
+    const dt = clamp((ts - S.lastTs) / 16.67, 0, 2.5);
+    S.lastTs = ts;
+    const W = CANVAS_W, H = CANVAS_H;
+
+    ctx.clearRect(0, 0, W, H);
+    physics(dt);
+
+    // deep vignette
+    const vig = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.75);
+    vig.addColorStop(0, 'rgba(14,8,32,0.0)');
+    vig.addColorStop(0.55, 'rgba(5,4,16,0.35)');
+    vig.addColorStop(1, 'rgba(2,2,8,0.7)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
+
+    // dot grid
+    for (let gx = 38; gx < W; gx += 42) {
+      for (let gy = 38; gy < H; gy += 42) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, 0.7, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.022)';
+        ctx.fill();
+      }
+    }
+
+    // scanlines
+    for (let y = 0; y < H; y += 3) {
+      ctx.fillStyle = 'rgba(0,0,0,0.035)';
+      ctx.fillRect(0, y, W, 1);
+    }
+
+    // hovered aura
+    if (S.hovIdx !== null && S.hovIdx >= 0 && S.nodes[S.hovIdx]) {
+      const n = S.nodes[S.hovIdx];
+      const aura = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 210);
+      aura.addColorStop(0, rgba(n.color, 0.07));
+      aura.addColorStop(1, 'transparent');
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 210, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // edges
+    S.edges.forEach(([a, b]) => {
+      const na = S.nodes[a], nb = S.nodes[b];
+      if (!na || !nb) return;
+      const hov = S.hovIdx === a || S.hovIdx === b;
+      const phase = 0.5 + 0.5 * Math.sin(ts * 0.00085 + a * 0.9 + b * 1.4);
+      const { cx, cy } = bezPt(na, nb, 0.5);
+
+      // bloom
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(na.x, na.y);
+      ctx.quadraticCurveTo(cx, cy, nb.x, nb.y);
+      if (hov) {
+        ctx.strokeStyle = rgba(na.color, 0.2 + phase * 0.1);
+        ctx.lineWidth = 20;
+        ctx.filter = 'blur(9px)';
+      } else {
+        ctx.strokeStyle = `rgba(100,110,220,${0.05 + phase * 0.04})`;
+        ctx.lineWidth = 8;
+        ctx.filter = 'blur(4px)';
+      }
+      ctx.stroke();
+      ctx.filter = 'none';
+      ctx.restore();
+
+      // mid glow
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(na.x, na.y);
+      ctx.quadraticCurveTo(cx, cy, nb.x, nb.y);
+      if (hov) {
+        ctx.strokeStyle = rgba(na.color, 0.5 + phase * 0.2);
+        ctx.lineWidth = 4;
+        ctx.filter = 'blur(2px)';
+      } else {
+        ctx.strokeStyle = `rgba(130,150,240,${0.09 + phase * 0.05})`;
+        ctx.lineWidth = 2;
+        ctx.filter = 'blur(1px)';
+      }
+      ctx.stroke();
+      ctx.filter = 'none';
+      ctx.restore();
+
+      // crisp line
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(na.x, na.y);
+      ctx.quadraticCurveTo(cx, cy, nb.x, nb.y);
+      if (hov) {
+        ctx.strokeStyle = rgba(na.color, 0.85 + phase * 0.15);
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+      } else {
+        ctx.strokeStyle = `rgba(160,175,255,${0.14 + phase * 0.08})`;
+        ctx.lineWidth = 0.9;
+        ctx.setLineDash([5, 10]);
+        ctx.lineDashOffset = -(ts * 0.014);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // chevron
+      if (hov) {
+        const mp = bezPt(na, nb, 0.52), mp2 = bezPt(na, nb, 0.50);
+        const angle = Math.atan2(mp.y - mp2.y, mp.x - mp2.x);
+        ctx.save();
+        ctx.translate(mp.x, mp.y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(-6, -4.5);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(-6, 4.5);
+        ctx.strokeStyle = rgba(na.color, 0.9);
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+
+    // particles
+    S.particles = S.particles.filter(p => p.t < 1);
+    S.particles.forEach(p => {
+      p.t += p.speed * dt;
+      const na = S.nodes[p.a], nb = S.nodes[p.b];
+      if (!na || !nb) return;
+      const t = p.t, mt = Math.max(0, t - 0.06);
+      const cur = bezPt(na, nb, t), prev = bezPt(na, nb, mt);
+      const alpha = Math.sin(t * Math.PI);
+      const pr = 2 + alpha * 3.5;
+      const tail = ctx.createLinearGradient(prev.x, prev.y, cur.x, cur.y);
+      tail.addColorStop(0, 'transparent');
+      tail.addColorStop(1, rgba(p.color, alpha * 0.6));
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(cur.x, cur.y);
+      ctx.strokeStyle = tail;
+      ctx.lineWidth = pr * 1.1;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cur.x, cur.y, pr + 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.color, alpha * 0.13);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cur.x, cur.y, pr, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.color, alpha * 0.9);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cur.x - pr * 0.3, cur.y - pr * 0.3, pr * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha * 0.6})`;
+      ctx.fill();
+    });
+
+    // ripples
+    S.ripples = S.ripples.filter(r => r.t < r.maxT);
+    S.ripples.forEach(r => {
+      r.t += dt;
+      const p = r.t / r.maxT;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, p * 90, 0, Math.PI * 2);
+      ctx.strokeStyle = rgba(r.color, (1 - p) * 0.5);
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+      const p2 = Math.max(0, (r.t - 5) / r.maxT);
+      if (p2 > 0) {
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, p2 * 130, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(r.color, (1 - p2) * 0.18);
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+      if (p < 0.3) {
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, p * 55, 0, Math.PI * 2);
+        ctx.fillStyle = rgba(r.color, (0.3 - p) * 0.22);
+        ctx.fill();
+      }
+    });
+
+    // nodes
+    S.nodes.forEach((n, i) => {
+      const isHov = S.hovIdx === i;
+      n.st = isHov ? 1.12 : n.dragging ? 1.06 : 1;
+      n.scale = lerp(n.scale, n.st, clamp(0.13 * dt, 0, 1));
+      const sc = n.scale, r = n.r * sc;
+      const g = 0.5 + 0.5 * Math.sin(ts * 0.0013 + n.gp);
+      const [cr, cg, cb] = hex2rgb(n.color);
+
+      ctx.save();
+      ctx.translate(n.x, n.y);
+
+      // mega bloom
+      const b0 = ctx.createRadialGradient(0, 0, r, 0, 0, r * 5.5 + g * 10);
+      b0.addColorStop(0, `rgba(${cr},${cg},${cb},${isHov ? 0.12 : 0.05 + g * 0.04})`);
+      b0.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 5.5 + g * 10, 0, Math.PI * 2);
+      ctx.fillStyle = b0;
+      ctx.fill();
+
+      // inner bloom
+      const b1 = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.5 + g * 5);
+      b1.addColorStop(0, `rgba(${cr},${cg},${cb},${isHov ? 0.3 : 0.14 + g * 0.1})`);
+      b1.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 2.5 + g * 5, 0, Math.PI * 2);
+      ctx.fillStyle = b1;
+      ctx.fill();
+
+      // chromatic ring
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 5.5 + g * 2.5, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${cr},${cg},${cb},${isHov ? 0.58 : 0.2 + g * 0.14})`;
+      ctx.lineWidth = isHov ? 1.6 : 0.8;
+      ctx.stroke();
+
+      // hover rings
+      if (isHov) {
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 13 + g * 5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.24 + g * 0.08})`;
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 22 + g * 4, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.1 + g * 0.05})`;
+        ctx.lineWidth = 0.45;
+        ctx.stroke();
+      }
+
+      // void
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(4,3,12,1)';
+      ctx.fill();
+
+      // body
+      const body = ctx.createRadialGradient(-r * 0.28, -r * 0.32, 0, r * 0.1, r * 0.1, r * 1.2);
+      body.addColorStop(0, `rgba(${Math.min(255, cr + 65)},${Math.min(255, cg + 65)},${Math.min(255, cb + 65)},0.95)`);
+      body.addColorStop(0.45, `rgba(${cr},${cg},${cb},0.82)`);
+      body.addColorStop(1, `rgba(${Math.max(0, cr - 45)},${Math.max(0, cg - 45)},${Math.max(0, cb - 45)},0.5)`);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = body;
+      ctx.fill();
+
+      // fresnel
+      const rim = ctx.createRadialGradient(0, 0, r * 0.55, 0, 0, r);
+      rim.addColorStop(0, 'rgba(0,0,0,0)');
+      rim.addColorStop(0.7, 'rgba(0,0,0,0.08)');
+      rim.addColorStop(1, 'rgba(0,0,0,0.44)');
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = rim;
+      ctx.fill();
+
+      // primary specular
+      const sp = ctx.createRadialGradient(-r * 0.32, -r * 0.38, 0, 0, 0, r);
+      sp.addColorStop(0, 'rgba(255,255,255,0.55)');
+      sp.addColorStop(0.22, 'rgba(255,255,255,0.12)');
+      sp.addColorStop(0.5, 'rgba(255,255,255,0.02)');
+      sp.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = sp;
+      ctx.fill();
+
+      // bounce specular
+      const sp2 = ctx.createRadialGradient(r * 0.38, r * 0.38, 0, r * 0.3, r * 0.3, r * 0.5);
+      sp2.addColorStop(0, 'rgba(255,255,255,0.08)');
+      sp2.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = sp2;
+      ctx.fill();
+
+      // border
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.strokeStyle = isHov ? 'rgba(255,255,255,0.9)' : `rgba(${cr},${cg},${cb},${0.48 + g * 0.22})`;
+      ctx.lineWidth = isHov ? 1.8 : 1;
+      ctx.stroke();
+
+      ctx.restore();
+
+      // label
+      const fs = Math.round(9 + (n.r - 20) * 0.42);
+      ctx.save();
+      ctx.font = `${isHov ? 600 : 500} ${fs}px 'JetBrains Mono', monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,1)';
+      ctx.shadowBlur = 7;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillText(n.label, n.x + 0.5, n.y + 0.5);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = isHov ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.92)';
+      ctx.fillText(n.label, n.x, n.y);
+      ctx.restore();
+    });
+
+    rafRef.current = requestAnimationFrame(drawFrame);
+  }, [physics]);
+
+  // ---------- lifecycle ----------
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(drawFrame);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [drawFrame]);
+
+  // ambient particle emitters
+  useEffect(() => {
+    const slow = setInterval(() => {
+      const S = stateRef.current;
+      if (!S.edges.length) return;
+      const [a, b] = S.edges[Math.floor(Math.random() * S.edges.length)];
+      if (!S.nodes[a] || !S.nodes[b]) return;
+      S.particles.push({ a, b, t: 0, speed: 0.003 + Math.random() * 0.0025, color: S.nodes[a].color });
+    }, 500);
+
+    const burst = setInterval(() => {
+      const S = stateRef.current;
+      if (S.edges.length < 2) return;
+      const [a, b] = S.edges[Math.floor(Math.random() * S.edges.length)];
+      if (!S.nodes[a] || !S.nodes[b]) return;
+      S.particles.push({ a, b, t: 0, speed: 0.005, color: S.nodes[b].color });
+      S.particles.push({ a: b, b: a, t: 0, speed: 0.0045, color: S.nodes[a].color });
+    }, 2000);
+
+    return () => {
+      clearInterval(slow);
+      clearInterval(burst);
+    };
+  }, []);
+
+  // ---------- pointer handlers ----------
+  const handleMouseDown = useCallback((e) => {
+    const { x, y } = getXY(e);
+    const i = hit(x, y);
+    const S = stateRef.current;
+    if (i >= 0) {
+      S.dragIdx = i;
+      S.nodes[i].dragging = true;
+      S.nodes[i].tx = x;
+      S.nodes[i].ty = y;
+      S.nodes[i].vx = 0;
+      S.nodes[i].vy = 0;
+    }
+  }, [getXY, hit]);
+
+  const handleMouseMove = useCallback((e) => {
+    const { x, y } = getXY(e);
+    const S = stateRef.current;
+    S.hovIdx = hit(x, y);
+    if (S.dragIdx !== null) {
+      S.nodes[S.dragIdx].tx = x;
+      S.nodes[S.dragIdx].ty = y;
+      S.hovIdx = S.dragIdx;
+    }
+    if (S.hovIdx >= 0 && S.nodes[S.hovIdx]) {
+      showTip(S.nodes[S.hovIdx]);
+      canvasRef.current.style.cursor = S.dragIdx !== null ? 'grabbing' : 'grab';
+    } else {
+      hideTip();
+      canvasRef.current.style.cursor = 'crosshair';
+    }
+  }, [getXY, hit, showTip, hideTip]);
+
+  const handleMouseUp = useCallback(() => {
+    const S = stateRef.current;
+    if (S.dragIdx !== null) {
+      S.nodes[S.dragIdx].dragging = false;
+      S.dragIdx = null;
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    stateRef.current.hovIdx = null;
+    hideTip();
+  }, [hideTip]);
+
+  // global mouseup so a drag released outside the canvas still ends
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [handleMouseUp]);
+
+  const handleClick = useCallback((e) => {
+    const { x, y } = getXY(e);
+    if (hit(x, y) >= 0) return;
+    const S = stateRef.current;
+    const id = S.nextId;
+    const color = COLORS[id % COLORS.length];
+    const label = LABELS[id % LABELS.length];
+    const nn = {
+      id, x, y, r: 20 + Math.random() * 14, color, label,
+      vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
+      dragging: false, tx: x, ty: y, gp: Math.random() * Math.PI * 2,
+      scale: 0.01, st: 1,
+    };
+    const sorted = S.nodes
+      .map((n, i) => ({ i, d: Math.hypot(n.x - x, n.y - y) }))
+      .sort((a, b) => a.d - b.d);
+    sorted.slice(0, Math.min(2, sorted.length)).forEach(({ i }) => {
+      S.edges.push([i, id]);
+      S.particles.push({ a: i, b: id, t: 0, speed: 0.007, color });
+    });
+    S.nodes.push(nn);
+    S.nextId++;
+    S.ripples.push({ x, y, color, t: 0, maxT: 28 });
+    setCounts({ nodes: S.nodes.length, edges: S.edges.length });
+  }, [getXY, hit]);
+
+  return (
+    <div ref={containerRef} className="kg-shell">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+        .kg-shell{position:relative;border-radius:20px;overflow:hidden;background:#050508;
+          box-shadow:0 0 0 1px rgba(255,255,255,0.06),0 2px 0 rgba(255,255,255,0.04) inset,0 40px 120px rgba(0,0,0,0.85);
+          font-family:'JetBrains Mono',monospace;}
+        .kg-chrome-bar{position:relative;padding:0 20px;height:48px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.055);background:linear-gradient(180deg,rgba(255,255,255,0.03) 0%,transparent 100%);}
+        .kg-chrome-bar::after{content:'';position:absolute;bottom:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.07),transparent);}
+        .kg-dots{display:flex;gap:7px;align-items:center;}
+        .kg-dot{width:10px;height:10px;border-radius:50%;}
+        .kg-dot-r{background:#ff5f57;box-shadow:0 0 8px rgba(255,95,87,0.5);}
+        .kg-dot-y{background:#febc2e;box-shadow:0 0 8px rgba(254,188,46,0.4);}
+        .kg-dot-g{background:#28c840;box-shadow:0 0 8px rgba(40,200,64,0.4);}
+        .kg-bar-right{display:flex;align-items:center;gap:8px;}
+        .kg-tag{font-size:9.5px;color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:30px;padding:2px 10px;letter-spacing:0.06em;}
+        .kg-canvas-wrap{position:relative;}
+        .kg-canvas-wrap canvas{display:block;width:100%;height:560px;}
+        .kg-overlay-tl{position:absolute;top:14px;left:16px;display:flex;flex-direction:column;gap:5px;}
+        .kg-overlay-tr{position:absolute;top:14px;right:16px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
+        .kg-micro{font-size:9px;font-weight:300;letter-spacing:0.12em;color:rgba(255,255,255,0.18);text-transform:uppercase;}
+        .kg-stat-num{font-size:14px;font-weight:500;color:rgba(255,255,255,0.55);letter-spacing:0.04em;line-height:1;}
+        .kg-footer{height:40px;border-top:1px solid rgba(255,255,255,0.04);background:linear-gradient(0deg,rgba(255,255,255,0.01) 0%,transparent 100%);display:flex;align-items:center;padding:0 20px;gap:20px;position:relative;}
+        .kg-footer::before{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.05),transparent);}
+        .kg-hint{font-size:9px;font-weight:300;letter-spacing:0.1em;color:rgba(255,255,255,0.15);display:flex;align-items:center;gap:5px;}
+        .kg-hint-pip{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,0.2);}
+        .kg-tooltip{position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-100%) translateY(-12px);transition:opacity 0.12s;}
+        .kg-tooltip-inner{font-size:11px;font-weight:500;letter-spacing:0.08em;padding:6px 14px 7px;border-radius:10px;white-space:nowrap;background:rgba(6,6,14,0.97);border:1px solid;backdrop-filter:blur(20px);}
+        .kg-tooltip-arrow{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:9px;height:6px;}
+      `}</style>
+
+      <div className="kg-chrome-bar">
+        <div className="kg-dots">
+          <div className="kg-dot kg-dot-r" />
+          <div className="kg-dot kg-dot-y" />
+          <div className="kg-dot kg-dot-g" />
+        </div>
+        <div className="kg-bar-right">
+          <span className="kg-tag">{counts.nodes} nodes · {counts.edges} edges</span>
+        </div>
+      </div>
+
+      <div className="kg-canvas-wrap">
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+        />
+        <div className="kg-overlay-tl">
+          <span className="kg-micro">Nodes</span>
+          <span className="kg-stat-num">{counts.nodes}</span>
+        </div>
+        <div className="kg-overlay-tr">
+          <span className="kg-micro" style={{ textAlign: 'right' }}>Edges</span>
+          <span className="kg-stat-num">{counts.edges}</span>
+        </div>
+      </div>
+
+      <div className="kg-footer">
+        <span className="kg-hint"><span className="kg-hint-pip" />Click canvas to spawn node</span>
+        <span className="kg-hint"><span className="kg-hint-pip" />Drag to reposition</span>
+        <span className="kg-hint"><span className="kg-hint-pip" />Hover to inspect</span>
+      </div>
+
+      {tooltip.visible && (
+        <div className="kg-tooltip" style={{ left: tooltip.x, top: tooltip.y, opacity: 1 }}>
+          <div
+            className="kg-tooltip-inner"
+            style={{
+              color: tooltip.color,
+              borderColor: tooltip.color + '50',
+              boxShadow: `0 8px 32px rgba(0,0,0,0.6),0 0 20px ${tooltip.color}18`,
+            }}
+          >
+            {tooltip.label}
+          </div>
+          <svg className="kg-tooltip-arrow" viewBox="0 0 9 6">
+            <path d="M0 0L4.5 6L9 0" fill="rgba(6,6,14,0.97)" />
+            <path d="M0 0L4.5 6L9 0" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KNOWLEDGE GRAPH SECTION — transplanted from KnowledgeGraph__1_.jsx
 ══════════════════════════════════════════════════════════════════════════ */
 function KnowledgeGraphSection() {
   const ref = useReveal(0.08);
-  const [liveNodeCount, setLiveNodeCount] = useState(GRAPH_NODES_DATA.length);
 
   return (
     <section style={{padding:"80px 0"}}>
@@ -1511,116 +2074,33 @@ function KnowledgeGraphSection() {
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every session feeds a living Neo4j graph. Entities link automatically — try it below.</p>
         </div>
 
-        {/* Premium card wrapper */}
-        <div style={{
-          borderRadius:"28px",
-          padding:"2px",
-          background:"linear-gradient(135deg,rgba(0,204,255,0.3),rgba(168,85,247,0.18),rgba(0,255,15,0.1),rgba(0,204,255,0.06))",
-          boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)",
-        }}>
-          <div style={{
-            borderRadius:"27px",
-            overflow:"hidden",
-            background:"rgba(3,3,13,0.98)",
-            backdropFilter:"blur(28px)",
-          }}>
-            {/* Top bar */}
-            <div style={{
-              padding:"22px 32px",
-              borderBottom:"1px solid rgba(255,255,255,0.05)",
-              display:"flex",
-              justifyContent:"space-between",
-              alignItems:"center",
-              flexWrap:"wrap",
-              gap:"14px",
-              background:"linear-gradient(90deg,rgba(0,204,255,0.04),rgba(168,85,247,0.025),transparent)",
-            }}>
-              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
-                <div style={{
-                  width:"44px",height:"44px",borderRadius:"14px",
-                  background:"linear-gradient(135deg,rgba(0,204,255,0.12),rgba(168,85,247,0.08))",
-                  border:"1px solid rgba(0,204,255,0.22)",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  position:"relative",overflow:"hidden",
-                  boxShadow:"0 0 20px rgba(0,204,255,0.1)",
-                }}>
-                  <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 120%,rgba(0,204,255,0.25),transparent 65%)",pointerEvents:"none"}}/>
-                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.cyan,position:"relative",zIndex:1}}>hub</span>
-                </div>
-                <div>
-                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Live Knowledge Graph</p>
-                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>
-                    CLICK EMPTY SPACE TO ADD A NODE · DRAG TO REARRANGE · {liveNodeCount} NODES
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => window.location.href = "/graph"}
-                style={{
-                  padding:"10px 22px",borderRadius:"9999px",
-                  border:`1px solid ${C.cyan}45`,
-                  background:"rgba(0,204,255,0.07)",
-                  color:C.cyan,fontFamily:"Sora,sans-serif",
-                  fontSize:"12.5px",fontWeight:700,cursor:"pointer",
-                  transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",
-                  display:"flex",alignItems:"center",gap:"7px",flexShrink:0,
-                  letterSpacing:"0.02em",
-                }}
-                onMouseOver={e=>{
-                  e.currentTarget.style.background="rgba(0,204,255,0.18)";
-                  e.currentTarget.style.borderColor=`${C.cyan}90`;
-                  e.currentTarget.style.boxShadow=`0 0 24px rgba(0,204,255,0.18)`;
-                  e.currentTarget.style.transform="translateY(-2px)";
-                }}
-                onMouseOut={e=>{
-                  e.currentTarget.style.background="rgba(0,204,255,0.07)";
-                  e.currentTarget.style.borderColor=`${C.cyan}45`;
-                  e.currentTarget.style.boxShadow="none";
-                  e.currentTarget.style.transform="translateY(0)";
-                }}
-              >
-                Launch full graph
-                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
-              </button>
-            </div>
-
-            {/* Canvas area */}
-            <div style={{position:"relative",background:"radial-gradient(ellipse 80% 55% at 50% 50%,rgba(0,204,255,0.022),transparent)"}}>
-              <PremiumKnowledgeGraph embedded onNodeCountChange={setLiveNodeCount}/>
-            </div>
-
-            {/* Footer stat strip */}
-            <div style={{
-              padding:"18px 32px",
-              borderTop:"1px solid rgba(255,255,255,0.04)",
-              display:"flex",
-              gap:"0",
-              background:"rgba(2,2,11,0.65)",
-            }}>
-              {[
-                {label:"Entities tracked", val:"1,204", color:C.cyan},
-                {label:"Avg connections / node", val:"3.6", color:C.purple},
-                {label:"Graph updates", val:"real-time", color:C.green},
-              ].map((stat, i) => (
-                <div key={stat.label} style={{
-                  display:"flex",alignItems:"baseline",gap:"10px",
-                  flex:1,
-                  paddingLeft: i === 0 ? 0 : "32px",
-                  borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.045)",
-                }}>
-                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}>{stat.val}</span>
-                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(130,148,168,0.4)"}}>{stat.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <KnowledgeGraph/>
       </div>
     </section>
   );
 }
 
 /* ── Agent Playground ─────────────────────────────────────────────────────── */
+const PLAYGROUND_AGENTS = [
+  {id:"search",   name:"SEARCH",   emoji:" ",color:"#00ccff",desc:"I scan knowledge bases and the web to pull raw, unfiltered data on any topic."},
+  {id:"summarise",name:"SUMMARISE",emoji:"📄",color:"#5878d4",desc:"I distill walls of text into crisp, structured summaries without losing nuance."},
+  {id:"for",      name:"FOR",      emoji:"✅",color:"#00ff0f",desc:"My job is to build the strongest possible case in favour of the proposition."},
+  {id:"against",  name:"AGAINST",  emoji:"❌",color:"#ff2040",desc:"I stress-test every argument and poke holes in assumptions. Nothing slips past me."},
+  {id:"critic",   name:"CRITIC",   emoji:"⚖️",color:"#ffaa00",desc:"I cross-examine both sides and flag logical fallacies or citation gaps."},
+  {id:"writer",   name:"WRITER",   emoji:"✍️",color:"#a855f7",desc:"I synthesize everything into polished, publication-ready prose with citations."},
+  {id:"judge",    name:"JUDGE",    emoji:"👨‍⚖️",color:"#ffd700",desc:"Final verdict. I weigh all evidence, assign confidence scores, and deliver the ruling."},
+];
+
+const AGENT_QUIPS = {
+  search:   ["Scanning 14,000 nodes… hit!","Cross-referencing semantic vectors…","Found 847 relevant chunks — filtering top 12.","Knowledge graph query complete."],
+  summarise:["Compressing 4,200 tokens → 180…","Key entities extracted: 6.","Distillation confidence: 94%.","Summary locked and staged."],
+  for:      ["Building affirmative case…","3 strong premises identified.","Constructing syllogism chain…","Case FOR filed — bulletproof."],
+  against:  ["Stress-testing every premise…","Identified 2 logical gaps!","Counter-evidence ratio: 67%.","Opposition case finalized."],
+  critic:   ["Running fallacy detection…","Ad hominem: 0. Straw man: 1. Flagged.","Source reliability score: 88/100.","Critical review complete."],
+  writer:   ["Stitching narrative threads…","Prose coherence index: 97%.","Applying citation layer…","Draft ready for judgment."],
+  judge:    ["Weighing all arguments…","Confidence score: 91%.","Ruling: Affirmative wins by evidence margin.","Session archived to Knowledge Graph."],
+};
+
 function AgentPlayground(){
   const ref=useReveal(0.08);
   const[selected,setSelected]=useState(null);

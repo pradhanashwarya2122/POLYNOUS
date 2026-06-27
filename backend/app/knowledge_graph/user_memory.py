@@ -8,9 +8,15 @@ load_dotenv()
 
 class UserMemoryGraph:
     def __init__(self):
-        uri = "neo4j+s://bccd60cb.databases.neo4j.io"
-        user = "neo4j"
-        password = "qdFEa3EJEqHukJw7z5PQn4VopaN4Jl2R9QgvX-FEYwk"
+        # ✅ READ FROM ENVIRONMENT VARIABLES — no hardcoded values!
+        uri = os.getenv("NEO4J_URI", "")
+        user = os.getenv("NEO4J_USER", "neo4j")
+        password = os.getenv("NEO4J_PASSWORD", "")
+
+        if not uri or not password:
+            print("⚠️ Neo4j credentials not configured. Memory Graph disabled.")
+            self.driver = None
+            return
 
         try:
             self.driver = GraphDatabase.driver(uri, auth=(user, password))
@@ -21,17 +27,22 @@ class UserMemoryGraph:
             self.driver = None
 
     def _get_driver(self):
+        """Get driver — returns None if never connected."""
         if self.driver is None:
-            uri = "neo4j+s://bccd60cb.databases.neo4j.io"
-            user = "neo4j"
-            password = "qdFEa3EJEqHukJw7z5PQn4VopaN4Jl2R9QgvX-FEYwk"
-            try:
-                self.driver = GraphDatabase.driver(uri, auth=(user, password))
-                self.driver.verify_connectivity()
-                print("✅ User Memory Graph re-connected!")
-            except Exception as e:
-                print(f"⚠️ User Memory Graph still unavailable: {e}")
-                self.driver = None
+            # Try one more time to connect
+            uri = os.getenv("NEO4J_URI", "")
+            password = os.getenv("NEO4J_PASSWORD", "")
+            if uri and password:
+                try:
+                    self.driver = GraphDatabase.driver(
+                        uri,
+                        auth=(os.getenv("NEO4J_USER", "neo4j"), password)
+                    )
+                    self.driver.verify_connectivity()
+                    print("✅ User Memory Graph re-connected!")
+                except Exception as e:
+                    print(f"⚠️ User Memory Graph still unavailable: {e}")
+                    self.driver = None
         return self.driver
 
     def create_user_profile(self, user_id: str, username: str, email: str):
