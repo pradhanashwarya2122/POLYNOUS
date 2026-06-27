@@ -507,6 +507,13 @@ function Footer() {
 export default function PolynousLoginV2({ onLogin }) {
   const [profileSetupUser, setProfileSetupUser] = useState(null);
 
+  useEffect(() => {
+    // Your auth logic — ensure cleanup to prevent double execution
+    return () => {
+      // Cleanup
+    };
+  }, []);
+
   const handleLogin = (data) => {
     if (data.needs_profile_setup) {
       setProfileSetupUser(data);
