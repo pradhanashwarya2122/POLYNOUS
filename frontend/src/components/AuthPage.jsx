@@ -313,7 +313,7 @@ function LoginCard({ onLogin }) {
       const endpoint = isLogin ? '/auth/login' : '/auth/register'
       const body = isLogin 
         ? { email, password } 
-        : { email, username: 'new_user', password }
+        : { email, username: email.split('@')[0], password }
       
       // ✅ FIXED: Use API_BASE_URL instead of hardcoded localhost
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
