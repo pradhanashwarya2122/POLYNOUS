@@ -4,17 +4,23 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# ✅ Railway env vars take priority over .env file
+load_dotenv(override=False)
 
 class UserMemoryGraph:
     def __init__(self):
-        # ✅ READ FROM ENVIRONMENT VARIABLES — no hardcoded values!
-        uri = os.getenv("NEO4J_URI", "")
+        # ✅ READ FROM ENVIRONMENT ONLY — no hardcoded fallbacks
+        uri = os.getenv("NEO4J_URI")
         user = os.getenv("NEO4J_USER", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "")
+        password = os.getenv("NEO4J_PASSWORD")
 
-        if not uri or not password:
-            print("⚠️ Neo4j credentials not configured. Memory Graph disabled.")
+        if not uri:
+            print("⚠️ NEO4J_URI not set. Memory Graph disabled.")
+            self.driver = None
+            return
+        
+        if not password:
+            print("⚠️ NEO4J_PASSWORD not set. Memory Graph disabled.")
             self.driver = None
             return
 
@@ -28,21 +34,6 @@ class UserMemoryGraph:
 
     def _get_driver(self):
         """Get driver — returns None if never connected."""
-        if self.driver is None:
-            # Try one more time to connect
-            uri = os.getenv("NEO4J_URI", "")
-            password = os.getenv("NEO4J_PASSWORD", "")
-            if uri and password:
-                try:
-                    self.driver = GraphDatabase.driver(
-                        uri,
-                        auth=(os.getenv("NEO4J_USER", "neo4j"), password)
-                    )
-                    self.driver.verify_connectivity()
-                    print("✅ User Memory Graph re-connected!")
-                except Exception as e:
-                    print(f"⚠️ User Memory Graph still unavailable: {e}")
-                    self.driver = None
         return self.driver
 
     def create_user_profile(self, user_id: str, username: str, email: str):
@@ -94,11 +85,9 @@ class UserMemoryGraph:
                 """, uid=user_id, q=query[:300], ans=answer[:500],
                     conf=confidence, m=mode)
 
-                valid_topic_count = 0
                 for topic in topics:
                     topic = topic.strip() if topic else ""
                     if topic and topic.lower() != 'unknown' and len(topic) < 80:
-                        valid_topic_count += 1
                         session.run("""
                             MATCH (u:User {id: $uid})
                             MATCH (r:ResearchSession {query: $q, user_id: $uid})
@@ -110,7 +99,7 @@ class UserMemoryGraph:
                                 i.last_researched = datetime()
                         """, uid=user_id, q=query[:300], topic=topic)
 
-                print(f"  ✅ Recorded research: {valid_topic_count} topics for user {user_id[:20]}")
+                print(f"  ✅ Recorded research for user {user_id[:20]}")
         except Exception as e:
             print(f"  ⚠️ Record research error: {e}")
 
@@ -194,12 +183,7 @@ class UserMemoryGraph:
     def get_user_stats(self, user_id: str) -> Dict:
         driver = self._get_driver()
         if not driver:
-            return {
-                "total_research": 0,
-                "total_debates": 0,
-                "avg_confidence": 0,
-                "unique_topics": 0
-            }
+            return {"total_research": 0, "total_debates": 0, "avg_confidence": 0, "unique_topics": 0}
         try:
             with driver.session() as session:
                 result = session.run("""
@@ -224,12 +208,7 @@ class UserMemoryGraph:
                     }
         except:
             pass
-        return {
-            "total_research": 0,
-            "total_debates": 0,
-            "avg_confidence": 0,
-            "unique_topics": 0
-        }
+        return {"total_research": 0, "total_debates": 0, "avg_confidence": 0, "unique_topics": 0}
 
     def get_related_suggestions(self, user_id: str, current_topic: str, limit: int = 5) -> List[str]:
         driver = self._get_driver()
@@ -305,6 +284,5 @@ class UserMemoryGraph:
             return []
 
 
-# Global instance
 user_memory = UserMemoryGraph()
 print("✅ User Memory System Ready!")

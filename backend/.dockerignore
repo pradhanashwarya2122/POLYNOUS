@@ -1,15 +1,23 @@
+# Environment files (NEVER bake into Docker image)
+.env
+*.env
+.env.*
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
 venv/
-.env
 *.egg-info/
 .pytest_cache/
 
-# Database
+# Database files
 *.db
 *.sqlite3
+
+# Node
+node_modules/
+frontend/dist/
 
 # IDE
 .vscode/
