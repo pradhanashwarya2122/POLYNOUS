@@ -747,45 +747,75 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
   /* ── API calls ── */
   const fetchAllData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const accessToken = window.__POLYNOUS_ACCESS_TOKEN__ || localStorage.getItem('polynous_token') || '';
-      const base = API_BASE_URL;
-
-      const headers = {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      };
-
-      const [statsRes, interestsRes, historyRes, debatesRes] = await Promise.all([
-        fetch(`${base}/memory/stats`,    { headers }),
-        fetch(`${base}/memory/interests`, { headers }),
-        fetch(`${base}/memory/history`,  { headers }),
-        fetch(`${base}/memory/debates`,  { headers })
-      ]);
-
-      let statsData = {};
-      try { statsData = await statsRes.json(); } catch(_) {}
-
-      let interestsData = { interests: [] };
-      try { interestsData = await interestsRes.json(); } catch(_) {}
-
-      let historyData = { history: [] };
-      try { historyData = await historyRes.json(); } catch(_) {}
-
-      let debatesData = { debates: [] };
-      try { debatesData = await debatesRes.json(); } catch(_) {}
-
-      setStats(statsData);
-      setInterests(interestsData.interests || []);
-      setHistory(historyData.history     || []);
-      setDebates(debatesData.debates     || []);
-    } catch(e) {
-      console.error("Memory load error:", e);
-    } finally {
+  setLoading(true);
+  try {
+    // Get token from localStorage (most reliable source)
+    const accessToken = localStorage.getItem('polynous_token');
+    
+    // If no token, try cookies or other sources
+    if (!accessToken) {
+      console.warn('⚠️ No auth token found — memory data will be empty');
+      setStats({ total_research: 0, total_debates: 0, avg_confidence: 0, unique_topics: 0 });
+      setInterests([]);
+      setHistory([]);
+      setDebates([]);
       setLoading(false);
+      return;
     }
-  }, []);
+
+    console.log('🔑 Token found, fetching memory data...');
+    
+    const base = API_BASE_URL || 'http://localhost:8000';
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    };
+
+    const [statsRes, interestsRes, historyRes, debatesRes] = await Promise.all([
+      fetch(`${base}/memory/stats`, { headers }),
+      fetch(`${base}/memory/interests`, { headers }),
+      fetch(`${base}/memory/history`, { headers }),
+      fetch(`${base}/memory/debates`, { headers })
+    ]);
+
+    // Parse responses safely
+    let statsData = { total_research: 0, total_debates: 0, avg_confidence: 0, unique_topics: 0 };
+    let interestsData = { interests: [] };
+    let historyData = { history: [] };
+    let debatesData = { debates: [] };
+
+    if (statsRes.ok) {
+      try { statsData = await statsRes.json(); } catch(e) { console.error('Stats parse error:', e); }
+    } else {
+      console.warn('Stats endpoint returned:', statsRes.status);
+    }
+
+    if (interestsRes.ok) {
+      try { interestsData = await interestsRes.json(); } catch(e) { console.error('Interests parse error:', e); }
+    }
+
+    if (historyRes.ok) {
+      try { historyData = await historyRes.json(); } catch(e) { console.error('History parse error:', e); }
+    }
+
+    if (debatesRes.ok) {
+      try { debatesData = await debatesRes.json(); } catch(e) { console.error('Debates parse error:', e); }
+    }
+
+    console.log('📊 Loaded stats:', statsData);
+    console.log('📜 Loaded history:', historyData.history?.length, 'entries');
+    console.log('🗣️ Loaded debates:', debatesData.debates?.length, 'entries');
+
+    setStats(statsData);
+    setInterests(interestsData.interests || []);
+    setHistory(historyData.history || []);
+    setDebates(debatesData.debates || []);
+  } catch(e) {
+    console.error('Memory load error:', e);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => { fetchAllData(); }, [fetchAllData]);
 
