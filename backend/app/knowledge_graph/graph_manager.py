@@ -10,21 +10,21 @@ load_dotenv()
 class KnowledgeGraph:
     def __init__(self):
         uri = os.getenv("NEO4J_URI")
-        user = os.getenv("NEO4J_USER", "neo4j")
+        user = os.getenv("NEO4J_USER")
         password = os.getenv("NEO4J_PASSWORD")
-
-        if not uri or not password:
-            print("⚠️ Neo4j credentials not configured.")
+        
+        if not uri or not user or not password:
+            print("❌ Neo4j credentials missing! Check NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")
             self.driver = None
             return
-
+        
         try:
             self.driver = GraphDatabase.driver(uri, auth=(user, password))
-            self.driver.verify_connectivity()
-            print("✅ Neo4j Connected!")
+            self.driver.verify_connectivity()  # ← CRITICAL: Raises immediately if can't connect
+            print(f"✅ Neo4j Connected! ({uri})")
         except Exception as e:
-            print(f"⚠️ Neo4j not available: {e}")
-            self.driver = None
+            print(f"❌ Neo4j Connection FAILED: {e}")
+            self.driver = None  # ← Set to None so downstream code can check
     
     def close(self):
         """Properly close the Neo4j driver"""
@@ -816,3 +816,9 @@ class KnowledgeGraph:
 
 # Global instance
 kg = KnowledgeGraph()
+
+# ✅ Startup verification
+if kg.driver:
+    print("✅ Neo4j Knowledge Graph is ACTIVE")
+else:
+    print("❌ WARNING: Neo4j Knowledge Graph is INACTIVE — memory features will be limited")
