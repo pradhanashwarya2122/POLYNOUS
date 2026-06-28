@@ -43,6 +43,9 @@ from app.routes.conversations import router as conversations_router
 # Chat History imports
 from app.chat_history import save_chat, save_debate, get_chat_history, get_debate_history
 
+# User Memory Graph (for debug)
+from app.knowledge_graph.user_memory import user_memory
+
 load_dotenv()
 
 # ============================================================
@@ -139,6 +142,17 @@ async def startup():
         if os.getenv("ENVIRONMENT", "").lower() == "production":
             raise
 
+    # Verify Neo4j on startup
+    try:
+        from app.knowledge_graph.graph_manager import kg
+        if kg.driver:
+            kg.driver.verify_connectivity()
+            print("✅ Neo4j verified on startup")
+        else:
+            print("❌ Neo4j driver not initialized — memory features will use SQLite fallback")
+    except Exception as e:
+        print(f"❌ Neo4j startup check failed: {e}")
+
     print(f"🔒 CORS origins: {ALLOWED_ORIGINS}")
     print(f"🔐 allow_credentials: True")
     print(f"🍪 Cookie mode: {'production (secure+sameSite=None)' if os.getenv('ENVIRONMENT') == 'production' else 'development (lax)'}")
@@ -181,7 +195,7 @@ async def root():
         "tagline": "Many Minds, One Answer",
         "version": "3.0",
         "database": "connected" if db_healthy else "disconnected",
-        "endpoints": ["/ask", "/ask-stream", "/health", "/auth/register", "/auth/login", "/auth/refresh", "/conversations"]
+        "endpoints": ["/ask", "/ask-stream", "/health", "/health/neo4j", "/auth/register", "/auth/login", "/auth/refresh", "/conversations"]
     }
 
 @app.get("/health")
@@ -208,6 +222,40 @@ async def health():
                 "version": "3.0"
             }
         )
+
+@app.get("/health/neo4j")
+async def neo4j_health():
+    """Verify Neo4j is actually connected and working"""
+    try:
+        from app.knowledge_graph.graph_manager import kg
+        
+        if not kg.driver:
+            return {"status": "NOT_CONFIGURED", "error": "No Neo4j driver initialized"}
+        
+        with kg.driver.session() as session:
+            # Simple connectivity test
+            result = session.run("RETURN 1 AS alive")
+            record = result.single()
+            
+            # Write a test node and read it back
+            session.run("MERGE (t:HealthCheck {service: 'polynous'}) SET t.last_check = timestamp()")
+            read_back = session.run("MATCH (t:HealthCheck) RETURN t.last_check AS ts").single()
+            
+            # Clean up
+            session.run("MATCH (t:HealthCheck) DELETE t")
+            
+            return {
+                "status": "CONNECTED",
+                "alive": record["alive"],
+                "write_test": "passed",
+                "read_test_ts": read_back["ts"] if read_back else None
+            }
+    except Exception as e:
+        return {
+            "status": "FAILED",
+            "error": str(e)[:200],
+            "error_type": type(e).__name__
+        }
 
 @app.get("/history/chats")
 async def chat_history(session_id: str = None, limit: int = 20):
