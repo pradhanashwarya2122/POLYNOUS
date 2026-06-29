@@ -211,6 +211,9 @@ export default function OAuthCallback({ onLogin }) {
   const [activeStep, setActiveStep] = useState(0)
 
   useEffect(() => {
+    // ✅ ALL timers tracked in a single array for cleanup
+    const timers = []
+
     const params = new URLSearchParams(window.location.search)
     const token = params.get('access_token') || params.get('token')
     const refreshToken = params.get('refresh_token')
@@ -225,45 +228,45 @@ export default function OAuthCallback({ onLogin }) {
 
     // Handle OAuth error
     if (errorMsg) {
-        navigate('/auth?error=' + encodeURIComponent(errorMsg), { replace: true })
-        return
+      navigate('/auth?error=' + encodeURIComponent(errorMsg), { replace: true })
+      return () => timers.forEach(clearTimeout)
     }
 
     // Handle successful OAuth
     if (token && email) {
-        // Save tokens and user info
-        localStorage.setItem('polynous_token', token)
-        if (refreshToken) localStorage.setItem('polynous_refresh_token', refreshToken)
-        localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
+      localStorage.setItem('polynous_token', token)
+      if (refreshToken) localStorage.setItem('polynous_refresh_token', refreshToken)
+      localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
 
-        if (onLogin) onLogin({ token, username, email })
+      if (onLogin) onLogin({ token, username, email })
 
-        // Animate steps
-        const t1 = setTimeout(() => setActiveStep(1), 700)
-        const t2 = setTimeout(() => setActiveStep(2), 1400)
-        
-        // ✅ CASE 1: New user → go to profile setup
-        if (isNewUser) {
-            localStorage.setItem('polynous_needs_setup', 'true')
-            const t3 = setTimeout(() => {
-                setActiveStep(3)
-                navigate('/auth?setup=new', { replace: true })
-            }, 2500)
-            return () => [t1, t2, t3].forEach(clearTimeout)
-        }
-        
-        // ✅ CASE 2: Existing user → go to research
-        if (isExistingUser || (!isNewUser && token)) {
-            const t3 = setTimeout(() => {
-                setActiveStep(3)
-                navigate('/research', { replace: true })
-            }, 2500)
-            return () => [t1, t2, t3].forEach(clearTimeout)
-        }
+      timers.push(setTimeout(() => setActiveStep(1), 700))
+      timers.push(setTimeout(() => setActiveStep(2), 1400))
+
+      // ✅ New user → profile setup
+      if (isNewUser) {
+        localStorage.setItem('polynous_needs_setup', 'true')
+        timers.push(setTimeout(() => {
+          setActiveStep(3)
+          navigate('/auth?setup=new', { replace: true })
+        }, 2500))
+        return () => timers.forEach(clearTimeout)
+      }
+
+      // ✅ Existing user → research
+      timers.push(setTimeout(() => {
+        setActiveStep(3)
+        navigate('/research', { replace: true })
+      }, 2500))
+      return () => timers.forEach(clearTimeout)
     }
 
     // Fallback: no valid token
-    setTimeout(() => navigate('/auth?error=Authentication+failed', { replace: true }), 1500)
+    timers.push(setTimeout(() => {
+      navigate('/auth?error=Authentication+failed', { replace: true })
+    }, 1500))
+    
+    return () => timers.forEach(clearTimeout)
   }, [navigate, onLogin])
 
   const providerLabel = provider === 'github' ? 'GitHub' : 'Google'
@@ -277,8 +280,6 @@ export default function OAuthCallback({ onLogin }) {
         <div className="oa-glow-3" />
 
         <div className="oa-card">
-
-          {/* Logo with dual spinning rings */}
           <div className="oa-logo-area">
             <div className="oa-ring-outer" />
             <div className="oa-ring-spinner-2" />
@@ -288,7 +289,6 @@ export default function OAuthCallback({ onLogin }) {
             </div>
           </div>
 
-          {/* Text */}
           <div style={{ textAlign: 'center' }}>
             <h2 className="oa-headline">Signing you in</h2>
             <p className="oa-sub">
@@ -303,14 +303,12 @@ export default function OAuthCallback({ onLogin }) {
             </div>
           </div>
 
-          {/* Animated dots */}
           <div className="oa-dots">
             <div className="oa-dot" />
             <div className="oa-dot" />
             <div className="oa-dot" />
           </div>
 
-          {/* Step progress */}
           <div className="oa-steps">
             {STEPS.map((label, i) => {
               const cls = i < activeStep ? 'done' : i === activeStep ? 'active' : ''
