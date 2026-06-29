@@ -13,7 +13,7 @@ const C = {
   amber:              "#ffaa00",
   gold:               "#ffd700",
   purple:             "#a855f7",
-  void:               "#0a0a1e",
+  void:               "#0b0a1e",
   sidebar:            "#010f1f",
   panel:              "#0d1c2d",
   card:               "#122131",
@@ -430,7 +430,7 @@ function ThinkingCanvas({ agentStatus, agentProgress }) {
 // ═══════════════════════════════════════════════════════════════
 const SC = {
   green:              "#00ff47",
-  void:               "#0a0a1e",
+  void:               "#0b0a1e",
   surface:            "#111125",
   surfaceContainer:   "#1e1e32",
   onSurface:          "#e2e0fc",
@@ -1212,7 +1212,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     return (
       <div style={{
         minHeight: '100vh',
-        background: '#0a0a1e',
+        background: '#0b0a1e',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
