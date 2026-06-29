@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { API_BASE_URL } from '../config';
 
 const C = {
   green: "#00ff0f", cyan: "#00ccff", crimson: "#ff2040", purple: "#a855f7",
@@ -419,9 +420,9 @@ function ConfidenceRing({ distribution }) {
   const segMapRef = useRef([]);
 
   const total = (distribution?.high || 0) + (distribution?.medium || 0) + (distribution?.low || 0) || 1;
-  const highPct = (distribution?.high || 0) / total;
-  const medPct = (distribution?.medium || 0) / total;
-  const lowPct = (distribution?.low || 0) / total;
+  const highPct = useMemo(() => (distribution?.high || 0) / total, [distribution?.high, total]);
+  const medPct = useMemo(() => (distribution?.medium || 0) / total, [distribution?.medium, total]);
+  const lowPct = useMemo(() => (distribution?.low || 0) / total, [distribution?.low, total]);
 
   useEffect(() => {
     const canvas = ref.current; if (!canvas) return;
@@ -798,7 +799,6 @@ function TopicsCard({ topicFreq }) {
   const [sortBy, setSortBy] = useState('count'); // 'count' | 'alpha'
 
   const allEntries = Object.entries(topicFreq).sort((a, b) => b[1] - a[1]);
-  const topEntries = allEntries.slice(0, 5);
 
   const filteredAll = allEntries
     .filter(([k]) => !search || k.toLowerCase().includes(search.toLowerCase()))
@@ -912,24 +912,52 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
   const [history, setHistory] = useState([]);
   const [debates, setDebates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => { fetchAnalytics(); }, [period]);
 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const base = "http://localhost:8000", userId = "guest_user";
-      const [sRes, hRes, dRes] = await Promise.all([
-        fetch(base + "/memory/stats/" + userId),
-        fetch(base + "/memory/history/" + userId),
-        fetch(base + "/memory/debates/" + userId),
-      ]);
-      const [statsData, historyData, debatesData] = await Promise.all([sRes.json(), hRes.json(), dRes.json()]);
-      setStats({ totalQueries: statsData.total_research || 0, totalDebates: statsData.total_debates || 0, avgConfidence: statsData.avg_confidence || 0, uniqueTopics: statsData.unique_topics || 0 });
-      setHistory(historyData.history || []);
-      setDebates(debatesData.debates || []);
-    } catch (e) { console.error("Dashboard error:", e); }
-    finally { setLoading(false); }
+        const token = localStorage.getItem('polynous_token');
+        
+        if (!token) {
+            console.warn('No auth token — analytics will be empty');
+            setLoading(false);
+            return;
+        }
+        
+        const base = API_BASE_URL || 'http://localhost:8000';
+        
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+        
+        const [sRes, hRes, dRes] = await Promise.all([
+            fetch(`${base}/memory/stats`, { headers }),
+            fetch(`${base}/memory/history`, { headers }),
+            fetch(`${base}/memory/debates`, { headers }),
+        ]);
+        
+        const statsData = await sRes.json();
+        const historyData = await hRes.json();
+        const debatesData = await dRes.json();
+        
+        setStats({
+            totalQueries: statsData.total_research || 0,
+            totalDebates: statsData.total_debates || 0,
+            avgConfidence: statsData.avg_confidence || 0,
+            uniqueTopics: statsData.unique_topics || 0
+        });
+        setHistory(historyData.history || []);
+        setDebates(debatesData.debates || []);
+    } catch (e) {
+        console.error("Dashboard error:", e);
+        setError("Failed to load analytics. Please try again.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const confTrend = history.map(h => h.confidence || 0).slice(-10);
@@ -948,9 +976,9 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
       if (activityData[date] !== undefined) activityData[date]++;
     }
   });
-  // Fallback demo data if empty
+  // Fallback demo data if empty — only on localhost
   const hasRealActivity = history.some(h => h.timestamp);
-  if (!hasRealActivity) {
+  if (!hasRealActivity && window.location.hostname === 'localhost') {
     for (let i = 89; i >= 0; i--) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -964,7 +992,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
       .filter(w => w.length > 4 && !['what', 'how', 'does', 'work', 'that', 'this', 'they', 'with', 'from', 'about', 'which', 'their'].includes(w))
       .forEach(w => { topicFreq[w] = (topicFreq[w] || 0) + 1; });
   });
-  if (Object.keys(topicFreq).length === 0) {
+  if (Object.keys(topicFreq).length === 0 && window.location.hostname === 'localhost') {
     topicFreq['Quantum'] = 5; topicFreq['Computing'] = 4; topicFreq['Climate'] = 3;
     topicFreq['Fermi'] = 3; topicFreq['Neural'] = 2; topicFreq['Cosmos'] = 2;
     topicFreq['Entropy'] = 2; topicFreq['Biology'] = 1; topicFreq['Relativity'] = 1;
@@ -974,9 +1002,22 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
   const highCount = history.filter(h => (h.confidence || 0) >= 80).length;
   const mediumCount = history.filter(h => (h.confidence || 0) >= 60 && (h.confidence || 0) < 80).length;
   const lowCount = history.filter(h => (h.confidence || 0) < 60).length;
-  const confDist = { high: highCount || history.length, medium: mediumCount || 0, low: lowCount || 0 };
+  const confDist = useMemo(() => ({
+      high: highCount || 0,
+      medium: mediumCount || 0,
+      low: lowCount || 0
+  }), [highCount, mediumCount, lowCount]);
 
-  const hourlyData = { 'Mon': { '9': 1, '10': 2, '14': 1 }, 'Tue': { '11': 1, '15': 2 }, 'Wed': { '9': 1, '13': 1, '16': 3 }, 'Thu': { '10': 2, '14': 1 }, 'Fri': { '9': 1, '11': 2, '15': 1 }, 'Sat': { '12': 1 }, 'Sun': { '16': 1 } };
+  // Start empty if we have real data
+  const hourlyData = history.length > 0 ? {} : { 
+      'Mon': { '9': 1, '10': 2, '14': 1 }, 
+      'Tue': { '11': 1, '15': 2 }, 
+      'Wed': { '9': 1, '13': 1, '16': 3 }, 
+      'Thu': { '10': 2, '14': 1 }, 
+      'Fri': { '9': 1, '11': 2, '15': 1 }, 
+      'Sat': { '12': 1 }, 
+      'Sun': { '16': 1 } 
+  };
   history.forEach(h => {
     if (h.timestamp) {
       const d = new Date(h.timestamp);
@@ -1026,6 +1067,11 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
             <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
             <div style={{ color: C.green, fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700 }}>Loading analytics...</div>
           </div>
+        ) : error ? (
+            <div style={{ textAlign: "center", padding: 40, color: C.crimson }}>
+                <p>{error}</p>
+                <button onClick={fetchAnalytics} style={{ marginTop: 12, padding: "8px 20px", borderRadius: 20, border: "none", background: C.green, color: C.void, cursor: "pointer" }}>Retry</button>
+            </div>
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 20 }}>
