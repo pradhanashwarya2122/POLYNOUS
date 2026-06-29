@@ -14,17 +14,12 @@ from cryptography.fernet import Fernet
 from app.database import get_db
 from app.models.user import User
 from app.oauth_config import *
+from app.routes.auth import create_access_token, create_refresh_token
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 SECRET_KEY = os.getenv("JWT_SECRET", "polynous-secret-key")
 ALGORITHM = "HS256"
-
-def create_token(user_id: int, email: str):
-    """Create JWT token"""
-    expire = datetime.utcnow() + timedelta(hours=24)
-    data = {"sub": str(user_id), "email": email, "exp": expire}
-    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
 def hash_password(password: str) -> str:
     """Hash password with SHA-256 + salt"""
@@ -91,11 +86,11 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
                 }
             )
             token_data = token_response.json()
-            access_token = token_data.get("access_token")
+            google_access_token = token_data.get("access_token")
             
             user_response = await client.get(
                 "https://www.googleapis.com/oauth2/v3/userinfo",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {google_access_token}"}
             )
             user_info = user_response.json()
         
@@ -111,12 +106,13 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
             provider="google"
         )
         
-        token = create_token(user.id, email)  # ✅ Now 'email' IS defined
+        access_token = create_access_token(user.id, user.public_id, user.email)
+        refresh_token = create_refresh_token(user.id, user.public_id, user.email)
         
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
         # ✅ FIXED: Add provider param + new_user/existing_user flags
-        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}&provider=google"
+        redirect_url = f"{frontend_url}/auth/callback?token={access_token}&refresh_token={refresh_token}&username={user.username}&email={email}&provider=google"
         if is_new_user:
             redirect_url += "&new_user=true"
         else:
@@ -159,11 +155,11 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
                 headers={"Accept": "application/json"}
             )
             token_data = token_response.json()
-            access_token = token_data.get("access_token")
+            github_access_token = token_data.get("access_token")
             
             user_response = await client.get(
                 "https://api.github.com/user",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {github_access_token}"}
             )
             user_info = user_response.json()
             
@@ -172,7 +168,7 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
             if not email:
                 email_response = await client.get(
                     "https://api.github.com/user/emails",
-                    headers={"Authorization": f"Bearer {access_token}"}
+                    headers={"Authorization": f"Bearer {github_access_token}"}
                 )
                 emails = email_response.json()
                 primary_email = next((e for e in emails if e.get("primary")), None)
@@ -188,12 +184,13 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
             provider="github"
         )
         
-        token = create_token(user.id, email)  # ✅ Now 'email' IS defined
+        access_token = create_access_token(user.id, user.public_id, user.email)
+        refresh_token = create_refresh_token(user.id, user.public_id, user.email)
         
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
         # ✅ FIXED: Add provider param + new_user/existing_user flags
-        redirect_url = f"{frontend_url}/auth/callback?access_token={token}&username={user.username}&email={email}&provider=github"
+        redirect_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&username={user.username}&email={email}&provider=github"
         if is_new_user:
             redirect_url += "&new_user=true"
         else:

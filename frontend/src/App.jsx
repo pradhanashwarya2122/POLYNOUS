@@ -22,14 +22,19 @@ const getInitialAuthState = () => {
   const token = localStorage.getItem('polynous_token')
   const userData = localStorage.getItem('polynous_user')
 
-  if (token && token !== 'guest_token' && userData) {
+  if (token && userData) {
     try {
       const parsed = JSON.parse(userData)
-      if (parsed.email && parsed.email !== 'guest@polynous.ai') {
+      // Only check for guest token — don't require specific fields
+      const isGuest = token.startsWith('guest_') || 
+                      (parsed.email && parsed.email === 'guest@polynous.ai')
+      
+      if (!isGuest) {
         return { isLoggedIn: true, user: parsed }
       }
-      localStorage.clear()
+      // ✅ Don't clear localStorage if check fails — just stay logged out
     } catch {
+      // ✅ Only clear if JSON is completely corrupted
       localStorage.clear()
     }
   }
