@@ -3,19 +3,24 @@
 <img width="160" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Brain.png" alt="POLYNOUS"/>
 
 <br/>
+
+<pre>
 ██████╗  ██████╗ ██╗  ██╗   ██╗███╗   ██╗ ██████╗ ██╗   ██╗███████╗
 ██╔══██╗██╔═══██╗██║  ╚██╗ ██╔╝████╗  ██║██╔═══██╗██║   ██║██╔════╝
 ██████╔╝██║   ██║██║   ╚████╔╝ ██╔██╗ ██║██║   ██║██║   ██║███████╗
 ██╔═══╝ ██║   ██║██║    ╚██╔╝  ██║╚██╗██║██║   ██║██║   ██║╚════██║
 ██║     ╚██████╔╝███████╗██║   ██║ ╚████║╚██████╔╝╚██████╔╝███████║
 ╚═╝      ╚═════╝ ╚══════╝╚═╝   ╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚══════╝
-# POLYNOUS
+</pre>
 
-### *Many Minds. One Answer.*
+<h1>POLYNOUS</h1>
 
-**A production-grade neural research operating system powered by seven specialized AI agents that collaborate in real-time to research, reason, debate, and deliver comprehensive, cited answers — faster and deeper than any single model ever could.**
+<h3><em>Many Minds. One Answer.</em></h3>
+
+<p><strong>A production-grade neural research operating system powered by seven specialized AI agents that collaborate in real-time to research, reason, debate, and deliver comprehensive, cited answers — faster and deeper than any single model ever could.</strong></p>
 
 <br/>
+</div>
 
 <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&duration=3000&pause=800&color=7C3AED&center=true&vCenter=true&multiline=false&width=700&lines=7+Agents.+1+Answer.;Real-time+web+search+%2B+debate+%2B+knowledge+graph;Built+for+researchers+who+demand+more." alt="Typing SVG" />
 
