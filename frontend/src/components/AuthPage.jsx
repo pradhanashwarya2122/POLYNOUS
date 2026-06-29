@@ -385,7 +385,6 @@ function LoginCard({ onLogin, oauthError }) {
         ? { email, password } 
         : { email, username: email.split('@')[0], password }
       
-      // ✅ FIXED: Use API_BASE_URL instead of hardcoded localhost
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -423,12 +422,11 @@ function LoginCard({ onLogin, oauthError }) {
       localStorage.setItem('polynous_user_id', data.user_id);
       localStorage.setItem('polynous_username', data.username || email.split('@')[0]);
       
-      if (!isLogin && onLogin) {
-        onLogin({ ...data, email, needs_profile_setup: true });
-      } else if (onLogin) {
-        onLogin(data);
+      // ✅ Always call onLogin — let App.jsx decide what to do
+      if (onLogin) {
+        onLogin(data)
       } else {
-        window.location.href = '/research';
+        window.location.href = '/research'
       }
     } catch (err) {
       setError(err.message || "Authentication failed.");
@@ -437,7 +435,6 @@ function LoginCard({ onLogin, oauthError }) {
     }
   };
 
-  // ✅ FIXED: Use API_BASE_URL for OAuth redirects
   const handleOAuth = (provider) => {
     window.location.href = `${API_BASE_URL}/oauth/${provider}`;
   };
@@ -481,7 +478,6 @@ function LoginCard({ onLogin, oauthError }) {
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.2em" }}>Cerebral Vitality Engine</p>
       </div>
 
-      {/* ── OAuth Error Banner ──────────────────────────────── */}
       {oauthError && (
         <div style={{
             padding: '12px 16px',
@@ -499,13 +495,11 @@ function LoginCard({ onLogin, oauthError }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         
-        {/* Toggle: Login / Sign Up */}
         <div style={{ display: "flex", background: C.white5, borderRadius: 14, padding: 4 }}>
           <button onClick={() => { setIsLogin(true); setError(''); setSuccess('') }} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: isLogin ? C.green : 'transparent', color: isLogin ? C.void : C.onSurfaceVariant, fontWeight: 600, fontSize: 14, fontFamily: "'Sora', sans-serif" }}>Login</button>
           <button onClick={() => { setIsLogin(false); setError(''); setSuccess('') }} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: !isLogin ? C.green : 'transparent', color: !isLogin ? C.void : C.onSurfaceVariant, fontWeight: 600, fontSize: 14, fontFamily: "'Sora', sans-serif" }}>Sign Up</button>
         </div>
 
-        {/* OAuth buttons */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <OAuthButton label="Google" onClick={() => handleOAuth("google")}>
             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -522,14 +516,12 @@ function LoginCard({ onLogin, oauthError }) {
           </OAuthButton>
         </div>
 
-        {/* Divider */}
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ flex: 1, borderTop: `1px solid ${C.white10}` }} />
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>Or connect via neural link</span>
           <div style={{ flex: 1, borderTop: `1px solid ${C.white10}` }} />
         </div>
 
-        {/* Form - Added Enter key support */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }} onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}>
           <NeuralInput label="Neural Identity (Email)" type="email" placeholder="researcher@neural.bank" icon="alternate_email" value={email} onChange={e => setEmail(e.target.value)} />
           <NeuralInput label="Cortex Key (Password)" type="password" placeholder="••••••••" icon="fingerprint" value={password} onChange={e => setPassword(e.target.value)} />
@@ -551,7 +543,6 @@ function LoginCard({ onLogin, oauthError }) {
           </button>
         </div>
 
-        {/* Skip Button - Continue as guest */}
         <button onClick={handleGuest} style={{ width: '100%', padding: '12px', background: 'transparent', border: `1px solid ${C.white10}`, borderRadius: 14, color: '#888', cursor: 'pointer', fontSize: 13, fontFamily: "'JetBrains Mono', monospace", transition: 'all 0.3s' }} onMouseEnter={e => { e.target.style.borderColor = '#00ccff'; e.target.style.color = '#00ccff' }} onMouseLeave={e => { e.target.style.borderColor = C.white10; e.target.style.color = '#888' }}>
           Skip for now → Continue as guest
         </button>
@@ -591,94 +582,27 @@ function Footer() {
 
 // ─── Root App ─────────────────────────────────────────────────
 export default function AuthPage({ onLogin }) {
-  const [profileSetupUser, setProfileSetupUser] = useState(null);
   const [authError, setAuthError] = useState(null);
 
-  // ✅ DETECT: OAuth new user redirected here
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const setupMode = params.get('setup')
-    const needsSetup = localStorage.getItem('polynous_needs_setup')
     const errorParam = params.get('error')
 
-    // Handle OAuth errors
     if (errorParam) {
       setAuthError(decodeURIComponent(errorParam))
       window.history.replaceState({}, document.title, window.location.pathname)
-      return
     }
 
-    // Handle new OAuth user needing profile setup
-    if (setupMode === 'new' || needsSetup === 'true') {
-      const userData = JSON.parse(localStorage.getItem('polynous_user') || '{}')
-      if (userData.email) {
-        setProfileSetupUser(userData)
-        localStorage.removeItem('polynous_needs_setup')
-        window.history.replaceState({}, document.title, window.location.pathname)
-      }
-    }
-
-    return () => {
-      // Cleanup
-    };
+    return () => {};
   }, [])
 
   const handleLogin = (data) => {
-    // ✅ CASE 1: Explicit flag from backend (email/password registration)
-    if (data.needs_profile_setup === true) {
-        setProfileSetupUser(data)
-        return
-    }
-    
-    // ✅ CASE 2: OAuth new user — check localStorage flag
-    const needsSetup = localStorage.getItem('polynous_needs_setup')
-    if (needsSetup === 'true') {
-        setProfileSetupUser(data)
-        return
-    }
-    
-    // ✅ CASE 3: Existing user — go to main app
+    // ✅ ALWAYS call onLogin — let App.jsx decide what to do
     if (onLogin) {
         onLogin(data)
     } else {
         window.location.href = '/research'
     }
-  }
-
-  const handleProfileComplete = (username) => {
-    const stored = JSON.parse(localStorage.getItem('polynous_user') || '{}')
-    localStorage.setItem('polynous_user', JSON.stringify({ ...stored, username }))
-    localStorage.setItem('polynous_username', username)
-    
-    if (onLogin) {
-      onLogin({ ...profileSetupUser, username })
-    } else {
-      window.location.href = '/research'
-    }
-    setProfileSetupUser(null)
-  }
-
-  // ✅ RENDER: Show ProfileSetup when needed
-  if (profileSetupUser) {
-    return (
-      <>
-        <GlobalStyles />
-        <NeuralCanvas />
-        <main style={{
-          position: "relative", zIndex: 10,
-          width: "100%", maxWidth: 480,
-          padding: "0 16px",
-          display: "flex", flexDirection: "column",
-        }}>
-          <ProfileSetup
-            email={profileSetupUser.email}
-            token={localStorage.getItem('polynous_token')}
-            onComplete={handleProfileComplete}
-          />
-          <Footer />
-        </main>
-      </>
-    )
   }
 
   return (
