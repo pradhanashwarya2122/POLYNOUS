@@ -351,7 +351,7 @@ function AuthFallback({ errorMsg, onRetry }) {
                 localStorage.setItem('polynous_user', JSON.stringify({ username: 'Guest', email: 'guest@polynous.ai', user_id: 'guest' }));
                 localStorage.setItem('polynous_user_id', 'guest');
                 localStorage.setItem('polynous_username', 'Guest');
-                window.location.href = '/dashboard';
+                window.location.href = '/research';
               }}
             >
               Continue as guest →

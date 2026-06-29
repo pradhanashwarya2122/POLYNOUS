@@ -196,7 +196,7 @@ export default function OAuthCallback({ onLogin }) {
         
         // Small delay so user sees the beautiful loading screen
         setTimeout(() => {
-            navigate('/dashboard')
+            navigate('/research')
         }, 800)
         return
     }

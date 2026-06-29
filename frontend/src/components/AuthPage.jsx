@@ -355,7 +355,7 @@ function AuthFallback({ errorMsg, onRetry }) {
             localStorage.setItem('polynous_user', JSON.stringify({ username: 'Guest', email: 'guest@polynous.ai', user_id: 'guest' }));
             localStorage.setItem('polynous_user_id', 'guest');
             localStorage.setItem('polynous_username', 'Guest');
-            window.location.href = '/dashboard';
+            window.location.href = '/research';
           }}
           style={{
             width: "100%", maxWidth: 320,
@@ -437,7 +437,7 @@ function LoginCard({ onLogin, oauthError }) {
       } else if (onLogin) {
         onLogin(data);
       } else {
-        window.location.href = '/dashboard';
+        window.location.href = '/research';
       }
     } catch (err) {
       setError(err.message || "Authentication failed.");
@@ -460,7 +460,7 @@ function LoginCard({ onLogin, oauthError }) {
     localStorage.setItem('polynous_user_id', 'guest')
     localStorage.setItem('polynous_username', 'Guest')
     if (onLogin) onLogin(guest)
-    else window.location.href = '/dashboard'
+    else window.location.href = '/research'
   };
 
   return (
@@ -623,7 +623,7 @@ export default function AuthPage({ onLogin }) {
     } else if (onLogin) {
       onLogin(data);
     } else {
-      window.location.href = '/dashboard';
+      window.location.href = '/research';
     }
   };
 
@@ -633,7 +633,7 @@ export default function AuthPage({ onLogin }) {
     if (onLogin) {
       onLogin({ ...profileSetupUser, username });
     } else {
-      window.location.href = '/dashboard';
+      window.location.href = '/research';
     }
     setProfileSetupUser(null);
   };
