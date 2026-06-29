@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 import httpx
 import os
 import json
+import uuid
+import secrets
+import hashlib
+from cryptography.fernet import Fernet
 
 from app.database import get_db
 from app.models.user import User
@@ -22,26 +26,24 @@ def create_token(user_id: int, email: str):
     data = {"sub": str(user_id), "email": email, "exp": expire}
     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
+def hash_password(password: str) -> str:
+    """Hash password with SHA-256 + salt"""
+    salt = os.urandom(32).hex()
+    hashed = hashlib.sha256((password + salt).encode()).hexdigest()
+    return f"{salt}${hashed}"
+
 def get_or_create_user(db: Session, email: str, username: str, avatar_url: str = "", provider: str = ""):
-    """Get existing user or create new one"""
+    """Get existing user or create new one with encryption_key"""
     user = db.query(User).filter(User.email == email).first()
     
     if not user:
-        # Create new user with random password (they'll use OAuth)
-        import secrets
-        import hashlib
-        import os
-
-        def hash_password(password: str) -> str:
-            salt = os.urandom(32).hex()
-            hashed = hashlib.sha256((password + salt).encode()).hexdigest()
-            return f"{salt}${hashed}"
-        
         user = User(
             email=email,
             username=username or email.split('@')[0],
             hashed_password=hash_password(secrets.token_urlsafe(32)),
-            tier="free"
+            tier="free",
+            encryption_key=Fernet.generate_key().decode(),  # ← FIXED: Added encryption_key
+            public_id=str(uuid.uuid4()),
         )
         db.add(user)
         db.commit()
@@ -75,7 +77,6 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
     
     try:
-        # Exchange code for token
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
@@ -90,14 +91,12 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
             token_data = token_response.json()
             access_token = token_data.get("access_token")
             
-            # Get user info
             user_response = await client.get(
                 "https://www.googleapis.com/oauth2/v3/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"}
             )
             user_info = user_response.json()
         
-        # Create or get user
         user = get_or_create_user(
             db=db,
             email=user_info.get("email"),
@@ -106,11 +105,9 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
             provider="google"
         )
         
-        # Create JWT token
         token = create_token(user.id, user.email)
-        
-        # Redirect to frontend with token
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
+        
         return RedirectResponse(
             url=f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={user.email}"
         )
@@ -138,7 +135,6 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
     
     try:
-        # Exchange code for token
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 "https://github.com/login/oauth/access_token",
@@ -153,14 +149,12 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
             token_data = token_response.json()
             access_token = token_data.get("access_token")
             
-            # Get user info
             user_response = await client.get(
                 "https://api.github.com/user",
                 headers={"Authorization": f"Bearer {access_token}"}
             )
             user_info = user_response.json()
             
-            # Get email (GitHub may not return email directly)
             email = user_info.get("email")
             if not email:
                 email_response = await client.get(
@@ -171,7 +165,6 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
                 primary_email = next((e for e in emails if e.get("primary")), None)
                 email = primary_email.get("email") if primary_email else f"{user_info['login']}@github.com"
         
-        # Create or get user
         user = get_or_create_user(
             db=db,
             email=email,
@@ -180,11 +173,9 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
             provider="github"
         )
         
-        # Create JWT token
         token = create_token(user.id, user.email)
-        
-        # Redirect to frontend with token
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
+        
         return RedirectResponse(
             url=f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
         )

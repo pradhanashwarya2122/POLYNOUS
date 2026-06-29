@@ -295,8 +295,87 @@ function Banner({ type, message }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FALLBACK PAGE — shown when OAuth fails or something goes wrong
+// ─────────────────────────────────────────────────────────────────────────────
+function AuthFallback({ errorMsg, onRetry }) {
+  return (
+    <div
+      className="fade-up"
+      style={{
+        background: "rgba(10,10,30,0.6)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: `1px solid ${C.white10}`,
+        borderRadius: 16,
+        padding: "40px 40px",
+        position: "relative",
+        overflow: "hidden",
+        boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 15px rgba(255,32,64,0.1)",
+        width: "100%",
+        textAlign: "center",
+      }}
+    >
+      <SynapseDot style={{ top: 16, left: 16 }} />
+      <SynapseDot style={{ top: 16, right: 16 }} />
+      <SynapseDot style={{ bottom: 16, left: 16 }} />
+      <SynapseDot style={{ bottom: 16, right: 16 }} />
+
+      <div style={{ marginBottom: 24 }}>
+        <div className="pulse-brain" style={{ fontSize: 48, marginBottom: 12, lineHeight: 1, color: "#ff2040", filter: "drop-shadow(0 0 10px rgba(255,32,64,0.6))" }}>⚠</div>
+        <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 28, fontWeight: 700, color: "#ff2040", letterSpacing: "-0.03em", marginBottom: 8 }}>Neural Link Failed</h1>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: C.onSurfaceVariant, lineHeight: 1.7, maxWidth: 340, margin: "0 auto" }}>
+          {errorMsg || "Unable to establish a secure connection. Please try again or continue as a guest."}
+        </p>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center" }}>
+        <button
+          onClick={onRetry || (() => window.location.reload())}
+          className="btn-glow-green"
+          style={{
+            width: "100%", maxWidth: 320,
+            border: "none", cursor: "pointer",
+            borderRadius: 9999, padding: "14px 32px",
+            fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700,
+            textTransform: "uppercase", letterSpacing: "0.1em",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+          }}
+        >
+          <Icon name="refresh" style={{ fontSize: 18, color: "#003a00" }} />
+          Retry
+        </button>
+
+        <button
+          onClick={() => {
+            const guest = { skip: true, username: 'Guest', email: 'guest@polynous.ai' };
+            const guestToken = 'guest_' + Date.now();
+            window.__POLYNOUS_ACCESS_TOKEN__ = guestToken;
+            localStorage.setItem('polynous_token', guestToken);
+            localStorage.setItem('polynous_user', JSON.stringify({ username: 'Guest', email: 'guest@polynous.ai', user_id: 'guest' }));
+            localStorage.setItem('polynous_user_id', 'guest');
+            localStorage.setItem('polynous_username', 'Guest');
+            window.location.href = '/dashboard';
+          }}
+          style={{
+            width: "100%", maxWidth: 320,
+            padding: '12px', background: 'transparent',
+            border: `1px solid ${C.white10}`, borderRadius: 14,
+            color: '#888', cursor: 'pointer', fontSize: 13,
+            fontFamily: "'JetBrains Mono', monospace", transition: 'all 0.3s',
+          }}
+          onMouseEnter={e => { e.target.style.borderColor = '#00ccff'; e.target.style.color = '#00ccff' }}
+          onMouseLeave={e => { e.target.style.borderColor = C.white10; e.target.style.color = '#888' }}
+        >
+          Continue as guest →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Login Card ───────────────────────────────────────────────
-function LoginCard({ onLogin }) {
+function LoginCard({ onLogin, oauthError }) {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
@@ -411,6 +490,22 @@ function LoginCard({ onLogin }) {
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.2em" }}>Cerebral Vitality Engine</p>
       </div>
 
+      {/* ── OAuth Error Banner ──────────────────────────────── */}
+      {oauthError && (
+        <div style={{
+            padding: '12px 16px',
+            background: 'rgba(255,32,64,0.1)',
+            border: '1px solid rgba(255,32,64,0.3)',
+            borderRadius: '12px',
+            color: '#ff2040',
+            fontSize: '13px',
+            marginBottom: '16px',
+            fontFamily: "'JetBrains Mono', monospace",
+        }}>
+            ⚠️ {decodeURIComponent(oauthError)}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         
         {/* Toggle: Login / Sign Up */}
@@ -504,11 +599,19 @@ function Footer() {
 }
 
 // ─── Root App ─────────────────────────────────────────────────
-export default function PolynousLoginV2({ onLogin }) {
+export default function AuthPage({ onLogin }) {
   const [profileSetupUser, setProfileSetupUser] = useState(null);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
-    // Your auth logic — ensure cleanup to prevent double execution
+    // Check URL params for OAuth errors
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    if (error) {
+      setAuthError(decodeURIComponent(error));
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     return () => {
       // Cleanup
     };
@@ -546,13 +649,21 @@ export default function PolynousLoginV2({ onLogin }) {
         padding: "0 16px",
         display: "flex", flexDirection: "column",
       }}>
-        {profileSetupUser ? (
+        {authError ? (
+          <AuthFallback
+            errorMsg={authError}
+            onRetry={() => {
+              setAuthError(null);
+              window.location.href = '/auth';
+            }}
+          />
+        ) : profileSetupUser ? (
           <ProfileSetup
             email={profileSetupUser.email}
             onComplete={handleProfileComplete}
           />
         ) : (
-          <LoginCard onLogin={handleLogin} />
+          <LoginCard onLogin={handleLogin} oauthError={authError} />
         )}
         <Footer />
       </main>

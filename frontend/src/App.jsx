@@ -222,6 +222,9 @@ export default function App() {
           element={<OAuthCallback onLogin={handleLogin} />} 
         />
 
+
+        
+        <Route path="/auth/callback" element={<OAuthCallback onLogin={handleLogin} />} />
         {/* ========== PROTECTED ROUTES ========== */}
         
         {/* Settings Page */}
