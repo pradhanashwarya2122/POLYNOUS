@@ -250,8 +250,11 @@ export default function OAuthCallback({ onLogin }) {
         localStorage.setItem('polynous_needs_setup', 'true')
         timers.push(setTimeout(() => {
           setActiveStep(3)
-          if (onLogin) onLogin({ token, username: safeUsername, email })  // ✅ Set auth state FIRST
-          navigate('/auth?setup=new', { replace: true })
+          if (onLogin) onLogin({ token, username: safeUsername, email })
+          // ✅ Small delay to let React state update before navigation
+          setTimeout(() => {
+            navigate('/auth?setup=new', { replace: true })
+          }, 100)
         }, 2500))
         return () => timers.forEach(clearTimeout)
       }
@@ -259,8 +262,11 @@ export default function OAuthCallback({ onLogin }) {
       // ✅ Existing user → research
       timers.push(setTimeout(() => {
         setActiveStep(3)
-        if (onLogin) onLogin({ token, username: safeUsername, email })  // ✅ Set auth state FIRST
-        navigate('/research', { replace: true })
+        if (onLogin) onLogin({ token, username: safeUsername, email })
+        // ✅ Small delay to let React state update before navigation
+        setTimeout(() => {
+          navigate('/research', { replace: true })
+        }, 100)
       }, 2500))
       return () => timers.forEach(clearTimeout)
     }

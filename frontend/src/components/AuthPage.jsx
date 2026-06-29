@@ -624,13 +624,24 @@ export default function AuthPage({ onLogin }) {
   }, [])
 
   const handleLogin = (data) => {
-    // ✅ FIXED: Only check the explicit flag
-    if (data.needs_profile_setup) {
-      setProfileSetupUser(data)
-    } else if (onLogin) {
-      onLogin(data)
+    // ✅ CASE 1: Explicit flag from backend (email/password registration)
+    if (data.needs_profile_setup === true) {
+        setProfileSetupUser(data)
+        return
+    }
+    
+    // ✅ CASE 2: OAuth new user — check localStorage flag
+    const needsSetup = localStorage.getItem('polynous_needs_setup')
+    if (needsSetup === 'true') {
+        setProfileSetupUser(data)
+        return
+    }
+    
+    // ✅ CASE 3: Existing user — go to main app
+    if (onLogin) {
+        onLogin(data)
     } else {
-      window.location.href = '/research'
+        window.location.href = '/research'
     }
   }
 
