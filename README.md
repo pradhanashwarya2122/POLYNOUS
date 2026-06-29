@@ -1,5 +1,3 @@
-<div align="center">
-
 ```
         ✦               ✧                    ✦          ✧              ✦
    ✧         ██████╗  ██████╗ ██╗  ██╗   ██╗███╗   ██╗ ██████╗ ██╗   ██╗███████╗        ✦
@@ -11,11 +9,15 @@
    ✧               ✦                    ✧               ✦                    ✧
 ```
 
+<div align="center">
+
 ### Many Minds. One Answer.
 
 *A production-grade neural research OS — seven specialized agents that search, debate, reason, and synthesize in real time.*
 
 <br/>
+
+</div>
 
 ![Version](https://img.shields.io/badge/v3.0.0-7c3aed?style=flat-square&labelColor=0a0a1e&label=version&color=7c3aed)
 ![Status](https://img.shields.io/badge/production--ready-16a34a?style=flat-square&labelColor=0a0a1e&label=status)
