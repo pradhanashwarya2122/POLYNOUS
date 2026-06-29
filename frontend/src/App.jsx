@@ -110,7 +110,13 @@ export default function App() {
       setShowProfileSetup(true)
       // Preferences will be loaded after profile setup completes (or later)
     } else if (data?.token) {
-      const userData = { username: data.username || 'User', email: data.email || '', isGuest: false }
+      // ✅ Always guarantee a valid username
+      const safeUsername = data.username || data.email?.split('@')[0] || 'User'
+      const userData = { 
+        username: safeUsername, 
+        email: data.email || '', 
+        isGuest: false 
+      }
       localStorage.setItem('polynous_token', data.token)
       localStorage.setItem('polynous_user', JSON.stringify(userData))
       setIsLoggedIn(true)

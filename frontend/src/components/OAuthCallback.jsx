@@ -237,7 +237,10 @@ export default function OAuthCallback({ onLogin }) {
     if (token && email) {
       localStorage.setItem('polynous_token', token)
       if (refreshToken) localStorage.setItem('polynous_refresh_token', refreshToken)
-      localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
+
+      // ✅ Ensure username is NEVER null
+      const safeUsername = username || email?.split('@')[0] || 'User'
+      localStorage.setItem('polynous_user', JSON.stringify({ username: safeUsername, email }))
 
       timers.push(setTimeout(() => setActiveStep(1), 700))
       timers.push(setTimeout(() => setActiveStep(2), 1400))
@@ -247,7 +250,7 @@ export default function OAuthCallback({ onLogin }) {
         localStorage.setItem('polynous_needs_setup', 'true')
         timers.push(setTimeout(() => {
           setActiveStep(3)
-          if (onLogin) onLogin({ token, username, email })  // ✅ Set auth state FIRST
+          if (onLogin) onLogin({ token, username: safeUsername, email })  // ✅ Set auth state FIRST
           navigate('/auth?setup=new', { replace: true })
         }, 2500))
         return () => timers.forEach(clearTimeout)
@@ -256,7 +259,7 @@ export default function OAuthCallback({ onLogin }) {
       // ✅ Existing user → research
       timers.push(setTimeout(() => {
         setActiveStep(3)
-        if (onLogin) onLogin({ token, username, email })  // ✅ Set auth state FIRST
+        if (onLogin) onLogin({ token, username: safeUsername, email })  // ✅ Set auth state FIRST
         navigate('/research', { replace: true })
       }, 2500))
       return () => timers.forEach(clearTimeout)
