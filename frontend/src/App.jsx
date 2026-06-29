@@ -1,7 +1,7 @@
 import SettingsPage from './components/SettingsPage'
 import ProfileSetup from './components/ProfileSetup'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Page imports
 import GraphFeatureShowcase from './components/GraphFeatureShowcase'
@@ -18,6 +18,9 @@ import PdfLabPage from './components/PdfLabPage';
 import PolynousDashboard from './components/PolynousDashboard';
 import { API_BASE_URL } from './config';
 
+// ═══════════════════════════════════════════════════════════════
+// INITIAL AUTH STATE — Safe, non‑destructive localStorage check
+// ═══════════════════════════════════════════════════════════════
 const getInitialAuthState = () => {
   const token = localStorage.getItem('polynous_token')
   const userData = localStorage.getItem('polynous_user')
@@ -25,112 +28,121 @@ const getInitialAuthState = () => {
   if (token && userData) {
     try {
       const parsed = JSON.parse(userData)
-      // Only check for guest token — don't require specific fields
+      // Only reject guest tokens — don't clear localStorage for missing fields
       const isGuest = token.startsWith('guest_') || 
                       (parsed.email && parsed.email === 'guest@polynous.ai')
-      
       if (!isGuest) {
         return { isLoggedIn: true, user: parsed }
       }
-      // ✅ Don't clear localStorage if check fails — just stay logged out
     } catch {
-      // ✅ Only clear if JSON is completely corrupted
+      // Only clear if JSON is completely corrupted
       localStorage.clear()
     }
   }
-
   return { isLoggedIn: false, user: null }
 }
 
-// ========== LOAD USER PREFERENCES ==========
+// ═══════════════════════════════════════════════════════════════
+// LOAD USER PREFERENCES
+// ═══════════════════════════════════════════════════════════════
 function loadUserPreferences(userEmail) {
-  const userId = userEmail || 'guest_user';
+  const userId = userEmail || 'guest_user'
   fetch(`${API_BASE_URL}/settings/preferences?user_id=${encodeURIComponent(userId)}`)
     .then(r => r.json())
     .then(data => {
-      console.log("✅ Applying preferences:", data);
-      // Set default mode
-      if (data.default_mode === 'debate') {
-        localStorage.setItem('polynous_default_mode', 'debate');
-      } else {
-        localStorage.setItem('polynous_default_mode', 'research');
-      }
-      // Store confidence threshold
-      if (data.confidence_threshold !== undefined) {
-        localStorage.setItem('polynous_confidence_threshold', data.confidence_threshold);
-      }
-      // Store response style
-      if (data.response_style) {
-        localStorage.setItem('polynous_response_style', data.response_style);
-      }
-      // Store streaming preference
-      if (data.streaming_enabled !== undefined) {
-        localStorage.setItem('polynous_streaming', data.streaming_enabled);
-      }
-      // Store auto-save preference
-      if (data.auto_save !== undefined) {
-        localStorage.setItem('polynous_autosave', data.auto_save);
-      }
-      // Store theme preference
-      if (data.theme) {
-        localStorage.setItem('polynous_theme', data.theme);
-      }
-      console.log("✅ Preferences applied to localStorage");
+      if (data.default_mode) localStorage.setItem('polynous_default_mode', data.default_mode)
+      if (data.confidence_threshold !== undefined) localStorage.setItem('polynous_confidence_threshold', data.confidence_threshold)
+      if (data.response_style) localStorage.setItem('polynous_response_style', data.response_style)
+      if (data.streaming_enabled !== undefined) localStorage.setItem('polynous_streaming', data.streaming_enabled)
+      if (data.auto_save !== undefined) localStorage.setItem('polynous_autosave', data.auto_save)
+      if (data.theme) localStorage.setItem('polynous_theme', data.theme)
     })
-    .catch(() => console.log("ℹ️ Using default preferences (backend not available)"));
+    .catch(() => console.log('ℹ️ Using default preferences'))
 }
 
-// ========== GLOBAL AUTH STATE ==========
+// ═══════════════════════════════════════════════════════════════
+// APP COMPONENT
+// ═══════════════════════════════════════════════════════════════
 export default function App() {
   const [initialAuth] = useState(getInitialAuthState)
   const [isLoggedIn, setIsLoggedIn] = useState(initialAuth.isLoggedIn)
   const [user, setUser] = useState(initialAuth.user)
-  const initialCheckDone = true
 
-  // --- NEW: state to show ProfileSetup after registration ---
-  const [showProfileSetup, setShowProfileSetup] = useState(false)
+  // ✅ NEW: Controls whether ProfileSetup is shown
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false)
 
-  // ========== AUTH HANDLERS ==========
+  // ✅ NEW: Detect OAuth new user flag on mount
+  useEffect(() => {
+    const needsSetup = localStorage.getItem('polynous_needs_setup')
+    if (needsSetup === 'true' && isLoggedIn) {
+      setNeedsProfileSetup(true)
+    }
+  }, [isLoggedIn])
+
+  // ═══════════════════════════════════════════════════════════
+  // AUTH HANDLERS
+  // ═══════════════════════════════════════════════════════════
   const handleLogin = (data) => {
+    console.log('🔑 handleLogin called with:', data)
+
+    // ✅ Profile setup just completed — clear flag only
+    if (data?.profile_setup_complete) {
+      setNeedsProfileSetup(false)
+      localStorage.removeItem('polynous_needs_setup')
+      return
+    }
+
+    // ✅ Guest login
     if (data?.skip) {
       const guestUser = { username: 'Guest', email: 'guest@polynous.ai', isGuest: true }
       localStorage.setItem('polynous_token', 'guest_' + Date.now())
       localStorage.setItem('polynous_user', JSON.stringify(guestUser))
       setIsLoggedIn(true)
       setUser(guestUser)
-      // Load preferences for guest
-      loadUserPreferences('guest_user');
-    } else if (data?.needs_profile_setup) {
-      // Brand new registration – store token, set basic user, then show ProfileSetup
+      setNeedsProfileSetup(false)
+      return
+    }
+
+    // ✅ Email/password registration — needs profile setup
+    if (data?.needs_profile_setup === true) {
       localStorage.setItem('polynous_token', data.token)
       const userData = { email: data.email, username: data.username || '' }
       localStorage.setItem('polynous_user', JSON.stringify(userData))
       setIsLoggedIn(true)
       setUser(userData)
-      setShowProfileSetup(true)
-      // Preferences will be loaded after profile setup completes (or later)
-    } else if (data?.token) {
-      // ✅ Always guarantee a valid username
+      setNeedsProfileSetup(true)
+      return
+    }
+
+    // ✅ Normal login (email/password or OAuth existing user)
+    if (data?.token) {
       const safeUsername = data.username || data.email?.split('@')[0] || 'User'
-      const userData = { 
-        username: safeUsername, 
-        email: data.email || '', 
-        isGuest: false 
-      }
+      const userData = { username: safeUsername, email: data.email || '', isGuest: false }
       localStorage.setItem('polynous_token', data.token)
       localStorage.setItem('polynous_user', JSON.stringify(userData))
       setIsLoggedIn(true)
       setUser(userData)
-      // Load preferences for logged-in user
-      if (data.email) loadUserPreferences(data.email);
-    } else if (data?.username) {
+
+      // ✅ Check if OAuth new user needs profile setup
+      const needsSetup = localStorage.getItem('polynous_needs_setup') === 'true'
+      if (needsSetup) {
+        setNeedsProfileSetup(true)
+      } else {
+        setNeedsProfileSetup(false)
+        if (data.email) loadUserPreferences(data.email)
+      }
+      return
+    }
+
+    // ✅ OAuth fallback (username + email, no token)
+    if (data?.username) {
       const userData = { username: data.username, email: data.email || '', isGuest: false }
       if (data.token) localStorage.setItem('polynous_token', data.token)
       localStorage.setItem('polynous_user', JSON.stringify(userData))
       setIsLoggedIn(true)
       setUser(userData)
-      // Load preferences for logged-in user
-      if (data.email) loadUserPreferences(data.email);
+      setNeedsProfileSetup(false)
+      if (data.email) loadUserPreferences(data.email)
     }
   }
 
@@ -138,45 +150,26 @@ export default function App() {
     localStorage.clear()
     setIsLoggedIn(false)
     setUser(null)
+    setNeedsProfileSetup(false)
     window.location.href = '/'
   }
 
-  // ========== NAVIGATION HELPERS ==========
-  const navigateTo = (path) => {
-    window.location.href = path
-  }
+  // ═══════════════════════════════════════════════════════════
+  // NAVIGATION HELPERS
+  // ═══════════════════════════════════════════════════════════
+  const navigateTo = (path) => { window.location.href = path }
+  const startResearch = (topic) => { window.location.href = `/research?query=${encodeURIComponent(topic)}` }
 
-  const startResearch = (topic) => {
-    window.location.href = `/research?query=${encodeURIComponent(topic)}`
-  }
-
-  // ========== LOADING STATE ==========
-  if (!initialCheckDone) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', display: 'flex', justifyContent: 'center', 
-        alignItems: 'center', background: '#0a0a1e', flexDirection: 'column', gap: 16 
-      }}>
-        <div style={{ 
-          width: 40, height: 40, borderRadius: '50%', 
-          border: '3px solid rgba(0,255,15,0.15)', borderTop: '3px solid #00ff0f',
-          animation: 'spin 1s linear infinite' 
-        }} />
-        <div style={{ color: '#00ff0f', fontFamily: "'Sora',sans-serif", fontWeight: 600, fontSize: 14 }}>
-          Initializing POLYNOUS
-        </div>
-        <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      </div>
-    )
-  }
-
-  // --- NEW: Show ProfileSetup if user just registered ---
-  if (isLoggedIn && showProfileSetup) {
+  // ═══════════════════════════════════════════════════════════
+  // PROFILE SETUP MODE — Full screen, bypasses Router
+  // ═══════════════════════════════════════════════════════════
+  if (needsProfileSetup && isLoggedIn) {
     return (
       <ProfileSetup 
         email={user?.email}
-        onComplete={async (username) => {
-          // Update username in backend
+        token={localStorage.getItem('polynous_token')}
+        onComplete={async (username, responseStyle) => {
+          // ✅ Update username on backend
           const token = localStorage.getItem('polynous_token')
           try {
             await fetch(`${API_BASE_URL}/auth/me`, {
@@ -190,191 +183,62 @@ export default function App() {
           } catch (e) {
             console.error('Failed to update username on backend', e)
           }
-          
-          // Update local state and localStorage
-          setUser(prev => ({ ...prev, username }))
-          localStorage.setItem('polynous_user', JSON.stringify({ ...user, username }))
-          setShowProfileSetup(false)
-          
-          // Optionally load preferences now
-          if (user?.email) loadUserPreferences(user.email);
+
+          // ✅ Update local state
+          const updatedUser = { ...user, username }
+          setUser(updatedUser)
+          localStorage.setItem('polynous_user', JSON.stringify(updatedUser))
+          localStorage.removeItem('polynous_needs_setup')
+          setNeedsProfileSetup(false)
+
+          // ✅ Load preferences now that profile is complete
+          if (user?.email) loadUserPreferences(user.email)
         }}
       />
     )
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // ROUTES
+  // ═══════════════════════════════════════════════════════════
   return (
     <Router>
       <Routes>
-        {/* ========== PUBLIC ROUTES ========== */}
-        
-        {/* Landing Page */}
+        {/* ── PUBLIC ROUTES ─────────────────────────────── */}
         <Route 
           path="/" 
-          element={
-            isLoggedIn 
-              ? <Navigate to="/research" replace /> 
-              : <PremiumHomepage user={user} onNavigate={navigateTo} />
-          } 
+          element={isLoggedIn ? <Navigate to="/research" replace /> : <PremiumHomepage user={user} onNavigate={navigateTo} />} 
         />
         
-        {/* Auth Page */}
+        {/* ✅ Auth page — allows access when profile setup is needed */}
         <Route 
           path="/auth" 
           element={
-            isLoggedIn 
+            isLoggedIn && !needsProfileSetup 
               ? <Navigate to="/research" replace /> 
               : <AuthPage onLogin={handleLogin} />
           } 
         />
         
-        {/* OAuth Callback */}
+        {/* ✅ OAuth Callback — only ONE route */}
         <Route 
           path="/auth/callback" 
           element={<OAuthCallback onLogin={handleLogin} />} 
         />
 
-        {/* ========== PROTECTED ROUTES ========== */}
-        
-        {/* Settings Page */}
-        <Route 
-          path="/settings" 
-          element={
-            isLoggedIn 
-              ? <SettingsPage 
-                  user={user} 
-                  onNavigate={(path) => window.location.href = path}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" />
-          } 
-        />
-        
-        {/* Research Interface */}
-        <Route 
-          path="/research" 
-          element={
-            isLoggedIn 
-              ? <ResearchInterface 
-                  user={user} 
-                  onNavigate={navigateTo} 
-                  onStartResearch={startResearch}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" replace />
-          } 
-        />
+        {/* ── PROTECTED ROUTES ──────────────────────────── */}
+        <Route path="/settings" element={isLoggedIn ? <SettingsPage user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" />} />
+        <Route path="/research" element={isLoggedIn ? <ResearchInterface user={user} onNavigate={navigateTo} onStartResearch={startResearch} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/debate" element={isLoggedIn ? <DebateInterface user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/graph" element={isLoggedIn ? <KnowledgeGraphPage user={user} onStartResearch={startResearch} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/graph3d" element={isLoggedIn ? <KnowledgeGraph3D onSwitchTo2D={() => window.location.href = '/graph'} /> : <Navigate to="/auth" />} />
+        <Route path="/graph-lab" element={isLoggedIn ? <GraphFeatureShowcase /> : <Navigate to="/auth" />} />
+        <Route path="/memory" element={isLoggedIn ? <MemoryBank user={user} onNavigate={navigateTo} onStartResearch={startResearch} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/search" element={isLoggedIn ? <SemanticSearchPage user={user} onStartResearch={startResearch} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/pdf-lab" element={isLoggedIn ? <PdfLabPage user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/analytics" element={isLoggedIn ? <PolynousDashboard user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
 
-        {/* Debate Interface */}
-        <Route 
-          path="/debate" 
-          element={
-            isLoggedIn 
-              ? <DebateInterface 
-                  user={user} 
-                  onNavigate={navigateTo}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" replace />
-          } 
-        />
-
-        {/* Knowledge Graph */}
-        <Route 
-          path="/graph" 
-          element={
-            isLoggedIn 
-              ? <KnowledgeGraphPage 
-                  user={user} 
-                  onStartResearch={startResearch}
-                  onNavigate={navigateTo}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" replace />
-          } 
-        />
-
-        {/* 3D Knowledge Graph */}
-        <Route 
-          path="/graph3d" 
-          element={
-            isLoggedIn 
-              ? <KnowledgeGraph3D 
-                  onSwitchTo2D={() => window.location.href = '/graph'} 
-                />
-              : <Navigate to="/auth" />
-          } 
-        />
-
-        {/* Graph Feature Showcase */}
-        <Route 
-          path="/graph-lab" 
-          element={
-            isLoggedIn 
-              ? <GraphFeatureShowcase />
-              : <Navigate to="/auth" />
-          } 
-        />
-
-        {/* Memory Bank */}
-        <Route 
-          path="/memory" 
-          element={
-            isLoggedIn 
-              ? <MemoryBank 
-                  user={user}
-                  onNavigate={navigateTo}
-                  onStartResearch={startResearch}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" replace />
-          } 
-        />
-
-        {/* Semantic Search */}
-        <Route 
-          path="/search" 
-          element={
-            isLoggedIn 
-              ? <SemanticSearchPage 
-                  user={user} 
-                  onStartResearch={startResearch}
-                  onNavigate={navigateTo}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" replace />
-          } 
-        />
-
-        {/* PDF Lab */}
-        <Route 
-          path="/pdf-lab" 
-          element={
-            isLoggedIn 
-              ? <PdfLabPage 
-                  user={user} 
-                  onNavigate={navigateTo}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" replace />
-          } 
-        />
-
-        {/* Analytics Dashboard */}
-        <Route 
-          path="/analytics" 
-          element={
-            isLoggedIn 
-              ? <PolynousDashboard 
-                  user={user} 
-                  onNavigate={navigateTo}
-                  onLogout={handleLogout}
-                />
-              : <Navigate to="/auth" replace />
-          } 
-        />
-
-        {/* ========== CATCH-ALL ========== */}
+        {/* ── CATCH-ALL ─────────────────────────────────── */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
