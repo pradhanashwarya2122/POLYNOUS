@@ -99,17 +99,23 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
             )
             user_info = user_response.json()
         
+        # ✅ EXTRACT email FIRST
+        email = user_info.get("email")
+        username = user_info.get("name") or email.split('@')[0] if email else "researcher"
+        
         user, is_new_user = get_or_create_user(
             db=db,
-            email=user_info.get("email"),
-            username=user_info.get("name") or user_info.get("email", "").split('@')[0],
+            email=email,
+            username=username,
             avatar_url=user_info.get("picture", ""),
             provider="google"
         )
         
-        token = create_token(user.id, user.email)
+        token = create_token(user.id, email)  # ✅ Now 'email' IS defined
+        
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
+        # ✅ FIXED: Use new_user flag
         redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
         if is_new_user:
             redirect_url += "&new_user=true"
@@ -161,6 +167,7 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
             )
             user_info = user_response.json()
             
+            # ✅ EXTRACT email
             email = user_info.get("email")
             if not email:
                 email_response = await client.get(
@@ -170,18 +177,22 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
                 emails = email_response.json()
                 primary_email = next((e for e in emails if e.get("primary")), None)
                 email = primary_email.get("email") if primary_email else f"{user_info['login']}@github.com"
+            
+            username = user_info.get("login") or user_info.get("name")
         
         user, is_new_user = get_or_create_user(
             db=db,
             email=email,
-            username=user_info.get("login") or user_info.get("name"),
+            username=username,
             avatar_url=user_info.get("avatar_url", ""),
             provider="github"
         )
         
-        token = create_token(user.id, user.email)
+        token = create_token(user.id, email)  # ✅ Now 'email' IS defined
+        
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
+        # ✅ FIXED: Use new_user flag
         redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
         if is_new_user:
             redirect_url += "&new_user=true"
