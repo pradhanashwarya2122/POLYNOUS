@@ -1887,45 +1887,58 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
 
   // ── Search ──
   const handleSearch = async (searchQuery) => {
-    const q = (searchQuery || query).trim(); if (!q) return
-    setLoading(true); setSearched(true); setSelectedResult(null); setShowSuggestions(false)
+    const q = (searchQuery || query).trim();
+    if (!q) return;
+    
+    setLoading(true);
+    setSearched(true);
+    setSelectedResult(null);
+    setShowSuggestions(false);
+    
     try {
-      const token = window.__POLYNOUS_ACCESS_TOKEN__ || 
-              localStorage.getItem('polynous_token') || '';
-
-const res = await fetch(`${API_BASE_URL}/search?query=${encodeURIComponent(q)}&top_k=12`, {
-    headers: {
-        'Authorization': token ? `Bearer ${token}` : ''
-    }
-})
-      if (res.ok) { const data = await res.json(); setResults(data.results || []) }
-      else setResults([])
+        const token = localStorage.getItem('polynous_token');
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+        
+        const res = await fetch(`${API_BASE_URL}/search?query=${encodeURIComponent(q)}&top_k=12`, { headers });
+        if (res.ok) {
+            const data = await res.json();
+            setResults(data.results || []);
+        } else {
+            setResults([]);
+        }
     } catch (err) {
-      console.error('Search error:', err); setResults([])
+        console.error('Search error:', err);
+        setResults([]);
     } finally {
-      setLoading(false)
+        setLoading(false);
     }
-  }
+  };
 
-  const handleInputChange = async value => {
-    setQuery(value)
+  const handleInputChange = async (value) => {
+    setQuery(value);
     if (value.length > 2) {
-      setShowSuggestions(true)
-      try {
-        const token = window.__POLYNOUS_ACCESS_TOKEN__ || 
-              localStorage.getItem('polynous_token') || '';
-
-const res = await fetch(`${API_BASE_URL}/search/suggestions?query=${encodeURIComponent(value)}&limit=5`, {
-    headers: {
-        'Authorization': token ? `Bearer ${token}` : ''
-    }
-})
-        if (res.ok) { const d = await res.json(); setSuggestions(d.suggestions || []) }
-      } catch { /* ignore */ }
+        setShowSuggestions(true);
+        try {
+            const token = localStorage.getItem('polynous_token');
+            const headers = {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+            
+            const res = await fetch(`${API_BASE_URL}/search/suggestions?query=${encodeURIComponent(value)}&limit=5`, { headers });
+            if (res.ok) {
+                const d = await res.json();
+                setSuggestions(d.suggestions || []);
+            }
+        } catch { /* ignore */ }
     } else {
-      setShowSuggestions(false); setSuggestions([])
+        setShowSuggestions(false);
+        setSuggestions([]);
     }
-  }
+  };
 
   const sidebarW = sidebarCollapsed ? 56 : 320
 

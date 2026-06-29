@@ -176,32 +176,29 @@ export default function OAuthCallback({ onLogin }) {
   useEffect(() => {
     setMounted(true)
     const params = new URLSearchParams(window.location.search)
-    const token = params.get('token')
+    
+    // Try both parameter formats (Google sends 'token', GitHub sends 'access_token')
+    const token = params.get('access_token') || params.get('token')
+    const refreshToken = params.get('refresh_token')
     const username = params.get('username')
     const email = params.get('email')
     const errorMsg = params.get('error')
 
-    // Handle backend error
     if (errorMsg) {
         console.error('OAuth Error:', decodeURIComponent(errorMsg))
         navigate('/auth?error=' + encodeURIComponent(errorMsg))
         return
     }
 
-    // Handle success
     if (token && username) {
         localStorage.setItem('polynous_token', token)
+        if (refreshToken) localStorage.setItem('polynous_refresh_token', refreshToken)
         localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
         if (onLogin) onLogin({ token, username, email })
-        
-        // Small delay so user sees the beautiful loading screen
-        setTimeout(() => {
-            navigate('/research')
-        }, 800)
+        setTimeout(() => navigate('/research'), 800)
         return
     }
 
-    // Missing parameters
     navigate('/auth?error=Authentication+failed')
   }, [navigate, onLogin])
 
@@ -223,7 +220,7 @@ export default function OAuthCallback({ onLogin }) {
           {/* Text */}
           <div className="text-block">
             <h2 className="heading">Signing you in</h2>
-            <p className="sub">Verifying your Google account…</p>
+            <p className="sub">Verifying your account…</p>
           </div>
 
           {/* Dots */}
