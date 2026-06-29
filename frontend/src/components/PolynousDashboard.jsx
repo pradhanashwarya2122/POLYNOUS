@@ -1084,11 +1084,9 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Premium Anton Heading */}
-            <div style={{ textAlign: "center", marginBottom: 36, paddingTop: 10, animation: "fadeSlideUp 0.6s ease both" }}>
+            <div style={{ marginBottom: 36, animation: "fadeSlideUp 0.6s ease both" }}>
               {/* SVG icon row above heading */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginBottom: 14 }}>
-                {/* Decorative line left */}
-                <div style={{ flex: 1, maxWidth: 80, height: 1, background: "linear-gradient(90deg, transparent, rgba(168,85,247,0.4))" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
                 {/* Bar chart icon */}
                 <div style={{
                   width: 42, height: 42, borderRadius: 12,
@@ -1119,8 +1117,6 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
                 }}>
                   <SvgTrendUp size={20} color={C.green} />
                 </div>
-                {/* Decorative line right */}
-                <div style={{ flex: 1, maxWidth: 80, height: 1, background: "linear-gradient(90deg, rgba(168,85,247,0.4), transparent)" }} />
               </div>
 
               {/* Anton heading */}
@@ -1128,7 +1124,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
                 Neural Analytics
               </h1>
 
-              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "3px", marginTop: 14 }}>
+              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "3px", marginTop: 14, textAlign: "left" }}>
                 Your research intelligence, decoded.
               </p>
             </div>
