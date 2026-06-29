@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const PHOTO_SRC = "data:image/jpeg;base64";
+const PHOTO_SRC = "C:\Users\Hp\Downloads\multi-agent-research-assistant\frontend\public\profilepic.jpg";
 
 const C = {
   green:"#00ff0f", cyan:"#00ccff", crimson:"#ff2040", gold:"#ffd700",
