@@ -6,6 +6,7 @@ const C = {
   gold: "#ffd700", void: "#0a0a1e", surface: "#111125", surfaceContainer: "#1e1e32",
   onSurface: "#e2e0fc", onSurfaceVariant: "#b9ccb0",
   textSecondary: "#8899aa", white10: "rgba(255,255,255,0.1)", white5: "rgba(255,255,255,0.05)",
+  fontDisplay: "'Anton', sans-serif",
 };
 
 const RAINBOW = ['#ff2040','#ff6b35','#ffd700','#00ff0f','#00ccff','#4dabf7','#a855f7','#ff6b9d'];
@@ -14,9 +15,80 @@ function Icon({ name, style }) {
   return <span style={{ fontFamily:"Material Symbols Outlined", fontVariationSettings:"'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24", lineHeight:1, ...(style||{}) }}>{name}</span>;
 }
 
+// ─── SVG ICON COMPONENTS ──────────────────────────────────────
+function SvgBarChart({ size = 22, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="10" width="4" height="11" rx="1" fill={color} opacity="0.7"/>
+      <rect x="10" y="5" width="4" height="16" rx="1" fill={color}/>
+      <rect x="17" y="7" width="4" height="14" rx="1" fill={color} opacity="0.85"/>
+      <line x1="2" y1="21.5" x2="22" y2="21.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.4"/>
+    </svg>
+  );
+}
+
+function SvgTrendUp({ size = 22, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="3,17 9,11 13,15 21,7" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <polyline points="15,7 21,7 21,13" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function SvgTag({ size = 22, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20.59 13.41L13.42 20.58a2 2 0 0 1-2.83 0L3 14V3h11l6.59 6.59a2 2 0 0 1 0 2.82z" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="7.5" cy="7.5" r="1.5" fill={color}/>
+    </svg>
+  );
+}
+
+function SvgTarget({ size = 22, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.8"/>
+      <circle cx="12" cy="12" r="6" stroke={color} strokeWidth="1.8" opacity="0.6"/>
+      <circle cx="12" cy="12" r="2" fill={color}/>
+    </svg>
+  );
+}
+
+function SvgMap({ size = 22, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke={color} strokeWidth="1.8"/>
+      <line x1="9" y1="4" x2="9" y2="20" stroke={color} strokeWidth="1.2" opacity="0.5"/>
+      <line x1="15" y1="4" x2="15" y2="20" stroke={color} strokeWidth="1.2" opacity="0.5"/>
+      <line x1="3" y1="10" x2="21" y2="10" stroke={color} strokeWidth="1.2" opacity="0.5"/>
+      <line x1="3" y1="16" x2="21" y2="16" stroke={color} strokeWidth="1.2" opacity="0.5"/>
+      <circle cx="6.5" cy="7.5" r="1" fill={color} opacity="0.6"/>
+      <circle cx="17" cy="13.5" r="1" fill={color} opacity="0.8"/>
+    </svg>
+  );
+}
+
+function SvgRefresh({ size = 18, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="23 4 23 10 17 10" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function SvgActivity({ size = 22, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 function Styles() {
   return <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&family=Material+Symbols+Outlined&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Anton&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&family=Material+Symbols+Outlined&display=swap');
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{background:#0a0a1e;color:#e2e0fc;font-family:'Hanken Grotesk',sans-serif;overflow-x:hidden}
     ::selection{background:rgba(0,255,15,0.25)}
@@ -33,6 +105,21 @@ function Styles() {
     .hover-tooltip{animation:fadeSlideUp 0.18s cubic-bezier(0.34,1.56,0.64,1) forwards;pointer-events:none}
     .topic-popup{animation:popIn 0.2s cubic-bezier(0.34,1.56,0.64,1) forwards;pointer-events:none}
     .topics-expanded{animation:fadeSlideUp 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards}
+    .analytics-heading {
+      font-family: 'Anton', sans-serif;
+      font-size: clamp(3.4rem, 7.5vw, 6rem);
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      line-height: 0.95;
+      background: linear-gradient(90deg, #ff2040 0%, #ff6b35 14%, #ffd700 28%, #00ff0f 42%, #00ccff 57%, #4dabf7 71%, #a855f7 85%, #ff2040 100%);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: rainbow-shift 4s ease infinite;
+      filter: drop-shadow(0 0 40px rgba(168,85,247,0.35));
+    }
   `}</style>;
 }
 
@@ -109,7 +196,7 @@ function Sparkline({ data, color }) {
   return <canvas ref={ref} width={80} height={30} style={{opacity:0.6}}/>;
 }
 
-// ─── ACTIVITY CHART — RAINBOW (enhanced with hover + period fix) ──
+// ─── ACTIVITY CHART ──────────────────────────────────────────
 function ActivityChart({ data, period }) {
   const ref = useRef(null);
   const wrapRef = useRef(null);
@@ -123,7 +210,6 @@ function ActivityChart({ data, period }) {
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
     ctx.scale(dpr, dpr); ctx.clearRect(0, 0, W, H);
 
-    // Slice entries based on period
     const allEntries = Object.entries(data || {});
     const limit = period === '7D' ? 7 : period === '30D' ? 30 : 90;
     const entries = allEntries.slice(-limit);
@@ -134,7 +220,6 @@ function ActivityChart({ data, period }) {
     const padL = 28, padR = 10, padT = 16, padB = 48;
     const w = W - padL - padR, h = H - padT - padB;
 
-    // Grid
     for (let i = 0; i <= 4; i++) {
       const y = padT + (h / 4) * i;
       ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
@@ -151,7 +236,6 @@ function ActivityChart({ data, period }) {
 
     pointsRef.current = pts.map(p => ({ x: p.x, y: p.y }));
 
-    // Rainbow fill
     const fillGrad = ctx.createLinearGradient(padL, 0, W - padR, 0);
     RAINBOW.forEach((c, i) => fillGrad.addColorStop(i / (RAINBOW.length - 1), c + '40'));
     ctx.beginPath(); ctx.moveTo(pts[0].x, padT + h); ctx.lineTo(pts[0].x, pts[0].y);
@@ -159,7 +243,6 @@ function ActivityChart({ data, period }) {
     ctx.lineTo(pts[pts.length - 1].x, padT + h); ctx.closePath();
     ctx.fillStyle = fillGrad; ctx.fill();
 
-    // Vertical fade
     const vFade = ctx.createLinearGradient(0, padT, 0, padT + h);
     vFade.addColorStop(0, 'rgba(0,0,0,0)'); vFade.addColorStop(1, 'rgba(10,10,30,0.6)');
     ctx.beginPath(); ctx.moveTo(pts[0].x, padT + h); ctx.lineTo(pts[0].x, pts[0].y);
@@ -167,21 +250,18 @@ function ActivityChart({ data, period }) {
     ctx.lineTo(pts[pts.length - 1].x, padT + h); ctx.closePath();
     ctx.fillStyle = vFade; ctx.fill();
 
-    // Hover vertical guide line
     if (hoveredIdx !== null && hoveredIdx !== undefined && pts[hoveredIdx]) {
       const hp = pts[hoveredIdx];
       ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
       ctx.beginPath(); ctx.moveTo(hp.x, padT); ctx.lineTo(hp.x, padT + h); ctx.stroke(); ctx.setLineDash([]);
     }
 
-    // Rainbow stroke line
     const lineGrad = ctx.createLinearGradient(padL, 0, W - padR, 0);
     RAINBOW.forEach((c, i) => lineGrad.addColorStop(i / (RAINBOW.length - 1), c));
     ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length; i++) { const cpx = (pts[i - 1].x + pts[i].x) / 2; ctx.bezierCurveTo(cpx, pts[i - 1].y, cpx, pts[i].y, pts[i].x, pts[i].y); }
     ctx.strokeStyle = lineGrad; ctx.lineWidth = 3; ctx.shadowBlur = 16; ctx.shadowColor = 'rgba(0,204,255,0.5)'; ctx.stroke(); ctx.shadowBlur = 0;
 
-    // Dots
     pts.forEach((p, i) => {
       const isHovered = i === hoveredIdx;
       ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
@@ -197,7 +277,6 @@ function ActivityChart({ data, period }) {
       ctx.beginPath(); ctx.arc(p.x, p.y, isHovered ? 3 : 2, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
     });
 
-    // X-axis labels
     const skip = Math.ceil(entries.length / 7);
     entries.forEach(([label], i) => {
       if (i % skip !== 0 && i !== entries.length - 1) return;
@@ -222,7 +301,6 @@ function ActivityChart({ data, period }) {
     const canvas = ref.current; if (!canvas) return;
     const rect = wrapRef.current.getBoundingClientRect();
     const mx = e.clientX - rect.left;
-    const dpr = window.devicePixelRatio || 1;
 
     const allEntries = Object.entries(data || {});
     const limit = period === '7D' ? 7 : period === '30D' ? 30 : 90;
@@ -294,7 +372,7 @@ function ActivityChart({ data, period }) {
   );
 }
 
-// ─── TOPICS CHART with hover popup ────────────────────────────
+// ─── TOPICS CHART ─────────────────────────────────────────────
 function TopicsChart({ data }) {
   const ref = useRef(null);
   const wrapRef = useRef(null);
@@ -411,7 +489,7 @@ function TopicsChart({ data }) {
   );
 }
 
-// ─── CONFIDENCE RING with hover tooltip ──────────────────────
+// ─── CONFIDENCE RING ─────────────────────────────────────────
 function ConfidenceRing({ distribution }) {
   const ref = useRef(null);
   const wrapRef = useRef(null);
@@ -519,7 +597,7 @@ function ConfidenceRing({ distribution }) {
   );
 }
 
-// ─── HEATMAP with enhanced cell tooltip + click ────────────────
+// ─── HEATMAP ──────────────────────────────────────────────────
 function HeatmapChart({ data, activityData }) {
   const ref = useRef(null);
   const wrapRef = useRef(null);
@@ -529,8 +607,6 @@ function HeatmapChart({ data, activityData }) {
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // Build a date label for each (day, hour) cell
-  // We map each day-of-week to the most recent occurrence within the past 7 days
   const dayDateMap = useCallback(() => {
     const map = {};
     const now = new Date();
@@ -558,7 +634,6 @@ function HeatmapChart({ data, activityData }) {
     let maxVal = 1;
     if (data) Object.values(data).forEach(hours => Object.values(hours).forEach(v => { if (v > maxVal) maxVal = v; }));
 
-    // Hour labels along bottom
     ctx.fillStyle = 'rgba(136,153,170,0.6)'; ctx.font = '8px "JetBrains Mono"'; ctx.textAlign = 'center';
     for (let h = 0; h < 24; h += 3) {
       const x = padL + h * cw + cw / 2;
@@ -641,7 +716,6 @@ function HeatmapChart({ data, activityData }) {
       onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} onClick={handleClick}>
       <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block', cursor: 'pointer' }} />
 
-      {/* Hover tooltip */}
       {tooltip && (
         <div className="hover-tooltip" style={{
           position: 'absolute', left: tooltip.x, top: tooltip.y,
@@ -663,7 +737,6 @@ function HeatmapChart({ data, activityData }) {
         </div>
       )}
 
-      {/* Day detail modal */}
       {dayModal && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500,
@@ -719,7 +792,7 @@ function StatCard({ icon, color, label, value, trend }) {
   );
 }
 
-// ─── SIDEBAR — UNCHANGED ─────────────────────────────────────
+// ─── SIDEBAR ─────────────────────────────────────────────────
 function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
   const NAV = [
     { icon: "travel_explore", label: "Research", path: "/research" },
@@ -729,7 +802,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
     { icon: "database", label: "Memory Bank", path: "/memory" },
     { icon: "picture_as_pdf", label: "PDF Lab", path: "/pdf-lab" },
     { icon: "analytics", label: "Analytics", path: "/analytics", active: true },
-     { icon: "settings", label: "Settings", path: "/settings" },
+    { icon: "settings", label: "Settings", path: "/settings" },
   ];
   const handleNav = (p) => onNavigate ? onNavigate(p) : (window.location.href = p);
   const handleLogout = () => onLogout ? onLogout() : (localStorage.clear(), window.location.href = '/');
@@ -779,12 +852,12 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
   );
 }
 
-// ─── CARD HEADING helper ──────────────────────────────────────
-function CardHeading({ emoji, title, badge }) {
+// ─── CARD HEADING ─────────────────────────────────────────────
+function CardHeading({ svgIcon, title, badge }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>{emoji}</span>
+      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 10 }}>
+        {svgIcon && <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>{svgIcon}</span>}
         <span style={{ background: "linear-gradient(90deg,#fff 60%,rgba(255,255,255,0.5))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{title}</span>
       </h3>
       {badge && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, background: "rgba(255,255,255,0.05)", padding: "3px 10px", borderRadius: 9999 }}>{badge}</span>}
@@ -792,11 +865,11 @@ function CardHeading({ emoji, title, badge }) {
   );
 }
 
-// ─── HOT TOPICS CARD with "View All" expansion ────────────────
+// ─── HOT TOPICS CARD ──────────────────────────────────────────
 function TopicsCard({ topicFreq }) {
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('count'); // 'count' | 'alpha'
+  const [sortBy, setSortBy] = useState('count');
 
   const allEntries = Object.entries(topicFreq).sort((a, b) => b[1] - a[1]);
 
@@ -806,21 +879,22 @@ function TopicsCard({ topicFreq }) {
 
   return (
     <div className="card-glow" style={{ background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)", border: "1px solid " + C.white10, borderRadius: 20, padding: 22, height: 360, display: "flex", flexDirection: "column" }}>
-      <CardHeading emoji="🏷️" title="Top Topics" badge={Object.keys(topicFreq).length + ' found'} />
+      <CardHeading
+        svgIcon={<SvgTag size={20} color={C.cyan} />}
+        title="Top Topics"
+        badge={Object.keys(topicFreq).length + ' found'}
+      />
 
       {Object.keys(topicFreq).length === 0 && (
         <div style={{ color: C.textSecondary, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, textAlign: "center", padding: 20 }}>No topics extracted yet</div>
       )}
 
-      {/* Normal chart view — always visible */}
       <div style={{ flex: 1, minHeight: 0, display: expanded ? 'none' : 'block' }}>
         <TopicsChart data={topicFreq} />
       </div>
 
-      {/* Expanded topics panel */}
       {expanded && (
         <div className="topics-expanded" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {/* Search + sort controls */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
             <input
               type="text"
@@ -849,7 +923,6 @@ function TopicsCard({ topicFreq }) {
             </button>
           </div>
 
-          {/* Scrollable list */}
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, paddingRight: 2 }}>
             {filteredAll.map(([label, val], i) => {
               const color = RAINBOW[i % RAINBOW.length];
@@ -868,7 +941,6 @@ function TopicsCard({ topicFreq }) {
                 >
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: `0 0 5px ${color}`, flexShrink: 0 }} />
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: '#e2e0fc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-                  {/* Mini bar */}
                   <div style={{ width: 50, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
                     <div style={{ width: pct + '%', height: '100%', background: color, borderRadius: 2 }} />
                   </div>
@@ -883,7 +955,6 @@ function TopicsCard({ topicFreq }) {
         </div>
       )}
 
-      {/* Toggle button */}
       {Object.keys(topicFreq).length > 0 && (
         <button
           onClick={() => { setExpanded(!expanded); setSearch(''); }}
@@ -920,36 +991,18 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
     setLoading(true);
     try {
         const token = localStorage.getItem('polynous_token');
-        
-        if (!token) {
-            console.warn('No auth token — analytics will be empty');
-            setLoading(false);
-            return;
-        }
-        
+        if (!token) { console.warn('No auth token — analytics will be empty'); setLoading(false); return; }
         const base = API_BASE_URL || 'http://localhost:8000';
-        
-        const headers = {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
-        
+        const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
         const [sRes, hRes, dRes] = await Promise.all([
             fetch(`${base}/memory/stats`, { headers }),
             fetch(`${base}/memory/history`, { headers }),
             fetch(`${base}/memory/debates`, { headers }),
         ]);
-        
         const statsData = await sRes.json();
         const historyData = await hRes.json();
         const debatesData = await dRes.json();
-        
-        setStats({
-            totalQueries: statsData.total_research || 0,
-            totalDebates: statsData.total_debates || 0,
-            avgConfidence: statsData.avg_confidence || 0,
-            uniqueTopics: statsData.unique_topics || 0
-        });
+        setStats({ totalQueries: statsData.total_research || 0, totalDebates: statsData.total_debates || 0, avgConfidence: statsData.avg_confidence || 0, uniqueTopics: statsData.unique_topics || 0 });
         setHistory(historyData.history || []);
         setDebates(debatesData.debates || []);
     } catch (e) {
@@ -962,7 +1015,6 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
 
   const confTrend = history.map(h => h.confidence || 0).slice(-10);
 
-  // ── Activity data: generate all 90 days worth, slice in chart by period ──
   const activityData = {};
   const now = new Date();
   for (let i = 89; i >= 0; i--) {
@@ -976,7 +1028,6 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
       if (activityData[date] !== undefined) activityData[date]++;
     }
   });
-  // Fallback demo data if empty — only on localhost
   const hasRealActivity = history.some(h => h.timestamp);
   if (!hasRealActivity && window.location.hostname === 'localhost') {
     for (let i = 89; i >= 0; i--) {
@@ -1002,21 +1053,12 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
   const highCount = history.filter(h => (h.confidence || 0) >= 80).length;
   const mediumCount = history.filter(h => (h.confidence || 0) >= 60 && (h.confidence || 0) < 80).length;
   const lowCount = history.filter(h => (h.confidence || 0) < 60).length;
-  const confDist = useMemo(() => ({
-      high: highCount || 0,
-      medium: mediumCount || 0,
-      low: lowCount || 0
-  }), [highCount, mediumCount, lowCount]);
+  const confDist = useMemo(() => ({ high: highCount || 0, medium: mediumCount || 0, low: lowCount || 0 }), [highCount, mediumCount, lowCount]);
 
-  // Start empty if we have real data
-  const hourlyData = history.length > 0 ? {} : { 
-      'Mon': { '9': 1, '10': 2, '14': 1 }, 
-      'Tue': { '11': 1, '15': 2 }, 
-      'Wed': { '9': 1, '13': 1, '16': 3 }, 
-      'Thu': { '10': 2, '14': 1 }, 
-      'Fri': { '9': 1, '11': 2, '15': 1 }, 
-      'Sat': { '12': 1 }, 
-      'Sun': { '16': 1 } 
+  const hourlyData = history.length > 0 ? {} : {
+    'Mon': { '9': 1, '10': 2, '14': 1 }, 'Tue': { '11': 1, '15': 2 },
+    'Wed': { '9': 1, '13': 1, '16': 3 }, 'Thu': { '10': 2, '14': 1 },
+    'Fri': { '9': 1, '11': 2, '15': 1 }, 'Sat': { '12': 1 }, 'Sun': { '16': 1 }
   };
   history.forEach(h => {
     if (h.timestamp) {
@@ -1040,38 +1082,84 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Premium Anton Heading */}
             <div style={{ textAlign: "center", marginBottom: 36, paddingTop: 10, animation: "fadeSlideUp 0.6s ease both" }}>
-              <h1 style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(2rem,4.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 10px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <span>📊</span>
-                <span style={{ background: "linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff0f, #00ccff, #a855f7, #ff2040)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 25px rgba(168,85,247,0.4))" }}>
-                  Neural Analytics
-                </span>
+              {/* SVG icon row above heading */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginBottom: 14 }}>
+                {/* Decorative line left */}
+                <div style={{ flex: 1, maxWidth: 80, height: 1, background: "linear-gradient(90deg, transparent, rgba(168,85,247,0.4))" }} />
+                {/* Bar chart icon */}
+                <div style={{
+                  width: 42, height: 42, borderRadius: 12,
+                  background: "rgba(0,204,255,0.08)",
+                  border: "1px solid rgba(0,204,255,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 18px rgba(0,204,255,0.15)",
+                }}>
+                  <SvgBarChart size={22} color={C.cyan} />
+                </div>
+                {/* Activity pulse icon */}
+                <div style={{
+                  width: 42, height: 42, borderRadius: 12,
+                  background: "rgba(168,85,247,0.08)",
+                  border: "1px solid rgba(168,85,247,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 18px rgba(168,85,247,0.15)",
+                }}>
+                  <SvgActivity size={20} color={C.purple} />
+                </div>
+                {/* Trend up icon */}
+                <div style={{
+                  width: 42, height: 42, borderRadius: 12,
+                  background: "rgba(0,255,15,0.08)",
+                  border: "1px solid rgba(0,255,15,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 18px rgba(0,255,15,0.15)",
+                }}>
+                  <SvgTrendUp size={20} color={C.green} />
+                </div>
+                {/* Decorative line right */}
+                <div style={{ flex: 1, maxWidth: 80, height: 1, background: "linear-gradient(90deg, rgba(168,85,247,0.4), transparent)" }} />
+              </div>
+
+              {/* Anton heading */}
+              <h1 className="analytics-heading">
+                Neural Analytics
               </h1>
-              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "3px" }}>Your research intelligence, decoded.</p>
+
+              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "3px", marginTop: 14 }}>
+                Your research intelligence, decoded.
+              </p>
             </div>
             <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, color: C.textSecondary }}>Your research patterns, visualized</p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
             <div style={{ display: "flex", background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)", border: "1px solid " + C.white10, borderRadius: 9999, padding: 4 }}>
               {['7D', '30D', '90D'].map(p => (
                 <button key={p} onClick={() => setPeriod(p)} className={`period-btn ${period === p ? 'period-btn-active' : 'period-btn-inactive'}`}>{p}</button>
               ))}
             </div>
-            <button onClick={fetchAnalytics} style={{ padding: "10px 20px", borderRadius: 25, border: "none", background: C.green, color: C.void, fontWeight: 700, cursor: "pointer", fontFamily: "'Sora',sans-serif", fontSize: 13, boxShadow: "0 0 20px rgba(0,255,15,0.2)" }}>🔄 Refresh</button>
+            <button onClick={fetchAnalytics} style={{ padding: "10px 20px", borderRadius: 25, border: "none", background: C.green, color: C.void, fontWeight: 700, cursor: "pointer", fontFamily: "'Sora',sans-serif", fontSize: 13, boxShadow: "0 0 20px rgba(0,255,15,0.2)", display: "flex", alignItems: "center", gap: 7 }}>
+              <SvgRefresh size={16} color={C.void} />
+              Refresh
+            </button>
           </div>
         </div>
 
         {loading ? (
           <div style={{ textAlign: "center", padding: 60 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+              <SvgBarChart size={52} color={C.green} />
+            </div>
             <div style={{ color: C.green, fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700 }}>Loading analytics...</div>
           </div>
         ) : error ? (
-            <div style={{ textAlign: "center", padding: 40, color: C.crimson }}>
-                <p>{error}</p>
-                <button onClick={fetchAnalytics} style={{ marginTop: 12, padding: "8px 20px", borderRadius: 20, border: "none", background: C.green, color: C.void, cursor: "pointer" }}>Retry</button>
-            </div>
+          <div style={{ textAlign: "center", padding: 40, color: C.crimson }}>
+            <p>{error}</p>
+            <button onClick={fetchAnalytics} style={{ marginTop: 12, padding: "8px 20px", borderRadius: 20, border: "none", background: C.green, color: C.void, cursor: "pointer" }}>Retry</button>
+          </div>
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 20 }}>
@@ -1084,9 +1172,12 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
             {/* Row 1 */}
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
               <div className="card-glow" style={{ background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)", border: "1px solid " + C.white10, borderRadius: 20, padding: 22, height: 360, display: "flex", flexDirection: "column" }}>
-                <CardHeading emoji="📈" title="Research Activity" badge={Object.values(activityData).reduce((a, b) => a + b, 0) + ' sessions'} />
+                <CardHeading
+                  svgIcon={<SvgTrendUp size={20} color={C.cyan} />}
+                  title="Research Activity"
+                  badge={Object.values(activityData).reduce((a, b) => a + b, 0) + ' sessions'}
+                />
                 <div style={{ flex: 1, minHeight: 0 }}>
-                  {/* Pass period so chart can slice correctly */}
                   <ActivityChart data={activityData} period={period} />
                 </div>
               </div>
@@ -1098,7 +1189,10 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14, paddingBottom: 40 }}>
               <div className="card-glow" style={{ background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)", border: "1px solid " + C.white10, borderRadius: 20, padding: 22, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 320 }}>
                 <div style={{ width: '100%', marginBottom: 4 }}>
-                  <CardHeading emoji="🎯" title="Confidence" />
+                  <CardHeading
+                    svgIcon={<SvgTarget size={20} color={C.green} />}
+                    title="Confidence"
+                  />
                 </div>
                 <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, marginBottom: 16, alignSelf: "flex-start" }}>Answer quality distribution</p>
                 <ConfidenceRing distribution={confDist} />
@@ -1106,8 +1200,8 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
 
               <div className="card-glow" style={{ background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)", border: "1px solid " + C.white10, borderRadius: 20, padding: 22, minHeight: 320, display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>🗺️</span>
+                  <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ display: 'flex', alignItems: 'center' }}><SvgMap size={20} color={C.purple} /></span>
                     <span style={{ background: "linear-gradient(90deg,#fff 60%,rgba(255,255,255,0.5))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Activity Heatmap</span>
                   </h3>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
