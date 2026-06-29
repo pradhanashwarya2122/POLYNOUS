@@ -1,3 +1,4 @@
+```python
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -33,8 +34,9 @@ def hash_password(password: str) -> str:
     return f"{salt}${hashed}"
 
 def get_or_create_user(db: Session, email: str, username: str, avatar_url: str = "", provider: str = ""):
-    """Get existing user or create new one with encryption_key"""
+    """Get existing user or create new one with encryption_key. Returns (user, is_new_user)."""
     user = db.query(User).filter(User.email == email).first()
+    is_new_user = False
     
     if not user:
         user = User(
@@ -48,13 +50,14 @@ def get_or_create_user(db: Session, email: str, username: str, avatar_url: str =
         db.add(user)
         db.commit()
         db.refresh(user)
+        is_new_user = True
         print(f"✅ New user created: {email} (via {provider})")
     else:
         user.last_login = datetime.utcnow()
         db.commit()
         print(f"✅ Existing user logged in: {email} (via {provider})")
     
-    return user
+    return user, is_new_user
 
 # ========== GOOGLE OAUTH ==========
 @router.get("/google")
@@ -97,7 +100,7 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
             )
             user_info = user_response.json()
         
-        user = get_or_create_user(
+        user, is_new_user = get_or_create_user(
             db=db,
             email=user_info.get("email"),
             username=user_info.get("name") or user_info.get("email", "").split('@')[0],
@@ -108,9 +111,13 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
         token = create_token(user.id, user.email)
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
-        return RedirectResponse(
-            url=f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={user.email}"
-        )
+        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={user.email}"
+        if is_new_user:
+            redirect_url += "&existing_user=false"
+        else:
+            redirect_url += "&existing_user=true"
+        
+        return RedirectResponse(url=redirect_url)
         
     except Exception as e:
         print(f"Google OAuth error: {e}")
@@ -165,7 +172,7 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
                 primary_email = next((e for e in emails if e.get("primary")), None)
                 email = primary_email.get("email") if primary_email else f"{user_info['login']}@github.com"
         
-        user = get_or_create_user(
+        user, is_new_user = get_or_create_user(
             db=db,
             email=email,
             username=user_info.get("login") or user_info.get("name"),
@@ -176,10 +183,15 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
         token = create_token(user.id, user.email)
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
-        return RedirectResponse(
-            url=f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
-        )
+        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
+        if is_new_user:
+            redirect_url += "&existing_user=false"
+        else:
+            redirect_url += "&existing_user=true"
+        
+        return RedirectResponse(url=redirect_url)
         
     except Exception as e:
         print(f"GitHub OAuth error: {e}")
         raise HTTPException(status_code=400, detail=f"OAuth failed: {str(e)}")
+```

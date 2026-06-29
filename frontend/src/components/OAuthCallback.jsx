@@ -232,10 +232,24 @@ export default function OAuthCallback({ onLogin }) {
       localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
       if (onLogin) onLogin({ token, username, email })
 
-      // Animate through steps then redirect
+      // Animate through steps then check if new user
       const t1 = setTimeout(() => setActiveStep(1), 700)
       const t2 = setTimeout(() => setActiveStep(2), 1400)
-      const t3 = setTimeout(() => { setActiveStep(3); navigate('/research', { replace: true }) }, 2500)
+      const t3 = setTimeout(() => {
+        setActiveStep(3)
+
+        // Check if user needs profile setup (new users from OAuth)
+        const isNewUser = !params.get('existing_user')  // Backend should set this
+
+        if (isNewUser) {
+          // New user → go to auth page with profile setup flag
+          localStorage.setItem('polynous_needs_setup', 'true')
+          navigate('/auth?setup=true', { replace: true })
+        } else {
+          // Existing user → go to research
+          navigate('/research', { replace: true })
+        }
+      }, 2500)
       return () => [t1, t2, t3].forEach(clearTimeout)
     }
 

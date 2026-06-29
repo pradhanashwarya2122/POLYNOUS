@@ -603,6 +603,21 @@ export default function AuthPage({ onLogin }) {
   const [profileSetupUser, setProfileSetupUser] = useState(null);
   const [authError, setAuthError] = useState(null);
 
+  // Detect when OAuth callback redirected here with profile setup flag
+  useEffect(() => {
+    const needsSetup = localStorage.getItem('polynous_needs_setup')
+    const params = new URLSearchParams(window.location.search)
+    
+    if (needsSetup === 'true' || params.get('setup') === 'true') {
+        // Get stored OAuth user data
+        const userData = JSON.parse(localStorage.getItem('polynous_user') || '{}')
+        if (userData.email) {
+            setProfileSetupUser(userData)
+            localStorage.removeItem('polynous_needs_setup')
+        }
+    }
+  }, [])
+
   useEffect(() => {
     // Check URL params for OAuth errors
     const params = new URLSearchParams(window.location.search);

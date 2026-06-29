@@ -1174,6 +1174,14 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mounted,        setMounted]        = useState(false);
   const [userStyle,      setUserStyle]      = useState("academic");
+  const [fontsLoaded,    setFontsLoaded]    = useState(false);
+
+  // Wait for fonts to load before rendering icons
+  useEffect(() => {
+    document.fonts.ready.then(() => {
+      setFontsLoaded(true);
+    });
+  }, []);
 
   // Fetch user preferences on mount
   useEffect(() => {
@@ -1198,6 +1206,21 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   }, []);
 
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
+
+  // Show a subtle loading state until fonts are ready
+  if (!fontsLoaded) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#0a0a1e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ color: '#00ff0f', fontSize: '24px' }}>🧠</div>
+      </div>
+    );
+  }
 
   const startResearch = async (q) => {
     const qText = typeof q === "string" ? q : query;
