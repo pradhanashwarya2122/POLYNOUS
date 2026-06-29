@@ -325,7 +325,7 @@ function AuthFallback({ errorMsg, onRetry }) {
         <div className="pulse-brain" style={{ fontSize: 48, marginBottom: 12, lineHeight: 1, color: "#ff2040", filter: "drop-shadow(0 0 10px rgba(255,32,64,0.6))" }}>⚠</div>
         <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 28, fontWeight: 700, color: "#ff2040", letterSpacing: "-0.03em", marginBottom: 8 }}>Neural Link Failed</h1>
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: C.onSurfaceVariant, lineHeight: 1.7, maxWidth: 340, margin: "0 auto" }}>
-          {errorMsg || "Unable to establish a secure connection. Please try again or continue as a guest."}
+          {errorMsg || "Unable to establish a secure connection. Please try again."}
         </p>
       </div>
 
@@ -347,16 +347,7 @@ function AuthFallback({ errorMsg, onRetry }) {
         </button>
 
         <button
-          onClick={() => {
-            const guest = { skip: true, username: 'Guest', email: 'guest@polynous.ai' };
-            const guestToken = 'guest_' + Date.now();
-            window.__POLYNOUS_ACCESS_TOKEN__ = guestToken;
-            localStorage.setItem('polynous_token', guestToken);
-            localStorage.setItem('polynous_user', JSON.stringify({ username: 'Guest', email: 'guest@polynous.ai', user_id: 'guest' }));
-            localStorage.setItem('polynous_user_id', 'guest');
-            localStorage.setItem('polynous_username', 'Guest');
-            window.location.href = '/research';
-          }}
+          onClick={() => window.location.href = '/auth'}
           style={{
             width: "100%", maxWidth: 320,
             padding: '12px', background: 'transparent',
@@ -367,7 +358,7 @@ function AuthFallback({ errorMsg, onRetry }) {
           onMouseEnter={e => { e.target.style.borderColor = '#00ccff'; e.target.style.color = '#00ccff' }}
           onMouseLeave={e => { e.target.style.borderColor = C.white10; e.target.style.color = '#888' }}
         >
-          Continue as guest →
+          Back to Login
         </button>
       </div>
     </div>
@@ -603,55 +594,81 @@ export default function AuthPage({ onLogin }) {
   const [profileSetupUser, setProfileSetupUser] = useState(null);
   const [authError, setAuthError] = useState(null);
 
-  // Detect when OAuth callback redirected here with profile setup flag
+  // ✅ DETECT: OAuth new user redirected here
   useEffect(() => {
-    const needsSetup = localStorage.getItem('polynous_needs_setup')
     const params = new URLSearchParams(window.location.search)
-    
-    if (needsSetup === 'true' || params.get('setup') === 'true') {
-        // Get stored OAuth user data
-        const userData = JSON.parse(localStorage.getItem('polynous_user') || '{}')
-        if (userData.email) {
-            setProfileSetupUser(userData)
-            localStorage.removeItem('polynous_needs_setup')
-        }
-    }
-  }, [])
+    const setupMode = params.get('setup')
+    const needsSetup = localStorage.getItem('polynous_needs_setup')
+    const errorParam = params.get('error')
 
-  useEffect(() => {
-    // Check URL params for OAuth errors
-    const params = new URLSearchParams(window.location.search);
-    const error = params.get('error');
-    if (error) {
-      setAuthError(decodeURIComponent(error));
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+    // Handle OAuth errors
+    if (errorParam) {
+      setAuthError(decodeURIComponent(errorParam))
+      window.history.replaceState({}, document.title, window.location.pathname)
+      return
     }
+
+    // Handle new OAuth user needing profile setup
+    if (setupMode === 'new' || needsSetup === 'true') {
+      const userData = JSON.parse(localStorage.getItem('polynous_user') || '{}')
+      if (userData.email) {
+        setProfileSetupUser(userData)
+        localStorage.removeItem('polynous_needs_setup')
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
+    }
+
     return () => {
       // Cleanup
     };
-  }, []);
+  }, [])
 
   const handleLogin = (data) => {
+    // ✅ FIXED: Only check the explicit flag
     if (data.needs_profile_setup) {
-      setProfileSetupUser(data);
+      setProfileSetupUser(data)
     } else if (onLogin) {
-      onLogin(data);
+      onLogin(data)
     } else {
-      window.location.href = '/research';
+      window.location.href = '/research'
     }
-  };
+  }
 
   const handleProfileComplete = (username) => {
-    const stored = JSON.parse(localStorage.getItem('polynous_user') || '{}');
-    localStorage.setItem('polynous_user', JSON.stringify({ ...stored, username }));
+    const stored = JSON.parse(localStorage.getItem('polynous_user') || '{}')
+    localStorage.setItem('polynous_user', JSON.stringify({ ...stored, username }))
+    localStorage.setItem('polynous_username', username)
+    
     if (onLogin) {
-      onLogin({ ...profileSetupUser, username });
+      onLogin({ ...profileSetupUser, username })
     } else {
-      window.location.href = '/research';
+      window.location.href = '/research'
     }
-    setProfileSetupUser(null);
-  };
+    setProfileSetupUser(null)
+  }
+
+  // ✅ RENDER: Show ProfileSetup when needed
+  if (profileSetupUser) {
+    return (
+      <>
+        <GlobalStyles />
+        <NeuralCanvas />
+        <main style={{
+          position: "relative", zIndex: 10,
+          width: "100%", maxWidth: 480,
+          padding: "0 16px",
+          display: "flex", flexDirection: "column",
+        }}>
+          <ProfileSetup
+            email={profileSetupUser.email}
+            token={localStorage.getItem('polynous_token')}
+            onComplete={handleProfileComplete}
+          />
+          <Footer />
+        </main>
+      </>
+    )
+  }
 
   return (
     <>
@@ -671,11 +688,6 @@ export default function AuthPage({ onLogin }) {
               setAuthError(null);
               window.location.href = '/auth';
             }}
-          />
-        ) : profileSetupUser ? (
-          <ProfileSetup
-            email={profileSetupUser.email}
-            onComplete={handleProfileComplete}
           />
         ) : (
           <LoginCard onLogin={handleLogin} oauthError={authError} />

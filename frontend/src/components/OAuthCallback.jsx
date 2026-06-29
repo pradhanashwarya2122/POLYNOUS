@@ -217,43 +217,53 @@ export default function OAuthCallback({ onLogin }) {
     const username = params.get('username')
     const email = params.get('email')
     const errorMsg = params.get('error')
+    const isNewUser = params.get('new_user') === 'true'
+    const isExistingUser = params.get('existing_user') === 'true'
 
     const detectedProvider = params.get('access_token') ? 'github' : 'google'
     setProvider(detectedProvider)
 
+    // Handle OAuth error
     if (errorMsg) {
-      setTimeout(() => navigate('/auth?error=' + encodeURIComponent(errorMsg)), 1500)
-      return
+        navigate('/auth?error=' + encodeURIComponent(errorMsg), { replace: true })
+        return
     }
 
-    if (token && username) {
-      localStorage.setItem('polynous_token', token)
-      if (refreshToken) localStorage.setItem('polynous_refresh_token', refreshToken)
-      localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
-      if (onLogin) onLogin({ token, username, email })
+    // Handle successful OAuth
+    if (token && email) {
+        // Save tokens and user info
+        localStorage.setItem('polynous_token', token)
+        if (refreshToken) localStorage.setItem('polynous_refresh_token', refreshToken)
+        localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
 
-      // Animate through steps then check if new user
-      const t1 = setTimeout(() => setActiveStep(1), 700)
-      const t2 = setTimeout(() => setActiveStep(2), 1400)
-      const t3 = setTimeout(() => {
-        setActiveStep(3)
+        if (onLogin) onLogin({ token, username, email })
 
-        // Check if user needs profile setup (new users from OAuth)
-        const isNewUser = !params.get('existing_user')  // Backend should set this
-
+        // Animate steps
+        const t1 = setTimeout(() => setActiveStep(1), 700)
+        const t2 = setTimeout(() => setActiveStep(2), 1400)
+        
+        // ✅ CASE 1: New user → go to profile setup
         if (isNewUser) {
-          // New user → go to auth page with profile setup flag
-          localStorage.setItem('polynous_needs_setup', 'true')
-          navigate('/auth?setup=true', { replace: true })
-        } else {
-          // Existing user → go to research
-          navigate('/research', { replace: true })
+            localStorage.setItem('polynous_needs_setup', 'true')
+            const t3 = setTimeout(() => {
+                setActiveStep(3)
+                navigate('/auth?setup=new', { replace: true })
+            }, 2500)
+            return () => [t1, t2, t3].forEach(clearTimeout)
         }
-      }, 2500)
-      return () => [t1, t2, t3].forEach(clearTimeout)
+        
+        // ✅ CASE 2: Existing user → go to research
+        if (isExistingUser || (!isNewUser && token)) {
+            const t3 = setTimeout(() => {
+                setActiveStep(3)
+                navigate('/research', { replace: true })
+            }, 2500)
+            return () => [t1, t2, t3].forEach(clearTimeout)
+        }
     }
 
-    setTimeout(() => navigate('/auth?error=Authentication+failed'), 1500)
+    // Fallback: no valid token
+    setTimeout(() => navigate('/auth?error=Authentication+failed', { replace: true }), 1500)
   }, [navigate, onLogin])
 
   const providerLabel = provider === 'github' ? 'GitHub' : 'Google'

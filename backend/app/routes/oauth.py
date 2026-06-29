@@ -1,4 +1,3 @@
-```python
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -44,7 +43,7 @@ def get_or_create_user(db: Session, email: str, username: str, avatar_url: str =
             username=username or email.split('@')[0],
             hashed_password=hash_password(secrets.token_urlsafe(32)),
             tier="free",
-            encryption_key=Fernet.generate_key().decode(),  # ← FIXED: Added encryption_key
+            encryption_key=Fernet.generate_key().decode(),
             public_id=str(uuid.uuid4()),
         )
         db.add(user)
@@ -111,9 +110,9 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
         token = create_token(user.id, user.email)
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
-        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={user.email}"
+        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
         if is_new_user:
-            redirect_url += "&existing_user=false"
+            redirect_url += "&new_user=true"
         else:
             redirect_url += "&existing_user=true"
         
@@ -185,7 +184,7 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
         
         redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
         if is_new_user:
-            redirect_url += "&existing_user=false"
+            redirect_url += "&new_user=true"
         else:
             redirect_url += "&existing_user=true"
         
@@ -194,4 +193,3 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"GitHub OAuth error: {e}")
         raise HTTPException(status_code=400, detail=f"OAuth failed: {str(e)}")
-```

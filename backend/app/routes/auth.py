@@ -279,7 +279,7 @@ class TokenResponse(BaseModel):
 # ENDPOINTS
 # ============================================================
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register")
 async def register(request: RegisterRequest, response: Response, db: Session = Depends(get_db)):
     """
     Register a new user.
@@ -336,13 +336,14 @@ async def register(request: RegisterRequest, response: Response, db: Session = D
     # ✅ FIXED: Set refresh token cookie with cross-domain support
     set_refresh_cookie(response, refresh_token)
     
-    return TokenResponse(
-        access_token=access_token,
-        user_id=user.public_id,
-        username=user.username,
-        email=user.email,
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
+    return {
+        "access_token": access_token,
+        "user_id": user.public_id,
+        "username": username,
+        "email": email,
+        "needs_profile_setup": True,  # ✅ New users need setup
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    }
 
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
