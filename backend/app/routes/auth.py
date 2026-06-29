@@ -518,3 +518,35 @@ async def revoke_sessions(
     return {
         "message": "All sessions revoked. Existing tokens are now invalid. Please login again."
     }
+
+@router.delete("/me")
+async def delete_account(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete user account and all associated data"""
+    
+    # Clear user's data from Neo4j (if connected)
+    try:
+        from app.knowledge_graph.graph_manager import kg
+        if kg.driver:
+            with kg.driver.session() as session:
+                session.run("MATCH (n {user_id: $uid}) DETACH DELETE n", uid=user.public_id)
+    except:
+        pass
+    
+    # Clear user's Pinecone namespace
+    try:
+        from pinecone import Pinecone
+        import os
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        index = pc.Index("polynous-memory")
+        index.delete(delete_all=True, namespace=f"user_{user.public_id}")
+    except:
+        pass
+    
+    # Delete user from database (cascades to conversations, messages, API keys)
+    db.delete(user)
+    db.commit()
+    
+    return {"message": "Account and all associated data permanently deleted"}
