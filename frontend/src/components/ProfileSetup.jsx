@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { API_BASE_URL } from '../config'
 
 // ─── Keyframe injection (runs once) ──────────────────────────────────────────
 const STYLES = `
@@ -389,7 +390,7 @@ async function saveApiKeyToBackend(provider, apiKey, token) {
   if (!apiKey || !apiKey.trim()) return { ok: true } // skip empty keys
   
   try {
-    const res = await fetch(`http://localhost:8000/settings/api-keys`, {
+    const res = await fetch(`${API_BASE_URL}/settings/api-keys`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -409,7 +410,7 @@ async function testApiKey(provider, apiKey, token) {
   if (!apiKey || !apiKey.trim()) return { valid: false, message: 'Key is empty' }
   
   try {
-    const res = await fetch(`http://localhost:8000/settings/api-keys/test`, {
+    const res = await fetch(`${API_BASE_URL}/settings/api-keys/test`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

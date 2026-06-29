@@ -16,6 +16,7 @@ import KnowledgeGraphPage from './components/KnowledgeGraphPage';
 import SemanticSearchPage from './components/SemanticSearchPage';
 import PdfLabPage from './components/PdfLabPage';
 import PolynousDashboard from './components/PolynousDashboard';
+import { API_BASE_URL } from './config';
 
 const getInitialAuthState = () => {
   const token = localStorage.getItem('polynous_token')
@@ -39,7 +40,7 @@ const getInitialAuthState = () => {
 // ========== LOAD USER PREFERENCES ==========
 function loadUserPreferences(userEmail) {
   const userId = userEmail || 'guest_user';
-  fetch(`http://localhost:8000/settings/preferences?user_id=${encodeURIComponent(userId)}`)
+  fetch(`${API_BASE_URL}/settings/preferences?user_id=${encodeURIComponent(userId)}`)
     .then(r => r.json())
     .then(data => {
       console.log("✅ Applying preferences:", data);
@@ -167,7 +168,7 @@ export default function App() {
           // Update username in backend
           const token = localStorage.getItem('polynous_token')
           try {
-            await fetch('http://localhost:8000/auth/me', {
+            await fetch(`${API_BASE_URL}/auth/me`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -222,9 +223,6 @@ export default function App() {
           element={<OAuthCallback onLogin={handleLogin} />} 
         />
 
-
-        
-        <Route path="/auth/callback" element={<OAuthCallback onLogin={handleLogin} />} />
         {/* ========== PROTECTED ROUTES ========== */}
         
         {/* Settings Page */}

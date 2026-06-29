@@ -223,7 +223,8 @@ export default function OAuthCallback({ onLogin }) {
     const isNewUser = params.get('new_user') === 'true'
     const isExistingUser = params.get('existing_user') === 'true'
 
-    const detectedProvider = params.get('access_token') ? 'github' : 'google'
+    // ✅ FIXED: Read provider from URL param (sent by backend)
+    const detectedProvider = params.get('provider') || 'google'
     setProvider(detectedProvider)
 
     // Handle OAuth error
@@ -238,8 +239,6 @@ export default function OAuthCallback({ onLogin }) {
       if (refreshToken) localStorage.setItem('polynous_refresh_token', refreshToken)
       localStorage.setItem('polynous_user', JSON.stringify({ username, email }))
 
-      if (onLogin) onLogin({ token, username, email })
-
       timers.push(setTimeout(() => setActiveStep(1), 700))
       timers.push(setTimeout(() => setActiveStep(2), 1400))
 
@@ -248,6 +247,7 @@ export default function OAuthCallback({ onLogin }) {
         localStorage.setItem('polynous_needs_setup', 'true')
         timers.push(setTimeout(() => {
           setActiveStep(3)
+          if (onLogin) onLogin({ token, username, email })  // ✅ Set auth state FIRST
           navigate('/auth?setup=new', { replace: true })
         }, 2500))
         return () => timers.forEach(clearTimeout)
@@ -256,6 +256,7 @@ export default function OAuthCallback({ onLogin }) {
       // ✅ Existing user → research
       timers.push(setTimeout(() => {
         setActiveStep(3)
+        if (onLogin) onLogin({ token, username, email })  // ✅ Set auth state FIRST
         navigate('/research', { replace: true })
       }, 2500))
       return () => timers.forEach(clearTimeout)

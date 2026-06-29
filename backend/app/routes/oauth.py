@@ -115,8 +115,8 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
         
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
-        # ✅ FIXED: Use new_user flag
-        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
+        # ✅ FIXED: Add provider param + new_user/existing_user flags
+        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}&provider=google"
         if is_new_user:
             redirect_url += "&new_user=true"
         else:
@@ -192,8 +192,8 @@ async def github_callback(code: str, db: Session = Depends(get_db)):
         
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5174")
         
-        # ✅ FIXED: Use new_user flag
-        redirect_url = f"{frontend_url}/auth/callback?token={token}&username={user.username}&email={email}"
+        # ✅ FIXED: Add provider param + new_user/existing_user flags
+        redirect_url = f"{frontend_url}/auth/callback?access_token={token}&username={user.username}&email={email}&provider=github"
         if is_new_user:
             redirect_url += "&new_user=true"
         else:
