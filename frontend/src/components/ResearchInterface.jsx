@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from '../config'
+import NeuralResearchEngine from './NeuralResearchEngine'   // ← NEW
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   green:              "#00ff47",
@@ -1324,18 +1326,13 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
           <LandingHero query={query} setQuery={setQuery} onSearch={startResearch} loading={loading} />
         )}
 
-        {/* Thinking state */}
+        {/* Live Neural Engine — replaces old ThinkingCanvas */}
         {loading && (
-          <div style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 40px",position:"relative" }}>
-            {/* search bar stays visible */}
-            <div style={{ width:"100%",maxWidth:760,marginBottom:24 }}>
-              <div style={{ display:"flex",alignItems:"center",background:"rgba(1,15,31,0.85)",backdropFilter:"blur(12px)",border:`1px solid rgba(0,255,71,0.4)`,borderRadius:9999,padding:"6px 6px 6px 20px",boxShadow:`0 0 15px rgba(0,255,71,0.1)` }}>
-                <Icon name="search" style={{ color:C.green,fontSize:18,marginRight:10,flexShrink:0 }} />
-                <span style={{ flex:1,fontFamily:"'Inter',sans-serif",fontSize:14,color:"#fff" }}>{query}</span>
-                <button disabled style={{ background:"#333",color:"#888",padding:"12px 28px",borderRadius:9999,border:"none",fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:700,fontSize:12,cursor:"not-allowed" }}>THINKING…</button>
-              </div>
-            </div>
-            <ThinkingCanvas agentStatus={agentStatus} agentProgress={agentProgress} />
+          <div style={{ position:"relative",zIndex:20,minHeight:"100vh" }}>
+            <NeuralResearchEngine
+              apiUrl={`${API_BASE_URL}/ask-visual`}
+              query={query}
+            />
           </div>
         )}
 

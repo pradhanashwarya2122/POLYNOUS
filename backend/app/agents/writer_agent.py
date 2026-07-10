@@ -1,208 +1,396 @@
-# app/agents/writer_agent.py
-from app.llm_client import ask_llm
+"""
+POLYNOUS Writer Agent — Neutral Research Organizer
+
+Role: Organize source content into a research digest.
+      NEVER answers the question — presents what sources say.
+"""
+import json
+import logging
+import os
+import time
+from typing import Optional
+
+from anthropic import Anthropic
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logger = logging.getLogger("polynous.writer_agent")
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+# claude-3-haiku-20240307 is retired; claude-haiku-4-5-20251001 is the
+# current fast/cheap tier and is a drop-in replacement for this workload.
+DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+
+MAX_TOKENS = 1500
+TEMPERATURE = 0.4
+
+MAX_CHARS_PER_SUMMARY = 2500     # guard against one huge summary eating the budget
+MAX_TOTAL_SUMMARY_CHARS = 6000   # overall ceiling passed to the model
+
+MAX_RETRIES = 2
+RETRY_BACKOFF_SECONDS = 1.5
+
+# ============================================================
+# LLM CLIENT FACTORY
+# ============================================================
 
 
-def writer_agent(user, query, summaries, critique, citations,
-                 response_style="academic", provider="anthropic"):
+def _get_client(provider: str = "anthropic", api_key: Optional[str] = None):
+    """Get LLM client based on provider preference.
+
+    Raises:
+        ValueError: if no API key is available for the chosen provider.
     """
-    Create world‑class research answers with the user's preferred LLM.
+    if provider == "openai":
+        key = api_key or os.getenv("OPENAI_API_KEY", "")
+        if not key:
+            raise ValueError("No OpenAI API key found (pass api_key or set OPENAI_API_KEY).")
+        return OpenAI(api_key=key), "openai"
+    else:
+        key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+        if not key:
+            raise ValueError("No Anthropic API key found (pass api_key or set ANTHROPIC_API_KEY).")
+        return Anthropic(api_key=key), "anthropic"
+
+
+# ============================================================
+# SYSTEM PROMPT — The "Librarian" Mindset
+# ============================================================
+
+WRITER_SYSTEM_PROMPT = """You are a RESEARCH LIBRARIAN for POLYNOUS, a multi-agent research platform.
+
+YOUR JOB: Organize source content into a clear, neutral research digest.
+YOUR RULE: You PRESENT what sources say — you NEVER answer the question yourself.
+
+You are a LIBRARIAN, not a professor. You organize information.
+You are a COURT REPORTER, not a judge. You document what each side says.
+You are a CURATOR, not a critic. You arrange content for clarity.
+
+Sources are numbered [SOURCE 1], [SOURCE 2], etc. in the material you are
+given, and the SOURCE INDEX maps each number to its title/URL/type. Always
+cite sources using those exact numbers so they match the index.
+
+────────────────────────────────────────────────────────────
+OUTPUT FORMAT
+────────────────────────────────────────────────────────────
+
+📊 RESEARCH LANDSCAPE: [Query]
+
+📚 SOURCES ANALYZED
+[List each source with its type: academic paper, news article, opinion piece, blog, etc.]
+• Source 1: [Title] — [Type]
+• Source 2: [Title] — [Type]
+(etc.)
+
+🤝 WHERE SOURCES AGREE
+For each area of agreement:
+• [Topic]: Sources [1, 3, 5] all state that... [specific claim with details]
+
+⚡ WHERE SOURCES DISAGREE
+For each disagreement, present BOTH sides equally:
+• [Topic]:
+  - Position A (Sources [1, 4]): [What they argue]
+  - Position B (Sources [2, 6]): [What they argue]
+  - Nature: [Factual dispute / Different interpretation / Different scope]
+
+💡 UNIQUE PERSPECTIVES
+• Source [3] uniquely notes that... [insight found only in this source]
+
+⚠️ SOURCE QUALITY NOTES
+• Source [1] (academic paper): Peer-reviewed journal — higher reliability
+• Source [5] (opinion piece): Personal blog — verify claims independently
+(Note the source TYPE, not whether it's "good" or "bad")
+
+📊 CONFIDENCE: [X]%
+[Explain: confidence is based on source agreement ratio, not truth judgment]
+
+🔍 FOLLOW-UP QUESTIONS
+• [Question 1 based on gaps in coverage]
+• [Question 2 based on disagreements found]
+• [Question 3 for deeper exploration]
+
+────────────────────────────────────────────────────────────
+CRITICAL RULES
+────────────────────────────────────────────────────────────
+
+1. NEVER answer the query yourself — only present what sources say
+2. NEVER inject your own knowledge or opinion
+3. NEVER say which position is "correct" or "better"
+4. ALWAYS attribute every claim to specific sources: "Source 3 states..."
+5. Present ALL sides equally — give the same space to minority views
+6. Include direct quotes when helpful: "As Source 2 puts it, '...'"
+7. Note source types (academic, news, opinion, blog, commercial)
+8. If the source material is thin, say so honestly
+9. End with follow-up questions — help the user go deeper
+10. NEVER use phrases like "research shows" or "experts agree" without citing which sources
+
+────────────────────────────────────────────────────────────
+EXAMPLES
+────────────────────────────────────────────────────────────
+
+❌ WRONG: "AI regulation is important for protecting citizens and ensuring ethical development."
+✅ RIGHT: "Sources 1, 3, and 4 argue AI regulation is necessary for citizen protection (Source 1) and ethical development (Source 3). Source 2 argues regulation may stifle innovation."
+
+❌ WRONG: "The evidence clearly supports regulation."
+✅ RIGHT: "3 of 5 sources support regulation; 2 sources oppose it."
+
+❌ WRONG: "In conclusion, AI should be regulated."
+✅ RIGHT: "The research landscape shows agreement on the need for oversight (4 sources), but disagreement on the extent (split 3-2)."
+
+❌ WRONG: "Source 5 is unreliable."
+✅ RIGHT: "Source 5 is an opinion piece from a personal blog (no citations). Readers should verify claims independently."
+"""
+
+# ============================================================
+# MAIN WRITER FUNCTION
+# ============================================================
+
+
+def writer_agent(
+    query: str,
+    summaries: list,
+    critique: dict,
+    citations: list,
+    provider: str = "anthropic",
+    api_key: Optional[str] = None,
+) -> str:
+    """
+    Organize source content into a neutral research digest.
 
     Args:
-        user: SQLAlchemy User object (for key resolution)
-        query: Original research query
-        summaries: List of document summaries
-        critique: Dict with confidence, contradictions, agreements
-        citations: List of citation dicts
-        response_style: "academic", "casual", "eli5", or "technical"
+        query: The original user query
+        summaries: List of source summary strings
+        critique: Dict from critic_agent with agreements, disagreements, etc.
+        citations: List of citation dicts with title, url
         provider: "anthropic" or "openai"
+        api_key: User's personal API key
 
     Returns:
-        Formatted research answer string
+        Formatted research digest string
     """
-    print(f"✍️ Writer: Creating answer (style: {response_style}, provider: {provider})...")
+    print("✍️ Writer: Organizing research landscape...")
 
-    # ─── Style‑specific system prompts ───
-    style_prompts = {
-        "academic": (
-            "You are POLYNOUS — a world-class research synthesis engine operating at the "
-            "highest academic standards.\n\n"
-            "Your task is to write a comprehensive, authoritative research answer that "
-            "demonstrates deep engagement with the provided sources.\n\n"
-            "FORMAT YOUR RESPONSE EXACTLY LIKE THIS:\n\n"
-            "📋 EXECUTIVE SUMMARY\n"
-            "[2-3 clear, direct sentences answering the query with precision.]\n\n"
-            "🔑 KEY FINDINGS\n"
-            "• [Finding with specific data/evidence] [Source citation]\n"
-            "• [Finding with specific data/evidence] [Source citation]\n"
-            "• [Finding with specific data/evidence] [Source citation]\n"
-            "• [Additional finding if relevant] [Source citation]\n\n"
-            "⚠️ LIMITATIONS & UNCERTAINTIES\n"
-            "[Honest assessment of contradictions, methodological limitations, and areas where evidence is weak.]\n\n"
-            "🎯 CONFIDENCE ASSESSMENT\n"
-            "[Overall confidence level with brief justification.]\n\n"
-            "📚 SOURCES\n"
-            "[Numbered list of sources used]"
-        ),
-        "casual": (
-            "You are POLYNOUS — a brilliant research communicator who makes complex "
-            "topics accessible and engaging.\n\n"
-            "Write in a conversational yet informative tone. Use analogies and examples "
-            "to explain difficult concepts. Keep it friendly but accurate.\n\n"
-            "FORMAT:\n"
-            "📋 THE BIG PICTURE — [1-2 sentence overview]\n"
-            "🔑 WHAT YOU NEED TO KNOW\n"
-            "• [Key point in plain language]\n"
-            "• [Key point in plain language]\n"
-            "• [Key point in plain language]\n"
-            "⚠️ THE FINE PRINT — [Limitations and caveats]\n"
-            "🎯 BOTTOM LINE — [Confidence assessment]\n"
-            "📚 WHERE THIS COMES FROM — [Sources]"
-        ),
-        "eli5": (
-            "You are POLYNOUS — the world's best explainer. You can make ANY topic "
-            "understandable to anyone, no matter how complex.\n\n"
-            "Explain like you're talking to a curious 12‑year‑old. Use simple analogies "
-            "from everyday life. Avoid jargon completely. Make it fun and memorable.\n\n"
-            "FORMAT:\n"
-            "📋 HERE'S THE SIMPLE ANSWER — [One clear sentence]\n"
-            "🔑 LET ME BREAK IT DOWN\n"
-            "• [Simple explanation with analogy]\n"
-            "• [Simple explanation with analogy]\n"
-            "• [Simple explanation with analogy]\n"
-            "⚠️ WHAT WE DON'T KNOW YET — [Simple honesty about limitations]\n"
-            "🎯 HOW SURE WE ARE — [Confidence in simple terms]"
-        ),
-        "technical": (
-            "You are POLYNOUS — an elite technical research synthesis engine designed "
-            "for domain experts and practitioners.\n\n"
-            "Provide a technically rigorous answer with precise terminology, "
-            "quantitative data, and methodological analysis. Assume the reader has "
-            "advanced domain knowledge.\n\n"
-            "FORMAT:\n"
-            "📋 TECHNICAL SUMMARY — [1-2 sentence precise answer]\n"
-            "🔑 DETAILED ANALYSIS\n"
-            "• [Technical finding with methodology details, data, and limitations] [Source]\n"
-            "• [Technical finding with methodology details, data, and limitations] [Source]\n"
-            "• [Technical finding with methodology details, data, and limitations] [Source]\n"
-            "⚠️ METHODOLOGICAL CAVEATS — [Study design limitations, biases, confounding factors]\n"
-            "🎯 STATISTICAL CONFIDENCE — [Quantitative confidence assessment]\n"
-            "📚 REFERENCES — [Sources with publication details]"
-        ),
-    }
+    # ── Validate & clean input ────────────────────────
+    cleaned_summaries = _clean_summaries(summaries)
+    if not cleaned_summaries:
+        return _fallback_answer(query, "No source summaries available.")
 
-    # Universal quality rules applied to every style
-    universal_instructions = (
-        "\n\n## CRITICAL QUALITY RULES (Apply regardless of style)\n"
-        "1. EVERY major claim MUST be backed by a source citation [1], [2], etc.\n"
-        "2. NEVER fabricate information — if sources don't cover something, say so.\n"
-        "3. When sources disagree, present BOTH sides fairly.\n"
-        "4. Be SPECIFIC with numbers, dates, percentages, and proper names.\n"
-        "5. Do NOT use generic phrases like \"studies show\" without a citation.\n"
-        "6. Keep your response well‑structured with the sections shown above.\n"
-        "7. Write in complete, grammatical sentences.\n"
-        "8. Your response should be 300‑800 words depending on the complexity of the topic."
-    )
-
-    # Select the base prompt for the chosen style (fallback to academic)
-    base_prompt = style_prompts.get(response_style, style_prompts["academic"])
-    system_prompt = base_prompt + universal_instructions
-
-    # ── Build the user message context ──
-    summary_text = "\n\n---\n\n".join(summaries)[:4000]
-    confidence = critique.get('overall_confidence', 'N/A')
-    contradictions = critique.get('contradictions', [])
-    agreements = critique.get('agreements', [])
-    contradictions_count = len(contradictions)
-
-    contradiction_text = ""
-    if contradictions:
-        contradiction_text = "CONTRADICTIONS BETWEEN SOURCES:\n" + "\n".join([
-            f"• {c.get('claim1', 'Unknown')} vs {c.get('claim2', 'Unknown')}: {c.get('explanation', 'No details')}"
-            for c in contradictions
-        ])
-
-    agreement_text = ""
-    if agreements:
-        agreement_text = "AREAS OF STRONG AGREEMENT:\n" + "\n".join([
-            f"• {a.get('claim1', 'Unknown')} agrees with {a.get('claim2', 'Unknown')}: {a.get('explanation', 'No details')}"
-            for a in agreements
-        ])
-
-    citation_text = "\n".join([
-        f"[{i+1}] {c.get('title', 'Untitled')} ({c.get('year', 'n.d.')}) - {c.get('source_type', 'Unknown source')}"
-        for i, c in enumerate(citations)
-    ])
-
-    user_context = f"""## USER QUERY
-{query}
-
-## RESEARCH FINDINGS FROM MULTIPLE SOURCES
-{summary_text}
-
-## QUALITY ANALYSIS
-- Aggregate Confidence Score: {confidence}%
-- Number of Contradictions Found: {contradictions_count}
-{contradiction_text}
-{agreement_text}
-
-## AVAILABLE CITATIONS
-{citation_text}
-
-## INSTRUCTIONS
-Write a comprehensive, authoritative research answer. 
-Target style: {response_style.upper()}
-The response should demonstrate deep engagement with the provided sources.
-Every major claim must be sourceable. Be specific with data and numbers.
-Acknowledge uncertainty and conflicting evidence honestly."""
-
-    # ── Primary call with full context ──
-    try:
-        raw_answer = ask_llm(
-            user=user,
-            provider=provider,
-            system_prompt=system_prompt,
-            messages=[{"role": "user", "content": user_context}],
-            max_tokens=1500,
-            temperature=0.4,
+    if citations and len(citations) != len(cleaned_summaries):
+        logger.warning(
+            "citations (%d) and summaries (%d) counts don't match — "
+            "source numbers in the digest may not line up with the source index",
+            len(citations), len(cleaned_summaries),
         )
 
-        # ✅ Ensure we have a plain string
-        if isinstance(raw_answer, str):
-            answer = raw_answer
-        else:
-            # If it's a Message object, extract the text
-            answer = raw_answer.content[0].text
+    # ── Build source index ─────────────────────────────
+    source_index = _build_source_index(citations)
 
-        print(f"  ✅ World-class answer created! (style: {response_style}, provider: {provider}, tokens: ~{len(answer.split())})")
+    # ── Build critique summary ─────────────────────────
+    critique_text = _build_critique_summary(critique)
+
+    # ── Build the prompt ───────────────────────────────
+    summary_text = _build_combined_summaries(cleaned_summaries)
+
+    confidence = (critique or {}).get('overall_confidence', 50)
+
+    user_prompt = f"""ORIGINAL QUERY: {query}
+
+SOURCE INDEX:
+{source_index}
+
+SOURCE SUMMARIES:
+{summary_text}
+
+CRITIQUE FINDINGS:
+{critique_text}
+
+CONFIDENCE: {confidence}%
+
+Organize this into a research digest. Present what the sources say — do NOT answer the query yourself. Attribute every claim to specific sources, matching the [SOURCE N] numbers above. Be neutral and balanced."""
+
+    # ── Call LLM (with retry on transient failures) ───
+    try:
+        client, client_type = _get_client(provider, api_key)
+    except ValueError as e:
+        print(f"  ❌ {e}")
+        return _fallback_answer(query, str(e))
+
+    try:
+        answer = _call_llm_with_retry(client, client_type, WRITER_SYSTEM_PROMPT, user_prompt)
+        print("  ✅ Research digest created!")
         return answer
-
     except Exception as e:
+        logger.exception("Writer LLM call failed")
         print(f"  ❌ Writer error: {e}")
-        # Fallback: try again with reduced context
+        return _fallback_answer(query, str(e))
+
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+
+def _clean_summaries(summaries: list) -> list:
+    """Drop empty/non-string entries and strip whitespace."""
+    if not summaries:
+        return []
+    cleaned = []
+    for s in summaries:
+        if not isinstance(s, str):
+            s = str(s) if s is not None else ""
+        s = s.strip()
+        if s:
+            cleaned.append(s)
+    return cleaned
+
+
+def _build_combined_summaries(summaries: list) -> str:
+    """
+    Number each source explicitly (e.g. [SOURCE 1]) and join with a clear
+    divider so the model's citation numbers line up with SOURCE INDEX.
+    Long summaries are individually truncated first so truncation never
+    silently drops later sources from the prompt entirely.
+    """
+    labeled = []
+    for i, s in enumerate(summaries, 1):
+        if len(s) > MAX_CHARS_PER_SUMMARY:
+            s = s[:MAX_CHARS_PER_SUMMARY] + " …[truncated]"
+        labeled.append(f"[SOURCE {i}]\n{s}")
+
+    divider = "\n\n" + "=" * 50 + "\n\n"
+    combined = divider.join(labeled)
+
+    if len(combined) > MAX_TOTAL_SUMMARY_CHARS:
+        combined = combined[:MAX_TOTAL_SUMMARY_CHARS] + "\n\n…[additional sources truncated]"
+
+    return combined
+
+
+def _build_source_index(citations: list) -> str:
+    """Create a numbered list of sources for reference"""
+    if not citations:
+        return "No sources available."
+
+    lines = []
+    for i, c in enumerate(citations, 1):
+        title = (c.get('title', 'Untitled') or 'Untitled')[:100]
+        url = (c.get('url', 'No URL') or 'No URL')[:80]
+        source_type = c.get('source', 'web')
+        lines.append(f"[{i}] {title}\n    URL: {url}\n    Type: {source_type}")
+
+    return "\n".join(lines)
+
+
+def _build_critique_summary(critique: dict) -> str:
+    """Build a readable summary of the critic's findings"""
+    if not critique:
+        return "No critique analysis available."
+
+    parts = []
+
+    # Agreements
+    agreements = critique.get('agreement_groups', [])
+    if agreements:
+        parts.append(f"AREAS OF AGREEMENT ({len(agreements)} found):")
+        for g in agreements[:5]:
+            sources = g.get('sources_agreeing', [])
+            topic = g.get('topic', 'Unknown')
+            parts.append(f"  • {topic} — Sources {sources}")
+
+    # Disagreements
+    disagreements = critique.get('disagreement_groups', [])
+    if disagreements:
+        parts.append(f"\nAREAS OF DISAGREEMENT ({len(disagreements)} found):")
+        for g in disagreements[:5]:
+            topic = g.get('topic', 'Unknown')
+            pos_a = g.get('position_a', {}) or {}
+            pos_b = g.get('position_b', {}) or {}
+            parts.append(f"  • {topic}")
+            parts.append(f"    Position A (Sources {pos_a.get('sources', [])}): {(pos_a.get('claim', 'N/A') or 'N/A')[:100]}")
+            parts.append(f"    Position B (Sources {pos_b.get('sources', [])}): {(pos_b.get('claim', 'N/A') or 'N/A')[:100]}")
+
+    # Unique insights
+    unique = critique.get('unique_insights', [])
+    if unique:
+        parts.append(f"\nUNIQUE INSIGHTS ({len(unique)} found):")
+        for u in unique[:5]:
+            parts.append(f"  • Source {u.get('source', '?')}: {(u.get('insight', 'N/A') or 'N/A')[:150]}")
+
+    # Coverage gaps
+    gaps = critique.get('coverage_gaps', [])
+    if gaps:
+        parts.append(f"\nCOVERAGE GAPS ({len(gaps)} found):")
+        for g in gaps[:5]:
+            parts.append(f"  • {g}")
+
+    # Confidence
+    confidence = critique.get('overall_confidence', 50)
+    explanation = critique.get('confidence_explanation', '')
+    parts.append(f"\nCONFIDENCE: {confidence}%")
+    if explanation:
+        parts.append(f"  {explanation}")
+
+    return "\n".join(parts) if parts else "No critique analysis available."
+
+
+def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prompt: str) -> str:
+    """Call the LLM, retrying a couple of times on transient errors."""
+    last_error = None
+    for attempt in range(MAX_RETRIES + 1):
         try:
-            print("  🔄 Falling back with reduced context...")
-            raw_answer = ask_llm(
-                user=user,
-                provider=provider,
-                system_prompt=system_prompt[:2000],
-                messages=[{"role": "user", "content": user_context[:3000]}],
-                max_tokens=800,
-                temperature=0.5,
-            )
+            return _call_llm(client, client_type, system_prompt, user_prompt)
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF_SECONDS * (attempt + 1)
+                print(f"  ⚠️ LLM call failed ({e}); retrying in {wait:.1f}s "
+                      f"[{attempt + 1}/{MAX_RETRIES}]")
+                time.sleep(wait)
+    raise last_error
 
-            # ✅ Same safety check in fallback
-            if isinstance(raw_answer, str):
-                answer = raw_answer
-            else:
-                answer = raw_answer.content[0].text
 
-            print("  ✅ Fallback answer created!")
-            return answer
+def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str) -> str:
+    """Call the appropriate LLM"""
+    if client_type == "openai":
+        response = client.chat.completions.create(
+            model=DEFAULT_OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=TEMPERATURE,
+            max_tokens=MAX_TOKENS
+        )
+        return response.choices[0].message.content
+    else:
+        message = client.messages.create(
+            model=DEFAULT_ANTHROPIC_MODEL,
+            max_tokens=MAX_TOKENS,
+            temperature=TEMPERATURE,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}]
+        )
+        return message.content[0].text
 
-        except Exception as fallback_error:
-            print(f"  ❌ Fallback also failed: {fallback_error}")
-            return (
-                "I apologise, but I encountered an error while synthesising the "
-                "research. Please try again or check that your API key is valid in "
-                "Settings → API Keys."
-            )
+
+def _fallback_answer(query: str, error: str) -> str:
+    """Return a graceful fallback when the writer fails"""
+    return f"""📊 RESEARCH LANDSCAPE: {query}
+
+⚠️ Research Digest Unavailable
+
+The research organizer encountered an issue: {error}
+
+Please try your query again. If the problem persists, try:
+• Refining your search terms
+• Checking your API key configuration
+• Contacting support
+
+📊 CONFIDENCE: 0%
+"""

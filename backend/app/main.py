@@ -20,8 +20,8 @@ from app.routes.semantic_search import router as search_router
 from app.routes.knowledge import router as knowledge_router
 from app.routes.oauth import router as oauth_router
 from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.exceptions import RequestValidationError                 # ← NEW
-from starlette.exceptions import HTTPException as StarletteHTTPException  # ← NEW
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
@@ -33,6 +33,7 @@ from app.graph.orchestrator import orchestrator
 from app.graph.debate_graph import debate_graph
 from app.state import AgentState
 from typing import Optional
+import asyncio, time
 
 # Database and routes
 from app.database import init_db, get_db, check_database_connection
@@ -45,6 +46,9 @@ from app.chat_history import save_chat, save_debate, get_chat_history, get_debat
 
 # User Memory Graph (for debug)
 from app.knowledge_graph.user_memory import user_memory
+
+# Visual pipeline imports
+from app.visual.builder import build_visual_patch, init_visual_state
 
 load_dotenv()
 
@@ -195,7 +199,7 @@ async def root():
         "tagline": "Many Minds, One Answer",
         "version": "3.0",
         "database": "connected" if db_healthy else "disconnected",
-        "endpoints": ["/ask", "/ask-stream", "/health", "/health/neo4j", "/auth/register", "/auth/login", "/auth/refresh", "/conversations"]
+        "endpoints": ["/ask", "/ask-stream", "/ask-visual", "/health", "/health/neo4j", "/auth/register", "/auth/login", "/auth/refresh", "/conversations"]
     }
 
 @app.get("/health")
@@ -452,6 +456,98 @@ async def ask_stream(request: QueryRequest, req: Request):
             db.close()
     
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+# ========== VISUAL STREAMING ==========
+@app.post("/ask-visual")
+async def ask_visual(request: Request):
+    """
+    Stream visual research data for the NeuralResearchEngine component.
+    """
+    body = await request.json()
+    query = body.get("query", "")
+    if not query:
+        raise HTTPException(400, "query required")
+
+    async def event_stream():
+        start_time = time.time()
+        visual = init_visual_state(query)
+
+        # Send initial state
+        yield f"data: {json.dumps(visual)}\n\n"
+
+        # ───────── Step 1: Search ─────────
+        patch = {"agents": {"Search": {"progress": 10, "phase": {"label": "Searching", "sub": "Querying Tavily and scraping…"}}}}
+        yield f"data: {json.dumps(patch)}\n\n"
+
+        state = {
+            "query": query,
+            "retrieved_docs": [],
+            "summaries": [],
+            "critique": {},
+            "final_answer": "",
+            "citations": [],
+            "debate_mode": False,
+            "debate_history": [],
+            "judge_verdict": {},
+            "errors": [],
+            "warnings": [],
+            "current_agent": "",
+            "provider": "anthropic",
+            "session_id": "visual",
+        }
+
+        # Actually run the orchestrator nodes, one by one, emitting patches
+        # Node: search
+        try:
+            state = orchestrator.nodes['search'](state)
+            elapsed = time.time() - start_time
+            patch = build_visual_patch(state, "Search", elapsed)
+            yield f"data: {json.dumps(patch)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        # Node: summarise
+        patch = {"agents": {"Summarise": {"progress": 10, "phase": {"label": "Summarising", "sub": "Extracting key points…"}}}}
+        yield f"data: {json.dumps(patch)}\n\n"
+        try:
+            state = orchestrator.nodes['summarise'](state)
+            elapsed = time.time() - start_time
+            patch = build_visual_patch(state, "Summarise", elapsed)
+            yield f"data: {json.dumps(patch)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        # Node: critic
+        patch = {"agents": {"Critic": {"progress": 10, "phase": {"label": "Critiquing", "sub": "Cross‑checking claims…"}}}}
+        yield f"data: {json.dumps(patch)}\n\n"
+        try:
+            state = orchestrator.nodes['critic'](state)
+            elapsed = time.time() - start_time
+            patch = build_visual_patch(state, "Critic", elapsed)
+            yield f"data: {json.dumps(patch)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        # Node: writer
+        patch = {"agents": {"Writer": {"progress": 10, "phase": {"label": "Writing", "sub": "Drafting research digest…"}}}}
+        yield f"data: {json.dumps(patch)}\n\n"
+        try:
+            state = orchestrator.nodes['write'](state)
+            elapsed = time.time() - start_time
+            patch = build_visual_patch(state, "Writer", elapsed)
+            yield f"data: {json.dumps(patch)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        # Final overall patch with diagnostics
+        final_patch = build_visual_patch(state, "Final", elapsed)
+        yield f"data: {json.dumps(final_patch)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 # ========== DEBUG ENDPOINT ==========
 @app.get("/debug/last-key")
