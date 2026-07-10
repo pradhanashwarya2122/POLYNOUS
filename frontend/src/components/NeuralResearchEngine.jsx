@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import * as THREE from 'three';
 
 /*
   ============================================================================
@@ -534,7 +535,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
   useEffect(() => {
     if (threeInitedRef.current || !canvasContainerRef.current) return;
     const container = canvasContainerRef.current;
-    if (typeof THREE === "undefined") return;
+
     threeInitedRef.current = true;
 
     const scene = new THREE.Scene();
