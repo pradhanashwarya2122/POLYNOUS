@@ -34,11 +34,12 @@ from app.graph.debate_graph import debate_graph
 from app.state import AgentState
 from typing import Optional
 import asyncio, time
+from sqlalchemy.orm import Session                           # ← ADDED
 
 # Database and routes
 from app.database import init_db, get_db, check_database_connection
 from app.models.user import User
-from app.routes.auth import router as auth_router
+from app.routes.auth import router as auth_router, decode_token  # ← ADDED decode_token
 from app.routes.conversations import router as conversations_router
 
 # Chat History imports
@@ -459,7 +460,7 @@ async def ask_stream(request: QueryRequest, req: Request):
 
 # ========== VISUAL STREAMING ==========
 @app.post("/ask-visual")
-async def ask_visual(request: Request):
+async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← ADDED db dependency
     """
     Stream visual research data for the NeuralResearchEngine component.
     """
@@ -468,11 +469,27 @@ async def ask_visual(request: Request):
     if not query:
         raise HTTPException(400, "query required")
 
+    # ── Extract user from JWT token ──
+    user = None
+    user_api_key = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+        try:
+            payload = decode_token(token, expected_type="access")
+            user_id = int(payload.get("sub", 0))
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                # Decrypt the user's BYO key (prefer Anthropic, fallback OpenAI)
+                encrypted = user.anthropic_api_key or user.openai_api_key
+                if encrypted:
+                    user_api_key = decrypt_api_key(encrypted, user.encryption_key)
+        except Exception:
+            pass   # fall through to guest / no key
+
     async def event_stream():
         start_time = time.time()
         visual = init_visual_state(query)
-
-        # Send initial state
         yield f"data: {json.dumps(visual)}\n\n"
 
         # ───────── Step 1: Search ─────────
@@ -494,6 +511,9 @@ async def ask_visual(request: Request):
             "current_agent": "",
             "provider": "anthropic",
             "session_id": "visual",
+            # ── User's BYO key ──
+            "user_api_key": user_api_key,
+            "user": user,  # pass the whole user object if needed
         }
 
         # Actually run the orchestrator nodes, one by one, emitting patches
