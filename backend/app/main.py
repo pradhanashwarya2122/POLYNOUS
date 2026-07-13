@@ -519,7 +519,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
         # Actually run the orchestrator nodes, one by one, emitting patches
         # Node: search
         try:
-            state = orchestrator.nodes['search'](state)
+            state = orchestrator.nodes['search'].func(state)   # ← .func
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Search", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
@@ -531,7 +531,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
         patch = {"agents": {"Summarise": {"progress": 10, "phase": {"label": "Summarising", "sub": "Extracting key points…"}}}}
         yield f"data: {json.dumps(patch)}\n\n"
         try:
-            state = orchestrator.nodes['summarise'](state)
+            state = orchestrator.nodes['summarise'].func(state)   # ← .func
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Summarise", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
@@ -543,7 +543,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
         patch = {"agents": {"Critic": {"progress": 10, "phase": {"label": "Critiquing", "sub": "Cross‑checking claims…"}}}}
         yield f"data: {json.dumps(patch)}\n\n"
         try:
-            state = orchestrator.nodes['critic'](state)
+            state = orchestrator.nodes['critic'].func(state)   # ← .func
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Critic", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
@@ -555,7 +555,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
         patch = {"agents": {"Writer": {"progress": 10, "phase": {"label": "Writing", "sub": "Drafting research digest…"}}}}
         yield f"data: {json.dumps(patch)}\n\n"
         try:
-            state = orchestrator.nodes['write'](state)
+            state = orchestrator.nodes['write'].func(state)   # ← .func
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Writer", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
