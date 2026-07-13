@@ -29,7 +29,7 @@ import os
 import json
 import uuid
 from dotenv import load_dotenv
-from app.graph.orchestrator import orchestrator
+from app.graph.orchestrator import orchestrator, search_node, summarise_node, critic_node, writer_node
 from app.graph.debate_graph import debate_graph
 from app.state import AgentState
 from typing import Optional
@@ -460,7 +460,7 @@ async def ask_stream(request: QueryRequest, req: Request):
 
 # ========== VISUAL STREAMING ==========
 @app.post("/ask-visual")
-async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← ADDED db dependency
+async def ask_visual(request: Request, db: Session = Depends(get_db)):
     """
     Stream visual research data for the NeuralResearchEngine component.
     """
@@ -485,10 +485,11 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
                 if encrypted:
                     user_api_key = decrypt_api_key(encrypted, user.encryption_key)
         except Exception:
-            pass   # fall through to guest / no key
+            pass  # fall through to guest / no key
 
     async def event_stream():
         start_time = time.time()
+        elapsed = 0.0
         visual = init_visual_state(query)
         yield f"data: {json.dumps(visual)}\n\n"
 
@@ -511,15 +512,13 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
             "current_agent": "",
             "provider": "anthropic",
             "session_id": "visual",
-            # ── User's BYO key ──
             "user_api_key": user_api_key,
-            "user": user,  # pass the whole user object if needed
+            "user": user,
         }
 
-        # Actually run the orchestrator nodes, one by one, emitting patches
         # Node: search
         try:
-            state = orchestrator.nodes['search'].func(state)   # ← .func
+            state = search_node(state)
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Search", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
@@ -531,7 +530,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
         patch = {"agents": {"Summarise": {"progress": 10, "phase": {"label": "Summarising", "sub": "Extracting key points…"}}}}
         yield f"data: {json.dumps(patch)}\n\n"
         try:
-            state = orchestrator.nodes['summarise'].func(state)   # ← .func
+            state = summarise_node(state)
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Summarise", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
@@ -543,7 +542,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
         patch = {"agents": {"Critic": {"progress": 10, "phase": {"label": "Critiquing", "sub": "Cross‑checking claims…"}}}}
         yield f"data: {json.dumps(patch)}\n\n"
         try:
-            state = orchestrator.nodes['critic'].func(state)   # ← .func
+            state = critic_node(state)
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Critic", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
@@ -555,7 +554,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):   # ← A
         patch = {"agents": {"Writer": {"progress": 10, "phase": {"label": "Writing", "sub": "Drafting research digest…"}}}}
         yield f"data: {json.dumps(patch)}\n\n"
         try:
-            state = orchestrator.nodes['write'].func(state)   # ← .func
+            state = writer_node(state)
             elapsed = time.time() - start_time
             patch = build_visual_patch(state, "Writer", elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
