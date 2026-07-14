@@ -1178,6 +1178,9 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const [userStyle,      setUserStyle]      = useState("academic");
   const [fontsLoaded,    setFontsLoaded]    = useState(false);
 
+  // --- NEW: engine collapse state
+  const [engineCollapsed, setEngineCollapsed] = useState(false);
+
   // Wait for fonts to load before rendering icons
   useEffect(() => {
     document.fonts.ready.then(() => {
@@ -1207,6 +1210,15 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     fetchStyle();
   }, []);
 
+  // --- NEW: scroll to answer when it first appears
+  useEffect(() => {
+    if (answer) {
+      setTimeout(() => {
+        document.getElementById('research-answer')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [answer]);
+
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
 
   // Show a subtle loading state until fonts are ready
@@ -1234,6 +1246,8 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     setConfidence(0);
     setAgentProgress([]);
     setAgentStatus("Initializing…");
+    // --- NEW: reset engine collapse when starting a new research
+    setEngineCollapsed(false);
 
     // ✅ Get JWT token
     const token = getToken();
@@ -1286,6 +1300,8 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
                             setSources(srcList);
                             setConfidence(confScore);
                             setAgentStatus("");
+                            // --- NEW: collapse engine when answer is ready
+                            setEngineCollapsed(true);
                             setHistory(prev => [{
                                 query: qText,
                                 confidence: confScore,
@@ -1306,7 +1322,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     }
   };
 
-  const handleNew  = () => { setAnswer(""); setQuery(""); setSources([]); setConfidence(0); };
+  const handleNew  = () => { setAnswer(""); setQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); };
   const handleCopy = () => { navigator.clipboard.writeText(answer); };
   const confColor  = (v) => v>=80?C.green:v>=60?C.amber:C.crimson;
   const sidebarW   = sidebarCollapsed ? 56 : 320;
@@ -1326,19 +1342,47 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
           <LandingHero query={query} setQuery={setQuery} onSearch={startResearch} loading={loading} />
         )}
 
-        {/* Live Neural Engine — replaces old ThinkingCanvas */}
-        {loading && (
-          <div style={{ position:"relative",zIndex:20,minHeight:"100vh" }}>
-            <NeuralResearchEngine
-              apiUrl={`${API_BASE_URL}/ask-visual`}
-              query={query}
-            />
+        {/* --- UPDATED: Engine stays visible during loading AND after answer (collapsible) --- */}
+        {(loading || answer) && (
+          <div style={{
+            position: "relative",
+            zIndex: 20,
+            minHeight: engineCollapsed ? "60px" : "100vh",
+            transition: "min-height 0.5s ease",
+            overflow: "hidden",
+          }}>
+            {engineCollapsed && (
+              <div style={{
+                padding: "12px 24px",
+                background: "rgba(10,10,30,0.9)",
+                backdropFilter: "blur(12px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid rgba(0,255,15,0.2)",
+                cursor: "pointer",
+              }} onClick={() => setEngineCollapsed(false)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ color: "#00ff0f", fontSize: 18 }}>🧠</span>
+                  <span style={{ color: "#fff", fontFamily: "Sora, sans-serif", fontWeight: 700 }}>
+                    Neural Engine — Research Complete
+                  </span>
+                </div>
+                <span style={{ color: "#00ff0f", fontSize: 14 }}>▼ Expand</span>
+              </div>
+            )}
+            <div style={{ display: engineCollapsed ? "none" : "block" }}>
+              <NeuralResearchEngine
+                apiUrl={`${API_BASE_URL}/ask-visual`}
+                query={query}
+              />
+            </div>
           </div>
         )}
 
-        {/* Results state */}
+        {/* Results state — with id for smooth scrolling */}
         {answer && (
-          <div style={{ padding:"28px 40px",position:"relative", marginTop: loading ? 0 : 32 }}>
+          <div id="research-answer" style={{ padding:"28px 40px",position:"relative", marginTop: loading ? 0 : 32 }}>
             {/* search bar */}
             <div style={{ maxWidth:860,margin:"0 auto 32px" }}>
               <div style={{ display:"flex",alignItems:"center",background:"rgba(1,15,31,0.85)",backdropFilter:"blur(12px)",border:"1px solid rgba(0,255,71,0.3)",borderRadius:9999,padding:"6px 6px 6px 20px" }}>
