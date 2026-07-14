@@ -25,17 +25,14 @@ logger = logging.getLogger("polynous.critic_agent")
 # CONFIG
 # ============================================================
 
-# claude-3-haiku-20240307 is retired; claude-haiku-4-5-20251001 is the
-# current fast/cheap tier and is a drop-in replacement for this workload
-# (low-temperature structured JSON extraction).
-DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_ANTHROPIC_MODEL = "claude-3-haiku-20240307"   # ✅ FIXED MODEL NAME
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 MAX_TOKENS = 1200
 TEMPERATURE = 0.2
 
-MAX_CHARS_PER_SUMMARY = 3000   # guard against one huge summary eating the budget
-MAX_TOTAL_SUMMARY_CHARS = 12000  # overall ceiling passed to the model
+MAX_CHARS_PER_SUMMARY = 3000
+MAX_TOTAL_SUMMARY_CHARS = 12000
 
 MAX_RETRIES = 2
 RETRY_BACKOFF_SECONDS = 1.5
@@ -90,7 +87,9 @@ Sources are numbered [SOURCE 1], [SOURCE 2], etc. in the material you are given.
 Always cite sources using those exact numbers.
 
 ────────────────────────────────────────────────────────────
-OUTPUT FORMAT — Return ONLY valid JSON
+OUTPUT FORMAT — Return ONLY valid JSON **WITHOUT** any markdown fences.
+Your entire response must start with `{` and end with `}`.
+Do NOT write ```json or ``` before or after the JSON.
 ────────────────────────────────────────────────────────────
 
 {
@@ -217,7 +216,8 @@ Analyze these {len(cleaned)} sources. Find:
 5. What aspects of the query are NOT covered?
 6. What's the overall research landscape?
 
-Return ONLY valid JSON. Follow the exact format specified."""
+‼️ IMPORTANT: Do NOT wrap the JSON in ```json fences. Return ONLY the raw JSON object. Your response must start with `{{` and end with `}}`.
+"""
 
     # ── Call LLM (with retry on transient failures) ───
     try:
@@ -343,8 +343,7 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str) ->
 def _parse_json_response(text: str) -> dict:
     """
     Extract JSON from LLM response.
-    Handles responses wrapped in ```json blocks or ``` blocks, and trims
-    stray leading/trailing prose the model sometimes adds.
+    First tries direct parsing, then searches for a JSON object with regex.
     """
     if not text:
         print("  ⚠️ Empty response from LLM")
@@ -352,24 +351,27 @@ def _parse_json_response(text: str) -> dict:
 
     text = text.strip()
 
+    # Direct attempt
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    json_patterns = [
-        r"```json\s*(.*?)\s*```",
-        r"```\s*(\{.*?\})\s*```",
-        r"(\{.*\})",
-    ]
+    # Try to find a JSON object that starts with { and ends with }
+    # This regex captures the first complete JSON object
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
 
-    for pattern in json_patterns:
-        match = re.search(pattern, text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                continue
+    # Last resort: try after removing markdown fences
+    cleaned = re.sub(r'```(?:json)?\s*|\s*```', '', text)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
 
     print(f"  ⚠️ Could not parse JSON from response: {text[:200]}...")
     return _empty_result("Could not parse JSON from LLM response")

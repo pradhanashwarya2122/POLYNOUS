@@ -1337,8 +1337,8 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
         )}
 
         {/* Results state */}
-        {answer && !loading && (
-          <div style={{ padding:"28px 40px",position:"relative" }}>
+        {answer && (
+          <div style={{ padding:"28px 40px",position:"relative", marginTop: loading ? 0 : 32 }}>
             {/* search bar */}
             <div style={{ maxWidth:860,margin:"0 auto 32px" }}>
               <div style={{ display:"flex",alignItems:"center",background:"rgba(1,15,31,0.85)",backdropFilter:"blur(12px)",border:"1px solid rgba(0,255,71,0.3)",borderRadius:9999,padding:"6px 6px 6px 20px" }}>
