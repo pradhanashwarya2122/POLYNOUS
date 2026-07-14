@@ -458,7 +458,8 @@ async def ask_stream(request: QueryRequest, req: Request):
     
     return StreamingResponse(gen(), media_type="text/event-stream")
 
-# ========== VISUAL STREAMING ==========
+
+# ========== VISUAL STREAMING (FIXED) ==========
 @app.post("/ask-visual")
 async def ask_visual(request: Request, db: Session = Depends(get_db)):
     """
@@ -466,12 +467,19 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
     """
     body = await request.json()
     query = body.get("query", "")
+
+    # ── Sanitize (same policy as /ask and /ask-stream) ──
+    if not query or not is_safe_input(query):
+        raise HTTPException(400, "Invalid or empty query")
+    query = sanitize_query(query)
     if not query:
         raise HTTPException(400, "query required")
 
-    # ── Extract user from JWT token ──
+    # ── Extract user + derive (provider, key) as a MATCHED PAIR ──
     user = None
     user_api_key = None
+    provider = "anthropic"
+
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "")
@@ -480,22 +488,26 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             user_id = int(payload.get("sub", 0))
             user = db.query(User).filter(User.id == user_id).first()
             if user:
-                # Decrypt the user's BYO key (prefer Anthropic, fallback OpenAI)
-                encrypted = user.anthropic_api_key or user.openai_api_key
-                if encrypted:
-                    user_api_key = decrypt_api_key(encrypted, user.encryption_key)
+                # 1) Try the user's preferred provider first
+                preferred = getattr(user, "preferred_provider", "anthropic") or "anthropic"
+                candidates = [preferred] + [p for p in ("anthropic", "openai") if p != preferred]
+                # 2) Use the first provider that has a decryptable key —
+                #    provider and key always travel together now.
+                for p in candidates:
+                    encrypted = getattr(user, f"{p}_api_key", None)
+                    if encrypted:
+                        decrypted = decrypt_api_key(encrypted, user.encryption_key)
+                        if decrypted:
+                            provider = p
+                            user_api_key = decrypted
+                            break
         except Exception:
-            pass  # fall through to guest / no key
+            pass  # fall through to guest / env-var keys
 
     async def event_stream():
         start_time = time.time()
-        elapsed = 0.0
         visual = init_visual_state(query)
         yield f"data: {json.dumps(visual)}\n\n"
-
-        # ───────── Step 1: Search ─────────
-        patch = {"agents": {"Search": {"progress": 10, "phase": {"label": "Searching", "sub": "Querying Tavily and scraping…"}}}}
-        yield f"data: {json.dumps(patch)}\n\n"
 
         state = {
             "query": query,
@@ -510,63 +522,54 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             "errors": [],
             "warnings": [],
             "current_agent": "",
-            "provider": "anthropic",
-            "session_id": "visual",
+            # ── FIX: matched provider/key pair, plus preferred_provider so
+            #    _get_provider() in the orchestrator resolves consistently ──
+            "provider": provider,
+            "preferred_provider": provider,
             "user_api_key": user_api_key,
+            "session_id": "visual",
             "user": user,
         }
 
-        # Node: search
-        try:
-            state = search_node(state)
-            elapsed = time.time() - start_time
-            patch = build_visual_patch(state, "Search", elapsed)
-            yield f"data: {json.dumps(patch)}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            return
+        loop = asyncio.get_event_loop()
 
-        # Node: summarise
-        patch = {"agents": {"Summarise": {"progress": 10, "phase": {"label": "Summarising", "sub": "Extracting key points…"}}}}
-        yield f"data: {json.dumps(patch)}\n\n"
-        try:
-            state = summarise_node(state)
-            elapsed = time.time() - start_time
-            patch = build_visual_patch(state, "Summarise", elapsed)
-            yield f"data: {json.dumps(patch)}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            return
+        # Ordered pipeline — node runs FIRST, patch built AFTER (real data).
+        pipeline = [
+            ("Search",    search_node,    {"label": "Searching",   "sub": "Querying Tavily and scraping…"}),
+            ("Summarise", summarise_node, {"label": "Summarising", "sub": "Extracting key points…"}),
+            ("Critic",    critic_node,    {"label": "Critiquing",  "sub": "Cross-checking claims…"}),
+            ("Writer",    writer_node,    {"label": "Writing",     "sub": "Drafting research digest…"}),
+        ]
 
-        # Node: critic
-        patch = {"agents": {"Critic": {"progress": 10, "phase": {"label": "Critiquing", "sub": "Cross‑checking claims…"}}}}
-        yield f"data: {json.dumps(patch)}\n\n"
-        try:
-            state = critic_node(state)
-            elapsed = time.time() - start_time
-            patch = build_visual_patch(state, "Critic", elapsed)
-            yield f"data: {json.dumps(patch)}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            return
+        for agent_name, node_fn, phase in pipeline:
+            # announce agent start (panel leaves Idle, lane shows working)
+            yield f"data: {json.dumps({'agents': {agent_name: {'progress': 10, 'phase': phase}}, 'lanes': {agent_name: {'sub': '', 'status': 'working'}}})}\n\n"
+            try:
+                # run blocking node in a thread so the event loop can flush SSE
+                nonlocal_state = await loop.run_in_executor(None, node_fn, state)
+                state.update(nonlocal_state if isinstance(nonlocal_state, dict) else {})
+            except Exception as e:
+                yield f"data: {json.dumps({'error': f'{agent_name} agent failed: {str(e)[:200]}'})}\n\n"
+                return
 
-        # Node: writer
-        patch = {"agents": {"Writer": {"progress": 10, "phase": {"label": "Writing", "sub": "Drafting research digest…"}}}}
-        yield f"data: {json.dumps(patch)}\n\n"
-        try:
-            state = writer_node(state)
             elapsed = time.time() - start_time
-            patch = build_visual_patch(state, "Writer", elapsed)
+            patch = build_visual_patch(state, agent_name, elapsed)
             yield f"data: {json.dumps(patch)}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            return
 
-        # Final overall patch with diagnostics
+        # ── Final diagnostics patch (elapsed recomputed — fix #4) ──
+        elapsed = time.time() - start_time
         final_patch = build_visual_patch(state, "Final", elapsed)
+        # Ship the answer + citations so the digest can render from this stream
+        final_patch["final_answer"] = state.get("final_answer", "")
+        final_patch["citations"] = state.get("citations", [])
         yield f"data: {json.dumps(final_patch)}\n\n"
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
 
 # ========== DEBUG ENDPOINT ==========
 @app.get("/debug/last-key")

@@ -1,10 +1,22 @@
 """
-POLYNOUS Critic Agent — Source Comparison Engine
+POLYNOUS Critic Agent — Source Comparison Engine  (FIXED)
 
 Role: Compare what sources say relative to each other.
       NEVER judges which position is "correct".
       Reports agreements, disagreements, unique insights.
       Computes confidence from source agreement ratio.
+
+CHANGES vs previous version (everything else is identical):
+  1. _parse_json_response replaced with a robust brace-counting extractor:
+     - strips markdown fences first
+     - finds the outermost {...} by counting braces (string-aware), instead
+       of the old greedy `\\{.*\\}` regex which over-matched when prose
+       contained a stray `}` after the JSON
+     - repairs common LLM output faults before parsing: trailing commas
+       and smart quotes (Haiku at low temp occasionally emits both)
+  2. The anti-fence instruction in the system prompt was repeated 4 times;
+     consolidated into ONE clear directive — repeating "```json" in the
+     prompt makes small models MORE likely to echo it back.
 """
 import json
 import logging
@@ -25,7 +37,7 @@ logger = logging.getLogger("polynous.critic_agent")
 # CONFIG
 # ============================================================
 
-DEFAULT_ANTHROPIC_MODEL = "claude-3-haiku-20240307"   # ✅ FIXED MODEL NAME
+DEFAULT_ANTHROPIC_MODEL = "claude-3-haiku-20240307"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 MAX_TOKENS = 1200
@@ -87,9 +99,9 @@ Sources are numbered [SOURCE 1], [SOURCE 2], etc. in the material you are given.
 Always cite sources using those exact numbers.
 
 ────────────────────────────────────────────────────────────
-OUTPUT FORMAT — Return ONLY valid JSON **WITHOUT** any markdown fences.
-Your entire response must start with `{` and end with `}`.
-Do NOT write ```json or ``` before or after the JSON.
+OUTPUT FORMAT — respond with ONLY one raw JSON object.
+The very first character of your response must be { and the very last must be }.
+No code fences, no commentary, no text outside the JSON.
 ────────────────────────────────────────────────────────────
 
 {
@@ -149,6 +161,7 @@ CRITICAL RULES
 6. For source_quality_notes, identify the TYPE of source, not whether it's "good" or "bad"
 7. List coverage_gaps honestly — what's missing from the research?
 8. The overall_landscape should be NEUTRAL and DESCRIPTIVE
+9. No trailing commas anywhere in the JSON
 
 ────────────────────────────────────────────────────────────
 EXAMPLES
@@ -216,7 +229,7 @@ Analyze these {len(cleaned)} sources. Find:
 5. What aspects of the query are NOT covered?
 6. What's the overall research landscape?
 
-‼️ IMPORTANT: Do NOT wrap the JSON in ```json fences. Return ONLY the raw JSON object. Your response must start with `{{` and end with `}}`.
+Respond with ONLY the raw JSON object — first character {{ and last character }}.
 """
 
     # ── Call LLM (with retry on transient failures) ───
@@ -340,38 +353,86 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str) ->
         return message.content[0].text
 
 
+# ============================================================
+# ROBUST JSON EXTRACTION  (the fix)
+# ============================================================
+
+
+def _repair_json(candidate: str) -> str:
+    """Fix the two most common LLM JSON faults before parsing."""
+    candidate = candidate.replace("\u201c", '"').replace("\u201d", '"')  # smart double quotes
+    candidate = candidate.replace("\u2018", "'").replace("\u2019", "'")  # smart single quotes
+    candidate = re.sub(r",\s*([}\]])", r"\1", candidate)                  # trailing commas
+    return candidate
+
+
+def _extract_outermost_object(text: str) -> Optional[str]:
+    """
+    Find the first complete top-level {...} object by counting braces.
+    String-aware: braces inside JSON string values are ignored, and escaped
+    quotes inside strings are handled. Returns the candidate substring or None.
+    """
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if esc:
+            esc = False
+            continue
+        if ch == "\\":
+            esc = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
 def _parse_json_response(text: str) -> dict:
     """
-    Extract JSON from LLM response.
-    First tries direct parsing, then searches for a JSON object with regex.
+    Extract JSON from an LLM response. Survives, in order:
+      - markdown code fences (```json ... ```)
+      - leading prose ("Here is the analysis: {...}")
+      - trailing prose after the JSON (including stray braces)
+      - smart quotes and trailing commas
+    Falls back to _empty_result so the pipeline and UI never break.
     """
     if not text:
         print("  ⚠️ Empty response from LLM")
         return _empty_result("Empty LLM response")
 
-    text = text.strip()
-
-    # Direct attempt
+    # 1) Strip markdown fences everywhere, then try direct parse
+    cleaned = re.sub(r"```(?:json)?\s*", "", text)
+    cleaned = cleaned.replace("```", "").strip()
     try:
-        return json.loads(text)
+        result = json.loads(cleaned)
+        if isinstance(result, dict):
+            return result
     except json.JSONDecodeError:
         pass
 
-    # Try to find a JSON object that starts with { and ends with }
-    # This regex captures the first complete JSON object
-    match = re.search(r'\{.*\}', text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-
-    # Last resort: try after removing markdown fences
-    cleaned = re.sub(r'```(?:json)?\s*|\s*```', '', text)
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
+    # 2) Brace-counted outermost object (string-aware, not greedy regex)
+    candidate = _extract_outermost_object(cleaned)
+    if candidate:
+        for attempt in (candidate, _repair_json(candidate)):
+            try:
+                result = json.loads(attempt)
+                if isinstance(result, dict):
+                    return result
+            except json.JSONDecodeError:
+                continue
 
     print(f"  ⚠️ Could not parse JSON from response: {text[:200]}...")
     return _empty_result("Could not parse JSON from LLM response")

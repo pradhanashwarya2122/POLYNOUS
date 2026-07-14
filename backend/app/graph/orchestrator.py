@@ -26,6 +26,7 @@ from app.agents.critic_agent import critic_agent
 from app.agents.writer_agent import writer_agent
 from app.search_agent import search_web
 from app.memory.vector_store import store_research
+from app.utils.computed_confidence import compute_confidence   # ← NEW
 
 logger = logging.getLogger("polynous.orchestrator")
 
@@ -219,6 +220,17 @@ def writer_node(state: AgentState) -> AgentState:
         provider=provider,
     )
     state['final_answer'] = answer
+
+    # ── COMPUTED CONFIDENCE (from retrieved sources) ──────────────
+    # This is an *additional* confidence metric derived from the
+    # source documents themselves, independent of the LLM's self‑assessment.
+    if state.get('retrieved_docs'):
+        try:
+            state['computed_confidence'] = compute_confidence(
+                state['retrieved_docs'], answer=answer
+            )
+        except Exception as e:
+            logger.warning("Computed confidence failed: %s", e)
 
     entities = _extract_entities(state['query'])
     confidence = state.get('critique', {}).get('overall_confidence', 0)

@@ -852,31 +852,135 @@ function SuggestionCards({ onSelect }) {
 }
 
 // ─── Report helpers ───────────────────────────────────────────────────────────
+
+// Strip markdown artifacts the LLM leaves in prose: **bold**, *italic*,
+// leading #/##, stray backticks, orphaned "& UNCERTAINTIES"-style header tails.
+function clean(text) {
+  if (!text) return "";
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")     // **bold** → bold
+    .replace(/\*(.*?)\*/g, "$1")         // *italic* → italic
+    .replace(/^#{1,4}\s*/gm, "")         // markdown headers
+    .replace(/`{1,3}/g, "")              // backticks
+    .replace(/^[&\-•]\s*/, "")           // orphaned leading & / - / •
+    .replace(/\s{2,}/g, " ")             // collapsed whitespace
+    .trim();
+}
+
+// Section header matcher: tolerates emoji prefixes, **bold**, colons,
+// case variations, and "&" joins (e.g. "CAVEATS & LIMITATIONS & UNCERTAINTIES").
+//
+// CRITICAL: a header only counts if it's at the START OF A LINE, or is
+// EMOJI-PREFIXED (emoji headers can appear mid-blob in LLM output).
+// Without this, prose like "The sources characterize..." or "This
+// confidence level reflects..." hijacks the section boundaries.
+function headerRe(emoji, word) {
+  // (?:(?:^|\n)[ \t]*(?:EMOJI\s*)? | EMOJI\s*) \**\s* WORD \s*\**\s*:?
+  return new RegExp(
+    `(?:(?:^|\\n)[ \\t]*(?:${emoji}\\s*)?|${emoji}\\s*)\\*{0,2}\\s*${word}\\s*\\*{0,2}\\s*:?`,
+    "i"
+  );
+}
+const SECTION_DEFS = [
+  { key: "summary",     re: headerRe("📋", "(?:EXECUTIVE\\s+)?SUMMARY") },
+  { key: "findings",    re: headerRe("🔑", "KEY\\s+FINDINGS?") },
+  { key: "limitations", re: headerRe("⚠️", "(?:CAVEATS\\s*&?\\s*)?(?:LIMITATIONS?|UNCERTAINTIES)(?:\\s*&\\s*UNCERTAINTIES)?") },
+  { key: "confidence",  re: headerRe("(?:🎯|🔬)", "CONFIDENCE(?:\\s+ASSESSMENT)?") },
+  { key: "sources",     re: headerRe("(?:📚|🔗)", "SOURCES?") },
+];
+
+// Split raw answer text into named sections by scanning for header positions.
+function splitSections(text) {
+  const hits = [];
+  for (const def of SECTION_DEFS) {
+    const m = def.re.exec(text);
+    if (m) hits.push({ key: def.key, start: m.index, headerEnd: m.index + m[0].length });
+  }
+  hits.sort((a, b) => a.start - b.start);
+
+  const sections = {};
+  // Anything before the first header is the summary (common LLM behaviour)
+  if (hits.length > 0 && hits[0].start > 40) {
+    sections.summary = text.slice(0, hits[0].start).trim();
+  }
+  hits.forEach((h, i) => {
+    const end = i + 1 < hits.length ? hits[i + 1].start : text.length;
+    const body = text.slice(h.headerEnd, end).trim();
+    // First matched section of a key wins; later duplicates are appended
+    sections[h.key] = sections[h.key] ? sections[h.key] + "\n" + body : body;
+  });
+  return sections;
+}
+
+// Split a section body into bullet items — handles "- item", "• item",
+// "1. item", "1) item", newline-separated, and citation-boundary fallbacks.
+function splitItems(body) {
+  if (!body) return [];
+  // 1) explicit bullets / numbered lines
+  const lines = body
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const bulleted = lines
+    .filter((l) => /^([-•*]|\d+[.)])\s+/.test(l))
+    .map((l) => l.replace(/^([-•*]|\d+[.)])\s+/, "").trim())
+    .filter((l) => l.length > 10);
+  if (bulleted.length > 1) return bulleted;
+
+  // 2) inline bullets: "point one • point two • point three"
+  const byDot = body.split(/\s+•\s+/).map((s) => s.trim()).filter((s) => s.length > 15);
+  if (byDot.length > 1) return byDot;
+
+  // 3) citation boundaries: "…claim [1][3] Next claim…"
+  const byCit = body.split(/(?<=\[\d+\])\s+(?=[A-Z])/).map((s) => s.trim()).filter((s) => s.length > 15);
+  if (byCit.length > 1) return byCit;
+
+  // 4) sentence fallback
+  return body
+    .split(/(?<=\.)\s+(?=[A-Z])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 20);
+}
+
 function parseAnswer(text) {
-  const summary = (() => { const m=text.match(/📋\s*SUMMARY[:\s]+([\s\S]*?)(?=🔑|⚠️|🎯|  |$)/i); return m?m[1].trim():""; })();
-  const findings = (() => {
-    const m = text.match(/🔑\s*KEY FINDINGS[:\s]+([\s\S]*?)(?=⚠️|🎯|  |$)/i);
-    if (!m) return [];
-    const raw = m[1].trim();
-    const byNewline = raw.split("\n").filter(l=>/^[-•]/.test(l.trim())).map(l=>l.replace(/^[-•]\s*/,"").trim()).filter(Boolean);
-    if (byNewline.length>1) return byNewline;
-    const byDot = raw.split(/\s*[•]\s*/).map(s=>s.replace(/^(\[\d+\])+\s*/,"").trim()).filter(s=>s.length>15);
-    if (byDot.length>1) return byDot;
-    const byCit = raw.split(/(?<=\[\d+\])\s+(?=[A-Z])/).map(s=>s.trim()).filter(s=>s.length>15);
-    if (byCit.length>1) return byCit;
-    return raw.split(/\.\s+(?=[A-Z])/).map(s=>s.trim()).filter(s=>s.length>20).map(s=>s.endsWith(".")?s:s+".");
-  })();
-  const limitations = (() => { const m=text.match(/⚠️\s*(?:LIMITATIONS|UNCERTAINTIES|CAVEATS)[:\s]+([\s\S]*?)(?=   |  |$)/i); return m?m[1].trim():""; })();
-  const parsedConf   = (() => { const m=text.match(/🎯\s*CONFIDENCE[:\s]+(\d+)/i); return m?parseInt(m[1]):0; })();
-  const parsedSources= (() => { const m=text.match(/  \s*SOURCES[:\s]+([\s\S]*?)$/i); if(!m)return[]; return m[1].split("\n").map(l=>l.trim()).filter(Boolean); })();
-  return { summary: summary||(findings.length===0&&!limitations?text:""), findings, limitations, parsedConf, parsedSources };
+  if (!text) return { summary: "", findings: [], limitations: "", parsedConf: 0, parsedSources: [] };
+
+  const sections = splitSections(text);
+
+  const summary = clean(sections.summary || "");
+  const findings = splitItems(sections.findings).map(clean).filter(Boolean);
+  const limitations = (sections.limitations || "").trim();
+
+  // Confidence: look in the confidence section first, then anywhere
+  const confSource = sections.confidence || text;
+  const confMatch =
+    confSource.match(/(?:overall\s+)?confidence[:\s]*\**\s*(\d{1,3})\s*%/i) ||
+    confSource.match(/(\d{1,3})\s*%\s*\(?(?:high|moderate|low)?/i);
+  const parsedConf = confMatch ? Math.min(100, parseInt(confMatch[1], 10)) : 0;
+
+  // Sources: numbered/bracketed lines inside the sources section
+  const parsedSources = (sections.sources || "")
+    .split(/\n|(?=\[\d+\])/)
+    .map((l) => l.replace(/^\[\d+\]\s*/, "").trim())
+    .filter((l) => l.length > 5);
+
+  // If nothing matched at all, treat the whole text as summary (fallback)
+  const nothingParsed = !summary && findings.length === 0 && !limitations;
+  return {
+    summary: nothingParsed ? clean(text) : summary,
+    findings,
+    limitations,
+    parsedConf,
+    parsedSources,
+  };
 }
 
 function parseLimitationPoints(text) {
   if (!text) return [];
-  const lines = text.split(/\n|(?<=\.)\s+(?=[A-Z•\-])/).map(l=>l.replace(/^[-•]\s*/,"").trim()).filter(l=>l.length>10);
-  if (lines.length<=1) return text.split(/\.\s+/).map(s=>s.trim()).filter(s=>s.length>10).map(s=>s.endsWith(".")?s:s+".");
-  return lines;
+  return splitItems(text)
+    .map(clean)
+    // drop leaked header tails like "& UNCERTAINTIES" or bare "CONFIDENCE ASSESSMENT"
+    .filter((l) => l.length > 15 && !/^(&|CONFIDENCE|SOURCES)/i.test(l));
 }
 
 function SynapseDots({ color = C.green }) {
@@ -934,7 +1038,7 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
           <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.green,textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:14,display:"flex",alignItems:"center",gap:8 }}>
             <Icon name="auto_awesome" style={{ fontSize:15,color:C.green }} /> Executive Summary
           </div>
-          <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.85,color:C.onSurface,whiteSpace:"pre-wrap" }}>{summary}</p>
+          <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.85,color:C.onSurface,whiteSpace:"pre-wrap" }}>{clean(summary)}</p>
         </div>
       )}
 
@@ -952,7 +1056,7 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
                 <span style={{ position:"absolute",top:-2,left:-2,width:4,height:4,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}` }} />
                 <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
                   <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(0,255,71,0.1)",border:`1px solid ${C.green}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.green,marginTop:2 }}>{i+1}</span>
-                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}>{f}</p>
+                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}>{clean(f)}</p>
                 </div>
               </div>
             ))}
@@ -968,7 +1072,7 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
                 <span style={{ position:"absolute",top:-2,right:-2,width:4,height:4,borderRadius:"50%",background:C.crimson,boxShadow:`0 0 8px ${C.crimson}` }} />
                 <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
                   <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(255,32,64,0.1)",border:`1px solid ${C.crimson}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.crimson,marginTop:2 }}>{i+1}</span>
-                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}>{f}</p>
+                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}>{clean(f)}</p>
                 </div>
               </div>
             )) : (
@@ -995,7 +1099,7 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
                 {pts.map((pt,i)=>(
                   <div key={i} style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
                     <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(0,255,71,0.1)",border:`1px solid ${C.green}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.green,marginTop:2 }}>{i+1}</span>
-                    <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,color:C.onSurface,lineHeight:1.85 }}>{pt}</p>
+                    <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,color:C.onSurface,lineHeight:1.85 }}>{clean(pt)}</p>
                   </div>
                 ))}
               </div>
@@ -1034,9 +1138,9 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
             {limitationPoints.length>0 ? limitationPoints.map((pt,i)=>(
               <div key={i} style={{ display:"flex",alignItems:"flex-start",gap:14 }}>
                 <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(255,170,0,0.1)",border:`1px solid ${C.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.amber,marginTop:2 }}>{i+1}</span>
-                <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:"rgba(255,200,100,0.9)",fontStyle:"italic" }}>{pt}</p>
+                <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:"rgba(255,200,100,0.9)",fontStyle:"italic" }}>{clean(pt)}</p>
               </div>
-            )) : <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:"rgba(255,200,100,0.85)",fontStyle:"italic" }}>{limitations}</p>}
+            )) : <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:"rgba(255,200,100,0.85)",fontStyle:"italic" }}>{clean(limitations)}</p>}
           </div>
         </div>
       )}
