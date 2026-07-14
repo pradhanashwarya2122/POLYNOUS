@@ -100,9 +100,9 @@ Sources are numbered [SOURCE 1], [SOURCE 2], etc. in the material you are given.
 Always cite sources using those exact numbers.
 
 ────────────────────────────────────────────────────────────
-OUTPUT FORMAT — respond with ONLY one raw JSON object.
-The very first character of your response must be { and the very last must be }.
-No code fences, no commentary, no text outside the JSON.
+OUTPUT FORMAT — Return ONLY valid JSON
+DO NOT wrap your response in ```json ``` or any other markdown.
+Start your response with { and end with }.
 ────────────────────────────────────────────────────────────
 
 {
@@ -367,74 +367,57 @@ def _repair_json(candidate: str) -> str:
     return candidate
 
 
-def _extract_outermost_object(text: str) -> Optional[str]:
-    """
-    Find the first complete top-level {...} object by counting braces.
-    String-aware: braces inside JSON string values are ignored, and escaped
-    quotes inside strings are handled. Returns the candidate substring or None.
-    """
-    start = text.find("{")
-    if start == -1:
-        return None
-    depth = 0
-    in_str = False
-    esc = False
-    for i in range(start, len(text)):
-        ch = text[i]
-        if esc:
-            esc = False
-            continue
-        if ch == "\\":
-            esc = True
-            continue
-        if ch == '"':
-            in_str = not in_str
-            continue
-        if in_str:
-            continue
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start:i + 1]
-    return None
-
-
 def _parse_json_response(text: str) -> dict:
     """
-    Extract JSON from an LLM response. Survives, in order:
-      - markdown code fences (```json ... ```)
-      - leading prose ("Here is the analysis: {...}")
-      - trailing prose after the JSON (including stray braces)
-      - smart quotes and trailing commas
-    Falls back to _empty_result so the pipeline and UI never break.
+    Extract JSON from LLM response.
+    Handles responses wrapped in ```json blocks, ``` blocks, or raw JSON.
     """
     if not text:
         print("  ⚠️ Empty response from LLM")
         return _empty_result("Empty LLM response")
 
-    # 1) Strip markdown fences everywhere, then try direct parse
-    cleaned = re.sub(r"```(?:json)?\s*", "", text)
-    cleaned = cleaned.replace("```", "").strip()
+    text = text.strip()
+
+    # Try direct JSON parse first
     try:
-        result = json.loads(cleaned)
-        if isinstance(result, dict):
-            return result
+        return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # 2) Brace-counted outermost object (string-aware, not greedy regex)
-    candidate = _extract_outermost_object(cleaned)
-    if candidate:
-        for attempt in (candidate, _repair_json(candidate)):
-            try:
-                result = json.loads(attempt)
-                if isinstance(result, dict):
-                    return result
-            except json.JSONDecodeError:
-                continue
+    # Try to extract from ```json blocks (most common LLM pattern)
+    json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            pass
 
+    # Try to extract from ``` blocks (no language specifier)
+    code_match = re.search(r'```\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if code_match:
+        try:
+            return json.loads(code_match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    # Try to find ANY JSON object in the text
+    # Look for the first { and matching }
+    start = text.find('{')
+    if start >= 0:
+        # Find matching closing brace
+        brace_count = 0
+        for i in range(start, len(text)):
+            if text[i] == '{':
+                brace_count += 1
+            elif text[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    try:
+                        return json.loads(text[start:i+1])
+                    except json.JSONDecodeError:
+                        break
+
+    # Also try the prompt-level fix: tell the LLM to NOT use code fences
     print(f"  ⚠️ Could not parse JSON from response: {text[:200]}...")
     return _empty_result("Could not parse JSON from LLM response")
 

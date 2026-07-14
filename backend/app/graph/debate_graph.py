@@ -18,7 +18,7 @@ def debate_search_node(state: AgentState) -> AgentState:
     user = state.get('user')
     user_id = state.get('session_id', 'guest_user')
 
-    results = search_web(user, state['query'])
+    results = search_web(state['query'])
     state['retrieved_docs'] = results
 
     context = [
