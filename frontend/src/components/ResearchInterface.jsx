@@ -1284,6 +1284,8 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
 
   // --- NEW: engine collapse state
   const [engineCollapsed, setEngineCollapsed] = useState(false);
+  // --- PATCH 6a: engine completion gate
+  const [engineDone, setEngineDone] = useState(false);
 
   // Wait for fonts to load before rendering icons
   useEffect(() => {
@@ -1314,14 +1316,14 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     fetchStyle();
   }, []);
 
-  // --- NEW: scroll to answer when it first appears
+  // --- PATCH 6f: scroll to answer only after engine done
   useEffect(() => {
-    if (answer) {
+    if (answer && engineDone) {
       setTimeout(() => {
         document.getElementById('research-answer')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     }
-  }, [answer]);
+  }, [answer, engineDone]);
 
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
 
@@ -1350,8 +1352,9 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     setConfidence(0);
     setAgentProgress([]);
     setAgentStatus("Initializing…");
-    // --- NEW: reset engine collapse when starting a new research
+    // --- PATCH 6b: reset engine done and collapse for new research
     setEngineCollapsed(false);
+    setEngineDone(false);
 
     // ✅ Get JWT token
     const token = getToken();
@@ -1404,8 +1407,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
                             setSources(srcList);
                             setConfidence(confScore);
                             setAgentStatus("");
-                            // --- NEW: collapse engine when answer is ready
-                            setEngineCollapsed(true);
+                            // --- REMOVED: setEngineCollapsed(true); (collapse now owned by onComplete)
                             setHistory(prev => [{
                                 query: qText,
                                 confidence: confScore,
@@ -1426,7 +1428,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     }
   };
 
-  const handleNew  = () => { setAnswer(""); setQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); };
+  const handleNew  = () => { setAnswer(""); setQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); setEngineDone(false); };
   const handleCopy = () => { navigator.clipboard.writeText(answer); };
   const confColor  = (v) => v>=80?C.green:v>=60?C.amber:C.crimson;
   const sidebarW   = sidebarCollapsed ? 56 : 320;
@@ -1476,16 +1478,24 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
               </div>
             )}
             <div style={{ display: engineCollapsed ? "none" : "block" }}>
+              {/* PATCH 6c: onComplete callback */}
               <NeuralResearchEngine
                 apiUrl={`${API_BASE_URL}/ask-visual`}
                 query={query}
+                onComplete={() => {
+                  setEngineDone(true);
+                  setEngineCollapsed(true);
+                  setTimeout(() => {
+                    document.getElementById("research-answer")?.scrollIntoView({ behavior: "smooth" });
+                  }, 350);
+                }}
               />
             </div>
           </div>
         )}
 
-        {/* Results state — with id for smooth scrolling */}
-        {answer && (
+        {/* --- PATCH 6d: only show report when engine done --- */}
+        {answer && engineDone && (
           <div id="research-answer" style={{ padding:"28px 40px",position:"relative", marginTop: loading ? 0 : 32 }}>
             {/* search bar */}
             <div style={{ maxWidth:860,margin:"0 auto 32px" }}>

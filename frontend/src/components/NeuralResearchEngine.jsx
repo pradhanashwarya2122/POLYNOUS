@@ -2,20 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import * as THREE from 'three';
 
 // ============================================================================
-// WHAT CHANGED (only these two things, everything else is identical):
-//
-// 1. useLiveResearch — rewired to correctly read the SSE stream:
-//    - Added `started` flag so the hook fires only once per (apiUrl, query) pair
-//    - Uses a persistent `stateRef` to hold the accumulated merge so that the
-//      functional updater inside the `while` loop always reads the latest value
-//      without needing it as a closure dependency (avoids stale-closure bugs)
-//    - Correctly handles the `{ error: "..." }` event shape the backend sends
-//      on agent failure, surfacing it to the UI instead of silently ignoring it
-//    - Cancels the in-flight reader on unmount / prop change
-//
-// 2. NeuralResearchEngine (top-level component) — added `streamError` state:
-//    - Reads `liveError` from the hook and shows a dismissible banner when set
-//    - `data` memo now prefers `dataProp` → `liveData` → DEFAULT_DATA (unchanged)
+// PATCHES 1–5 APPLIED to NeuralResearchEngine.jsx
 // ============================================================================
 
 const styles = `
@@ -23,6 +10,19 @@ const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* premium text rendering */
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  .font-display { font-family:'Sora',sans-serif; letter-spacing:-0.01em; }
+  .font-mono    { font-family:'JetBrains Mono',monospace; font-feature-settings:'zero' 1; }
+
+  /* green glow accents */
+  .glow-green      { text-shadow: 0 0 18px rgba(0,255,71,0.45); }
+  .panel-glow:hover{ box-shadow: 0 0 24px rgba(0,255,71,0.07); border-color: rgba(0,255,71,0.22) !important; }
+
+  /* live clock pulse */
+  @keyframes tickPulse { 0%,100%{ opacity:1; } 50%{ opacity:0.55; } }
+  .tick-dot { animation: tickPulse 1s ease-in-out infinite; }
 
   body {
     background-color: #0a0a1e;
@@ -43,16 +43,16 @@ const styles = `
   }
 
   .agent-top-cyan   { border-top: 2px solid rgba(79,209,197,0.55); }
-  .agent-top-blue   { border-top: 2px solid rgba(108,140,255,0.55); }
+  .agent-top-blue   { border-top: 2px solid rgba(0,255,71,0.55); }
   .agent-top-amber  { border-top: 2px solid rgba(232,168,85,0.55); }
-  .agent-top-violet { border-top: 2px solid rgba(180,142,240,0.55); }
+  .agent-top-violet { border-top: 2px solid rgba(168,85,247,0.55); }
 
   .font-display { font-family: 'Sora', sans-serif; }
   .font-mono    { font-family: 'JetBrains Mono', monospace; }
 
   .custom-scrollbar::-webkit-scrollbar       { width: 4px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(108,140,255,0.25); border-radius: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,255,71,0.25); border-radius: 4px; }
 
   .thought-stream-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
   .thought-stream-scrollbar::-webkit-scrollbar       { width: 4px; }
@@ -61,11 +61,11 @@ const styles = `
 
   @keyframes fadeIn        { from { opacity:0; transform:translateY(4px); }  to { opacity:1; transform:translateY(0); } }
   @keyframes slideUpFade   { from { opacity:0; transform:translateY(6px); }  to { opacity:1; transform:translateY(0); } }
-  @keyframes flashHighlight{ 0%   { background:rgba(108,140,255,0.08); }     100%{ background:transparent; } }
+  @keyframes flashHighlight{ 0%   { background:rgba(0,255,71,0.10); }     100%{ background:transparent; } }
   @keyframes pulseCore     { 0%   { transform:scale(0.96); opacity:0.85; }   50% { transform:scale(1.04); opacity:1; } 100%{ transform:scale(0.96); opacity:0.85; } }
   @keyframes coreBurst     { 0%   { transform:scale(0.4);  opacity:0.7; }   100%{ transform:scale(2.2);  opacity:0; } }
   @keyframes typing        { from { width:0; }            to { width:88ch; } }
-  @keyframes blinkCaret    { from,to { border-color:transparent; } 50%{ border-color:#6C8CFF; } }
+  @keyframes blinkCaret    { from,to { border-color:transparent; } 50%{ border-color:#00ff47; } }
   @keyframes spin          { from { transform:rotate(0deg); }   to { transform:rotate(360deg); } }
   @keyframes spinReverse   { from { transform:rotate(360deg); } to { transform:rotate(0deg); } }
   @keyframes softPulse     { 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
@@ -76,14 +76,14 @@ const styles = `
   @keyframes errorSlideIn  { from{ opacity:0; transform:translateY(-8px); } to{ opacity:1; transform:translateY(0); } }
 
   .fade-in      { animation: fadeIn 0.4s ease-out forwards; opacity:0; }
-  .log-entry    { animation: slideUpFade 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
-  .log-entry-new{ animation: slideUpFade 0.25s cubic-bezier(0.16,1,0.3,1) forwards, flashHighlight 1.2s ease-out forwards; border-radius:8px; }
+  .log-entry    { animation: slideUpFade 0.18s cubic-bezier(0.22,1,0.36,1) forwards; }
+  .log-entry-new{ animation: slideUpFade 0.18s cubic-bezier(0.22,1,0.36,1) forwards, flashHighlight 0.9s ease-out forwards; border-radius:8px; }
   .synthesis-core { animation: pulseCore 2.4s ease-in-out infinite; }
   .float-tag    { animation: tagPop 5s ease-in-out infinite; }
   .error-banner { animation: errorSlideIn 0.3s ease-out forwards; }
   .typewriter-text {
     display:inline-block; overflow:hidden; white-space:nowrap;
-    border-right:0.12em solid #6C8CFF; width:88ch; max-width:100%;
+    border-right:0.12em solid #00ff47; width:88ch; max-width:100%;
     animation: typing 3s steps(88,end), blinkCaret 0.8s step-end infinite;
     vertical-align:bottom;
   }
@@ -120,8 +120,8 @@ const styles = `
   .ambient-field {
     position:fixed; inset:0; z-index:0; pointer-events:none;
     background:
-      radial-gradient(ellipse 60% 40% at 18% 10%, rgba(108,140,255,0.05),transparent 60%),
-      radial-gradient(ellipse 50% 35% at 85% 90%, rgba(180,142,240,0.035),transparent 60%);
+      radial-gradient(ellipse 60% 40% at 18% 10%, rgba(0,255,71,0.05),transparent 60%),
+      radial-gradient(ellipse 50% 35% at 85% 90%, rgba(168,85,247,0.035),transparent 60%);
   }
 
   .type-heading  { font-family:'Inter',sans-serif; font-size:15px; font-weight:600; color:#ECEEF2; letter-spacing:-0.005em; }
@@ -130,33 +130,31 @@ const styles = `
   .task-row      { transition:background 0.2s ease; border-radius:8px; }
   .task-row:hover{ background:rgba(255,255,255,0.03); }
   .empty-note    { font-size:11.5px; color:#565C6D; font-family:'JetBrains Mono',monospace; font-style:italic; }
-  ::selection    { background:#6C8CFF; color:#0a0a1e; }
+  ::selection    { background:#00ff47; color:#0a0a1e; }
 `;
-
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
 const NLI_VARIANTS = {
   entailment:   { from:"#F4CE7C", to:"#8A5E1E", mid:"#E8A855", badge:"#E8A855", label:"ENTAILMENT" },
   contradiction:{ from:"#F0A5A0", to:"#7A2E28", mid:"#E0685F", badge:"#E0685F", label:"CONTRADICTION" },
   neutral:      { from:"#C6CAD4", to:"#454B5A", mid:"#8A90A2", badge:"#8A90A2", label:"NEUTRAL" },
   cyan:         { from:"#9FEAE0", to:"#0F6E63", mid:"#4FD1C5", badge:"#4FD1C5", label:"HIGH RELEVANCE" },
-  blue:         { from:"#B7C4FF", to:"#2C3E9E", mid:"#6C8CFF", badge:"#6C8CFF", label:"COMPRESSED" },
-  purple:       { from:"#DCC9F7", to:"#5B3D8C", mid:"#B48EF0", badge:"#B48EF0", label:"COHERENT" },
+  blue:         { from:"#B7FFB0", to:"#0A5E1A", mid:"#00ff47", badge:"#00ff47", label:"COMPRESSED" },
+  purple:       { from:"#DCC9F7", to:"#5B3D8C", mid:"#a855f7", badge:"#a855f7", label:"COHERENT" },
 };
 
 const AGENT_META = {
   Search:   { color:"#4FD1C5", rgb:"79,209,197",   key:"cyan",   icon:"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" },
-  Summarise:{ color:"#6C8CFF", rgb:"108,140,255",  key:"blue",   icon:"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+  Summarise:{ color:"#00ff47", rgb:"0,255,71",     key:"blue",   icon:"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
   Critic:   { color:"#E8A855", rgb:"232,168,85",   key:"amber",  icon:"M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" },
-  Writer:   { color:"#B48EF0", rgb:"180,142,240",  key:"purple", icon:"M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" },
+  Writer:   { color:"#a855f7", rgb:"168,85,247",   key:"purple", icon:"M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" },
 };
 const AGENT_NAMES = Object.keys(AGENT_META);
 
 const AGENT_STYLES = {
   cyan:   { badge:{ background:"rgba(79,209,197,0.12)",  color:"#4FD1C5", border:"1px solid rgba(79,209,197,0.28)"  } },
-  blue:   { badge:{ background:"rgba(108,140,255,0.12)", color:"#6C8CFF", border:"1px solid rgba(108,140,255,0.28)" } },
+  blue:   { badge:{ background:"rgba(0,255,71,0.12)",    color:"#00ff47", border:"1px solid rgba(0,255,71,0.28)"    } },
   amber:  { badge:{ background:"rgba(232,168,85,0.12)",  color:"#E8A855", border:"1px solid rgba(232,168,85,0.28)"  } },
-  purple: { badge:{ background:"rgba(180,142,240,0.12)", color:"#B48EF0", border:"1px solid rgba(180,142,240,0.28)" } },
+  purple: { badge:{ background:"rgba(168,85,247,0.12)",  color:"#a855f7", border:"1px solid rgba(168,85,247,0.28)"  } },
 };
 
 const LEVEL_COLOR = { low:"#4FD1C5", med:"#E8A855", high:"#E0685F" };
@@ -188,10 +186,6 @@ const DEFAULT_DATA = {
   suggestions: [],
 };
 
-// ─── DEEP MERGE ───────────────────────────────────────────────────────────────
-// Arrays are replaced wholesale (not concatenated) because every patch from the
-// backend is authoritative — e.g. `logs` arrives as a complete list at the end,
-// not one entry at a time.  Objects are merged recursively.
 function deepMerge(base, override) {
   if (!override) return base;
   const out = Array.isArray(base) ? [...base] : { ...base };
@@ -212,23 +206,10 @@ function deepMerge(base, override) {
   return out;
 }
 
-// ─── SSE HOOK (THE ONLY LOGIC THAT CHANGED) ──────────────────────────────────
-//
-// Key fixes vs the original:
-//   • `stateRef` holds the running merged state so the reader loop never has a
-//     stale closure on the previous `liveData` value.
-//   • `started` ref ensures we don't open duplicate streams on re-renders.
-//   • `error` events from the backend (`{ "error": "..." }`) are surfaced via
-//     `liveError` instead of being silently deepMerged into the data tree.
-//   • Cleanup sets `cancelled = true` and aborts the controller so the reader
-//     exits cleanly when the component unmounts or props change.
-//
 function useLiveResearch(apiUrl, query) {
   const [liveData,  setLiveData]  = useState(null);
   const [liveError, setLiveError] = useState(null);
 
-  // Holds the running accumulated state so we never read stale closure values
-  // inside the async while-loop.
   const stateRef   = useRef(null);
   const cancelRef  = useRef(false);
   const startedRef = useRef(false);
@@ -236,7 +217,6 @@ function useLiveResearch(apiUrl, query) {
   useEffect(() => {
     if (!apiUrl || !query) return;
 
-    // Reset for each new (apiUrl, query) pair
     cancelRef.current  = false;
     startedRef.current = false;
     stateRef.current   = null;
@@ -283,7 +263,6 @@ function useLiveResearch(apiUrl, query) {
           try {
             chunk = await reader.read();
           } catch (readErr) {
-            // AbortController fired — normal teardown, not an error
             break;
           }
 
@@ -292,43 +271,37 @@ function useLiveResearch(apiUrl, query) {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // SSE messages are separated by blank lines (\n\n)
           const parts = buffer.split("\n\n");
-          buffer = parts.pop(); // keep the incomplete tail
+          buffer = parts.pop();
 
           for (const part of parts) {
-            // Extract the `data:` line (SSE may include `event:`, `id:`, etc.)
             const dataLine = part
               .split("\n")
               .find((l) => l.startsWith("data:"));
             if (!dataLine) continue;
 
-            const jsonStr = dataLine.slice(5).trim(); // strip "data:" prefix
+            const jsonStr = dataLine.slice(5).trim();
             if (!jsonStr) continue;
 
             let event;
             try {
               event = JSON.parse(jsonStr);
             } catch {
-              // Non-JSON keepalive comment or malformed chunk — skip
               continue;
             }
 
-            // Surface backend errors to the UI rather than merging them into data
             if (event && typeof event.error === "string") {
               setLiveError(`Agent error: ${event.error}`);
               continue;
             }
 
-            // Deep-merge the patch onto the running state
             const next = deepMerge(stateRef.current || DEFAULT_DATA, event);
             stateRef.current = next;
-            // Spread so React sees a new object reference and re-renders
             setLiveData({ ...next });
           }
         }
       } catch (err) {
-        if (err.name === "AbortError") return; // expected on cleanup
+        if (err.name === "AbortError") return;
         console.error("Live research stream error:", err);
         setLiveError(err.message || "Stream connection failed.");
       }
@@ -346,7 +319,6 @@ function useLiveResearch(apiUrl, query) {
   return { liveData, liveError };
 }
 
-// ─── SIGNAL BARS ─────────────────────────────────────────────────────────────
 function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, levels, compact = false }) {
   const v    = NLI_VARIANTS[variant] || NLI_VARIANTS.neutral;
   const bars = levels && levels.length ? levels : [];
@@ -410,7 +382,6 @@ function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, 
   );
 }
 
-// ─── CHECKLIST GLYPHS ────────────────────────────────────────────────────────
 const CheckGlyph = ({ color }) => (
   <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className="check-icon">
     <circle cx="7" cy="7" r="6.25" stroke={color} strokeWidth="1.3" fill={`${color}14`} />
@@ -440,13 +411,10 @@ const CheckRow = ({ item }) => {
 const RING_R = 20;
 const RING_C = 2 * Math.PI * RING_R;
 
-// ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
-export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) {
-  // ── data fetching ──────────────────────────────────────────────────────────
+export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, onComplete }) {
   const { liveData, liveError } = useLiveResearch(apiUrl, query);
   const [errorDismissed, setErrorDismissed] = useState(false);
 
-  // Reset dismiss when a new error comes in
   useEffect(() => { if (liveError) setErrorDismissed(false); }, [liveError]);
 
   const data = useMemo(() => {
@@ -454,6 +422,31 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
     if (query && !merged.query) merged.query = query;
     return merged;
   }, [dataProp, liveData, query]);
+
+  // ── PATCH 2: live 1s ticker: clock keeps moving BETWEEN SSE patches ──────
+  const [localElapsed, setLocalElapsed] = useState(0);
+  const isDone = (data.progress || 0) >= 100;
+  useEffect(() => {
+    if (isDone) return;
+    const startedAt = Date.now() - (data.elapsedSeconds || 0) * 1000;
+    const id = setInterval(() => setLocalElapsed((Date.now() - startedAt) / 1000), 1000);
+    return () => clearInterval(id);
+  }, [data.elapsedSeconds, isDone]);
+  const displayElapsed = isDone ? (data.elapsedSeconds || localElapsed) : Math.max(localElapsed, data.elapsedSeconds || 0);
+
+  const activeCount = AGENT_NAMES.filter(
+    (n) => (data.agents[n].progress || 0) > 0 && (data.agents[n].progress || 0) < 100
+  ).length;
+  const completedCount2 = AGENT_NAMES.filter((n) => (data.agents[n].progress || 0) >= 100).length;
+
+  // ── PATCH 3: onComplete callback ──────────────────────────────────────────
+  const completeFiredRef = useRef(false);
+  useEffect(() => {
+    if ((data.progress || 0) >= 100 && !completeFiredRef.current) {
+      completeFiredRef.current = true;
+      if (typeof onComplete === "function") onComplete(data);
+    }
+  }, [data.progress, data, onComplete]);
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [coreBurst,      setCoreBurst]      = useState(0);
@@ -471,7 +464,6 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
   const prevLogCountRef    = useRef(0);
   const prevWordCountRef   = useRef(data.agents.Writer.wordCount);
 
-  // ── react to new log entries ───────────────────────────────────────────────
   useEffect(() => {
     if (data.logs.length > prevLogCountRef.current) {
       const newest = data.logs[data.logs.length - 1];
@@ -499,12 +491,33 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
     }
   }, [data.logs, isUserScrolling]);
 
-  // ── Three.js synthesis canvas ──────────────────────────────────────────────
+  // ── PATCH 4: ROBUST THREE.JS INIT ──────────────────────────────────────────
   useEffect(() => {
-    if (threeInitedRef.current || !canvasContainerRef.current) return;
     const container = canvasContainerRef.current;
-    threeInitedRef.current = true;
+    if (threeInitedRef.current || !container) return;
 
+    let cleanupFn = null;
+    let observer = null;
+
+    const tryInit = () => {
+      if (threeInitedRef.current) return;
+      if (container.clientWidth < 40 || container.clientHeight < 40) return;
+      threeInitedRef.current = true;
+      if (observer) observer.disconnect();
+      cleanupFn = initThree(container);
+    };
+
+    observer = new ResizeObserver(tryInit);
+    observer.observe(container);
+    tryInit();
+
+    return () => {
+      if (observer) observer.disconnect();
+      if (cleanupFn) cleanupFn();
+    };
+  }, []);
+
+  function initThree(container) {
     const scene    = new THREE.Scene();
     const camera   = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 2000);
     camera.position.z = 400;
@@ -513,8 +526,8 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    const systemColors = [0x4fd1c5, 0x6c8cff, 0xe8a855, 0xb48ef0];
-    const SIGNATURE    = 0x6c8cff;
+    const systemColors = [0x4fd1c5, 0x00ff47, 0xe8a855, 0xa855f7];
+    const SIGNATURE    = 0x00ff47;
     const coreGroup    = new THREE.Group();
     coreGroup.position.x = 220;
     scene.add(coreGroup);
@@ -554,7 +567,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
       haloPos[i*3]=r*Math.sin(phi)*Math.cos(theta); haloPos[i*3+1]=r*Math.sin(phi)*Math.sin(theta); haloPos[i*3+2]=r*Math.cos(phi);
     }
     haloGeom.setAttribute("position", new THREE.BufferAttribute(haloPos,3));
-    const haloMat    = new THREE.PointsMaterial({ color:0xd7deff, size:1.4, transparent:true, opacity:0.75, blending:THREE.AdditiveBlending });
+    const haloMat    = new THREE.PointsMaterial({ color:0xd7ffd4, size:1.4, transparent:true, opacity:0.75, blending:THREE.AdditiveBlending });
     const haloPoints = new THREE.Points(haloGeom, haloMat);
     coreGroup.add(haloPoints);
 
@@ -630,9 +643,8 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
     window.addEventListener("resize",onResize);
     animate();
     return ()=>{ cancelAnimationFrame(rafId); window.removeEventListener("resize",onResize); renderer.dispose(); if(container.contains(renderer.domElement)) container.removeChild(renderer.domElement); };
-  }, []);
+  }
 
-  // ── helpers ────────────────────────────────────────────────────────────────
   const formatTime = (s) => {
     const m=Math.floor(s/60).toString().padStart(2,"0");
     const sec=Math.floor(s%60).toString().padStart(2,"0");
@@ -708,13 +720,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
   const critic   = data.agents.Critic;
   const writer   = data.agents.Writer;
 
-  // ── render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <style>{styles}</style>
       <div className="ambient-field" />
 
-      {/* ── Error Banner ── */}
       {liveError && !errorDismissed && (
         <div className="error-banner" style={{
           position:"fixed", top:0, left:0, right:0, zIndex:9999,
@@ -750,13 +760,13 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
         <header style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"0 4px" }}>
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"10px" }}>
-              <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#6C8CFF" }} />
+              <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#00ff47" }} />
               <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.18em" }}>
                 Multi-agent research session
               </span>
             </div>
             <h1 className="font-display" style={{ fontSize:"30px", fontWeight:"700", letterSpacing:"-0.015em", color:"#FFFFFF" }}>
-              Neural Research <span style={{ color:"#6C8CFF" }}>Engine</span>
+              Neural Research <span className="glow-green" style={{ color:"#00ff47" }}>Engine</span>
             </h1>
             <div style={{ marginTop:"14px", fontSize:"12px", fontFamily:"JetBrains Mono,monospace" }}>
               <span style={{ color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.05em" }}>Research query</span>
@@ -770,11 +780,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
 
           <div style={{ display:"flex", alignItems:"center", gap:"36px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:"16px", position:"relative" }}>
-              <div className="synthesis-core" style={{ width:"58px", height:"58px", borderRadius:"50%", border:"1px solid rgba(108,140,255,0.28)", display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(108,140,255,0.06)", position:"relative" }}>
-                <div className="animate-spin" style={{ position:"absolute", inset:0, border:"1.5px solid rgba(108,140,255,0.4)", borderRadius:"50%" }} />
-                <div style={{ position:"absolute", inset:"-4px", border:"1px dashed rgba(108,140,255,0.2)", borderRadius:"50%", animation:"spinReverse 9s linear infinite" }} />
-                <div style={{ width:"10px", height:"10px", background:"#6C8CFF", borderRadius:"50%" }} />
-                <div key={coreBurst} style={{ position:"absolute", inset:"18px", borderRadius:"50%", border:"1px solid #6C8CFF", animation: coreBurst ? "coreBurst 0.9s ease-out forwards" : "none" }} />
+              <div className="synthesis-core" style={{ width:"58px", height:"58px", borderRadius:"50%", border:"1px solid rgba(0,255,71,0.28)", display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,255,71,0.06)", position:"relative" }}>
+                <div className="animate-spin" style={{ position:"absolute", inset:0, border:"1.5px solid rgba(0,255,71,0.4)", borderRadius:"50%" }} />
+                <div style={{ position:"absolute", inset:"-4px", border:"1px dashed rgba(0,255,71,0.2)", borderRadius:"50%", animation:"spinReverse 9s linear infinite" }} />
+                <div style={{ width:"10px", height:"10px", background:"#00ff47", borderRadius:"50%" }} />
+                <div key={coreBurst} style={{ position:"absolute", inset:"18px", borderRadius:"50%", border:"1px solid #00ff47", animation: coreBurst ? "coreBurst 0.9s ease-out forwards" : "none" }} />
               </div>
               <div>
                 <div style={{ fontSize:"12px", color:"#ECEEF2", fontWeight:"600", fontFamily:"Inter,sans-serif" }}>Synthesizing insights</div>
@@ -791,15 +801,20 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
                 </div>
               </div>
               <div>
-                <div style={{ fontSize:"10.5px", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>Agents active</div>
+                <div style={{ fontSize:"10.5px", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>
+                  {isDone ? "Agents done" : "Agents active"}
+                </div>
                 <div style={{ fontSize:"26px", fontFamily:"Sora,sans-serif", color:"#FFFFFF", fontWeight:"700" }}>
-                  {AGENT_NAMES.filter(n=>(data.agents[n].progress||0)>0 && (data.agents[n].progress||0)<100).length}
+                  {isDone ? completedCount2 : activeCount}
                   <span style={{ fontSize:"14px", color:"#7C8494" }}>/4</span>
                 </div>
               </div>
               <div>
                 <div style={{ fontSize:"10.5px", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>Elapsed</div>
-                <div className="tabular-nums" style={{ fontSize:"26px", fontFamily:"Sora,sans-serif", color:"#FFFFFF", fontWeight:"700" }}>{formatTime(data.elapsedSeconds)}</div>
+                <div className="tabular-nums" style={{ fontSize:"26px", fontFamily:"Sora,sans-serif", color:"#FFFFFF", fontWeight:"700", display:"flex", alignItems:"center", gap:"8px" }}>
+                  {formatTime(displayElapsed)}
+                  {!isDone && <span className="tick-dot" style={{ width:"8px", height:"8px", borderRadius:"50%", background:"#00ff47", boxShadow:"0 0 10px #00ff47" }} />}
+                </div>
               </div>
             </div>
           </div>
@@ -810,7 +825,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
           <main style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"24px" }}>
 
             {/* Search */}
-            <section className="panel agent-top-cyan" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-cyan" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Search" />
               <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(79,209,197,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={search.stats} />
@@ -842,21 +857,21 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
             </section>
 
             {/* Summarise */}
-            <section className="panel agent-top-blue" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-blue" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Summarise" />
-              <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(108,140,255,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
+              <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(0,255,71,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={summarise.stats} />
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
                 <div>
-                  <div className="type-section" style={{ color:"#6C8CFF", marginBottom:"10px" }}>Working notes</div>
+                  <div className="type-section" style={{ color:"#00ff47", marginBottom:"10px" }}>Working notes</div>
                   {summarise.notes && summarise.notes.length
                     ? <ul style={{ fontSize:"12.5px", color:"#C7CBD6", display:"flex", flexDirection:"column", gap:"9px", fontFamily:"Inter,sans-serif", listStyle:"disc", paddingLeft:"18px", lineHeight:"1.55" }}>{summarise.notes.map((n,i)=><li key={i}>{n}</li>)}</ul>
                     : <div className="empty-note">No notes yet</div>
                   }
                 </div>
-                <div className="hover-row" style={{ background:"rgba(108,140,255,0.05)", border:"1px solid rgba(108,140,255,0.15)", borderRadius:"10px", padding:"14px" }}>
-                  <div className="type-section" style={{ color:"#6C8CFF", marginBottom:"7px" }}>Key insights extracted</div>
+                <div className="hover-row" style={{ background:"rgba(0,255,71,0.05)", border:"1px solid rgba(0,255,71,0.15)", borderRadius:"10px", padding:"14px" }}>
+                  <div className="type-section" style={{ color:"#00ff47", marginBottom:"7px" }}>Key insights extracted</div>
                   {summarise.insights && summarise.insights.length
                     ? <ul style={{ fontSize:"11.5px", color:"#7C8494", display:"flex", flexDirection:"column", gap:"7px", fontFamily:"JetBrains Mono,monospace", listStyle:"disc", paddingLeft:"15px" }}>
                         {summarise.insights.map((ins,i)=>(
@@ -871,7 +886,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
             </section>
 
             {/* Critic */}
-            <section className="panel agent-top-amber" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-amber" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Critic" />
               <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(232,168,85,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={critic.stats} />
@@ -889,16 +904,16 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
             </section>
 
             {/* Writer */}
-            <section className="panel agent-top-violet" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-violet" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Writer" />
-              <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(180,142,240,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
+              <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(168,85,247,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={writer.stats} />
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
-                <div className="type-section" style={{ color:"#B48EF0" }}>Current paragraph draft</div>
+                <div className="type-section" style={{ color:"#a855f7" }}>Current paragraph draft</div>
                 <div className="custom-scrollbar" style={{ background:"#0E0F16", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"10px", padding:"16px", fontSize:"12.5px", color:"#7C8494", fontFamily:"JetBrains Mono,monospace", lineHeight:"1.6", height:"140px", overflowY:"auto" }}>
                   {writer.draftText
-                    ? <><span>{writer.draftText}</span><span style={{ display:"inline-block", width:"7px", height:"14px", background:"#B48EF0", verticalAlign:"middle", marginLeft:"3px", animation:"cursorBlink 0.9s step-end infinite" }} /></>
+                    ? <><span>{writer.draftText}</span><span style={{ display:"inline-block", width:"7px", height:"14px", background:"#a855f7", verticalAlign:"middle", marginLeft:"3px", animation:"cursorBlink 0.9s step-end infinite" }} /></>
                     : <span className="empty-note">Draft will appear here</span>
                   }
                 </div>
@@ -911,11 +926,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"24px", height:"360px" }}>
 
             {/* Live Thought Stream */}
-            <section className="panel" style={{ padding:0, display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
+            <section className="panel panel-glow" style={{ padding:0, display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
               <div style={{ padding:"18px 18px 11px", background:"rgba(10,10,30,0.85)", zIndex:10, borderBottom:"1px solid rgba(255,255,255,0.06)", position:"sticky", top:0 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div className="type-section" style={{ display:"flex", alignItems:"center", gap:"7px", color:"#ECEEF2" }}>
-                    <svg style={{ width:"14px", height:"14px", color:"#6C8CFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"/></svg>
+                    <svg style={{ width:"14px", height:"14px", color:"#00ff47" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"/></svg>
                     Live thought stream
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:"7px", fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494", background:"rgba(255,255,255,0.04)", padding:"4px 9px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.08)" }}>
@@ -945,7 +960,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
             </section>
 
             {/* Synthesis Merge Visual */}
-            <section className="panel" style={{ padding:0, gridColumn:"span 2", position:"relative", overflow:"hidden", height:"100%", display:"flex", flexDirection:"column" }}>
+            <section className="panel panel-glow" style={{ padding:0, gridColumn:"span 2", position:"relative", overflow:"hidden", height:"100%", display:"flex", flexDirection:"column" }}>
               <div className="type-section" style={{ position:"absolute", top:"20px", left:"20px", color:"#ECEEF2", zIndex:20 }}>Synthesis merge visual</div>
               <div style={{ position:"absolute", top:"38px", left:"20px", fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494", zIndex:20 }}>Real-time knowledge convergence</div>
               <div ref={canvasContainerRef} style={{ position:"relative", width:"100%", height:"100%", background:"#0a0a1e", overflow:"hidden", display:"flex", alignItems:"center" }}>
@@ -980,24 +995,24 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
                   })}
                 </div>
 
-                <div style={{ position:"absolute", bottom:"20px", left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:"9px", zIndex:20, background:"rgba(10,10,30,0.75)", padding:"6px 15px 6px 9px", borderRadius:"9999px", border:"1px solid rgba(108,140,255,0.25)" }}>
+                <div style={{ position:"absolute", bottom:"20px", left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:"9px", zIndex:20, background:"rgba(10,10,30,0.75)", padding:"6px 15px 6px 9px", borderRadius:"9999px", border:"1px solid rgba(0,255,71,0.25)" }}>
                   <svg width="18" height="18" viewBox="0 0 20 20">
-                    <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(108,140,255,0.14)" strokeWidth="2.5" />
-                    <circle cx="10" cy="10" r="8" fill="none" stroke="#6C8CFF" strokeWidth="2.5" strokeLinecap="round"
+                    <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(0,255,71,0.14)" strokeWidth="2.5" />
+                    <circle cx="10" cy="10" r="8" fill="none" stroke="#00ff47" strokeWidth="2.5" strokeLinecap="round"
                       strokeDasharray={2*Math.PI*8}
                       strokeDashoffset={2*Math.PI*8*(1-(data.convergence||0)/100)}
                       style={{ transform:"rotate(-90deg)", transformOrigin:"center", transition:"stroke-dashoffset 0.6s ease" }}
                     />
                   </svg>
                   <span style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#C7CBD6", textTransform:"uppercase", letterSpacing:"0.08em" }}>
-                    Convergence <span key={data.convergence} className="pop-number" style={{ display:"inline-block", color:"#6C8CFF", fontWeight:700 }}>{data.convergence}%</span>
+                    Convergence <span key={data.convergence} className="pop-number" style={{ display:"inline-block", color:"#00ff47", fontWeight:700 }}>{data.convergence}%</span>
                   </span>
                 </div>
               </div>
             </section>
 
             {/* Key Metrics */}
-            <section className="panel" style={{ padding:"28px", display:"flex", flexDirection:"column", gap:"18px", height:"100%" }}>
+            <section className="panel panel-glow" style={{ padding:"28px", display:"flex", flexDirection:"column", gap:"18px", height:"100%" }}>
               <div className="type-section" style={{ color:"#ECEEF2", marginBottom:"4px" }}>Key metrics</div>
               <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
                 {[
@@ -1022,11 +1037,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
         {/* ── Diagnostics + Suggestions ── */}
         <div style={{ display:"flex", flexDirection:"column", gap:"36px", marginTop:"20px", paddingTop:"36px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>
           <div style={{ display:"flex", flexDirection:"column", gap:"22px" }}>
-            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#ECEEF2", padding:"0 4px", borderLeft:"2px solid #6C8CFF", paddingLeft:"14px" }}>Research diagnostics</h2>
+            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#ECEEF2", padding:"0 4px", borderLeft:"2px solid #00ff47", paddingLeft:"14px" }}>Research diagnostics</h2>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"24px" }}>
 
               {/* Confidence Breakdown */}
-              <section className="panel" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+              <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
                 <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Confidence breakdown</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:"14px", flex:1 }}>
                   {data.confidenceBreakdown.length
@@ -1034,10 +1049,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
                         <div key={bar.label}>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", color:"#7C8494", textTransform:"uppercase", marginBottom:"7px", fontFamily:"JetBrains Mono,monospace" }}>
                             <span>{bar.label}</span>
-                            <span style={{ color:bar.color||"#6C8CFF", fontWeight:"700" }}>{bar.pct}%</span>
+                            <span style={{ color:bar.color||"#00ff47", fontWeight:"700" }}>{bar.pct}%</span>
                           </div>
                           <div style={{ height:"6px", background:"rgba(255,255,255,0.05)", borderRadius:"9999px", overflow:"hidden" }}>
-                            <div className="bar-fill" style={{ height:"100%", width:`${bar.pct}%`, background:bar.color||"#6C8CFF" }} />
+                            <div className="bar-fill" style={{ height:"100%", width:`${bar.pct}%`, background:bar.color||"#00ff47" }} />
                           </div>
                         </div>
                       ))
@@ -1047,7 +1062,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
               </section>
 
               {/* Source Trust */}
-              <section className="panel" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+              <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
                 <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Source trust distribution</div>
                 <div>
                   <div style={{ display:"flex", height:"12px", borderRadius:"9999px", overflow:"hidden", marginBottom:"10px" }}>
@@ -1076,7 +1091,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
               </section>
 
               {/* Faithfulness */}
-              <section className="panel" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+              <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
                 <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Faithfulness analysis</div>
                 <div style={{ display:"flex", alignItems:"center", gap:"14px" }}>
                   <div style={{ fontSize:"32px", fontFamily:"Sora,sans-serif", color:"#4FD1C5", fontWeight:"700" }}>{data.faithfulness.grounded}/{data.faithfulness.total}</div>
@@ -1092,7 +1107,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
               </section>
 
               {/* Contradiction */}
-              <section className="panel" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"16px" }}>
+              <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"16px" }}>
                 <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Contradiction analysis</div>
                 {data.contradiction ? (
                   <>
@@ -1106,7 +1121,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
                         <div style={{ background:"#0a0a1e", border:"1px solid rgba(255,255,255,0.14)", borderRadius:"9999px", padding:"3px 11px", fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#E8A855", fontWeight:"700" }}>VS</div>
                       </div>
                       <div className="hover-row" style={{ background:"rgba(255,255,255,0.03)", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.08)", padding:"14px" }}>
-                        <div style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#B48EF0", marginBottom:"7px", fontWeight:"700" }}>{data.contradiction.claimB.label} · trust {data.contradiction.claimB.trust}</div>
+                        <div style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#a855f7", marginBottom:"7px", fontWeight:"700" }}>{data.contradiction.claimB.label} · trust {data.contradiction.claimB.trust}</div>
                         <div style={{ fontSize:"12.5px", color:"#C7CBD6", lineHeight:"1.55" }}>{data.contradiction.claimB.text}</div>
                         <div style={{ fontSize:"10px", color:"#7C8494", marginTop:"7px", fontFamily:"JetBrains Mono,monospace" }}>Source: {data.contradiction.claimB.source}</div>
                       </div>
@@ -1122,7 +1137,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
 
           {/* Suggested Next Research */}
           <div style={{ display:"flex", flexDirection:"column", gap:"22px", paddingTop:"12px", paddingBottom:"24px" }}>
-            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#ECEEF2", padding:"0 4px", borderLeft:"2px solid #6C8CFF", paddingLeft:"14px" }}>Suggested next research</h2>
+            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#ECEEF2", padding:"0 4px", borderLeft:"2px solid #00ff47", paddingLeft:"14px" }}>Suggested next research</h2>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"24px" }}>
               {data.suggestions.length
                 ? data.suggestions.map((card)=>{
@@ -1130,7 +1145,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query }) 
                     return (
                       <button
                         key={card.title}
-                        className="panel card-press"
+                        className="panel panel-glow card-press"
                         onMouseDown={()=>setPressedCard(card.title)}
                         onMouseUp={()=>setPressedCard(null)}
                         onMouseLeave={()=>setPressedCard(null)}

@@ -157,12 +157,34 @@ def _summarise_panel(summaries: list) -> dict:
     }
 
 
+def _critic_failed(critique: dict) -> bool:
+    """Detect the _empty_result shape the critic returns on LLM failure."""
+    landscape = (critique.get("overall_landscape") or "").lower()
+    gaps = " ".join(g for g in (critique.get("coverage_gaps") or []) if isinstance(g, str)).lower()
+    return ("unavailable" in landscape or "could not" in landscape
+            or "could not be completed" in gaps or "error code" in gaps)
+
+
 def _critic_panel(critique: dict) -> dict:
     critique = critique or {}
     agreements = len(critique.get("agreement_groups") or [])
     disagreements = len(critique.get("disagreement_groups") or [])
     confidence = critique.get("overall_confidence", 0) or 0
     ran = bool(critique)
+    failed = ran and _critic_failed(critique)
+    if failed:
+        return {
+            "progress": 100,
+            "phase": {"label": "Degraded", "sub": "Analysis failed — check model/API key"},
+            "stats": [["Agreements", "—"], ["Disagreements", "—"], ["Confidence", "—"]],
+            "checklist": [
+                {"label": "Cross-source agreement", "status": "pending"},
+                {"label": "Disagreement detection", "status": "pending"},
+                {"label": "Factual consistency", "status": "pending"},
+            ],
+            "signal": {"eyebrow": "Source alignment", "variant": "contradiction",
+                       "promptText": "Critic LLM call failed — see server logs", "levels": _levels()},
+        }
     return {
         "progress": 100 if ran else 0,
         "phase": {"label": "Complete" if ran else "Idle",
@@ -214,6 +236,28 @@ def _confidence_breakdown(state: dict) -> list:
     ]
 
 
+#  Real trust tiers — previously "High/Med" was just occurrence count, which
+#  rated quora.com and youtube.com the same as nature.com.
+HIGH_TRUST_HINTS = (
+    ".edu", ".gov", ".ac.", "nature.com", "science.org", "arxiv.org", "ieee.org",
+    "nih.gov", "nasa.gov", "who.int", "acm.org", "springer.com", "sciencedirect.com",
+    "britannica.com", "reuters.com", "apnews.com", "cell.com", "pnas.org",
+)
+LOW_TRUST_HINTS = (
+    "quora.com", "reddit.com", "youtube.com", "medium.com", "pinterest.",
+    "facebook.com", "twitter.com", "x.com", "tiktok.com", "fandom.com", "blogspot.",
+)
+
+
+def _domain_tier(netloc: str) -> str:
+    n = netloc.lower()
+    if any(h in n for h in HIGH_TRUST_HINTS):
+        return "high"
+    if any(h in n for h in LOW_TRUST_HINTS):
+        return "low"
+    return "med"
+
+
 def _source_trust(docs: list) -> dict:
     domains = Counter()
     for d in docs:
@@ -222,26 +266,57 @@ def _source_trust(docs: list) -> dict:
             domains[urlparse(url).netloc] += 1
     if not domains:
         return {"high": 0, "med": 0, "low": 0, "domains": []}
-    high = sum(1 for v in domains.values() if v >= 2)
-    med = len(domains) - high
+    tiers = {n: _domain_tier(n) for n in domains}
     total = len(domains)
+    high = sum(1 for t in tiers.values() if t == "high")
+    low = sum(1 for t in tiers.values() if t == "low")
+    med = total - high - low
+    tier_label = {"high": "High", "med": "Med", "low": "Low"}
+    # sort shown domains best-tier first, then by frequency
+    order = {"high": 0, "med": 1, "low": 2}
+    shown = sorted(domains.items(), key=lambda kv: (order[tiers[kv[0]]], -kv[1]))[:5]
     return {
         "high": round(high / total * 100),
         "med": round(med / total * 100),
-        "low": max(0, 100 - round(high / total * 100) - round(med / total * 100)),
-        "domains": [{"name": n, "score": "High" if c >= 2 else "Med",
-                     "tier": "high" if c >= 2 else "med"} for n, c in domains.most_common(5)],
+        "low": round(low / total * 100),
+        "domains": [{"name": n, "score": tier_label[tiers[n]], "tier": tiers[n]}
+                    for n, _ in shown],
     }
 
 
 def _faithfulness(state: dict) -> dict:
+    """
+    Real grounding signal: a sentence counts as grounded if it carries a
+    [n] citation marker. Uncited factual-looking sentences get flagged
+    (up to 2 shown). Previously this returned grounded == total always.
+    """
+    import re as _re
     answer = state.get("final_answer") or ""
-    sentences = [s.strip() for s in answer.split(".") if len(s.strip()) > 10]
+    sentences = [s.strip() for s in _re.split(r"(?<=[.!?])\s+", answer) if len(s.strip()) > 20]
     total = len(sentences)
-    comp = state.get("computed_confidence") or {}
-    grounding = comp.get("breakdown", {}).get("claim_grounding")
-    grounded = round(total * grounding) if isinstance(grounding, (int, float)) and grounding <= 1 else total
-    return {"grounded": min(grounded, total), "total": total, "flagged": []}
+    if total == 0:
+        return {"grounded": 0, "total": 0, "flagged": []}
+
+    cited = [s for s in sentences if _re.search(r"\[\d+\]", s)]
+    uncited = [s for s in sentences if not _re.search(r"\[\d+\]", s)]
+
+    # If the writer style doesn't use [n] citations at all, fall back to the
+    # computed claim_grounding ratio rather than flagging everything.
+    if not cited:
+        comp = state.get("computed_confidence") or {}
+        g = comp.get("breakdown", {}).get("claim_grounding")
+        grounded = round(total * g) if isinstance(g, (int, float)) and g <= 1 else total
+        return {"grounded": min(grounded, total), "total": total, "flagged": []}
+
+    flagged = [
+        {"eyebrow": "Uncited claim", "variant": "neutral",
+         "promptText": s[:110] + ("…" if len(s) > 110 else ""),
+         "levels": [random.randint(20, 60) for _ in range(8)]}
+        for s in uncited[:2]
+        # skip headers/short connectives that legitimately lack citations
+        if not s.isupper() and len(s.split()) > 6
+    ]
+    return {"grounded": len(cited), "total": total, "flagged": flagged}
 
 
 def _contradiction(state: dict) -> Optional[dict]:
@@ -259,16 +334,33 @@ def _contradiction(state: dict) -> Optional[dict]:
     }
 
 
+_GAP_ERROR_MARKERS = ("analysis could not be completed", "error code", "could not parse",
+                      "not_found_error", "api key", "llm response", "unavailable")
+
+
 def _suggestions(state: dict) -> list:
-    gaps = (state.get("critique") or {}).get("coverage_gaps") or []
+    """
+    Coverage gaps → next-research cards. CRITICAL FIX: when the critic fails,
+    its error message lands in coverage_gaps ("Analysis could not be
+    completed: Error code: 404 …") and was being rendered as a suggestion
+    card. Error-looking strings are now filtered out.
+    """
+    raw_gaps = (state.get("critique") or {}).get("coverage_gaps") or []
+    gaps = [
+        g.strip() for g in raw_gaps
+        if isinstance(g, str) and g.strip()
+        and not any(m in g.lower() for m in _GAP_ERROR_MARKERS)
+        and len(g) < 120  # real gaps are short phrases, error dumps are long
+    ]
     if not gaps:
-        query = state.get("query", "this topic")
+        query = (state.get("query") or "this topic").rstrip("?")
         gaps = [f"Recent developments in {query}"[:70],
                 f"Counter-arguments to {query}"[:70],
                 f"Practical applications of {query}"[:70]]
-    return [{"icon": "psychology", "agent": "Search", "title": g, "est": "~30s",
+    icons = ["psychology", "travel_explore", "science"]
+    return [{"icon": icons[i % 3], "agent": "Search", "title": g, "est": "~30s",
              "diff": "Medium", "diffLevel": "med", "avail": "High", "availLevel": "high"}
-            for g in gaps[:3]]
+            for i, g in enumerate(gaps[:3])]
 
 
 def _make_floating_tags(state: dict) -> list:

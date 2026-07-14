@@ -37,7 +37,8 @@ logger = logging.getLogger("polynous.critic_agent")
 # CONFIG
 # ============================================================
 
-DEFAULT_ANTHROPIC_MODEL = "claude-3-haiku-20240307"
+# claude-3-haiku-20240307 was RETIRED (404 not_found_error) — use current Haiku.
+DEFAULT_ANTHROPIC_MODEL = os.getenv("POLYNOUS_CRITIC_MODEL", "claude-haiku-4-5-20251001")
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 MAX_TOKENS = 1200
