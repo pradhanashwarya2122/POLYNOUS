@@ -268,6 +268,7 @@ def summariser_agent(
     api_key: Optional[str] = None,
     model: Optional[str] = None,
     base_url: Optional[str] = None,
+    progress_cb=None,
 ) -> list[str]:
     """
     Summarise each document — extract what the source ACTUALLY says.
@@ -300,14 +301,30 @@ def summariser_agent(
             ): i - 1
             for i, doc in enumerate(documents, 1)
         }
+        emit = progress_cb or (lambda msg, patch=None: None)
+        done = 0
+        total = len(documents)
         for future in as_completed(futures):
             slot = futures[future]
             result = future.result()
             results[slot] = result
+            done += 1
             if result.succeeded:
                 logger.info("  ✓ [%d] %s", result.index, result.title[:60])
+                emit(
+                    f"Summarised '{(result.title or 'Untitled')[:45]}' — {done}/{total}",
+                    {
+                        "agents": {"Summarise": {
+                            "progress": round(10 + 85 * done / total),
+                            "phase": {"label": "Summarising", "sub": f"{done}/{total} documents"},
+                            "stats": [["Documents", f"{done}/{total}"]],
+                        }},
+                        "lanes": {"Summarise": {"sub": f"{done}/{total} condensed", "status": "working"}},
+                    },
+                )
             else:
                 logger.warning("  ✗ [%d] %s — %s", result.index, result.title[:60], result.error)
+                emit(f"Failed to summarise '{(result.title or 'Untitled')[:45]}' — {done}/{total}")
  
     succeeded = sum(1 for r in results if r and r.succeeded)
     failed    = len(results) - succeeded

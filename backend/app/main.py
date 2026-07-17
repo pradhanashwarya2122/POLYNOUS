@@ -49,7 +49,8 @@ from app.chat_history import save_chat, save_debate, get_chat_history, get_debat
 from app.knowledge_graph.user_memory import user_memory
 
 # Visual pipeline imports
-from app.visual.builder import build_visual_patch, init_visual_state
+from app.visual.builder import build_visual_patch, init_visual_state, _log
+from app.visual.events import ProgressBus
 
 load_dotenv()
 
@@ -533,6 +534,17 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
 
         loop = asyncio.get_event_loop()
 
+        # Thread-safe bus: nodes emit fine-grained progress from executor
+        # threads; this generator drains it into SSE patches while they run.
+        bus = ProgressBus()
+        state["_progress_bus"] = bus
+
+        def _event_to_patch(ev: dict) -> dict:
+            patch = dict(ev.get("patch") or {})
+            patch["logs"] = _log(state, ev["agent"], ev["msg"], time.time() - start_time)
+            patch["elapsedSeconds"] = round(time.time() - start_time, 1)
+            return patch
+
         # Ordered pipeline — node runs FIRST, patch built AFTER (real data).
         pipeline = [
             ("Search",    search_node,    {"label": "Searching",   "sub": "Querying Tavily and scraping…"}),
@@ -544,9 +556,22 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         for agent_name, node_fn, phase in pipeline:
             # announce agent start (panel leaves Idle, lane shows working)
             yield f"data: {json.dumps({'agents': {agent_name: {'progress': 10, 'phase': phase}}, 'lanes': {agent_name: {'sub': '', 'status': 'working'}}})}\n\n"
+
+            # run blocking node in a thread; stream bus events while it works
+            future = loop.run_in_executor(None, node_fn, state)
+            while not future.done():
+                ev = bus.get_nowait()
+                if ev is None:
+                    await asyncio.sleep(0.15)
+                    continue
+                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
+
+            # drain any events emitted just before the node finished
+            while (ev := bus.get_nowait()) is not None:
+                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
+
             try:
-                # run blocking node in a thread so the event loop can flush SSE
-                nonlocal_state = await loop.run_in_executor(None, node_fn, state)
+                nonlocal_state = future.result()
                 state.update(nonlocal_state if isinstance(nonlocal_state, dict) else {})
             except Exception as e:
                 yield f"data: {json.dumps({'error': f'{agent_name} agent failed: {str(e)[:200]}'})}\n\n"

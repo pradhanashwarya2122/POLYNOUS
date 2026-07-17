@@ -32,8 +32,9 @@ load_dotenv()
  
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 MAX_CHARS_DEFAULT = int(os.getenv("SCRAPE_MAX_CHARS", "4000"))
-REQUEST_TIMEOUT = float(os.getenv("SCRAPE_TIMEOUT", "10"))
-MAX_WORKERS = int(os.getenv("SCRAPE_MAX_WORKERS", "6"))
+REQUEST_TIMEOUT = float(os.getenv("SCRAPE_TIMEOUT", "8"))
+MAX_WORKERS = int(os.getenv("SCRAPE_MAX_WORKERS", "8"))
+SEARCH_MAX_RESULTS = int(os.getenv("SEARCH_MAX_RESULTS", "12"))
 CACHE_TTL_SECONDS = int(os.getenv("SCRAPE_CACHE_TTL", "900"))  # 15 min
 MIN_DOMAIN_DELAY = float(os.getenv("SCRAPE_DOMAIN_DELAY", "0.5"))
 QUIET = os.getenv("SCRAPE_QUIET", "0") == "1"
@@ -163,7 +164,8 @@ class SourceResult:
     content_length: int = 0
     score: float = 0.0
     error: Optional[str] = None
- 
+    fetched_at: float = 0.0
+
     def to_dict(self) -> dict:
         return {
             "title": self.title,
@@ -172,6 +174,7 @@ class SourceResult:
             "content_source": self.content_source,
             "content_length": self.content_length,
             "score": self.score,
+            "fetched_at": self.fetched_at,
         }
  
  
@@ -274,7 +277,8 @@ def scrape_full_content(url: str, max_chars: int = MAX_CHARS_DEFAULT) -> tuple[s
 # MAIN SEARCH FUNCTION
 # ============================================================
  
-def search_web(query: str, max_results: int = 8, max_chars: int = MAX_CHARS_DEFAULT) -> list[dict]:
+def search_web(query: str, max_results: int = SEARCH_MAX_RESULTS, max_chars: int = MAX_CHARS_DEFAULT,
+               progress_cb=None) -> list[dict]:
     """
     Search the web using Tavily, then scrape full content from each result
     concurrently. Falls back to Tavily's snippet per-result if scraping fails.
@@ -283,7 +287,9 @@ def search_web(query: str, max_results: int = 8, max_chars: int = MAX_CHARS_DEFA
     the original API); use SourceResult directly if you want typed access.
     """
     logger.info("SEARCHING: %s", query[:100])
- 
+    emit = progress_cb or (lambda msg, patch=None: None)
+    emit(f"Querying Tavily (advanced, up to {max_results} results)…")
+
     try:
         response = tavily.search(
             query=query,
@@ -294,11 +300,13 @@ def search_web(query: str, max_results: int = 8, max_chars: int = MAX_CHARS_DEFA
         )
     except Exception as e:
         logger.error("Tavily search failed: %s", e)
+        emit(f"Tavily search failed: {str(e)[:80]}")
         return []
- 
+
     raw_results = response.get("results", [])
     if not raw_results:
         logger.warning("No results found for query: %s", query[:100])
+        emit("No results found")
         return []
  
     # Dedupe by URL while preserving order
@@ -323,7 +331,7 @@ def search_web(query: str, max_results: int = 8, max_chars: int = MAX_CHARS_DEFA
     def _scrape_one(source: SourceResult) -> SourceResult:
         snippet = source.content
         scraped, error = scrape_full_content(source.url, max_chars=max_chars)
- 
+
         if scraped and len(scraped) > 200:
             source.content = scraped
             source.content_source = "scraped"
@@ -337,17 +345,24 @@ def search_web(query: str, max_results: int = 8, max_chars: int = MAX_CHARS_DEFA
             source.content_source = "minimal"
             source.content_length = len(source.content)
             source.error = error
- 
+
+        source.fetched_at = time.time()
         return source
- 
+
+    total = len(sources)
+    emit(f"Got {total} results — scraping full articles…")
+
     scraped_count = snippet_count = minimal_count = 0
     total_chars = 0
- 
+    done = 0
+    recent: list[dict] = []
+
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, max(1, len(sources)))) as pool:
         futures = {pool.submit(_scrape_one, s): s for s in sources}
         for future in as_completed(futures):
             s = future.result()
             total_chars += s.content_length
+            done += 1
             if s.content_source == "scraped":
                 scraped_count += 1
                 logger.info("  ✓ scraped %-60s (%d chars)", s.url[:60], s.content_length)
@@ -357,6 +372,37 @@ def search_web(query: str, max_results: int = 8, max_chars: int = MAX_CHARS_DEFA
             else:
                 minimal_count += 1
                 logger.info("  ! minimal %-60s (%s)", s.url[:60], s.error or "no content")
+
+            domain = urlparse(s.url).netloc or s.url[:40]
+            recent.append({
+                "domain": domain,
+                "title": (s.title or "Untitled")[:70],
+                "score": round(s.score, 2),
+                "badge": "ARTICLE" if s.content_source == "scraped" else "SNIPPET",
+                "chars": s.content_length,
+            })
+            emit(
+                f"Fetched {domain} ({s.content_length:,} chars) — {done}/{total}",
+                {
+                    "agents": {"Search": {
+                        "progress": round(10 + 85 * done / total),
+                        "phase": {"label": "Scraping", "sub": f"{done}/{total} sources fetched"},
+                        "stats": [["Total", str(done)], ["Full articles", str(scraped_count)],
+                                  ["Snippets", str(snippet_count + minimal_count)]],
+                        "lastSource": {
+                            "id": f"Source {done}",
+                            "badge": "ARTICLE" if s.content_source == "scraped" else "SNIPPET",
+                            "title": (s.title or "Untitled")[:60],
+                            "description": (s.content or "")[:120] + "...",
+                            "time": "now",
+                            "score": str(round(s.score, 2)),
+                        },
+                        "recentSources": recent[-4:],
+                    }},
+                    "lanes": {"Search": {"sub": f"{done}/{total} scraped", "status": "working"}},
+                    "metrics": {"sources": done},
+                },
+            )
  
     # as_completed doesn't preserve order; restore original ranking
     order = {s.url: i for i, s in enumerate(sources)}

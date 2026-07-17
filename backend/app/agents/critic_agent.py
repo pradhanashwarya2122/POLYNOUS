@@ -478,6 +478,11 @@ def _drop_out_of_range_citations(analysis: dict, total_sources: int) -> dict:
         if isinstance(n.get("source"), int) and 1 <= n["source"] <= total_sources
     ]
 
+    # Record that citation validation ran, so the UI checklist can key off
+    # a real event instead of guessing from confidence numbers.
+    analysis["citations_validated"] = True
+    analysis["citation_groups_kept"] = len(kept_agreements) + len(kept_disagreements)
+
     return analysis
 
 
@@ -495,7 +500,7 @@ def _compute_confidence(analysis: dict, total_sources: int) -> dict:
     This is NOT a truth judgment — it's a measure of consensus.
     """
     if total_sources == 0:
-        analysis["overall_confidence"] = 50
+        analysis["overall_confidence"] = 0
         analysis["confidence_explanation"] = "No sources to analyze"
         analysis["total_sources_analyzed"] = 0
         return analysis
@@ -525,7 +530,9 @@ def _compute_confidence(analysis: dict, total_sources: int) -> dict:
 
 
 def _empty_result(error: str = "") -> dict:
-    """Return empty analysis structure."""
+    """Return empty analysis structure. parse_failed marks it as a failure
+    state so the UI can show an explicit degraded card instead of fabricated
+    zeros/50% values."""
     return {
         "agreement_groups": [],
         "disagreement_groups": [],
@@ -533,7 +540,8 @@ def _empty_result(error: str = "") -> dict:
         "source_quality_notes": [],
         "coverage_gaps": ["Analysis could not be completed" + (f": {error}" if error else "")],
         "overall_landscape": "Source analysis unavailable" + (f": {error}" if error else ""),
-        "overall_confidence": 50,
+        "overall_confidence": 0,
         "confidence_explanation": "Could not analyze sources" + (f": {error}" if error else ""),
         "total_sources_analyzed": 0,
+        "parse_failed": True,
     }

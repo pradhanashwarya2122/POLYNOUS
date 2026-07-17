@@ -13,7 +13,7 @@ Changes vs original:
      deepMerge replaces arrays wholesale, so each patch sends the full
      running log list (state["_logs"]) rather than one entry.
 """
-import random
+import re
 import time
 from typing import Optional
 from collections import Counter
@@ -62,8 +62,12 @@ def build_visual_patch(state: dict, agent_name: str, elapsed: float) -> dict:
     patch = {"elapsedSeconds": round(elapsed, 1)}
 
     if agent_name != "Final":
-        patch["progress"] = AGENT_PROGRESS.get(agent_name, 0)
-        patch["convergence"] = max(0, AGENT_PROGRESS.get(agent_name, 0) - random.randint(3, 8))
+        progress = AGENT_PROGRESS.get(agent_name, 0)
+        patch["progress"] = progress
+        # Real convergence proxy: pipeline progress scaled by critic
+        # confidence once the critique exists; plain progress before that.
+        conf = (state.get("critique") or {}).get("overall_confidence")
+        patch["convergence"] = round(progress * conf / 100) if conf else progress
 
     if agent_name in ("Search", "Final"):
         docs = state.get("retrieved_docs") or []
@@ -76,7 +80,7 @@ def build_visual_patch(state: dict, agent_name: str, elapsed: float) -> dict:
 
     if agent_name in ("Summarise", "Final"):
         summaries = state.get("summaries") or []
-        patch.setdefault("agents", {})["Summarise"] = _summarise_panel(summaries)
+        patch.setdefault("agents", {})["Summarise"] = _summarise_panel(summaries, state.get("retrieved_docs") or [])
         patch.setdefault("lanes", {})["Summarise"] = {"sub": f"{len(summaries)} summaries", "status": "done"}
         patch.setdefault("metrics", {})["insights"] = len(summaries)
         if agent_name == "Summarise":
@@ -87,7 +91,7 @@ def build_visual_patch(state: dict, agent_name: str, elapsed: float) -> dict:
         agreements = len(critique.get("agreement_groups") or [])
         disagreements = len(critique.get("disagreement_groups") or [])
         confidence = critique.get("overall_confidence", 0) or 0
-        patch.setdefault("agents", {})["Critic"] = _critic_panel(critique)
+        patch.setdefault("agents", {})["Critic"] = _critic_panel(critique, len(state.get("summaries") or []))
         patch.setdefault("metrics", {})["claims"] = agreements + disagreements
         patch.setdefault("metrics", {})["confidence"] = f"{confidence}%"
         patch.setdefault("lanes", {})["Critic"] = {"sub": f"{agreements} agree / {disagreements} disagree", "status": "done"}
@@ -117,9 +121,34 @@ def build_visual_patch(state: dict, agent_name: str, elapsed: float) -> dict:
 
 
 # ── Panel helpers (always return valid shapes) ────────────────────────────────
+# All signal `levels` arrays are REAL data series normalized to 0-100 —
+# no random/decorative values anywhere.
 
-def _levels() -> list:
-    return [random.randint(35, 95) for _ in range(8)]
+def _content_depth_levels(docs: list) -> list:
+    """One bar per source: content length normalized (4000 chars ≈ full)."""
+    return [min(100, round((d.get("content_length") or len(d.get("content") or "")) / 4000 * 100))
+            for d in docs[:16]]
+
+
+def _age_str(fetched_at) -> str:
+    if not fetched_at:
+        return "—"
+    secs = max(0, int(time.time() - fetched_at))
+    return f"{secs}s ago" if secs < 120 else f"{secs // 60}m ago"
+
+
+def _recent_sources(docs: list) -> list:
+    rows = []
+    for d in docs[-4:]:
+        url = d.get("url") or ""
+        rows.append({
+            "domain": urlparse(url).netloc or url[:40],
+            "title": (d.get("title") or "Untitled")[:70],
+            "score": round(d.get("score") or 0, 2),
+            "badge": "ARTICLE" if d.get("content_source") == "scraped" else "SNIPPET",
+            "chars": d.get("content_length") or 0,
+        })
+    return rows
 
 
 def _search_panel(docs: list, scraped: int) -> dict:
@@ -135,15 +164,29 @@ def _search_panel(docs: list, scraped: int) -> dict:
             "badge": "ARTICLE" if (last or {}).get("content_source") == "scraped" else "SNIPPET",
             "title": ((last or {}).get("title") or "Unknown")[:60],
             "description": (((last or {}).get("content") or "")[:120] + "...") if last else "",
-            "time": "just now",
+            "time": _age_str((last or {}).get("fetched_at")),
             "score": str((last or {}).get("score", "--")),
         } if last else None,
-        "signal": {"eyebrow": "Retrieval spread", "variant": "cyan",
-                   "promptText": f"Scanned {len(docs)} sources", "levels": _levels()},
+        "recentSources": _recent_sources(docs),
+        "signal": {"eyebrow": "Content depth per source", "variant": "cyan",
+                   "promptText": f"Scanned {len(docs)} sources",
+                   "levels": _content_depth_levels(docs)},
     }
 
 
-def _summarise_panel(summaries: list) -> dict:
+def _doc_domain(doc: dict) -> str:
+    url = (doc or {}).get("url") or ""
+    return urlparse(url).netloc.replace("www.", "") or "source"
+
+
+def _summarise_panel(summaries: list, docs: Optional[list] = None) -> dict:
+    docs = docs or []
+    # Real series: per-doc compression ratio (summary chars / doc chars).
+    levels = []
+    for i, s in enumerate(summaries[:16]):
+        doc_len = (docs[i].get("content_length") or len(docs[i].get("content") or "")) if i < len(docs) else 0
+        ratio = len(s or "") / doc_len if doc_len else 0
+        levels.append(min(100, round(ratio * 100)))
     return {
         "progress": 100 if summaries else 0,
         "phase": {"label": "Complete" if summaries else "Idle",
@@ -151,21 +194,40 @@ def _summarise_panel(summaries: list) -> dict:
         "stats": [["Documents", str(len(summaries))]],
         "notes": (["Identified main claim per source",
                    f"Extracted key evidence from {len(summaries)} documents"] if summaries else []),
-        "insights": [{"text": (s or "")[:80] + "...", "tag": "key"} for s in summaries[:3]],
-        "signal": {"eyebrow": "Compression fidelity", "variant": "blue",
-                   "promptText": "Key points extracted", "levels": _levels()},
+        "insights": [{"text": (s or "")[:80] + "...",
+                      "tag": _doc_domain(docs[i]) if i < len(docs) else "key"}
+                     for i, s in enumerate(summaries[:3])],
+        "signal": {"eyebrow": "Compression ratio per doc", "variant": "blue",
+                   "promptText": "Key points extracted", "levels": levels},
     }
 
 
 def _critic_failed(critique: dict) -> bool:
     """Detect the _empty_result shape the critic returns on LLM failure."""
+    if critique.get("parse_failed"):
+        return True
     landscape = (critique.get("overall_landscape") or "").lower()
     gaps = " ".join(g for g in (critique.get("coverage_gaps") or []) if isinstance(g, str)).lower()
     return ("unavailable" in landscape or "could not" in landscape
             or "could not be completed" in gaps or "error code" in gaps)
 
 
-def _critic_panel(critique: dict) -> dict:
+def _critic_levels(critique: dict) -> list:
+    """One bar per claim group: sources involved, normalized by the total
+    sources analysed (agreement groups first, then disagreement groups)."""
+    total = critique.get("total_sources_analyzed") or 0
+    levels = []
+    for g in critique.get("agreement_groups") or []:
+        n = len(g.get("sources_agreeing") or [])
+        levels.append(min(100, round(n / total * 100)) if total else n * 10)
+    for g in critique.get("disagreement_groups") or []:
+        n = len(((g.get("position_a") or {}).get("sources") or [])) + \
+            len(((g.get("position_b") or {}).get("sources") or []))
+        levels.append(min(100, round(n / total * 100)) if total else n * 10)
+    return levels[:16]
+
+
+def _critic_panel(critique: dict, n_summaries: int = 0) -> dict:
     critique = critique or {}
     agreements = len(critique.get("agreement_groups") or [])
     disagreements = len(critique.get("disagreement_groups") or [])
@@ -183,36 +245,51 @@ def _critic_panel(critique: dict) -> dict:
                 {"label": "Factual consistency", "status": "pending"},
             ],
             "signal": {"eyebrow": "Source alignment", "variant": "contradiction",
-                       "promptText": "Critic LLM call failed — see server logs", "levels": _levels()},
+                       "promptText": "Critic LLM call failed — see server logs", "levels": []},
         }
     return {
         "progress": 100 if ran else 0,
         "phase": {"label": "Complete" if ran else "Idle",
                   "sub": f"{agreements} agree, {disagreements} disagree" if ran else "Awaiting summaries"},
         "stats": [["Agreements", str(agreements)], ["Disagreements", str(disagreements)],
-                  ["Confidence", f"{confidence}%"]],
+                  ["Confidence", f"{confidence}%"],
+                  ["Groups analysed", str(critique.get("total_sources_analyzed", n_summaries))]],
         "checklist": [
-            {"label": "Cross-source agreement", "status": "done" if agreements > 0 else ("active" if ran else "pending")},
+            # Each row reflects a real pipeline condition, not a guess.
+            {"label": "Cross-source agreement", "status": ("done" if agreements > 0 else "active") if ran else "pending"},
             {"label": "Disagreement detection", "status": "done" if ran else "pending"},
-            {"label": "Factual consistency", "status": "done" if confidence > 0 else "pending"},
+            {"label": "Citation validation", "status": "done" if critique.get("citations_validated") else "pending"},
         ],
-        "signal": {"eyebrow": "Source alignment", "variant": "entailment",
-                   "promptText": f"Agreement groups: {agreements}", "levels": _levels()},
+        "signal": {"eyebrow": "Sources per claim group", "variant": "entailment",
+                   "promptText": f"Agreement groups: {agreements}",
+                   "levels": _critic_levels(critique)},
     }
+
+
+_MD_STRIP_RE = re.compile(r"(^#{1,6}\s*|\*\*|\*|`{1,3}|^>\s?)", re.MULTILINE)
+
+
+def _plain(text: str) -> str:
+    """Strip markdown decoration for the plain-text typewriter draft."""
+    return _MD_STRIP_RE.sub("", text or "").strip()
 
 
 def _writer_panel(answer: str) -> dict:
     answer = answer or ""
     words = answer.split()
+    draft = _plain(answer)
+    # Real series: words per paragraph, normalized (120 words ≈ full bar).
+    paragraphs = [p for p in draft.split("\n\n") if p.strip()]
+    levels = [min(100, round(len(p.split()) / 120 * 100)) for p in paragraphs[:16]]
     return {
         "progress": 100 if answer else 0,
         "phase": {"label": "Complete" if answer else "Idle",
                   "sub": "Research digest ready" if answer else "Awaiting critique"},
-        "stats": [["Words", str(len(words))]],
-        "draftText": answer[:500] + ("..." if len(answer) > 500 else ""),
+        "stats": [["Words", str(len(words))], ["Paragraphs", str(len(paragraphs))]],
+        "draftText": draft,
         "wordCount": len(words),
-        "signal": {"eyebrow": "Narrative coherence", "variant": "purple",
-                   "promptText": "Digest structured" if answer else "Waiting", "levels": _levels()},
+        "signal": {"eyebrow": "Words per paragraph", "variant": "purple",
+                   "promptText": "Digest structured" if answer else "Waiting", "levels": levels},
     }
 
 
@@ -227,13 +304,9 @@ def _confidence_breakdown(state: dict) -> list:
                  "pct": round((v if v <= 1 else v / 100) * 100, 1),
                  "color": colors.get(k, "#6C8CFF")}
                 for k, v in comp["breakdown"].items()]
-    conf = (state.get("critique") or {}).get("overall_confidence", 50) or 50
-    return [
-        {"label": "Source Agreement", "pct": conf, "color": "#4FD1C5"},
-        {"label": "Domain Diversity", "pct": min(conf + 10, 100), "color": "#6C8CFF"},
-        {"label": "Recency", "pct": max(conf - 10, 0), "color": "#E8A855"},
-        {"label": "Claim Grounding", "pct": conf, "color": "#B48EF0"},
-    ]
+    # No real computed_confidence — return nothing rather than fabricating
+    # a breakdown from a single number. The frontend shows an empty state.
+    return []
 
 
 #  Real trust tiers — previously "High/Med" was just occurrence count, which
@@ -311,7 +384,7 @@ def _faithfulness(state: dict) -> dict:
     flagged = [
         {"eyebrow": "Uncited claim", "variant": "neutral",
          "promptText": s[:110] + ("…" if len(s) > 110 else ""),
-         "levels": [random.randint(20, 60) for _ in range(8)]}
+         "levels": []}
         for s in uncited[:2]
         # skip headers/short connectives that legitimately lack citations
         if not s.isupper() and len(s.split()) > 6

@@ -27,6 +27,7 @@ from app.agents.writer_agent import writer_agent
 from app.search_agent import search_web
 from app.memory.vector_store import store_research
 from app.utils.computed_confidence import compute_confidence   # ← NEW
+from app.visual.events import make_emitter
 
 logger = logging.getLogger("polynous.orchestrator")
 
@@ -108,12 +109,14 @@ def search_node(state: AgentState) -> AgentState:
     state['current_agent'] = 'search'
 
     user_id = _get_user_id(state)
+    emit = make_emitter(state, "Search")
 
-    results = search_web(state['query'])
+    results = search_web(state['query'], progress_cb=emit)
     state['retrieved_docs'] = results
 
     # Hybrid search for enhanced context
     print(". Running hybrid search...")
+    emit("Running knowledge-graph hybrid search…")
     try:
         hybrid_results = hybrid.hybrid_search(state['query'])
         entities = hybrid._extract_entities(state['query'])
@@ -123,6 +126,7 @@ def search_node(state: AgentState) -> AgentState:
         state['graph_context'] = hybrid_results.get('enhanced_context', '')
         state['graph_results'] = hybrid_results.get('graph_results', [])
         graph_count = len(state['graph_results'])
+        emit(f"Knowledge graph linked ({graph_count} connections)")
     except Exception as e:
         logger.warning("Hybrid search unavailable: %s", e)
         print(f"⚠️ Hybrid search unavailable: {e}")
@@ -153,11 +157,15 @@ def summarise_node(state: AgentState) -> AgentState:
     state['current_agent'] = 'summariser'
 
     provider = _get_provider(state)
+    emit = make_emitter(state, "Summarise")
+    docs = state.get('retrieved_docs', [])
+    emit(f"Summarising {len(docs)} documents in parallel…")
 
     summaries = summariser_agent(
-        documents=state.get('retrieved_docs', []),
+        documents=docs,
         query=state['query'],
         provider=provider,
+        progress_cb=emit,
     )
     state['summaries'] = summaries
 
@@ -176,6 +184,8 @@ def critic_node(state: AgentState) -> AgentState:
 
     # Get user's preferred provider (default to anthropic)
     provider = state.get('provider', 'anthropic')
+    emit = make_emitter(state, "Critic")
+    emit(f"Comparing claims across {len(state.get('summaries') or [])} summaries…")
 
     critique = critic_agent(
         summaries=state['summaries'],
@@ -184,9 +194,14 @@ def critic_node(state: AgentState) -> AgentState:
     )
     state['critique'] = critique
 
-    confidence = critique.get('overall_confidence', 50)
+    confidence = critique.get('overall_confidence', 0)
     agreements = len(critique.get('agreement_groups', []))
     disagreements = len(critique.get('disagreement_groups', []))
+
+    if critique.get('parse_failed'):
+        emit("Critique FAILED — could not parse analysis (check model/API key)")
+    else:
+        emit(f"Critique parsed: {agreements} agreement groups, {disagreements} disagreements, confidence {confidence}%")
 
     print(f"✅ Analysis complete: {agreements} agreements, {disagreements} disagreements")
     print(f"📊 Confidence: {confidence}% (source agreement ratio)")
@@ -212,6 +227,9 @@ def writer_node(state: AgentState) -> AgentState:
     if graph_context:
         enhanced_summaries.append(f"KNOWLEDGE GRAPH INSIGHTS:\n{graph_context}")
 
+    emit = make_emitter(state, "Writer")
+    emit(f"Drafting research digest from {len(enhanced_summaries)} summaries…")
+
     answer = writer_agent(
         query=state['query'],
         summaries=enhanced_summaries,
@@ -225,12 +243,15 @@ def writer_node(state: AgentState) -> AgentState:
     # This is an *additional* confidence metric derived from the
     # source documents themselves, independent of the LLM's self‑assessment.
     if state.get('retrieved_docs'):
+        emit("Computing evidence-based confidence breakdown…")
         try:
             state['computed_confidence'] = compute_confidence(
                 state['retrieved_docs'], answer=answer
             )
         except Exception as e:
             logger.warning("Computed confidence failed: %s", e)
+
+    emit(f"Draft complete ({len(answer.split())} words) — storing to knowledge graph…")
 
     entities = _extract_entities(state['query'])
     confidence = state.get('critique', {}).get('overall_confidence', 0)

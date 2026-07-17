@@ -165,7 +165,7 @@ const DEFAULT_DATA = {
   progress: 0,
   convergence: 0,
   agents: {
-    Search:   { progress:0, phase:{ label:"Idle", sub:"Waiting for research session to start" }, stats:[], lastSource:null, signal:null },
+    Search:   { progress:0, phase:{ label:"Idle", sub:"Waiting for research session to start" }, stats:[], lastSource:null, recentSources:[], signal:null },
     Summarise:{ progress:0, phase:{ label:"Idle", sub:"Waiting for research session to start" }, stats:[], notes:[], insights:[], signal:null },
     Critic:   { progress:0, phase:{ label:"Idle", sub:"Waiting for research session to start" }, stats:[], signal:null, checklist:[] },
     Writer:   { progress:0, phase:{ label:"Idle", sub:"Waiting for research session to start" }, stats:[], draftText:"", wordCount:0, signal:null },
@@ -317,6 +317,43 @@ function useLiveResearch(apiUrl, query) {
   }, [apiUrl, query]);
 
   return { liveData, liveError };
+}
+
+// ── Smooth character-by-character typewriter (rAF-driven) ────────────────────
+// Reveals ~`cps` characters per second; keeps the revealed count when the
+// text grows so re-renders/patches never restart the animation.
+function useTypewriter(fullText, cps = 110) {
+  const [revealed, setRevealed] = useState(0);
+  const revealedRef = useRef(0);
+  const textRef = useRef("");
+
+  useEffect(() => {
+    const text = fullText || "";
+    // Brand-new text (not an extension of the old one) restarts the reveal.
+    if (!text.startsWith(textRef.current.slice(0, revealedRef.current))) {
+      revealedRef.current = 0;
+      setRevealed(0);
+    }
+    textRef.current = text;
+    if (revealedRef.current >= text.length) return undefined;
+
+    let raf;
+    let last = performance.now();
+    const step = (now) => {
+      const chars = ((now - last) / 1000) * cps;
+      if (chars >= 1) {
+        last = now;
+        revealedRef.current = Math.min(text.length, revealedRef.current + Math.floor(chars));
+        setRevealed(revealedRef.current);
+      }
+      if (revealedRef.current < text.length) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [fullText, cps]);
+
+  const text = fullText || "";
+  return { visibleText: text.slice(0, revealed), typing: revealed < text.length };
 }
 
 function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, levels, compact = false }) {
@@ -720,6 +757,13 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
   const critic   = data.agents.Critic;
   const writer   = data.agents.Writer;
 
+  // ── Writer typewriter: full draft, smooth reveal, auto-scroll ────────────
+  const { visibleText: draftVisible, typing: draftTyping } = useTypewriter(writer.draftText, 110);
+  const draftRef = useRef(null);
+  useEffect(() => {
+    if (draftRef.current) draftRef.current.scrollTop = draftRef.current.scrollHeight;
+  }, [draftVisible]);
+
   return (
     <>
       <style>{styles}</style>
@@ -831,20 +875,36 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                 <StatRows stats={search.stats} />
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
-                <div className="type-section" style={{ color:"#4FD1C5" }}>Last source added</div>
-                {search.lastSource ? (
+                <div className="type-section" style={{ color:"#4FD1C5" }}>Latest sources</div>
+                {(search.recentSources && search.recentSources.length) ? (
+                  <div style={{ display:"flex", flexDirection:"column", gap:"7px" }}>
+                    {search.recentSources.map((src, i) => (
+                      <div key={`${src.domain}-${i}`} className="fade-in hover-row" style={{ display:"flex", alignItems:"center", gap:"10px", background:"rgba(255,255,255,0.03)", padding:"9px 11px", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)" }}>
+                        <img
+                          src={`https://www.google.com/s2/favicons?domain=${src.domain}&sz=32`}
+                          alt=""
+                          width="16" height="16"
+                          style={{ borderRadius:"4px", flexShrink:0, background:"rgba(79,209,197,0.1)" }}
+                          onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+                        />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+                            <span style={{ fontSize:"11.5px", fontWeight:600, color:"#ECEEF2", fontFamily:"Inter,sans-serif", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{src.domain}</span>
+                            {src.badge && (
+                              <span style={{ fontSize:"8.5px", color:"#4FD1C5", padding:"1px 6px", borderRadius:"999px", border:"1px solid rgba(79,209,197,0.3)", background:"rgba(79,209,197,0.08)", fontFamily:"JetBrains Mono,monospace", fontWeight:700, letterSpacing:"0.04em", flexShrink:0 }}>{src.badge}</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize:"10.5px", color:"#7C8494", marginTop:"2px", lineHeight:"1.35", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{src.title}</div>
+                        </div>
+                        <span style={{ color:"#4FD1C5", fontSize:"11.5px", fontFamily:"JetBrains Mono,monospace", fontWeight:600, flexShrink:0 }}>{src.score}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : search.lastSource ? (
                   <div className="fade-in hover-row" style={{ display:"flex", alignItems:"flex-start", gap:"11px", background:"rgba(255,255,255,0.03)", padding:"11px", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)" }}>
-                    <div style={{ padding:"7px", background:"rgba(79,209,197,0.1)", borderRadius:"8px", color:"#4FD1C5" }}>
-                      <svg style={{ width:"15px", height:"15px" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"/></svg>
-                    </div>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <div style={{ fontSize:"12.5px", fontWeight:"600", display:"flex", alignItems:"center", gap:"7px", fontFamily:"Inter,sans-serif", color:"#ECEEF2" }}>
-                          {search.lastSource.id}
-                          {search.lastSource.badge && (
-                            <span style={{ display:"inline-flex", alignItems:"center", gap:"4px", fontSize:"9px", color:"#4FD1C5", padding:"2px 7px", borderRadius:"999px", border:"1px solid rgba(79,209,197,0.3)", background:"rgba(79,209,197,0.08)", fontFamily:"JetBrains Mono,monospace", fontWeight:700, letterSpacing:"0.04em" }}>{search.lastSource.badge}</span>
-                          )}
-                        </div>
+                        <div style={{ fontSize:"12.5px", fontWeight:"600", fontFamily:"Inter,sans-serif", color:"#ECEEF2" }}>{search.lastSource.id}</div>
                         <div style={{ fontSize:"9.5px", color:"#7C8494", fontFamily:"JetBrains Mono,monospace" }}>{search.lastSource.time}</div>
                       </div>
                       <div style={{ fontSize:"11.5px", color:"#7C8494", marginTop:"4px", lineHeight:"1.4" }}>{search.lastSource.title || search.lastSource.description}</div>
@@ -852,7 +912,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                     {search.lastSource.score && <div style={{ color:"#4FD1C5", fontSize:"13px", fontFamily:"JetBrains Mono,monospace", alignSelf:"center", fontWeight:"600" }}>{search.lastSource.score}</div>}
                   </div>
                 ) : <div className="empty-note">No sources yet</div>}
-                <SignalBars {...(search.signal || { eyebrow:"Retrieval spread", variant:"cyan" })} />
+                <SignalBars {...(search.signal || { eyebrow:"Content depth per source", variant:"cyan" })} />
               </div>
             </section>
 
@@ -881,7 +941,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                     : <div className="empty-note">No insights yet</div>
                   }
                 </div>
-                <SignalBars {...(summarise.signal || { eyebrow:"Compression fidelity", variant:"blue" })} />
+                <SignalBars {...(summarise.signal || { eyebrow:"Compression ratio per doc", variant:"blue" })} />
               </div>
             </section>
 
@@ -910,10 +970,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                 <StatRows stats={writer.stats} />
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
-                <div className="type-section" style={{ color:"#a855f7" }}>Current paragraph draft</div>
-                <div className="custom-scrollbar" style={{ background:"#0E0F16", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"10px", padding:"16px", fontSize:"12.5px", color:"#7C8494", fontFamily:"JetBrains Mono,monospace", lineHeight:"1.6", height:"140px", overflowY:"auto" }}>
+                <div className="type-section" style={{ color:"#a855f7" }}>Current draft</div>
+                <div ref={draftRef} className="custom-scrollbar" style={{ background:"#0E0F16", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"10px", padding:"16px", fontSize:"12.5px", color:"#C7CBD6", fontFamily:"JetBrains Mono,monospace", lineHeight:"1.65", height:"220px", overflowY:"auto", whiteSpace:"pre-wrap" }}>
                   {writer.draftText
-                    ? <><span>{writer.draftText}</span><span style={{ display:"inline-block", width:"7px", height:"14px", background:"#a855f7", verticalAlign:"middle", marginLeft:"3px", animation:"cursorBlink 0.9s step-end infinite" }} /></>
+                    ? <><span>{draftVisible}</span>{draftTyping && <span style={{ display:"inline-block", width:"7px", height:"14px", background:"#a855f7", verticalAlign:"middle", marginLeft:"3px", animation:"cursorBlink 0.9s step-end infinite" }} />}</>
                     : <span className="empty-note">Draft will appear here</span>
                   }
                 </div>
