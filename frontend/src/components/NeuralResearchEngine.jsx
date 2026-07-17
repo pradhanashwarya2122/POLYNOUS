@@ -6,7 +6,7 @@ import * as THREE from 'three';
 // ============================================================================
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,8 +26,8 @@ const styles = `
 
   body {
     background-color: #0a0a1e;
-    color: #ECEEF2;
-    font-family: 'Inter', sans-serif;
+    color: #dde1e9;
+    font-family: 'Hanken Grotesk', sans-serif;
   }
 
   .panel {
@@ -64,7 +64,6 @@ const styles = `
   @keyframes flashHighlight{ 0%   { background:rgba(0,255,71,0.10); }     100%{ background:transparent; } }
   @keyframes pulseCore     { 0%   { transform:scale(0.96); opacity:0.85; }   50% { transform:scale(1.04); opacity:1; } 100%{ transform:scale(0.96); opacity:0.85; } }
   @keyframes coreBurst     { 0%   { transform:scale(0.4);  opacity:0.7; }   100%{ transform:scale(2.2);  opacity:0; } }
-  @keyframes typing        { from { width:0; }            to { width:88ch; } }
   @keyframes blinkCaret    { from,to { border-color:transparent; } 50%{ border-color:#00ff47; } }
   @keyframes spin          { from { transform:rotate(0deg); }   to { transform:rotate(360deg); } }
   @keyframes spinReverse   { from { transform:rotate(360deg); } to { transform:rotate(0deg); } }
@@ -81,12 +80,73 @@ const styles = `
   .synthesis-core { animation: pulseCore 2.4s ease-in-out infinite; }
   .float-tag    { animation: tagPop 5s ease-in-out infinite; }
   .error-banner { animation: errorSlideIn 0.3s ease-out forwards; }
-  .typewriter-text {
-    display:inline-block; overflow:hidden; white-space:nowrap;
-    border-right:0.12em solid #00ff47; width:88ch; max-width:100%;
-    animation: typing 3s steps(88,end), blinkCaret 0.8s step-end infinite;
-    vertical-align:bottom;
+  .query-caret {
+    display:inline-block; width:2px; height:1em; background:#00ff47;
+    vertical-align:text-bottom; margin-left:3px;
+    animation: cursorBlink 0.8s step-end infinite;
   }
+
+  /* ── Info modal (premium explainer) ── */
+  @keyframes backdropIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes modalIn    { from { opacity:0; transform:translateY(14px) scale(0.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+  .info-backdrop {
+    position:fixed; inset:0; z-index:1000;
+    background:rgba(6,6,18,0.72); backdrop-filter:blur(18px) saturate(1.1);
+    display:flex; align-items:center; justify-content:center; padding:32px;
+    animation:backdropIn 0.25s ease-out forwards;
+  }
+  .info-modal {
+    position:relative; width:100%; max-width:600px; max-height:82vh; overflow-y:auto;
+    background:linear-gradient(165deg, rgba(22,24,38,0.98), rgba(12,13,24,0.98));
+    border:1px solid rgba(255,255,255,0.1); border-radius:22px;
+    padding:40px 44px 36px;
+    box-shadow:0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    animation:modalIn 0.32s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  .info-modal::before {
+    content:""; position:absolute; top:0; left:44px; right:44px; height:1px;
+    background:linear-gradient(90deg, transparent, var(--accent, #00ff47), transparent);
+    opacity:0.55;
+  }
+  .info-term { color:#dde1e9; font-weight:600; }
+  .info-btn {
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14);
+    color:#8e98a8; cursor:pointer; font-size:11px; font-family:'JetBrains Mono',monospace;
+    font-style:italic; font-weight:600; line-height:1;
+    transition:color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  }
+  .info-btn:hover { color:#dde1e9; border-color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.09); transform:scale(1.08); }
+
+  /* ── Thinking loader (replaces elapsed timer) ── */
+  @keyframes shimmerText {
+    0% { background-position:200% center; } 100% { background-position:-200% center; }
+  }
+  .thinking-shimmer {
+    background:linear-gradient(90deg, #525c6e 20%, #dde1e9 40%, #00ff47 50%, #dde1e9 60%, #525c6e 80%);
+    background-size:200% auto;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:shimmerText 2.6s linear infinite;
+  }
+  @keyframes orbitDot {
+    from { transform:rotate(0deg) translateX(10px) rotate(0deg); }
+    to   { transform:rotate(360deg) translateX(10px) rotate(-360deg); }
+  }
+  .thought-orb { position:relative; width:28px; height:28px; flex-shrink:0; }
+  .thought-orb .orb-core {
+    position:absolute; inset:9px; border-radius:50%; background:#00ff47;
+    box-shadow:0 0 12px rgba(0,255,71,0.7); animation:softPulse 1.8s ease-in-out infinite;
+  }
+  .thought-orb .orb-dot {
+    position:absolute; top:50%; left:50%; width:4px; height:4px; margin:-2px;
+    border-radius:50%; background:rgba(0,255,71,0.8);
+    animation:orbitDot 2.2s linear infinite;
+  }
+  .thought-orb .orb-dot:nth-child(2) { animation-duration:3.1s; animation-delay:-0.8s; opacity:0.6; }
+  .thought-orb .orb-dot:nth-child(3) { animation-duration:4.0s; animation-delay:-1.6s; opacity:0.35; }
+  @keyframes phraseSwap { 0%{ opacity:0; transform:translateY(5px); } 12%{ opacity:1; transform:translateY(0); } 88%{ opacity:1; } 100%{ opacity:0; transform:translateY(-5px); } }
+  .phrase-swap { animation:phraseSwap 2.8s ease-in-out infinite; }
   .animate-spin       { animation: spin 5s linear infinite; }
   .animate-soft-pulse { animation: softPulse 2.2s ease-in-out infinite; }
   .pop-number { display:inline-block; animation: popNumber 0.35s cubic-bezier(0.34,1.56,0.64,1); }
@@ -124,12 +184,12 @@ const styles = `
       radial-gradient(ellipse 50% 35% at 85% 90%, rgba(168,85,247,0.035),transparent 60%);
   }
 
-  .type-heading  { font-family:'Inter',sans-serif; font-size:15px; font-weight:600; color:#ECEEF2; letter-spacing:-0.005em; }
-  .type-section  { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:#7C8494; }
+  .type-heading  { font-family:'Hanken Grotesk',sans-serif; font-size:15px; font-weight:600; color:#dde1e9; letter-spacing:-0.005em; }
+  .type-section  { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:#8e98a8; }
   .tabular-nums  { font-variant-numeric:tabular-nums; }
   .task-row      { transition:background 0.2s ease; border-radius:8px; }
   .task-row:hover{ background:rgba(255,255,255,0.03); }
-  .empty-note    { font-size:11.5px; color:#565C6D; font-family:'JetBrains Mono',monospace; font-style:italic; }
+  .empty-note    { font-size:11.5px; color:#525c6e; font-family:'JetBrains Mono',monospace; font-style:italic; }
   ::selection    { background:#00ff47; color:#0a0a1e; }
 `;
 
@@ -158,6 +218,179 @@ const AGENT_STYLES = {
 };
 
 const LEVEL_COLOR = { low:"#4FD1C5", med:"#E8A855", high:"#E0685F" };
+
+// ── Explainer content for every card's info button ───────────────────────────
+const INFO = {
+  Search: {
+    accent: "#4FD1C5", eyebrow: "Agent 01 — Retrieval",
+    title: "Search Agent",
+    what: "The Search Agent is the pipeline's gateway to the live web. It queries the Tavily search engine in advanced mode, deduplicates the results, then visits each page in parallel and extracts the full article text — not just the search snippet.",
+    terms: [
+      ["Latest sources", "The most recently fetched pages. ARTICLE means the full text was successfully extracted; SNIPPET means only the search-engine preview was available."],
+      ["Score", "Tavily's 0–1 relevance rating of how well the page matches your query."],
+      ["Content depth graph", "One bar per source. Height shows how much usable text was captured — 100% is roughly a full 4,000-character article. Short bars are thin sources the later agents will weigh less."],
+    ],
+  },
+  Summarise: {
+    accent: "#00ff47", eyebrow: "Agent 02 — Distillation",
+    title: "Summarise Agent",
+    what: "The Summarise Agent reads every fetched document in parallel and extracts what each source actually says — the main claim and its key evidence — with no opinion or synthesis. This gives the later agents clean, comparable inputs.",
+    terms: [
+      ["Key insights", "The opening of each per-source extraction, tagged with the domain it came from."],
+      ["Compression graph", "One bar per document — the size of its summary relative to the original text. Low bars mean heavy compression (a long article boiled down hard); high bars mean the source was already short."],
+    ],
+  },
+  Critic: {
+    accent: "#E8A855", eyebrow: "Agent 03 — Verification",
+    title: "Critic Agent",
+    what: "The Critic Agent cross-examines all the summaries at once. It groups the claims where multiple sources agree, surfaces the points where they conflict, and validates every citation — any claim citing a source that doesn't exist is dropped.",
+    terms: [
+      ["Agreements / Disagreements", "The number of claim groups where sources concur vs. conflict. Zero disagreements over many sources is itself a finding — the literature is consistent."],
+      ["Confidence", "A transparent formula, not an LLM guess: the largest group of agreeing sources divided by total sources (+10 if there are 3+ agreement areas). 8 of 12 sources agreeing ≈ 67%."],
+      ["Sources per claim graph", "One bar per claim group — how many of the sources participate in it. Tall bars are well-supported claims."],
+      ["Validation checklist", "Live status of the real checks: agreement grouping, conflict detection, and citation validation."],
+    ],
+  },
+  Writer: {
+    accent: "#a855f7", eyebrow: "Agent 04 — Synthesis",
+    title: "Writer Agent",
+    what: "The Writer Agent composes the final research digest from the summaries, the critic's analysis, and the knowledge graph. What you watch being typed here is the genuine draft — the same text that becomes the published report below.",
+    terms: [
+      ["Current draft", "The full digest, revealed as it's written. The report publishes once the draft finishes."],
+      ["Words per paragraph graph", "One bar per paragraph of the draft (100% ≈ 120 words) — a quick read on the digest's structure and depth."],
+    ],
+  },
+  thoughts: {
+    accent: "#00ff47", eyebrow: "Telemetry",
+    title: "Live Thought Stream",
+    what: "A real-time feed of every step the agents take — each web page fetched, each document summarised, each analysis phase. Nothing here is simulated; every line corresponds to an actual operation with its timestamp.",
+    terms: [
+      ["Timestamp", "Minutes:seconds since the research session started."],
+      ["Agent badge", "Which of the four agents performed the step."],
+    ],
+  },
+  synthesis: {
+    accent: "#00ff47", eyebrow: "Visualisation",
+    title: "Synthesis Merge Visual",
+    what: "A live picture of knowledge flowing into the answer. Each coloured particle stream is one agent feeding the central synthesis core — streams light up and accelerate while their agent is working, dim when idle, and settle when done.",
+    terms: [
+      ["Particle streams", "Speed and brightness track each agent's real progress."],
+      ["Convergence ring", "How far the synthesis has progressed, scaled by the critic's measured confidence — it only approaches 100% when the pipeline is done and the sources genuinely agree."],
+    ],
+  },
+  metrics: {
+    accent: "#4FD1C5", eyebrow: "Telemetry",
+    title: "Key Metrics",
+    what: "The four headline numbers of the session, updated live as each agent reports.",
+    terms: [
+      ["Sources", "Web pages retrieved and read so far."],
+      ["Insights", "Documents successfully distilled by the Summarise Agent."],
+      ["Claims", "Distinct claim groups (agreements + disagreements) the Critic identified."],
+      ["Confidence", "The Critic's consensus score — the share of sources backing the most-supported position."],
+    ],
+  },
+  confidence: {
+    accent: "#4FD1C5", eyebrow: "Diagnostic 01",
+    title: "Confidence Breakdown",
+    what: "Four independently measured factors — computed from the retrieved documents themselves, never invented — that together explain how much to trust this answer.",
+    terms: [
+      ["Source agreement", "Pairwise text overlap between sources: do independent pages actually say the same things?"],
+      ["Domain diversity", "Entropy of the source domains — 12 different sites score high; 12 pages from one site score low."],
+      ["Recency", "Publication-date decay — recent sources score higher; undated ones sit at 50%."],
+      ["Claim grounding", "The share of sentences in the answer that carry a [n] citation back to a source."],
+    ],
+  },
+  trust: {
+    accent: "#E8A855", eyebrow: "Diagnostic 02",
+    title: "Source Trust Distribution",
+    what: "Every source domain is classified into a trust tier using a curated allowlist: journals, universities, and government sites (nature.com, .edu, .gov, arxiv.org…) rate High; social and user-generated platforms (reddit, quora, medium…) rate Low; everything else is Medium.",
+    terms: [
+      ["The bar", "The percentage of distinct domains in each tier — more teal means the answer rests on stronger institutions."],
+      ["Top domains", "The specific sites this research drew from, best tier first."],
+    ],
+  },
+  faithfulness: {
+    accent: "#4FD1C5", eyebrow: "Diagnostic 03",
+    title: "Faithfulness Analysis",
+    what: "A sentence-level audit of the final answer: a sentence counts as grounded when it carries a [n] citation pointing back to a retrieved source. This catches the answer drifting beyond what the sources support.",
+    terms: [
+      ["Grounded ratio", "Cited sentences over total sentences. If the writer used no [n] markers at all, the ratio falls back to the measured claim-grounding factor instead of flagging everything."],
+      ["Flagged statements", "Factual-looking sentences with no citation — read these with extra care."],
+    ],
+  },
+  contradiction: {
+    accent: "#E0685F", eyebrow: "Diagnostic 04",
+    title: "Contradiction Analysis",
+    what: "When the Critic finds sources making genuinely conflicting claims, the sharpest conflict is shown here — both positions quoted side by side with the source numbers backing each. No contradiction card means the sources were consistent.",
+    terms: [
+      ["Position A / B", "The two competing claims, exactly as the sources state them."],
+      ["Trust", "The trust tier of the domains backing each side — a High-trust position usually outweighs a Low-trust one."],
+      ["Nature", "The Critic's classification of the conflict — factual dispute, differing scope, or outdated data."],
+    ],
+  },
+  suggestions: {
+    accent: "#00ff47", eyebrow: "Next steps",
+    title: "Suggested Next Research",
+    what: "Follow-up queries generated from the coverage gaps the Critic found — the aspects of your question the current sources didn't answer. One click starts a new session on that gap.",
+    terms: [],
+  },
+};
+
+function InfoBtn({ k, onOpen, style }) {
+  return (
+    <button
+      type="button" className="info-btn" style={style} aria-label="What is this?"
+      onClick={(e) => { e.stopPropagation(); onOpen(k); }}
+    >i</button>
+  );
+}
+
+function InfoModal({ k, onClose }) {
+  const info = INFO[k];
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  if (!info) return null;
+  return (
+    <div className="info-backdrop" onClick={onClose}>
+      <div className="info-modal custom-scrollbar" style={{ "--accent": info.accent }} onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={onClose} aria-label="Close"
+          style={{ position:"absolute", top:"22px", right:"24px", background:"none", border:"none", color:"#8e98a8", fontSize:"20px", cursor:"pointer", lineHeight:1, padding:"4px" }}
+        >×</button>
+        <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, letterSpacing:"0.22em", textTransform:"uppercase", color:info.accent, marginBottom:"14px" }}>
+          {info.eyebrow}
+        </div>
+        <h2 style={{ fontFamily:"Sora,sans-serif", fontSize:"26px", fontWeight:700, letterSpacing:"-0.025em", color:"#dde1e9", marginBottom:"18px" }}>
+          {info.title}
+        </h2>
+        <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"14.5px", lineHeight:1.8, color:"#b9c0cd" }}>
+          {info.what}
+        </p>
+        {info.terms.length > 0 && (
+          <>
+            <div style={{ height:"1px", background:"linear-gradient(90deg, rgba(255,255,255,0.14), transparent)", margin:"26px 0 22px" }} />
+            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, letterSpacing:"0.18em", textTransform:"uppercase", color:"#8e98a8", marginBottom:"16px" }}>
+              How to read it
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:"15px" }}>
+              {info.terms.map(([term, desc]) => (
+                <div key={term} style={{ display:"flex", gap:"14px", alignItems:"baseline" }}>
+                  <div style={{ width:"4px", height:"4px", borderRadius:"50%", background:info.accent, flexShrink:0, transform:"translateY(-2px)" }} />
+                  <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"13.5px", lineHeight:1.7, color:"#8e98a8", margin:0 }}>
+                    <span className="info-term">{term}.</span> {desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const DEFAULT_DATA = {
   query: "",
@@ -356,6 +589,14 @@ function useTypewriter(fullText, cps = 110) {
   return { visibleText: text.slice(0, revealed), typing: revealed < text.length };
 }
 
+// What each real-data graph actually plots, shown under the bars.
+const SIGNAL_MEANING = {
+  "Content depth per source": "Each bar = one source · height = share of a full article captured",
+  "Compression ratio per doc": "Each bar = one document · height = summary size vs the original text",
+  "Sources per claim group": "Each bar = one claim · height = share of sources supporting it",
+  "Words per paragraph": "Each bar = one draft paragraph · 100% ≈ 120 words",
+};
+
 function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, levels, compact = false }) {
   const v    = NLI_VARIANTS[variant] || NLI_VARIANTS.neutral;
   const bars = levels && levels.length ? levels : [];
@@ -365,7 +606,7 @@ function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, 
     return (
       <div className="signal-panel hairline-top">
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <span style={{ fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.09em", fontWeight:600 }}>{eyebrow}</span>
+          <span style={{ fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.09em", fontWeight:600 }}>{eyebrow}</span>
         </div>
         <div className="empty-note" style={{ marginTop:"10px" }}>No signal data yet</div>
       </div>
@@ -377,14 +618,14 @@ function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, 
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: compact ? "9px" : "12px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"7px" }}>
           <div style={{ width:"4px", height:"4px", borderRadius:"50%", background:v.badge }} />
-          <span style={{ fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.09em", fontWeight:600 }}>{eyebrow}</span>
+          <span style={{ fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.09em", fontWeight:600 }}>{eyebrow}</span>
         </div>
         <span className="signal-badge" style={{ color:v.badge, borderColor:`${v.badge}45`, background:`${v.badge}12` }}>{v.label}</span>
       </div>
 
       {promptText && (
-        <div style={{ fontSize: compact ? "11.5px" : "12.5px", color:"#C7CBD6", fontFamily:"Inter,sans-serif", lineHeight:1.5, marginBottom:"12px" }}>
-          {promptLabel && <span style={{ color:"#7C8494" }}>{promptLabel}: </span>}
+        <div style={{ fontSize: compact ? "11.5px" : "12.5px", color:"#C7CBD6", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.5, marginBottom:"12px" }}>
+          {promptLabel && <span style={{ color:"#8e98a8" }}>{promptLabel}: </span>}
           <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize: compact ? "10.5px" : "11.5px" }}>{promptText}</span>
         </div>
       )}
@@ -415,6 +656,11 @@ function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, 
           </div>
         ))}
       </div>
+      {SIGNAL_MEANING[eyebrow] && (
+        <div style={{ marginTop:"9px", fontSize:"10px", fontFamily:"Hanken Grotesk,sans-serif", color:"#525c6e", lineHeight:1.5 }}>
+          {SIGNAL_MEANING[eyebrow]}
+        </div>
+      )}
     </div>
   );
 }
@@ -436,10 +682,10 @@ const SpinGlyph = ({ color }) => (
   </svg>
 );
 const CheckRow = ({ item }) => {
-  const color = item.status === "done" ? "#4FD1C5" : item.status === "active" ? "#E8A855" : "#565C6D";
+  const color = item.status === "done" ? "#4FD1C5" : item.status === "active" ? "#E8A855" : "#525c6e";
   const Glyph = item.status === "done" ? CheckGlyph : item.status === "active" ? SpinGlyph : PendingGlyph;
   return (
-    <div style={{ display:"flex", gap:"9px", color: item.status === "pending" ? "#565C6D" : "#C7CBD6", alignItems:"center", fontSize:"11.5px", fontFamily:"JetBrains Mono,monospace" }}>
+    <div style={{ display:"flex", gap:"9px", color: item.status === "pending" ? "#525c6e" : "#C7CBD6", alignItems:"center", fontSize:"11.5px", fontFamily:"JetBrains Mono,monospace" }}>
       <Glyph color={color} /> {item.label}
     </div>
   );
@@ -451,6 +697,7 @@ const RING_C = 2 * Math.PI * RING_R;
 export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, onComplete }) {
   const { liveData, liveError } = useLiveResearch(apiUrl, query);
   const [errorDismissed, setErrorDismissed] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(null);
 
   useEffect(() => { if (liveError) setErrorDismissed(false); }, [liveError]);
 
@@ -476,14 +723,59 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
   ).length;
   const completedCount2 = AGENT_NAMES.filter((n) => (data.agents[n].progress || 0) >= 100).length;
 
-  // ── PATCH 3: onComplete callback ──────────────────────────────────────────
+  // ── Smooth overall progress: derived from real per-agent progress, so it
+  //    climbs continuously (each fetched page / summarised doc moves it)
+  //    instead of jumping 25% per agent. Backend milestones act as a floor.
+  const agentAvg = Math.round(AGENT_NAMES.reduce((s, n) => s + (data.agents[n].progress || 0), 0) / AGENT_NAMES.length);
+  const displayProgress = Math.min(100, Math.max(data.progress || 0, agentAvg));
+
+  // ── "Thoughts being formulated" loader (replaces the raw elapsed timer) ──
+  const THINKING_PHRASES = {
+    Search:    ["Casting the net wide…", "Reading the open web…", "Weighing source relevance…"],
+    Summarise: ["Distilling each source…", "Extracting key claims…", "Compressing knowledge…"],
+    Critic:    ["Cross-examining sources…", "Hunting for contradictions…", "Weighing the evidence…"],
+    Writer:    ["Formulating thoughts…", "Composing the narrative…", "Connecting the threads…"],
+    idle:      ["Warming up the agents…", "Formulating thoughts…"],
+  };
+  const activeAgent = AGENT_NAMES.find((n) => (data.agents[n].progress || 0) > 0 && (data.agents[n].progress || 0) < 100);
+  const [phraseTick, setPhraseTick] = useState(0);
+  useEffect(() => {
+    if (isDone) return;
+    const id = setInterval(() => setPhraseTick((t) => t + 1), 2800);
+    return () => clearInterval(id);
+  }, [isDone]);
+  const phrasePool = THINKING_PHRASES[activeAgent] || THINKING_PHRASES.idle;
+  const thinkingPhrase = phrasePool[phraseTick % phrasePool.length];
+
+  // ── Writer typewriter: full draft, smooth reveal, auto-scroll ────────────
+  const { visibleText: draftVisible, typing: draftTyping } = useTypewriter(data.agents.Writer.draftText, 110);
+  const draftRef = useRef(null);
+  useEffect(() => {
+    if (draftRef.current) draftRef.current.scrollTop = draftRef.current.scrollHeight;
+  }, [draftVisible]);
+
+  // ── Query typewriter (replaces the broken fixed-width CSS animation) ─────
+  const { visibleText: queryVisible, typing: queryTyping } = useTypewriter(data.query, 34);
+
+  // ── onComplete: fires only after the pipeline finishes AND the Writer's
+  //    draft has fully typed out — the report publishes after the draft.
   const completeFiredRef = useRef(false);
   useEffect(() => {
-    if ((data.progress || 0) >= 100 && !completeFiredRef.current) {
+    if ((data.progress || 0) >= 100 && !draftTyping && !completeFiredRef.current) {
       completeFiredRef.current = true;
       if (typeof onComplete === "function") onComplete(data);
     }
-  }, [data.progress, data, onComplete]);
+  }, [data.progress, draftTyping, data, onComplete]);
+
+  // ── Live handle for the THREE.js scene: per-agent progress read every
+  //    frame so the synthesis visual tracks the real pipeline state.
+  const liveProgressRef = useRef({ overall: 0, agents: {} });
+  useEffect(() => {
+    liveProgressRef.current = {
+      overall: displayProgress,
+      agents: Object.fromEntries(AGENT_NAMES.map((n) => [n, data.agents[n].progress || 0])),
+    };
+  }, [displayProgress, data]);
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [coreBurst,      setCoreBurst]      = useState(0);
@@ -658,12 +950,22 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
       haloMat.opacity=0.55+heartbeat*0.35;
       haloPoints.rotation.y+=0.0012;
       waves.forEach((w)=>{ const local=((time+w.offset)%WAVE_PERIOD)/WAVE_PERIOD; const s=0.4+local*3.2; w.mesh.scale.set(s,s,s); w.mesh.material.opacity=Math.max(0,0.28*(1-local)); });
+      // Scene intensity follows the REAL pipeline state, not a fixed loop:
+      // idle lanes are nearly invisible, the working lane runs bright and
+      // fast, finished lanes settle to a calm steady flow.
+      const live=liveProgressRef.current;
+      const overallT=(live.overall||0)/100;
+      glowMesh.material.opacity=0.04+overallT*0.06+heartbeat*0.12;
+      haloMat.opacity=0.3+overallT*0.35+heartbeat*0.3;
       particleGroups.forEach((group)=>{
         const pos=group.points.geometry.attributes.position.array;
         const boost=laneBoostRef.current[group.agentName]||0;
-        group.material.size=1.8+boost*2; group.material.opacity=0.65+boost*0.3;
+        const agentP=(live.agents[group.agentName]||0);
+        const laneState=agentP<=0?0.12:(agentP>=100?0.5:1);   // idle | done | working
+        group.material.size=1.4+laneState*0.6+boost*2;
+        group.material.opacity=(0.18+laneState*0.55)+boost*0.3;
         laneBoostRef.current[group.agentName]=boost*0.94;
-        const speedMul=1+boost*1.6;
+        const speedMul=(agentP<=0?0.15:(agentP>=100?0.55:1.15))+boost*1.6;
         group.pData.forEach((d2,i)=>{
           d2.progress+=d2.speed*speedMul; if(d2.progress>=1) d2.progress=0;
           const t=d2.progress;
@@ -723,10 +1025,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
             <AgentIcon path={meta.icon} style={{ color:meta.color }} />
             {name} Agent
           </div>
+          <InfoBtn k={name} onOpen={setInfoOpen} />
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
           <AgentAvatar name={name} />
-          <div className="font-mono" style={{ color:"#7C8494", lineHeight:1.5, fontSize:"11.5px" }}>
+          <div className="font-mono" style={{ color:"#8e98a8", lineHeight:1.5, fontSize:"11.5px" }}>
             <span key={phase.label} style={{ color:meta.color, fontWeight:700, display:"inline-flex", alignItems:"center", gap:"6px" }}>
               {phase.label}
               {phase.label !== "Idle" && <span className="thinking-dots" style={{ color:meta.color }}><span/><span/><span/></span>}
@@ -743,7 +1046,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
       {stats && stats.length > 0
         ? stats.map(([label,val]) => (
             <div key={label} style={{ display:"flex", justifyContent:"space-between" }}>
-              <span style={{ color:"#7C8494" }}>{label}</span>
+              <span style={{ color:"#8e98a8" }}>{label}</span>
               <span style={{ color:"#C7CBD6" }}>{val}</span>
             </div>
           ))
@@ -757,17 +1060,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
   const critic   = data.agents.Critic;
   const writer   = data.agents.Writer;
 
-  // ── Writer typewriter: full draft, smooth reveal, auto-scroll ────────────
-  const { visibleText: draftVisible, typing: draftTyping } = useTypewriter(writer.draftText, 110);
-  const draftRef = useRef(null);
-  useEffect(() => {
-    if (draftRef.current) draftRef.current.scrollTop = draftRef.current.scrollHeight;
-  }, [draftVisible]);
-
   return (
     <>
       <style>{styles}</style>
       <div className="ambient-field" />
+      {infoOpen && <InfoModal k={infoOpen} onClose={() => setInfoOpen(null)} />}
 
       {liveError && !errorDismissed && (
         <div className="error-banner" style={{
@@ -805,7 +1102,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"10px" }}>
               <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#00ff47" }} />
-              <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.18em" }}>
+              <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.18em" }}>
                 Multi-agent research session
               </span>
             </div>
@@ -813,10 +1110,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
               Neural Research <span className="glow-green" style={{ color:"#00ff47" }}>Engine</span>
             </h1>
             <div style={{ marginTop:"14px", fontSize:"12px", fontFamily:"JetBrains Mono,monospace" }}>
-              <span style={{ color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.05em" }}>Research query</span>
+              <span style={{ color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.05em" }}>Research query</span>
               <br />
               {data.query
-                ? <span className="typewriter-text" style={{ color:"#C7CBD6", marginTop:"6px" }}>{data.query}</span>
+                ? <span style={{ color:"#C7CBD6", marginTop:"6px", display:"inline-block" }}>{queryVisible}{queryTyping && <span className="query-caret" />}</span>
                 : <span className="empty-note" style={{ display:"block", marginTop:"6px" }}>Awaiting query</span>
               }
             </div>
@@ -831,34 +1128,44 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                 <div key={coreBurst} style={{ position:"absolute", inset:"18px", borderRadius:"50%", border:"1px solid #00ff47", animation: coreBurst ? "coreBurst 0.9s ease-out forwards" : "none" }} />
               </div>
               <div>
-                <div style={{ fontSize:"12px", color:"#ECEEF2", fontWeight:"600", fontFamily:"Inter,sans-serif" }}>Synthesizing insights</div>
-                <div style={{ fontSize:"11.5px", color:"#7C8494", marginTop:"3px" }}>Agents collaborating in real time</div>
+                <div style={{ fontSize:"12px", color:"#dde1e9", fontWeight:"600", fontFamily:"Hanken Grotesk,sans-serif" }}>Synthesizing insights</div>
+                <div style={{ fontSize:"11.5px", color:"#8e98a8", marginTop:"3px" }}>Agents collaborating in real time</div>
               </div>
             </div>
 
             <div style={{ display:"flex", gap:"32px", alignItems:"center" }}>
               <div>
-                <div style={{ fontSize:"10.5px", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>Progress</div>
+                <div style={{ fontSize:"10.5px", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>Progress</div>
                 <div style={{ fontSize:"26px", fontFamily:"Sora,sans-serif", color:"#FFFFFF", fontWeight:"700" }}>
-                  <span key={data.progress} className="pop-number">{data.progress}</span>
-                  <span style={{ fontSize:"14px", color:"#7C8494" }}>%</span>
+                  <span key={displayProgress} className="pop-number">{displayProgress}</span>
+                  <span style={{ fontSize:"14px", color:"#8e98a8" }}>%</span>
                 </div>
               </div>
               <div>
-                <div style={{ fontSize:"10.5px", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>
+                <div style={{ fontSize:"10.5px", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>
                   {isDone ? "Agents done" : "Agents active"}
                 </div>
                 <div style={{ fontSize:"26px", fontFamily:"Sora,sans-serif", color:"#FFFFFF", fontWeight:"700" }}>
                   {isDone ? completedCount2 : activeCount}
-                  <span style={{ fontSize:"14px", color:"#7C8494" }}>/4</span>
+                  <span style={{ fontSize:"14px", color:"#8e98a8" }}>/4</span>
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize:"10.5px", color:"#7C8494", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>Elapsed</div>
-                <div className="tabular-nums" style={{ fontSize:"26px", fontFamily:"Sora,sans-serif", color:"#FFFFFF", fontWeight:"700", display:"flex", alignItems:"center", gap:"8px" }}>
-                  {formatTime(displayElapsed)}
-                  {!isDone && <span className="tick-dot" style={{ width:"8px", height:"8px", borderRadius:"50%", background:"#00ff47", boxShadow:"0 0 10px #00ff47" }} />}
+              <div style={{ minWidth:"190px" }}>
+                <div style={{ fontSize:"10.5px", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>
+                  {isDone ? "Status" : "Neural activity"}
                 </div>
+                {isDone ? (
+                  <div style={{ display:"flex", alignItems:"center", gap:"9px", fontSize:"16px", fontFamily:"Sora,sans-serif", color:"#00ff47", fontWeight:700 }}>
+                    <CheckGlyph color="#00ff47" /> Complete
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", alignItems:"center", gap:"11px" }}>
+                    <div className="thought-orb"><span className="orb-dot"/><span className="orb-dot"/><span className="orb-dot"/><div className="orb-core"/></div>
+                    <span key={thinkingPhrase} className="thinking-shimmer phrase-swap" style={{ fontSize:"13.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>
+                      {thinkingPhrase}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -889,12 +1196,12 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                         />
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-                            <span style={{ fontSize:"11.5px", fontWeight:600, color:"#ECEEF2", fontFamily:"Inter,sans-serif", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{src.domain}</span>
+                            <span style={{ fontSize:"11.5px", fontWeight:600, color:"#dde1e9", fontFamily:"Hanken Grotesk,sans-serif", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{src.domain}</span>
                             {src.badge && (
                               <span style={{ fontSize:"8.5px", color:"#4FD1C5", padding:"1px 6px", borderRadius:"999px", border:"1px solid rgba(79,209,197,0.3)", background:"rgba(79,209,197,0.08)", fontFamily:"JetBrains Mono,monospace", fontWeight:700, letterSpacing:"0.04em", flexShrink:0 }}>{src.badge}</span>
                             )}
                           </div>
-                          <div style={{ fontSize:"10.5px", color:"#7C8494", marginTop:"2px", lineHeight:"1.35", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{src.title}</div>
+                          <div style={{ fontSize:"10.5px", color:"#8e98a8", marginTop:"2px", lineHeight:"1.35", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{src.title}</div>
                         </div>
                         <span style={{ color:"#4FD1C5", fontSize:"11.5px", fontFamily:"JetBrains Mono,monospace", fontWeight:600, flexShrink:0 }}>{src.score}</span>
                       </div>
@@ -904,10 +1211,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                   <div className="fade-in hover-row" style={{ display:"flex", alignItems:"flex-start", gap:"11px", background:"rgba(255,255,255,0.03)", padding:"11px", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)" }}>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <div style={{ fontSize:"12.5px", fontWeight:"600", fontFamily:"Inter,sans-serif", color:"#ECEEF2" }}>{search.lastSource.id}</div>
-                        <div style={{ fontSize:"9.5px", color:"#7C8494", fontFamily:"JetBrains Mono,monospace" }}>{search.lastSource.time}</div>
+                        <div style={{ fontSize:"12.5px", fontWeight:"600", fontFamily:"Hanken Grotesk,sans-serif", color:"#dde1e9" }}>{search.lastSource.id}</div>
+                        <div style={{ fontSize:"9.5px", color:"#8e98a8", fontFamily:"JetBrains Mono,monospace" }}>{search.lastSource.time}</div>
                       </div>
-                      <div style={{ fontSize:"11.5px", color:"#7C8494", marginTop:"4px", lineHeight:"1.4" }}>{search.lastSource.title || search.lastSource.description}</div>
+                      <div style={{ fontSize:"11.5px", color:"#8e98a8", marginTop:"4px", lineHeight:"1.4" }}>{search.lastSource.title || search.lastSource.description}</div>
                     </div>
                     {search.lastSource.score && <div style={{ color:"#4FD1C5", fontSize:"13px", fontFamily:"JetBrains Mono,monospace", alignSelf:"center", fontWeight:"600" }}>{search.lastSource.score}</div>}
                   </div>
@@ -926,14 +1233,14 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                 <div>
                   <div className="type-section" style={{ color:"#00ff47", marginBottom:"10px" }}>Working notes</div>
                   {summarise.notes && summarise.notes.length
-                    ? <ul style={{ fontSize:"12.5px", color:"#C7CBD6", display:"flex", flexDirection:"column", gap:"9px", fontFamily:"Inter,sans-serif", listStyle:"disc", paddingLeft:"18px", lineHeight:"1.55" }}>{summarise.notes.map((n,i)=><li key={i}>{n}</li>)}</ul>
+                    ? <ul style={{ fontSize:"12.5px", color:"#C7CBD6", display:"flex", flexDirection:"column", gap:"9px", fontFamily:"Hanken Grotesk,sans-serif", listStyle:"disc", paddingLeft:"18px", lineHeight:"1.55" }}>{summarise.notes.map((n,i)=><li key={i}>{n}</li>)}</ul>
                     : <div className="empty-note">No notes yet</div>
                   }
                 </div>
                 <div className="hover-row" style={{ background:"rgba(0,255,71,0.05)", border:"1px solid rgba(0,255,71,0.15)", borderRadius:"10px", padding:"14px" }}>
                   <div className="type-section" style={{ color:"#00ff47", marginBottom:"7px" }}>Key insights extracted</div>
                   {summarise.insights && summarise.insights.length
-                    ? <ul style={{ fontSize:"11.5px", color:"#7C8494", display:"flex", flexDirection:"column", gap:"7px", fontFamily:"JetBrains Mono,monospace", listStyle:"disc", paddingLeft:"15px" }}>
+                    ? <ul style={{ fontSize:"11.5px", color:"#8e98a8", display:"flex", flexDirection:"column", gap:"7px", fontFamily:"JetBrains Mono,monospace", listStyle:"disc", paddingLeft:"15px" }}>
                         {summarise.insights.map((ins,i)=>(
                           <li key={i}>{ins.text}{ins.tag && <span style={{ display:"inline-block", marginLeft:"4px", padding:"0 4px", background:"rgba(255,255,255,0.08)", borderRadius:"4px", fontSize:"8.5px" }}>{ins.tag}</span>}</li>
                         ))}
@@ -989,13 +1296,16 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
             <section className="panel panel-glow" style={{ padding:0, display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
               <div style={{ padding:"18px 18px 11px", background:"rgba(10,10,30,0.85)", zIndex:10, borderBottom:"1px solid rgba(255,255,255,0.06)", position:"sticky", top:0 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <div className="type-section" style={{ display:"flex", alignItems:"center", gap:"7px", color:"#ECEEF2" }}>
+                  <div className="type-section" style={{ display:"flex", alignItems:"center", gap:"7px", color:"#dde1e9" }}>
                     <svg style={{ width:"14px", height:"14px", color:"#00ff47" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"/></svg>
                     Live thought stream
                   </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:"7px", fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494", background:"rgba(255,255,255,0.04)", padding:"4px 9px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.08)" }}>
-                    <div className="animate-soft-pulse" style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#4FD1C5" }} />
-                    AUTO-SCROLL
+                  <div style={{ display:"flex", alignItems:"center", gap:"9px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"7px", fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", background:"rgba(255,255,255,0.04)", padding:"4px 9px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.08)" }}>
+                      <div className="animate-soft-pulse" style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#4FD1C5" }} />
+                      AUTO-SCROLL
+                    </div>
+                    <InfoBtn k="thoughts" onOpen={setInfoOpen} />
                   </div>
                 </div>
               </div>
@@ -1010,7 +1320,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                   const isNew=i===data.logs.length-1;
                   return (
                     <div key={log.id??i} className={isNew?"log-entry-new":"log-entry"} style={{ display:"flex", gap:"14px", alignItems:"flex-start", padding:"7px", borderRadius:"8px" }}>
-                      <span style={{ color:"#565C6D", width:"58px", flexShrink:0, fontSize:"10.5px", marginTop:"2px" }}>{log.timeStr}</span>
+                      <span style={{ color:"#525c6e", width:"58px", flexShrink:0, fontSize:"10.5px", marginTop:"2px" }}>{log.timeStr}</span>
                       <span style={{ ...AGENT_STYLES[meta.key].badge, padding:"3px 7px", borderRadius:"6px", fontSize:"9px", textTransform:"uppercase", width:"72px", textAlign:"center", flexShrink:0, fontWeight:"700", letterSpacing:"0.04em" }}>{log.agentName}</span>
                       <span style={{ color:"#C7CBD6", flex:1, fontSize:"11.5px", lineHeight:"1.55" }}>{log.msg}</span>
                     </div>
@@ -1021,8 +1331,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
 
             {/* Synthesis Merge Visual */}
             <section className="panel panel-glow" style={{ padding:0, gridColumn:"span 2", position:"relative", overflow:"hidden", height:"100%", display:"flex", flexDirection:"column" }}>
-              <div className="type-section" style={{ position:"absolute", top:"20px", left:"20px", color:"#ECEEF2", zIndex:20 }}>Synthesis merge visual</div>
-              <div style={{ position:"absolute", top:"38px", left:"20px", fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494", zIndex:20 }}>Real-time knowledge convergence</div>
+              <div className="type-section" style={{ position:"absolute", top:"20px", left:"20px", color:"#dde1e9", zIndex:20, display:"flex", alignItems:"center", gap:"9px" }}>
+                Synthesis merge visual
+                <InfoBtn k="synthesis" onOpen={setInfoOpen} />
+              </div>
+              <div style={{ position:"absolute", top:"44px", left:"20px", fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", zIndex:20 }}>Real-time knowledge convergence</div>
               <div ref={canvasContainerRef} style={{ position:"relative", width:"100%", height:"100%", background:"#0a0a1e", overflow:"hidden", display:"flex", alignItems:"center" }}>
                 <div style={{ position:"absolute", left:"28px", top:0, bottom:0, display:"flex", flexDirection:"column", justifyContent:"space-around", padding:"28px 0", zIndex:10, pointerEvents:"none" }}>
                   {AGENT_NAMES.map((name)=>{
@@ -1037,7 +1350,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                         </div>
                         <div>
                           <div style={{ fontSize:"9.5px", fontWeight:"700", color:meta.color, fontFamily:"JetBrains Mono,monospace", letterSpacing:"0.08em", textTransform:"uppercase" }}>{name} Agent</div>
-                          <div style={{ fontSize:"8.5px", color:"#7C8494", fontFamily:"JetBrains Mono,monospace" }}>{lane.sub}{lane.status && <span className="animate-soft-pulse" style={{ marginLeft:"4px", color:meta.color }}>{lane.status}</span>}</div>
+                          <div style={{ fontSize:"8.5px", color:"#8e98a8", fontFamily:"JetBrains Mono,monospace" }}>{lane.sub}{lane.status && <span className="animate-soft-pulse" style={{ marginLeft:"4px", color:meta.color }}>{lane.status}</span>}</div>
                         </div>
                       </div>
                     );
@@ -1048,7 +1361,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                   {data.floatingTags.map((t,i)=>{
                     const meta=AGENT_META[t.agent]||AGENT_META.Search;
                     return (
-                      <div key={i} className="float-tag" style={{ position:"absolute", top:t.top, left:t.left, right:t.right, bottom:t.bottom, background:"rgba(14,15,22,0.85)", border:`1px solid rgba(${meta.rgb},0.3)`, padding:"6px 8px", borderRadius:"6px", fontSize:"9px", fontFamily:"JetBrains Mono,monospace", color:"#ECEEF2", animationDelay:t.delay||"0s" }}>
+                      <div key={i} className="float-tag" style={{ position:"absolute", top:t.top, left:t.left, right:t.right, bottom:t.bottom, background:"rgba(14,15,22,0.85)", border:`1px solid rgba(${meta.rgb},0.3)`, padding:"6px 8px", borderRadius:"6px", fontSize:"9px", fontFamily:"JetBrains Mono,monospace", color:"#dde1e9", animationDelay:t.delay||"0s" }}>
                         <span style={{ color:meta.color, fontWeight:"700", textTransform:"uppercase" }}>{t.label}</span>: {t.value}
                       </div>
                     );
@@ -1073,7 +1386,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
 
             {/* Key Metrics */}
             <section className="panel panel-glow" style={{ padding:"28px", display:"flex", flexDirection:"column", gap:"18px", height:"100%" }}>
-              <div className="type-section" style={{ color:"#ECEEF2", marginBottom:"4px" }}>Key metrics</div>
+              <div className="type-section" style={{ color:"#dde1e9", marginBottom:"4px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                Key metrics
+                <InfoBtn k="metrics" onOpen={setInfoOpen} />
+              </div>
               <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
                 {[
                   { icon:"description", label:"Sources",    val:data.metrics.sources    },
@@ -1082,11 +1398,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                   { icon:"analytics",   label:"Confidence", val:data.metrics.confidence },
                 ].map((m,i)=>(
                   <div key={m.label} className="hover-row" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:i<3?"1px solid rgba(255,255,255,0.05)":"none", paddingBottom:i<3?"14px":0, paddingTop:i===3?"3px":0, borderRadius:"8px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"10px", color:"#7C8494" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"10px", color:"#8e98a8" }}>
                       <span className="material-symbols-outlined" style={{ fontSize:"18px" }}>{m.icon}</span>
                       <span style={{ fontSize:"11.5px", fontFamily:"JetBrains Mono,monospace", textTransform:"uppercase", letterSpacing:"0.05em" }}>{m.label}</span>
                     </div>
-                    <span style={{ color:"#ECEEF2", fontFamily:"Sora,sans-serif", fontSize:"21px", fontWeight:"700" }}>{m.val}</span>
+                    <span style={{ color:"#dde1e9", fontFamily:"Sora,sans-serif", fontSize:"21px", fontWeight:"700" }}>{m.val}</span>
                   </div>
                 ))}
               </div>
@@ -1097,40 +1413,63 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
         {/* ── Diagnostics + Suggestions ── */}
         <div style={{ display:"flex", flexDirection:"column", gap:"36px", marginTop:"20px", paddingTop:"36px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>
           <div style={{ display:"flex", flexDirection:"column", gap:"22px" }}>
-            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#ECEEF2", padding:"0 4px", borderLeft:"2px solid #00ff47", paddingLeft:"14px" }}>Research diagnostics</h2>
+            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#dde1e9", padding:"0 4px", borderLeft:"2px solid #00ff47", paddingLeft:"14px" }}>Research diagnostics</h2>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"24px" }}>
 
               {/* Confidence Breakdown */}
               <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
-                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Confidence breakdown</div>
+                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  Confidence breakdown
+                  <InfoBtn k="confidence" onOpen={setInfoOpen} />
+                </div>
+                <div style={{ fontSize:"12px", color:"#8e98a8", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.55, marginTop:"-8px" }}>
+                  Four factors measured from the sources themselves — how much to trust this answer, and why.
+                </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:"14px", flex:1 }}>
                   {data.confidenceBreakdown.length
-                    ? data.confidenceBreakdown.map((bar)=>(
+                    ? data.confidenceBreakdown.map((bar)=>{
+                        const FACTOR_DESC = {
+                          "Source Agreement":"do independent sources say the same things?",
+                          "Domain Diversity":"how many distinct websites back this up?",
+                          "Recency":"how recent are the sources?",
+                          "Claim Grounding":"how much of the answer carries citations?",
+                        };
+                        return (
                         <div key={bar.label}>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", color:"#7C8494", textTransform:"uppercase", marginBottom:"7px", fontFamily:"JetBrains Mono,monospace" }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", color:"#8e98a8", textTransform:"uppercase", marginBottom:"4px", fontFamily:"JetBrains Mono,monospace" }}>
                             <span>{bar.label}</span>
                             <span style={{ color:bar.color||"#00ff47", fontWeight:"700" }}>{bar.pct}%</span>
                           </div>
+                          {FACTOR_DESC[bar.label] && (
+                            <div style={{ fontSize:"10.5px", color:"#525c6e", fontFamily:"Hanken Grotesk,sans-serif", marginBottom:"7px" }}>{FACTOR_DESC[bar.label]}</div>
+                          )}
                           <div style={{ height:"6px", background:"rgba(255,255,255,0.05)", borderRadius:"9999px", overflow:"hidden" }}>
                             <div className="bar-fill" style={{ height:"100%", width:`${bar.pct}%`, background:bar.color||"#00ff47" }} />
                           </div>
                         </div>
-                      ))
-                    : <div className="empty-note">No breakdown yet</div>
+                        );
+                      })
+                    : <div className="empty-note">Computed after the draft is written — needs the final answer to measure against.</div>
                   }
                 </div>
               </section>
 
               {/* Source Trust */}
               <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
-                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Source trust distribution</div>
+                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  Source trust distribution
+                  <InfoBtn k="trust" onOpen={setInfoOpen} />
+                </div>
+                <div style={{ fontSize:"12px", color:"#8e98a8", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.55, marginTop:"-8px" }}>
+                  Share of source domains by credibility tier — journals &amp; institutions rate High, social platforms rate Low.
+                </div>
                 <div>
                   <div style={{ display:"flex", height:"12px", borderRadius:"9999px", overflow:"hidden", marginBottom:"10px" }}>
                     <div style={{ background:"#4FD1C5", width:`${data.sourceTrust.high}%` }} />
                     <div style={{ background:"#E8A855", width:`${data.sourceTrust.med}%`  }} />
                     <div style={{ background:"#E0685F", width:`${data.sourceTrust.low}%`  }} />
                   </div>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8" }}>
                     <span>High {data.sourceTrust.high}%</span>
                     <span>Med {data.sourceTrust.med}%</span>
                     <span>Low {data.sourceTrust.low}%</span>
@@ -1141,7 +1480,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                   {data.sourceTrust.domains.length
                     ? data.sourceTrust.domains.map((d)=>(
                         <div key={d.name} className="hover-row" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:"12.5px", padding:"11px", background:"rgba(255,255,255,0.03)", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)" }}>
-                          <span style={{ color:"#C7CBD6", fontWeight:"500", fontFamily:"Inter,sans-serif" }}>{d.name}</span>
+                          <span style={{ color:"#C7CBD6", fontWeight:"500", fontFamily:"Hanken Grotesk,sans-serif" }}>{d.name}</span>
                           <span style={{ color:LEVEL_COLOR[d.tier]||"#4FD1C5", fontFamily:"JetBrains Mono,monospace", fontWeight:"700" }}>{d.score}</span>
                         </div>
                       ))
@@ -1152,10 +1491,16 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
 
               {/* Faithfulness */}
               <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
-                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Faithfulness analysis</div>
+                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  Faithfulness analysis
+                  <InfoBtn k="faithfulness" onOpen={setInfoOpen} />
+                </div>
+                <div style={{ fontSize:"12px", color:"#8e98a8", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.55, marginTop:"-8px" }}>
+                  How many sentences of the answer carry a [n] citation back to a real source.
+                </div>
                 <div style={{ display:"flex", alignItems:"center", gap:"14px" }}>
                   <div style={{ fontSize:"32px", fontFamily:"Sora,sans-serif", color:"#4FD1C5", fontWeight:"700" }}>{data.faithfulness.grounded}/{data.faithfulness.total}</div>
-                  <div style={{ fontSize:"11px", textTransform:"uppercase", color:"#7C8494", fontFamily:"JetBrains Mono,monospace", letterSpacing:"0.05em" }}>Sentences<br/>grounded</div>
+                  <div style={{ fontSize:"11px", textTransform:"uppercase", color:"#8e98a8", fontFamily:"JetBrains Mono,monospace", letterSpacing:"0.05em" }}>Sentences<br/>grounded</div>
                 </div>
                 <div style={{ flex:1, display:"flex", flexDirection:"column", gap:"10px", overflow:"hidden" }}>
                   <div className="type-section" style={{ marginBottom:"1px" }}>Flagged statements</div>
@@ -1168,14 +1513,20 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
 
               {/* Contradiction */}
               <section className="panel panel-glow" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"16px" }}>
-                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px" }}>Contradiction analysis</div>
+                <div className="type-heading" style={{ borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:"11px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  Contradiction analysis
+                  <InfoBtn k="contradiction" onOpen={setInfoOpen} />
+                </div>
+                <div style={{ fontSize:"12px", color:"#8e98a8", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.55, marginTop:"-6px" }}>
+                  The sharpest conflict the Critic found — two sources making opposing claims, shown side by side.
+                </div>
                 {data.contradiction ? (
                   <>
                     <div style={{ flex:1, display:"flex", flexDirection:"column", gap:"14px" }}>
                       <div className="hover-row" style={{ background:"rgba(255,255,255,0.03)", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.08)", padding:"14px" }}>
                         <div style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#4FD1C5", marginBottom:"7px", fontWeight:"700" }}>{data.contradiction.claimA.label} · trust {data.contradiction.claimA.trust}</div>
                         <div style={{ fontSize:"12.5px", color:"#C7CBD6", lineHeight:"1.55" }}>{data.contradiction.claimA.text}</div>
-                        <div style={{ fontSize:"10px", color:"#7C8494", marginTop:"7px", fontFamily:"JetBrains Mono,monospace" }}>Source: {data.contradiction.claimA.source}</div>
+                        <div style={{ fontSize:"10px", color:"#8e98a8", marginTop:"7px", fontFamily:"JetBrains Mono,monospace" }}>Source: {data.contradiction.claimA.source}</div>
                       </div>
                       <div style={{ display:"flex", justifyContent:"center", position:"relative", zIndex:10, margin:"-10px 0" }}>
                         <div style={{ background:"#0a0a1e", border:"1px solid rgba(255,255,255,0.14)", borderRadius:"9999px", padding:"3px 11px", fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#E8A855", fontWeight:"700" }}>VS</div>
@@ -1183,7 +1534,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                       <div className="hover-row" style={{ background:"rgba(255,255,255,0.03)", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.08)", padding:"14px" }}>
                         <div style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#a855f7", marginBottom:"7px", fontWeight:"700" }}>{data.contradiction.claimB.label} · trust {data.contradiction.claimB.trust}</div>
                         <div style={{ fontSize:"12.5px", color:"#C7CBD6", lineHeight:"1.55" }}>{data.contradiction.claimB.text}</div>
-                        <div style={{ fontSize:"10px", color:"#7C8494", marginTop:"7px", fontFamily:"JetBrains Mono,monospace" }}>Source: {data.contradiction.claimB.source}</div>
+                        <div style={{ fontSize:"10px", color:"#8e98a8", marginTop:"7px", fontFamily:"JetBrains Mono,monospace" }}>Source: {data.contradiction.claimB.source}</div>
                       </div>
                     </div>
                     <div style={{ textAlign:"center", fontSize:"11.5px", color:"#4FD1C5", fontFamily:"JetBrains Mono,monospace", background:"rgba(79,209,197,0.08)", padding:"11px", borderRadius:"10px", border:"1px solid rgba(79,209,197,0.18)" }}>
@@ -1197,7 +1548,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
 
           {/* Suggested Next Research */}
           <div style={{ display:"flex", flexDirection:"column", gap:"22px", paddingTop:"12px", paddingBottom:"24px" }}>
-            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#ECEEF2", padding:"0 4px", borderLeft:"2px solid #00ff47", paddingLeft:"14px" }}>Suggested next research</h2>
+            <h2 className="font-display" style={{ fontSize:"18px", fontWeight:"700", color:"#dde1e9", padding:"0 4px", borderLeft:"2px solid #00ff47", paddingLeft:"14px", display:"flex", alignItems:"center", gap:"10px" }}>
+              Suggested next research
+              <InfoBtn k="suggestions" onOpen={setInfoOpen} />
+            </h2>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"24px" }}>
               {data.suggestions.length
                 ? data.suggestions.map((card)=>{
@@ -1215,9 +1569,9 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                           <div style={{ padding:"10px", background:`${meta.color}14`, color:meta.color, borderRadius:"10px" }}>
                             <span className="material-symbols-outlined" style={{ fontSize:"20px" }}>{card.icon}</span>
                           </div>
-                          <div style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#7C8494", background:"rgba(255,255,255,0.04)", padding:"5px 10px", borderRadius:"7px", border:"1px solid rgba(255,255,255,0.08)" }}>Est {card.est}</div>
+                          <div style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", background:"rgba(255,255,255,0.04)", padding:"5px 10px", borderRadius:"7px", border:"1px solid rgba(255,255,255,0.08)" }}>Est {card.est}</div>
                         </div>
-                        <h3 style={{ fontSize:"15.5px", fontWeight:"600", color:"#ECEEF2", fontFamily:"Inter,sans-serif" }}>{card.title}</h3>
+                        <h3 style={{ fontSize:"15.5px", fontWeight:"600", color:"#dde1e9", fontFamily:"Hanken Grotesk,sans-serif" }}>{card.title}</h3>
                         <div style={{ display:"flex", gap:"18px", marginTop:"auto", paddingTop:"14px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
                           <div style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"10.5px", fontFamily:"JetBrains Mono,monospace", color:LEVEL_COLOR[card.diffLevel]||"#E8A855", textTransform:"uppercase", letterSpacing:"0.04em" }}>
                             <span className="material-symbols-outlined" style={{ fontSize:"14px" }}>signal_cellular_alt</span> {card.diff}

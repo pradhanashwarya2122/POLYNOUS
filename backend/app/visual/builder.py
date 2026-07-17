@@ -40,7 +40,7 @@ def init_visual_state(query: str) -> dict:
             "Critic": {"sub": "", "status": ""}, "Writer": {"sub": "", "status": ""},
         },
         "floatingTags": [],
-        "metrics": {"sources": 0, "insights": 0, "claims": 0, "confidence": "0%"},
+        "metrics": {"sources": 0, "insights": "—", "claims": "—", "confidence": "—"},
         "confidenceBreakdown": [],
         "sourceTrust": {"high": 0, "med": 0, "low": 0, "domains": []},
         "faithfulness": {"grounded": 0, "total": 0, "flagged": []},

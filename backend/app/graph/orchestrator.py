@@ -185,7 +185,8 @@ def critic_node(state: AgentState) -> AgentState:
     # Get user's preferred provider (default to anthropic)
     provider = state.get('provider', 'anthropic')
     emit = make_emitter(state, "Critic")
-    emit(f"Comparing claims across {len(state.get('summaries') or [])} summaries…")
+    emit(f"Comparing claims across {len(state.get('summaries') or [])} summaries…",
+         {"agents": {"Critic": {"progress": 40, "phase": {"label": "Critiquing", "sub": "LLM analysing claims…"}}}})
 
     critique = critic_agent(
         summaries=state['summaries'],
@@ -228,7 +229,8 @@ def writer_node(state: AgentState) -> AgentState:
         enhanced_summaries.append(f"KNOWLEDGE GRAPH INSIGHTS:\n{graph_context}")
 
     emit = make_emitter(state, "Writer")
-    emit(f"Drafting research digest from {len(enhanced_summaries)} summaries…")
+    emit(f"Drafting research digest from {len(enhanced_summaries)} summaries…",
+         {"agents": {"Writer": {"progress": 35, "phase": {"label": "Writing", "sub": "LLM drafting digest…"}}}})
 
     answer = writer_agent(
         query=state['query'],
@@ -243,7 +245,8 @@ def writer_node(state: AgentState) -> AgentState:
     # This is an *additional* confidence metric derived from the
     # source documents themselves, independent of the LLM's self‑assessment.
     if state.get('retrieved_docs'):
-        emit("Computing evidence-based confidence breakdown…")
+        emit("Computing evidence-based confidence breakdown…",
+             {"agents": {"Writer": {"progress": 75, "phase": {"label": "Writing", "sub": "Scoring evidence…"}}}})
         try:
             state['computed_confidence'] = compute_confidence(
                 state['retrieved_docs'], answer=answer
