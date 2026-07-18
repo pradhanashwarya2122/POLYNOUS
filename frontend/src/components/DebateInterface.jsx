@@ -196,23 +196,18 @@ function Globe({ containerRef }) {
       // "flight" icon: pointed nose, swept main wings, small tail wings.
       // Built once as a flat shape and reused (geometry) across every pooled
       // plane — only each plane's material (for per-instance opacity) differs.
-      const planeOutline = new THREE.Shape();
-      planeOutline.moveTo(0, 0.030);
-      planeOutline.lineTo(0.005, 0.010);
-      planeOutline.lineTo(0.030, -0.002);
-      planeOutline.lineTo(0.007, -0.008);
-      planeOutline.lineTo(0.005, -0.020);
-      planeOutline.lineTo(0.013, -0.025);
-      planeOutline.lineTo(0.004, -0.027);
-      planeOutline.lineTo(0, -0.032);
-      planeOutline.lineTo(-0.004, -0.027);
-      planeOutline.lineTo(-0.013, -0.025);
-      planeOutline.lineTo(-0.005, -0.020);
-      planeOutline.lineTo(-0.007, -0.008);
-      planeOutline.lineTo(-0.030, -0.002);
-      planeOutline.lineTo(-0.005, 0.010);
-      planeOutline.lineTo(0, 0.030);
-      const PLANE_GEO = new THREE.ShapeGeometry(planeOutline);
+      // Simple, convex dart/paper-airplane silhouette: nose, two wingtips, tail.
+      // Convex shape triangulates cleanly (the earlier notched outline was
+      // producing a mangled, "X"-like mesh at small scale).
+      const PLANE_GEO = (() => {
+        const s = new THREE.Shape();
+        s.moveTo(0, 0.030);       // nose
+        s.lineTo(0.016, -0.008);  // right wingtip
+        s.lineTo(0, -0.030);      // tail
+        s.lineTo(-0.016, -0.008); // left wingtip
+        s.lineTo(0, 0.030);       // close back to nose
+        return new THREE.ShapeGeometry(s);
+      })();
       PLANE_GEO.rotateX(-Math.PI / 2); // lay flat; local +Y (nose) becomes world -Z (forward)
 
       const GLOW_GEO = new THREE.ConeGeometry(0.02, 0.06, 6);
@@ -249,9 +244,9 @@ function Globe({ containerRef }) {
       const MAX_BULGE = 1.40;
 
       // ─── Flight slot pool ────────────────────────────────────────────
-      const POOL_SIZE = 42;         // more planes in the sky at once
-      const TRAIL_POINTS = 26;      // longer, smoother contrails
-      const RING_POOL_SIZE = 34;
+      const POOL_SIZE = 14;         // fewer planes — cleaner, more premium sky
+      const TRAIL_POINTS = 26;      // long, smooth contrails
+      const RING_POOL_SIZE = 14;
 
       const smootherstep = (t) => t * t * t * (t * (t * 6 - 15) + 10);
 
@@ -324,7 +319,7 @@ function Globe({ containerRef }) {
         slot.destVec.copy(b);
 
         const distNorm = Math.min(dist / 2, 1);
-        slot.duration = THREE.MathUtils.lerp(4, 7, distNorm) + Math.random() * 2; // 4-9s — fast crossings
+        slot.duration = THREE.MathUtils.lerp(9, 14, distNorm) + Math.random() * 4; // 9-18s — unhurried, premium pace
         slot.elapsed = -Math.random() * 0.6; // slight randomized easing/start offset
         slot.trailSpan = 0.16 + Math.random() * 0.14; // 16-30% of arc — long, visible contrails
         slot.state = "flying";
@@ -337,7 +332,7 @@ function Globe({ containerRef }) {
 
       // give every slot a staggered, asynchronous first departure
       slots.forEach((slot, i) => {
-        slot.waitFor = i * (6 / POOL_SIZE) + Math.random() * 0.8;
+        slot.waitFor = i * (14 / POOL_SIZE) + Math.random() * 1.2;
         slot.state = "idle";
       });
 
@@ -428,7 +423,7 @@ function Globe({ containerRef }) {
             if (fadeT >= 1) {
               slot.state = "idle";
               slot.waitTimer = 0;
-              slot.waitFor = 0.1 + Math.random() * 0.3; // 100-400ms — quick turnaround
+              slot.waitFor = 0.3 + Math.random() * 0.7; // 300-1000ms — relaxed turnaround
             }
           }
         }
@@ -449,9 +444,9 @@ function Globe({ containerRef }) {
       const tick = () => {
         animId = requestAnimationFrame(tick);
         const dt = Math.min(clock.getDelta(), 0.05); // clamp so tab-switches don't jump flights
-        core.rotation.y += 0.0022;
-        ring1.rotation.z -= 0.004;
-        ring2.rotation.z += 0.002;
+        core.rotation.y += 0.0013;
+        ring1.rotation.z -= 0.0026;
+        ring2.rotation.z += 0.0013;
         updateFlights(dt);
         renderer.render(scene, camera);
       };
