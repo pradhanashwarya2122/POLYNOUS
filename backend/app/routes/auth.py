@@ -112,10 +112,11 @@ def create_access_token(user_id: int, public_id: str, email: str) -> str:
     
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-def create_refresh_token(user_id: int, public_id: str, email: str) -> str:
-    """Create long-lived refresh token (7 days)"""
+def create_refresh_token(user_id: int, public_id: str, email: str,
+                         days: int = None) -> str:
+    """Create long-lived refresh token (default 7 days; 30 with remember-me)"""
     now = datetime.utcnow()
-    expire = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = now + timedelta(days=days or REFRESH_TOKEN_EXPIRE_DAYS)
     
     payload = {
         "sub": str(user_id),
@@ -153,7 +154,7 @@ def decode_token(token: str, expected_type: str = "access") -> dict:
 # COOKIE HELPER - Centralized cookie configuration
 # ============================================================
 
-def set_refresh_cookie(response: Response, refresh_token: str):
+def set_refresh_cookie(response: Response, refresh_token: str, days: int = None):
     """
     Set refresh token cookie with environment-appropriate settings.
     Production: secure=True, samesite="none" (cross-site)
@@ -165,7 +166,7 @@ def set_refresh_cookie(response: Response, refresh_token: str):
         httponly=True,
         secure=IS_PRODUCTION,          # True in production (HTTPS), False in dev
         samesite="none" if IS_PRODUCTION else "lax",  # Cross-site in production
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        max_age=(days or REFRESH_TOKEN_EXPIRE_DAYS) * 86400,
         path="/auth"
     )
 
@@ -258,7 +259,8 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
-    
+    remember: bool = False    # "Keep Synapse Active" — extends refresh TTL to 30 days
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
@@ -381,12 +383,14 @@ async def login(request: LoginRequest, response: Response, db: Session = Depends
     user.locked_until = None
     user.last_login = datetime.utcnow()
     db.commit()
-    
+
     access_token = create_access_token(user.id, user.public_id, user.email)
-    refresh_token = create_refresh_token(user.id, user.public_id, user.email)
-    
+    # remember-me ("Keep Synapse Active") extends the refresh session to 30 days
+    remember_days = 30 if request.remember else None
+    refresh_token = create_refresh_token(user.id, user.public_id, user.email, days=remember_days)
+
     # ✅ FIXED: Set refresh token cookie with cross-domain support
-    set_refresh_cookie(response, refresh_token)
+    set_refresh_cookie(response, refresh_token, days=remember_days)
     
     return TokenResponse(
         access_token=access_token,

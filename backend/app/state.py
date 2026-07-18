@@ -14,6 +14,7 @@ class AgentState(TypedDict):
 
     # ── BYO API Key (decrypted) ───────────────────────────
     user_api_key: Optional[str]           # user's personal API key (or None)
+    model: Optional[str]                  # user's chosen model for the provider
 
     # ── Search results ────────────────────────────────────
     retrieved_docs: List[Dict]

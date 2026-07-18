@@ -72,16 +72,15 @@ def _get_client(provider: str = "anthropic", api_key: Optional[str] = None):
     Raises:
         ValueError: if no API key is available for the chosen provider.
     """
-    if provider == "openai":
-        key = api_key or os.getenv("OPENAI_API_KEY", "")
-        if not key:
-            raise ValueError("No OpenAI API key found (pass api_key or set OPENAI_API_KEY).")
-        return OpenAI(api_key=key), "openai"
-    else:
-        key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
-        if not key:
-            raise ValueError("No Anthropic API key found (pass api_key or set ANTHROPIC_API_KEY).")
-        return Anthropic(api_key=key), "anthropic"
+    # SECURITY: no implicit env-var fallback — the endpoint layer resolves
+    # keys explicitly. Missing key = hard error, never a silent system charge.
+    if not api_key:
+        raise ValueError(f"No {provider} API key provided for this request.")
+    from app.llm_providers import resolve_provider
+    client_type, base_url = resolve_provider(provider)
+    if client_type == "openai":
+        return OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {})), "openai"
+    return Anthropic(api_key=api_key), "anthropic"
 
 
 # ============================================================
@@ -191,6 +190,7 @@ def critic_agent(
     query: str = "",
     provider: str = "anthropic",
     api_key: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> dict:
     """
     Analyze source summaries to find agreements, disagreements, and insights.
@@ -241,7 +241,7 @@ Respond with ONLY the raw JSON object — first character {{ and last character 
         return _empty_result(str(e))
 
     try:
-        text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, user_prompt)
+        text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, user_prompt, model=model)
         analysis = _parse_json_response(text)
 
         # Self-repair: if the response wasn't valid JSON, retry ONCE with a
@@ -256,7 +256,7 @@ Respond with ONLY the raw JSON object — first character {{ and last character 
                 "Respond again with ONLY the raw JSON object — no prose, no code "
                 "fences, first character '{' and last character '}'."
             )
-            text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, corrective)
+            text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, corrective, model=model)
             analysis = _parse_json_response(text)
     except Exception as e:
         logger.exception("Critic LLM call failed")
@@ -327,12 +327,13 @@ def _build_combined_summaries(summaries: list) -> str:
     return combined
 
 
-def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prompt: str) -> str:
+def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prompt: str,
+                         model: Optional[str] = None) -> str:
     """Call the LLM, retrying a couple of times on transient errors."""
     last_error = None
     for attempt in range(MAX_RETRIES + 1):
         try:
-            return _call_llm(client, client_type, system_prompt, user_prompt)
+            return _call_llm(client, client_type, system_prompt, user_prompt, model=model)
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES:
@@ -343,12 +344,13 @@ def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prom
     raise last_error
 
 
-def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str) -> str:
+def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
+              model: Optional[str] = None) -> str:
     """Call the appropriate LLM and return text response."""
 
     if client_type == "openai":
         response = client.chat.completions.create(
-            model=DEFAULT_OPENAI_MODEL,
+            model=model or DEFAULT_OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -360,7 +362,7 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str) ->
     else:
         # Anthropic Claude
         message = client.messages.create(
-            model=DEFAULT_ANTHROPIC_MODEL,
+            model=model or DEFAULT_ANTHROPIC_MODEL,
             max_tokens=MAX_TOKENS,
             temperature=TEMPERATURE,
             system=system_prompt,

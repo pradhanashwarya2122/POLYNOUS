@@ -10,25 +10,30 @@ from app.utils.encryption import (
     encrypt_api_key, decrypt_api_key, mask_api_key, validate_key_format
 )
 from app.routes.auth import get_current_user   # ← added
+from app.llm_providers import (
+    LLM_PROVIDERS, ALL_KEY_PROVIDERS, OPENAI_COMPATIBLE_BASE_URLS, DEFAULT_MODELS,
+)
 
 router = APIRouter(prefix="/settings/api-keys", tags=["api-keys"])
+
+ALLOWED_PROVIDERS = list(ALL_KEY_PROVIDERS)  # anthropic/openai/google/mistral/groq/tavily/voyage
 
 # ============================================================
 # MODELS
 # ============================================================
 
 class APIKeyUpdate(BaseModel):
-    """Single API key update"""
-    provider: str  # "anthropic", "openai", "tavily", "voyage"
+    """Single API key update (optionally with the user's model choice)"""
+    provider: str
     api_key: str
-    
+    model: Optional[str] = None   # per-provider model selection
+
     @validator('provider')
     def validate_provider(cls, v):
-        allowed = ['anthropic', 'openai', 'tavily', 'voyage']
-        if v not in allowed:
-            raise ValueError(f'Provider must be one of: {allowed}')
+        if v not in ALLOWED_PROVIDERS:
+            raise ValueError(f'Provider must be one of: {ALLOWED_PROVIDERS}')
         return v
-    
+
     @validator('api_key')
     def validate_key_not_empty(cls, v):
         if not v or not v.strip():
@@ -38,9 +43,13 @@ class APIKeyUpdate(BaseModel):
 class APIKeysResponse(BaseModel):
     anthropic: dict = {"has_key": False, "preview": None, "is_valid": False}
     openai: dict = {"has_key": False, "preview": None, "is_valid": False}
+    google: dict = {"has_key": False, "preview": None, "is_valid": False}
+    mistral: dict = {"has_key": False, "preview": None, "is_valid": False}
+    groq: dict = {"has_key": False, "preview": None, "is_valid": False}
     tavily: dict = {"has_key": False, "preview": None, "is_valid": False}
     voyage: dict = {"has_key": False, "preview": None, "is_valid": False}
     preferred_provider: str = "anthropic"
+    models: dict = {}             # user's chosen model per provider
 
 # ============================================================
 # HELPER: Get current user (used by other endpoints)
@@ -71,9 +80,10 @@ async def get_api_keys(user: User = Depends(get_current_user)):
     """
     try:
         response = APIKeysResponse(
-            preferred_provider=user.preferred_provider or "anthropic"
+            preferred_provider=user.preferred_provider or "anthropic",
+            models=((user.preferences or {}).get("models") or {}),
         )
-        for provider in ['anthropic', 'openai', 'tavily', 'voyage']:
+        for provider in ALLOWED_PROVIDERS:
             encrypted = getattr(user, f"{provider}_api_key", None)
             if encrypted:
                 decrypted = decrypt_api_key(encrypted, user.encryption_key)
@@ -122,8 +132,17 @@ async def save_api_key(
     
     # Store in database
     setattr(user, f"{provider}_api_key", encrypted)
+
+    # Persist the model choice (per-provider) in the preferences JSON
+    if key_data.model:
+        from sqlalchemy.orm.attributes import flag_modified
+        prefs = user.preferences or {}
+        prefs.setdefault("models", {})[provider] = key_data.model
+        user.preferences = prefs
+        flag_modified(user, "preferences")
+
     db.commit()
-    
+
     return {
         "message": f"{provider.upper()} API key saved successfully",
         "provider": provider,
@@ -139,10 +158,9 @@ async def delete_api_key(
 ):
     """Delete a specific API key"""
     
-    allowed = ['anthropic', 'openai', 'tavily', 'voyage']
-    if provider not in allowed:
-        raise HTTPException(status_code=400, detail=f"Provider must be one of: {allowed}")
-    
+    if provider not in ALLOWED_PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Provider must be one of: {ALLOWED_PROVIDERS}")
+
     setattr(user, f"{provider}_api_key", None)
     db.commit()
     
@@ -155,10 +173,8 @@ async def delete_all_api_keys(
 ):
     """Delete ALL API keys"""
     
-    user.anthropic_api_key = None
-    user.openai_api_key = None
-    user.tavily_api_key = None
-    user.voyage_api_key = None
+    for provider in ALLOWED_PROVIDERS:
+        setattr(user, f"{provider}_api_key", None)
     db.commit()
     
     return {"message": "All API keys removed"}
@@ -171,10 +187,9 @@ async def set_preferred_provider(
 ):
     """Set preferred AI provider"""
     
-    allowed = ['anthropic', 'openai']
-    if provider not in allowed:
-        raise HTTPException(status_code=400, detail="Provider must be 'anthropic' or 'openai'")
-    
+    if provider not in LLM_PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Provider must be one of: {list(LLM_PROVIDERS)}")
+
     user.preferred_provider = provider
     db.commit()
     
@@ -210,6 +225,13 @@ async def test_api_key(api_key: str, provider: str) -> dict:
             client.models.list()
             return {"valid": True, "message": "OpenAI key is valid ✅"}
         
+        elif provider in OPENAI_COMPATIBLE_BASE_URLS:
+            # google / mistral / groq — all speak the OpenAI protocol
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key, base_url=OPENAI_COMPATIBLE_BASE_URLS[provider])
+            client.models.list()
+            return {"valid": True, "message": f"{provider.title()} key is valid ✅"}
+
         elif provider == "tavily":
             from tavily import TavilyClient
             client = TavilyClient(api_key=api_key)

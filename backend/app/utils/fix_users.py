@@ -13,27 +13,27 @@ GLOBAL_KEY = os.getenv("ENCRYPTION_KEY")
 
 def add_missing_columns():
     """Ensure the new JSON columns exist (for SQLite and PostgreSQL)."""
-    try:
-        with engine.connect() as conn:
-            if 'sqlite' in str(engine.url):
-                conn.execute(text("ALTER TABLE users ADD COLUMN preferences JSON"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN notifications JSON"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN integrations JSON"))
+    json_cols = ["preferences", "notifications", "integrations"]
+    text_cols = ["google_api_key", "mistral_api_key", "groq_api_key"]
+    is_sqlite = 'sqlite' in str(engine.url)
+    added = 0
+    for col, coltype in [(c, "JSON") for c in json_cols] + [(c, "TEXT") for c in text_cols]:
+        try:
+            with engine.connect() as conn:
+                if is_sqlite:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {coltype}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {coltype}"))
                 conn.commit()
-                print("✅ Added missing columns to SQLite")
-            else:
-                # PostgreSQL
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSON"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications JSON"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS integrations JSON"))
-                conn.commit()
-                print("✅ Added missing columns (if not exists) to PostgreSQL")
-    except Exception as e:
-        # If columns already exist, an error is thrown – that’s okay
-        if 'already exists' in str(e).lower() or 'duplicate column' in str(e).lower():
-            print("ℹ️ Columns already exist")
-        else:
-            print(f"⚠️ Could not add columns: {e}")
+                added += 1
+        except Exception as e:
+            if 'already exists' in str(e).lower() or 'duplicate column' in str(e).lower():
+                continue
+            print(f"⚠️ Could not add column {col}: {e}")
+    if added:
+        print(f"✅ Added {added} missing user columns")
+    else:
+        print("ℹ️ All user columns already exist")
 
 def add_missing_encryption_keys():
     """Generate a personal encryption key for users who don't have one."""

@@ -66,7 +66,8 @@ async function safeFetch(path, opts = {}) {
 
 const api = {
   getApiKeys:   ()               => safeFetch('/settings/api-keys'),
-  saveApiKey:   (provider, key)  => safeFetch('/settings/api-keys', { method: "PUT",    body: JSON.stringify({ provider, api_key: key }) }),
+  saveApiKey:   (provider, key, model)  => safeFetch('/settings/api-keys', { method: "PUT",    body: JSON.stringify({ provider, api_key: key, ...(model ? { model } : {}) }) }),
+  setPreferredProvider: (provider) => safeFetch(`/settings/api-keys/preferred-provider?provider=${encodeURIComponent(provider)}`, { method: "PUT" }),
   deleteApiKey: (provider)       => safeFetch(`/settings/api-keys/${provider}`, { method: "DELETE" }),
   testApiKey:   (provider, key)  => safeFetch('/settings/api-keys/test', { method: "POST", body: JSON.stringify({ provider, api_key: key }) }),
 
@@ -880,9 +881,18 @@ function ErrorBanner({ msg, onRetry }) {
 }
 
 const PROVIDERS = {
-  anthropic: { label: "Anthropic Claude", icon: "psychology",      color: C.silver, placeholder: "sk-ant-api03-…" },
-  openai:    { label: "OpenAI GPT",        icon: "smart_toy",      color: C.cyan,   placeholder: "sk-…"           },
-  tavily:    { label: "Tavily Search",     icon: "travel_explore", color: C.gold,   placeholder: "tvly-…"         },
+  anthropic: { label: "Anthropic Claude", icon: "psychology",      color: C.silver,   placeholder: "sk-ant-api03-…",
+               models: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-4-8"] },
+  openai:    { label: "OpenAI GPT",        icon: "smart_toy",      color: C.cyan,     placeholder: "sk-…",
+               models: ["gpt-4o-mini", "gpt-5.1-mini", "gpt-5.1"] },
+  google:    { label: "Google Gemini",     icon: "auto_awesome",   color: "#8ab4f8",  placeholder: "AIza…",
+               models: ["gemini-2.5-flash", "gemini-2.5-pro"] },
+  mistral:   { label: "Mistral AI",        icon: "air",            color: "#f4a261",  placeholder: "Mistral key…",
+               models: ["mistral-small-latest", "mistral-large-latest"] },
+  groq:      { label: "Groq",              icon: "bolt",           color: "#ff6b6b",  placeholder: "gsk_…",
+               models: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"] },
+  tavily:    { label: "Tavily Search",     icon: "travel_explore", color: C.gold,     placeholder: "tvly-…",
+               models: null }, // search service — no model choice
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1351,7 +1361,7 @@ function ProfileSection({ user: initialUser, push, activePersona, onPersonaChang
 // ─────────────────────────────────────────────────────────────────────────────
 // REMAINING SECTIONS (from the second file, unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
-function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
+function KeyCard({ providerId, connected, preview, savedModel, onSave, onRemove, push }) {
   const [val,        setVal]        = useState("");
   const [visible,    setVisible]    = useState(false);
   const [saving,     setSaving]     = useState(false);
@@ -1359,12 +1369,14 @@ function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
   const [testing,    setTesting]    = useState(false);
   const [testResult, setTestResult] = useState(null);
   const p = PROVIDERS[providerId];
+  const [model, setModel] = useState(savedModel || (p.models ? p.models[0] : ""));
+  useEffect(() => { if (savedModel) setModel(savedModel); }, [savedModel]);
 
   const doSave = async () => {
     if (!val.trim()) { push("Paste a key first", "err"); return; }
     setSaving(true);
     try {
-      await api.saveApiKey(providerId, val.trim());
+      await api.saveApiKey(providerId, val.trim(), p.models ? model : undefined);
       push(`${p.label} key saved`);
       setVal("");
       if (onSave) onSave(providerId);
@@ -1445,6 +1457,22 @@ function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
         </button>
       </div>
 
+      {p.models && (
+        <div>
+          <Label>Model</Label>
+          <select
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            style={{ ...inputStyle, cursor: "pointer" }}
+          >
+            {p.models.map(m => <option key={m} value={m} style={{ background: "#1e1e32" }}>{m}</option>)}
+          </select>
+          <div style={{ fontSize: 10.5, color: C.textSecondary, fontFamily: C.fontMono, marginTop: 5 }}>
+            Used by every agent when {p.label.split(" ")[0]} is your preferred provider · saved with the key
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 18, alignItems: "center" }}>
         <button onClick={doTest} disabled={testing} style={{ fontFamily: C.fontMono, fontSize: 11.5, letterSpacing: "0.08em", color: testColor, background: "none", border: "none", cursor: testing ? "wait" : "pointer", textTransform: "uppercase", transition: "color 0.2s", display: "flex", alignItems: "center", gap: 4 }}>
           {testing && <InlineSpinner />}{testLabel}
@@ -1467,8 +1495,10 @@ function KeyCard({ providerId, connected, preview, onSave, onRemove, push }) {
 }
 
 function ApiKeysSection({ push }) {
-  const [connected,  setConnected]  = useState({ anthropic: false, openai: false, tavily: false });
-  const [previews,   setPreviews]   = useState({ anthropic: null,  openai: null,  tavily: null  });
+  const providerIds = Object.keys(PROVIDERS);
+  const [connected,  setConnected]  = useState(Object.fromEntries(providerIds.map(id => [id, false])));
+  const [previews,   setPreviews]   = useState(Object.fromEntries(providerIds.map(id => [id, null])));
+  const [savedModels, setSavedModels] = useState({});
   const [preferred,  setPreferred]  = useState("anthropic");
   const [loading,    setLoading]    = useState(true);
   const [loadErr,    setLoadErr]    = useState(null);
@@ -1478,15 +1508,16 @@ function ApiKeysSection({ push }) {
     setLoading(true); setLoadErr(null);
     try {
       const data = await api.getApiKeys();
-      setConnected({ anthropic: data?.anthropic?.has_key || false, openai: data?.openai?.has_key || false, tavily: data?.tavily?.has_key || false });
-      setPreviews({ anthropic: data?.anthropic?.preview || null, openai: data?.openai?.preview || null, tavily: data?.tavily?.preview || null });
+      setConnected(Object.fromEntries(providerIds.map(id => [id, data?.[id]?.has_key || false])));
+      setPreviews(Object.fromEntries(providerIds.map(id => [id, data?.[id]?.preview || null])));
+      setSavedModels(data?.models || {});
       setPreferred(data?.preferred_provider || "anthropic");
     } catch (err) {
       setLoadErr(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 
@@ -1494,7 +1525,9 @@ function ApiKeysSection({ push }) {
     setPreferred(id);
     setSavingPref(true);
     try {
-      await api.savePreferences({ preferred_provider: id });
+      // Writes the real user.preferred_provider COLUMN (the one the research
+      // endpoints read) — not the preferences JSON blob.
+      await api.setPreferredProvider(id);
       push(`${PROVIDERS[id].label} set as preferred`);
     } catch (err) {
       push(err.message || "Could not save preference", "err");
@@ -1508,8 +1541,8 @@ function ApiKeysSection({ push }) {
       <SectionHead icon="key" title="API Keys" subtitle="Bring your own keys · system services managed automatically" />
       <div style={{ marginBottom: 20 }}>
         <Label>Preferred AI Provider</Label>
-        <div style={{ display: "flex", gap: 8 }}>
-          {["anthropic", "openai"].map(id => {
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {Object.keys(PROVIDERS).filter(id => PROVIDERS[id].models).map(id => {
             const col = PROVIDERS[id].color, active = preferred === id;
             return (
               <button key={id} onClick={() => setPreferredAndSave(id)} disabled={savingPref} style={{
@@ -1534,7 +1567,7 @@ function ApiKeysSection({ push }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {Object.keys(PROVIDERS).map(id => (
-            <KeyCard key={id} providerId={id} connected={connected[id]} preview={previews[id]}
+            <KeyCard key={id} providerId={id} connected={connected[id]} preview={previews[id]} savedModel={savedModels[id]}
               onSave={savedId => { setConnected(prev => ({ ...prev, [savedId]: true })); load(); }}
               onRemove={rid => { setConnected(prev => ({ ...prev, [rid]: false })); setPreviews(prev => ({ ...prev, [rid]: null })); }}
               push={push}

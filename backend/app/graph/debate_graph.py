@@ -7,6 +7,7 @@ from app.knowledge_graph.graph_manager import kg
 from app.semantic_search import semantic_search
 from app.chat_history import save_debate
 from app.services.embedding_pipeline import pipeline
+from app.visual.events import make_emitter
 
 
 def debate_search_node(state: AgentState) -> AgentState:
@@ -18,8 +19,11 @@ def debate_search_node(state: AgentState) -> AgentState:
     user = state.get('user')
     user_id = state.get('session_id', 'guest_user')
 
-    results = search_web(state['query'])
+    emit = make_emitter(state, "Evidence")
+    emit("Searching the web for debate evidence…")
+    results = search_web(state['query'], progress_cb=emit)
     state['retrieved_docs'] = results
+    emit(f"{len(results)} sources gathered for both advocates")
 
     context = [
         f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
@@ -52,11 +56,21 @@ def _debate_turn(state: AgentState, side: str, opponent_phase_key: str = None) -
                 opponent_argument = entry.get('argument')
                 break
 
+    emit = make_emitter(state, side)
+    phase_word = "rebuttal" if opponent_phase_key else "opening"
+    if opponent_phase_key:
+        emit(f"{side} rebuttal: reading {len(docs)} sources + opponent's opening…",
+             {"panels": {side: {"phase": {"label": "Rebutting", "sub": "Countering the opponent's points"}, "progress": 70}}})
+    else:
+        emit(f"{side} opening: analysing {len(docs)} sources…",
+             {"panels": {side: {"phase": {"label": "Opening", "sub": f"Building the case from {len(docs)} sources"}, "progress": 25}}})
+
     turn = argue_position(
         state['query'], docs, side,
         opponent_argument=opponent_argument,
         api_key=api_key,
         provider=provider,
+        model=state.get('model'),
     )
     state['debate_history'].append({
         "side": side,
@@ -65,6 +79,12 @@ def _debate_turn(state: AgentState, side: str, opponent_phase_key: str = None) -
         "rubric": turn["rubric"],
         "error": turn["error"],
     })
+    r = turn.get("rubric") or {}
+    if turn.get("error"):
+        emit(f"{side} {phase_word} FAILED: {turn['error'][:80]}")
+    else:
+        emit(f"{side} {phase_word} drafted — {r.get('distinct_sources_cited', 0)} sources cited, "
+             f"{r.get('grounded_sentences', 0)}/{r.get('sentences', 0)} claims grounded")
     return state
 
 
@@ -124,6 +144,9 @@ def judge_node(state: AgentState) -> AgentState:
     against_rebuttal = turns.get(('AGAINST', 'rebuttal'), '')
     total_sources = len(state.get('retrieved_docs', []))
 
+    emit = make_emitter(state, "Judge")
+    emit(f"Weighing openings and rebuttals against {total_sources} sources…")
+
     verdict = judge_debate(
         for_arg, against_arg, state['query'],
         api_key=api_key,
@@ -131,8 +154,15 @@ def judge_node(state: AgentState) -> AgentState:
         for_rebuttal=for_rebuttal,
         against_rebuttal=against_rebuttal,
         total_sources=total_sources,
+        model=state.get('model'),
     )
     state['judge_verdict'] = verdict
+    if verdict.get('parse_failed'):
+        emit("Judge could not score — verdict UNSCORED (computed rubric only)")
+    else:
+        emit(f"Verdict: {verdict.get('winner', '—')} "
+             f"(FOR {verdict.get('for_score', 0)} / AGAINST {verdict.get('against_score', 0)})")
+    emit("Persisting debate to memory and knowledge graph…")
 
     winner = verdict.get('winner', 'UNSCORED')
     reasoning = verdict.get('reasoning', '')

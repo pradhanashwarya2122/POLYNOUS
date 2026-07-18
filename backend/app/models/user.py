@@ -35,6 +35,9 @@ class User(Base):
     openai_api_key = Column(String(500), nullable=True)
     tavily_api_key = Column(String(500), nullable=True)
     voyage_api_key = Column(String(500), nullable=True)
+    google_api_key = Column(String(500), nullable=True)
+    mistral_api_key = Column(String(500), nullable=True)
+    groq_api_key = Column(String(500), nullable=True)
     preferred_provider = Column(String(50), default="anthropic")
     
     # Profile

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL } from '../config';
+import DebateEngine from './DebateEngine';
 
 const C = {
   crimson: "#ff2040", green: "#00e64d", purple: "#a855f7", gold: "#ffd700",
@@ -45,63 +46,11 @@ function Icon({ name, style }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ✅ FIXED: API call now includes JWT token for user isolation
+// Debates now run through the live /debate-visual SSE pipeline via
+// <DebateEngine>. Results arrive as STRUCTURED data (verdict object +
+// server-split argument points) — the old blocking /ask call and its
+// regex parsing of the answer blob are gone.
 // ═══════════════════════════════════════════════════════════════
-
-async function callDebateAPI(topic, detailed) {
-  const enhancedQuery = detailed
-    ? `${topic} Please provide comprehensive, detailed arguments with specific examples, data points, and thorough explanations for each point.`
-    : topic;
-
-  // ✅ Get JWT token
-  const token = window.__POLYNOUS_ACCESS_TOKEN__ || 
-                localStorage.getItem('polynous_token') || '';
-
-      const res = await fetch(`${API_BASE_URL}/ask`, {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      "Authorization": token ? `Bearer ${token}` : ''
-    },
-    body: JSON.stringify({ query: enhancedQuery, debate_mode: true })
-  });
-
-  if (!res.ok) throw new Error(`API error ${res.status}`);
-  const data = await res.json();
-  
-  // Parse the answer text into structured points
-  const fullText = data.answer || "";
-  
-  // Extract FOR section
-  const forMatch = fullText.match(/FOR POSITION[\s\S]*?(?=AGAINST POSITION|$)/i);
-  let forRaw = forMatch ? forMatch[0].replace(/FOR POSITION/i, "").replace(/\([\d.]+\/10\)/, "").trim() : "";
-  
-  // Extract AGAINST section
-  const againstMatch = fullText.match(/AGAINST POSITION[\s\S]*?(?=WINNER|SCORES|JUDGE|VERDICT|$)/i);
-  let againstRaw = againstMatch ? againstMatch[0].replace(/AGAINST POSITION/i, "").replace(/\([\d.]+\/10\)/, "").trim() : "";
-
-  // Split into individual points
-  const for_points = forRaw
-    .split(/\n\s*(?:•|Point\s*\d+|[-–—]|\d+\.)\s*/)
-    .filter(p => p.trim().length > 25)
-    .map(p => p.trim());
-
-  const against_points = againstRaw
-    .split(/\n\s*(?:•|Point\s*\d+|[-–—]|\d+\.)\s*/)
-    .filter(p => p.trim().length > 25)
-    .map(p => p.trim());
-
-  // Use verdict from backend, or intelligent fallback
-  const verdict = data.debate_verdict || {
-    winner: for_points.length > against_points.length ? "FOR" : against_points.length > for_points.length ? "AGAINST" : "TIE",
-    for_score: Math.min(10, Math.max(1, for_points.length * 1.5)),
-    against_score: Math.min(10, Math.max(1, against_points.length * 1.5)),
-    reasoning: "Both sides presented valid arguments for consideration.",
-    strongest_point: for_points[0] || against_points[0] || "Arguments were well-structured."
-  };
-
-  return { for_points, against_points, verdict };
-}
 
 // ─── Globe ────────────────────────────────────────────────────────────────────
 
@@ -496,38 +445,33 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
 
   const sidebarW = sidebarCollapsed ? 56 : 320;
 
-  const fireDebate = useCallback(async (q) => {
+  // The DebateEngine streams the real pipeline; this just opens the arena.
+  const fireDebate = useCallback((q) => {
     if (!q.trim() || loading) return;
     setLoading(true);
     setResult(null);
     setError("");
     setActiveTopic(q.trim());
-    setAgentStatus("Activating debate agents...");
+    setAgentStatus("");
+  }, [loading]);
 
-    const steps = [
-      "Gathering evidence...",
-      "Constructing arguments...",
-      "Weighing both sides...",
-      "Rendering verdict...",
-    ];
-    let step = 0;
-    const stepTimer = setInterval(() => {
-      step = (step + 1) % steps.length;
-      setAgentStatus(steps[step]);
-    }, 1800);
+  const handleEngineComplete = useCallback((data) => {
+    setResult({
+      verdict: data?.verdict || {},
+      for_points: data?.debate?.for_points || [],
+      against_points: data?.debate?.against_points || [],
+      for_rebuttal: data?.debate?.for_rebuttal || "",
+      against_rebuttal: data?.debate?.against_rebuttal || "",
+      citations: data?.citations || [],
+    });
+    setLoading(false);
+    setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100);
+  }, []);
 
-    try {
-      const data = await callDebateAPI(q.trim(), answerLength === "detailed");
-      setResult(data);
-      setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100);
-    } catch (err) {
-      setError("Could not retrieve debate results. Check your API connection.");
-    } finally {
-      clearInterval(stepTimer);
-      setLoading(false);
-      setAgentStatus("");
-    }
-  }, [loading, answerLength]);
+  const handleEngineError = useCallback((msg) => {
+    setError(msg || "Debate stream failed. Check your API connection.");
+    setLoading(false);
+  }, []);
 
   const handleBeginDebate = () => fireDebate(topic);
   const handleTopicSelect = (l) => { setTopic(l); fireDebate(l); };
@@ -624,12 +568,16 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
               </Reveal>
             )}
 
-            {/* ─── LOADING STATE ─────────────────────────────────────── */}
+            {/* ─── LIVE DEBATE ENGINE (real pipeline, no fake progress) ── */}
             {loading && (
-              <div style={{ textAlign: "center", padding: "60px 0", animation: "fadeUp 0.4s ease both" }}>
-                <div style={{ width: 52, height: 52, borderRadius: "50%", border: "3px solid rgba(255,32,64,0.12)", borderTop: `3px solid ${C.crimson}`, animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
-                <p style={{ fontFamily: "'Sora',sans-serif", color: C.crimson, fontWeight: 600, fontSize: 15 }}>{agentStatus}</p>
-                <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary, marginTop: 8, letterSpacing: "0.1em" }}>"{activeTopic}"</p>
+              <div style={{ margin: "0 -8px", animation: "fadeUp 0.4s ease both" }}>
+                <DebateEngine
+                  apiUrl={`${API_BASE_URL}/debate-visual`}
+                  query={activeTopic}
+                  responseStyle={answerLength}
+                  onComplete={handleEngineComplete}
+                  onError={handleEngineError}
+                />
               </div>
             )}
 
@@ -727,9 +675,17 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                       </div>
                     </div>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: C.textSecondary, marginBottom: 12 }}>Analysis Verdict</div>
-                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(1.3rem,3vw,1.9rem)", fontWeight: 900, color: winColor, letterSpacing: "-0.02em", animation: "winnerGlow 2.5s 0.8s 3", marginBottom: 20 }}>
-                      {verdict.winner === "FOR" ? "Supporting Arguments Prevail" : verdict.winner === "AGAINST" ? "Counter Arguments Prevail" : "Both Sides Are Balanced"}
+                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(1.3rem,3vw,1.9rem)", fontWeight: 900, color: verdict.winner === "UNSCORED" ? "#ffd700" : winColor, letterSpacing: "-0.02em", animation: "winnerGlow 2.5s 0.8s 3", marginBottom: 20 }}>
+                      {verdict.winner === "FOR" ? "Supporting Arguments Prevail"
+                        : verdict.winner === "AGAINST" ? "Counter Arguments Prevail"
+                        : verdict.winner === "UNSCORED" ? "Verdict Unscored"
+                        : "Both Sides Are Balanced"}
                     </div>
+                    {verdict.winner === "UNSCORED" && (
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#ffd700", background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 10, padding: "10px 16px", margin: "0 auto 20px", maxWidth: 520, lineHeight: 1.6 }}>
+                        The judge could not score this debate — the numbers shown are the computed evidence rubric only, not a quality verdict.
+                      </div>
+                    )}
                     <div style={{ width: 48, height: 2, background: `${winColor}40`, borderRadius: 2, margin: "0 auto 22px" }} />
 
                     {/* Reasoning sentences */}

@@ -28,6 +28,7 @@ from app.search_agent import search_web
 from app.memory.vector_store import store_research
 from app.utils.computed_confidence import compute_confidence   # ← NEW
 from app.visual.events import make_emitter
+from app.llm_providers import OPENAI_COMPATIBLE_BASE_URLS
 
 logger = logging.getLogger("polynous.orchestrator")
 
@@ -212,11 +213,16 @@ def summarise_node(state: AgentState) -> AgentState:
     docs = state.get('retrieved_docs', [])
     emit(f"Summarising {len(docs)} documents in parallel…")
 
+    # google/mistral/groq route through the summariser's openai_compatible
+    # path with the matching base_url; user-chosen model wins over defaults.
+    base_url = OPENAI_COMPATIBLE_BASE_URLS.get(provider)
     summaries = summariser_agent(
         documents=docs,
         query=state['query'],
-        provider=provider,
+        provider="openai_compatible" if base_url else provider,
         api_key=state.get('user_api_key'),
+        model=state.get('model'),
+        base_url=base_url,
         progress_cb=emit,
     )
     state['summaries'] = summaries
@@ -245,6 +251,7 @@ def critic_node(state: AgentState) -> AgentState:
         query=state['query'],
         provider=provider,
         api_key=state.get('user_api_key'),
+        model=state.get('model'),
     )
     state['critique'] = critique
     if critique.get('parse_failed'):
@@ -296,6 +303,7 @@ def writer_node(state: AgentState) -> AgentState:
         provider=provider,
         api_key=state.get('user_api_key'),
         response_style=state.get('response_style'),
+        model=state.get('model'),
     )
     state['final_answer'] = answer
 

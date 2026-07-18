@@ -101,6 +101,9 @@ class User(Base):
     openai_api_key = Column(Text, nullable=True)
     tavily_api_key = Column(Text, nullable=True)
     voyage_api_key = Column(Text, nullable=True)
+    google_api_key = Column(Text, nullable=True)
+    mistral_api_key = Column(Text, nullable=True)
+    groq_api_key = Column(Text, nullable=True)
 
     # ── Pinecone / Neo4j BYO ───────────────────────
     pinecone_api_key_enc = Column(Text, nullable=True)

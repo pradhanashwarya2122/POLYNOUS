@@ -382,6 +382,9 @@ function StyleDial({ selected, onChange }) {
 const API_KEY_CONFIGS = [
   { id: 'anthropic', label: 'Anthropic', placeholder: 'sk-ant-••••••••••••••••••••', icon: 'hub', iconColor: '#e06c3a', iconBg: 'rgba(224,108,58,0.1)', iconBorder: 'rgba(224,108,58,0.2)', stateKey: 'anthropicKey', visibleKey: 'anthropicVisible', statusKey: 'anthropicStatus', provider: 'anthropic' },
   { id: 'openai',    label: 'OpenAI',    placeholder: 'sk-••••••••••••••••••••••••', icon: 'neurology', iconColor: '#10a37f', iconBg: 'rgba(16,163,127,0.1)', iconBorder: 'rgba(16,163,127,0.2)', stateKey: 'openaiKey', visibleKey: 'openaiVisible', statusKey: 'openaiStatus', provider: 'openai' },
+  { id: 'google',    label: 'Google Gemini', placeholder: 'AIza••••••••••••••••••••••', icon: 'auto_awesome', iconColor: '#8ab4f8', iconBg: 'rgba(138,180,248,0.1)', iconBorder: 'rgba(138,180,248,0.2)', stateKey: 'googleKey', visibleKey: 'googleVisible', statusKey: 'googleStatus', provider: 'google' },
+  { id: 'mistral',   label: 'Mistral',   placeholder: 'Mistral key••••••••••••••••', icon: 'air', iconColor: '#f4a261', iconBg: 'rgba(244,162,97,0.1)', iconBorder: 'rgba(244,162,97,0.2)', stateKey: 'mistralKey', visibleKey: 'mistralVisible', statusKey: 'mistralStatus', provider: 'mistral' },
+  { id: 'groq',      label: 'Groq',      placeholder: 'gsk_••••••••••••••••••••••••', icon: 'bolt', iconColor: '#ff6b6b', iconBg: 'rgba(255,107,107,0.1)', iconBorder: 'rgba(255,107,107,0.2)', stateKey: 'groqKey', visibleKey: 'groqVisible', statusKey: 'groqStatus', provider: 'groq' },
   { id: 'tavily',    label: 'Tavily',    placeholder: 'tvly-••••••••••••••••••••••', icon: 'travel_explore', iconColor: '#00ccff', iconBg: 'rgba(0,204,255,0.08)', iconBorder: 'rgba(0,204,255,0.18)', stateKey: 'tavilyKey', visibleKey: 'tavilyVisible', statusKey: 'tavilyStatus', provider: 'tavily' },
 ]
 
@@ -500,7 +503,7 @@ export default function ProfileSetup({ onComplete, email, token }) {
   const inputRef = useRef(null)
 
   // ─── API key state ───────────────────────────────────────────────────────
-  const [apiKeys, setApiKeys] = useState({ openaiKey: '', anthropicKey: '', tavilyKey: '' })
+  const [apiKeys, setApiKeys] = useState({ openaiKey: '', anthropicKey: '', tavilyKey: '', googleKey: '', mistralKey: '', groqKey: '' })
   const [apiVisibility, setApiVisibility] = useState({ openaiVisible: false, anthropicVisible: false, tavilyVisible: false })
   const [apiStatuses, setApiStatuses] = useState({ openaiStatus: 'idle', anthropicStatus: 'idle', tavilyStatus: 'idle' })
 
@@ -586,9 +589,14 @@ export default function ProfileSetup({ onComplete, email, token }) {
     setBtnLabel('SAVING KEYS...')
 
     try {
-      // ✅ Save API keys FIRST
-      await saveAllKeys()
-      
+      // ✅ Save API keys FIRST — and surface any that fail, non-blocking:
+      // the user still completes setup and can fix keys later in Settings.
+      const keyResults = await saveAllKeys()
+      const failed = (keyResults || []).filter(r => !r.ok)
+      if (failed.length) {
+        setError(`Could not save: ${failed.map(f => f.provider).join(', ')}. You can add these later in Settings.`)
+      }
+
       // Then complete setup
       setBtnLabel('SYNCHRONIZING...')
       if (onComplete) await onComplete(trimmed, responseStyle)

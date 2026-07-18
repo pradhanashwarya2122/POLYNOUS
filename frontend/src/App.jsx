@@ -184,6 +184,24 @@ export default function App() {
             console.error('Failed to update username on backend', e)
           }
 
+          // ✅ Persist the chosen response style — without this, the
+          // style picked during onboarding never reached the backend and
+          // had zero effect on generated answers.
+          if (responseStyle) {
+            try {
+              await fetch(`${API_BASE_URL}/settings/preferences`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ response_style: responseStyle })
+              })
+            } catch (e) {
+              console.error('Failed to save response style', e)
+            }
+          }
+
           // ✅ Update local state
           const updatedUser = { ...user, username }
           setUser(updatedUser)

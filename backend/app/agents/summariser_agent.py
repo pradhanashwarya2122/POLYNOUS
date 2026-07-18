@@ -47,16 +47,19 @@ def _get_client(provider: str, api_key: Optional[str], base_url: Optional[str]) 
     Return a cached API client.
     Cached so we don't reconstruct connection pools on every call.
     """
+    # SECURITY: no implicit env-var fallback — the endpoint layer resolves
+    # keys explicitly. Missing key = hard error, never a silent system charge.
+    if not api_key:
+        raise ValueError(f"No {provider} API key provided for this request.")
     if provider == "openai" or provider == "openai_compatible":
         from openai import OpenAI
-        key = api_key or os.getenv("OPENAI_API_KEY")
-        kwargs: dict[str, Any] = {"api_key": key}
+        kwargs: dict[str, Any] = {"api_key": api_key}
         if base_url:
             kwargs["base_url"] = base_url
         return OpenAI(**kwargs)
- 
+
     from anthropic import Anthropic
-    return Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
+    return Anthropic(api_key=api_key)
  
  
 def get_client(

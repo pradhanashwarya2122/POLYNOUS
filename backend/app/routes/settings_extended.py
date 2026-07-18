@@ -40,6 +40,10 @@ async def save_preferences(
 ):
     """Merge partial preferences update with existing preferences"""
     try:
+        # preferred_provider lives in a dedicated column (written via
+        # PUT /settings/api-keys/preferred-provider) — never let a stray
+        # client reintroduce a duplicate copy in the JSON blob.
+        data.pop("preferred_provider", None)
         current = user.preferences or {}
         current.update(data)
         user.preferences = current

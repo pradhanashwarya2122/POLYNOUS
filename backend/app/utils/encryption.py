@@ -116,6 +116,18 @@ def validate_key_format(api_key: str, provider: str) -> tuple[bool, str]:
     elif provider == "voyage":
         if not api_key.startswith("vo-") and not api_key.startswith("vk-"):
             return False, "Voyage keys must start with 'vo-' or 'vk-'"
+
+    elif provider == "google":
+        if not api_key.startswith("AIza"):
+            return False, "Google AI keys must start with 'AIza'"
+
+    elif provider == "groq":
+        if not api_key.startswith("gsk_"):
+            return False, "Groq keys must start with 'gsk_'"
+
+    elif provider == "mistral":
+        if len(api_key) < 20:
+            return False, "Mistral key seems too short"
     
     if len(api_key) > 500:
         return False, "API key too long (max 500 characters)"

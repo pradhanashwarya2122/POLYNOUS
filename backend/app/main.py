@@ -51,6 +51,27 @@ from app.knowledge_graph.user_memory import user_memory
 # Visual pipeline imports
 from app.visual.builder import build_visual_patch, init_visual_state, _log
 from app.visual.events import ProgressBus
+from app.llm_providers import LLM_PROVIDERS, resolve_model
+
+# ── Strict BYO-key policy ────────────────────────────────────────────────────
+# LLM calls NEVER fall back to environment/system keys. Every request must
+# carry the authenticated user's own decrypted key; anything else gets a
+# clear error frame. (Tavily search remains a system-managed service.)
+
+
+def _resolve_stream_key(user, user_api_key, provider, client_ip):
+    """Returns (provider, key, error_message)."""
+    if user is not None and user_api_key:
+        return provider, user_api_key, None
+    if user is not None:
+        return provider, None, (
+            f"No {provider.upper()} API key configured for your account. "
+            "Add your key in Settings → API Keys."
+        )
+    return provider, None, (
+        "Sign in and add your own API key in Settings to run research — "
+        "guest sessions cannot use system keys."
+    )
 
 load_dotenv()
 
@@ -339,6 +360,7 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
         user=user,
         user_api_key=user_api_key,
         preferred_provider=provider,
+        model=(resolve_model(user, provider) if user else None),
         retrieved_docs=[], summaries=[], critique={}, final_answer="", citations=[],
         debate_mode=request.debate_mode, debate_history=[], judge_verdict={},
         errors=[], warnings=[], current_agent="start",
@@ -411,6 +433,7 @@ async def ask_stream(request: QueryRequest, req: Request):
             state = AgentState(
                 query=request.query, session_id=session_id, user=user,
                 user_api_key=user_api_key, preferred_provider=provider,
+                model=(resolve_model(user, provider) if user else None),
                 retrieved_docs=[], summaries=[], critique={}, final_answer="", citations=[],
                 debate_mode=request.debate_mode, debate_history=[], judge_verdict={},
                 errors=[], warnings=[], current_agent="",
@@ -532,7 +555,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             if user:
                 # 1) Try the user's preferred provider first
                 preferred = getattr(user, "preferred_provider", "anthropic") or "anthropic"
-                candidates = [preferred] + [p for p in ("anthropic", "openai") if p != preferred]
+                candidates = [preferred] + [p for p in LLM_PROVIDERS if p != preferred]
                 # 2) Use the first provider that has a decryptable key —
                 #    provider and key always travel together now.
                 for p in candidates:
@@ -544,7 +567,18 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
                             user_api_key = decrypted
                             break
         except Exception:
-            pass  # fall through to guest / env-var keys
+            pass  # user stays None → guest policy below
+
+    # ── SECURITY GUARD: authed users MUST use their own key; guests get an
+    #    explicit rate-limited allowance — never a silent system-key charge.
+    provider, user_api_key, key_error = _resolve_stream_key(
+        user, user_api_key, provider,
+        request.client.host if request.client else "unknown",
+    )
+    if key_error:
+        async def error_stream():
+            yield f"data: {json.dumps({'error': key_error})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
 
     async def event_stream():
         start_time = time.time()
@@ -569,6 +603,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             "provider": provider,
             "preferred_provider": provider,
             "user_api_key": user_api_key,
+            "model": resolve_model(user, provider) if user else None,
             "response_style": response_style,
             "session_id": (getattr(user, "public_id", None) or "guest"),
             "user": user,
@@ -642,6 +677,147 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             )
         except Exception as e:
             print(f"⚠️ save_chat failed for visual stream: {e}")
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/debate-visual")
+async def debate_visual(request: Request, db: Session = Depends(get_db)):
+    """
+    Stream live adversarial-debate data for the DebateEngine component.
+    Mirror of /ask-visual for the 6-stage debate pipeline.
+    """
+    from app.graph.debate_graph import (
+        debate_search_node, for_agent_node, against_agent_node,
+        for_rebuttal_node, against_rebuttal_node, judge_node,
+    )
+    from app.visual.debate_builder import init_debate_visual_state, build_debate_patch
+
+    body = await request.json()
+    query = body.get("query", "")
+    response_style = body.get("response_style", "")
+
+    if not query or not is_safe_input(query):
+        raise HTTPException(400, "Invalid or empty query")
+    query = sanitize_query(query)
+    if not query:
+        raise HTTPException(400, "query required")
+
+    # ── Matched provider/key pair (same policy as /ask-visual) ──
+    user = None
+    user_api_key = None
+    provider = "anthropic"
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+        try:
+            payload = decode_token(token, expected_type="access")
+            user_id = int(payload.get("sub", 0))
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                preferred = getattr(user, "preferred_provider", "anthropic") or "anthropic"
+                candidates = [preferred] + [p for p in LLM_PROVIDERS if p != preferred]
+                for p in candidates:
+                    encrypted = getattr(user, f"{p}_api_key", None)
+                    if encrypted:
+                        decrypted = decrypt_api_key(encrypted, user.encryption_key)
+                        if decrypted:
+                            provider = p
+                            user_api_key = decrypted
+                            break
+        except Exception:
+            pass  # user stays None → guest policy below
+
+    # ── SECURITY GUARD: same policy as /ask-visual.
+    provider, user_api_key, key_error = _resolve_stream_key(
+        user, user_api_key, provider,
+        request.client.host if request.client else "unknown",
+    )
+    if key_error:
+        async def error_stream():
+            yield f"data: {json.dumps({'error': key_error})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    async def event_stream():
+        start_time = time.time()
+        yield f"data: {json.dumps(init_debate_visual_state(query))}\n\n"
+
+        state = {
+            "query": query,
+            "retrieved_docs": [],
+            "summaries": [],
+            "critique": {},
+            "final_answer": "",
+            "citations": [],
+            "debate_mode": True,
+            "debate_history": [],
+            "judge_verdict": {},
+            "errors": [],
+            "warnings": [],
+            "current_agent": "",
+            "provider": provider,
+            "preferred_provider": provider,
+            "user_api_key": user_api_key,
+            "model": resolve_model(user, provider) if user else None,
+            "response_style": response_style,
+            "session_id": (getattr(user, "public_id", None) or "guest"),
+            "user": user,
+        }
+
+        loop = asyncio.get_event_loop()
+        bus = ProgressBus()
+        state["_progress_bus"] = bus
+
+        def _event_to_patch(ev: dict) -> dict:
+            patch = dict(ev.get("patch") or {})
+            patch["logs"] = _log(state, ev["agent"], ev["msg"], time.time() - start_time)
+            patch["elapsedSeconds"] = round(time.time() - start_time, 1)
+            return patch
+
+        stage_panel = {"Search": "Evidence", "FOR-opening": "FOR", "AGAINST-opening": "AGAINST",
+                       "FOR-rebuttal": "FOR", "AGAINST-rebuttal": "AGAINST", "Judge": "Judge"}
+        pipeline = [
+            ("Search",           debate_search_node,    {"label": "Gathering evidence", "sub": "Querying the web…"}),
+            ("FOR-opening",      for_agent_node,        {"label": "FOR opening",        "sub": "Building the supporting case…"}),
+            ("AGAINST-opening",  against_agent_node,    {"label": "AGAINST opening",    "sub": "Building the counter case…"}),
+            ("FOR-rebuttal",     for_rebuttal_node,     {"label": "FOR rebuttal",       "sub": "Countering the opposition…"}),
+            ("AGAINST-rebuttal", against_rebuttal_node, {"label": "AGAINST rebuttal",   "sub": "Countering the support…"}),
+            ("Judge",            judge_node,            {"label": "Judging",            "sub": "Scoring rubric + argument quality…"}),
+        ]
+
+        for stage_name, node_fn, stage_label in pipeline:
+            announce = {
+                "stage": stage_label,
+                "panels": {stage_panel[stage_name]: {"phase": {"label": stage_label["label"], "sub": stage_label["sub"]}}},
+            }
+            yield f"data: {json.dumps(announce)}\n\n"
+
+            future = loop.run_in_executor(None, node_fn, state)
+            while not future.done():
+                ev = bus.get_nowait()
+                if ev is None:
+                    await asyncio.sleep(0.15)
+                    continue
+                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
+            while (ev := bus.get_nowait()) is not None:
+                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
+
+            try:
+                updated = future.result()
+                state.update(updated if isinstance(updated, dict) else {})
+            except Exception as e:
+                yield f"data: {json.dumps({'error': f'{stage_name} failed: {str(e)[:200]}'})}\n\n"
+                return
+
+            yield f"data: {json.dumps(build_debate_patch(state, stage_name, time.time() - start_time))}\n\n"
+
+        # Final patch (judge_node already persisted via save_debate — do NOT
+        # save again here; the old /ask-stream path double-saved).
+        yield f"data: {json.dumps(build_debate_patch(state, 'Final', time.time() - start_time))}\n\n"
 
     return StreamingResponse(
         event_stream(),

@@ -381,8 +381,8 @@ function LoginCard({ onLogin, oauthError }) {
     setLoading(true);
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register'
-      const body = isLogin 
-        ? { email, password } 
+      const body = isLogin
+        ? { email, password, remember }   // remember-me → 30-day refresh session
         : { email, username: email.split('@')[0], password }
       
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -531,7 +531,9 @@ function LoginCard({ onLogin, oauthError }) {
               <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.onSurfaceVariant }}>Keep Synapse Active</span>
             </label>
-            <a href="#" className="forgot-link" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.cyan, textDecoration: "none" }}>Lost Cortex Access?</a>
+            {/* Password reset flow not built yet — shown disabled rather than
+                as a dead link that silently does nothing. */}
+            <span className="forgot-link" title="Password recovery is coming soon" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.onSurfaceVariant, opacity: 0.45, cursor: "default" }}>Lost Cortex Access?</span>
           </div>
 
           <Banner type="error" message={error} />

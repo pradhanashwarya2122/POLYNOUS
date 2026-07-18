@@ -54,22 +54,22 @@ PER_SOURCE_CHARS = 1200        # per-source budget in the prompt
 
 
 def _get_client(provider: str, api_key: Optional[str]):
-    if provider == "openai":
-        key = api_key or os.getenv("OPENAI_API_KEY", "")
-        if not key:
-            raise ValueError("No OpenAI API key available")
-        return OpenAI(api_key=key), "openai"
-    key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
-    if not key:
-        raise ValueError("No Anthropic API key available")
-    return Anthropic(api_key=key), "anthropic"
+    # SECURITY: no implicit env-var fallback — the endpoint layer resolves
+    # keys explicitly. Missing key = hard error, never a silent system charge.
+    if not api_key:
+        raise ValueError(f"No {provider} API key provided for this request.")
+    from app.llm_providers import resolve_provider
+    client_type, base_url = resolve_provider(provider)
+    if client_type == "openai":
+        return OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {})), "openai"
+    return Anthropic(api_key=api_key), "anthropic"
 
 
 def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
-              max_tokens: int, temperature: float) -> str:
+              max_tokens: int, temperature: float, model: Optional[str] = None) -> str:
     if client_type == "openai":
         response = client.chat.completions.create(
-            model=DEFAULT_OPENAI_MODEL,
+            model=model or DEFAULT_OPENAI_MODEL,
             messages=[{"role": "system", "content": system_prompt},
                       {"role": "user", "content": user_prompt}],
             max_tokens=max_tokens,
@@ -77,7 +77,7 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
         )
         return response.choices[0].message.content
     response = client.messages.create(
-        model=DEFAULT_ANTHROPIC_MODEL,
+        model=model or DEFAULT_ANTHROPIC_MODEL,
         max_tokens=max_tokens,
         temperature=temperature,
         system=system_prompt,
@@ -87,12 +87,12 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
 
 
 def _call_with_retry(client, client_type, system_prompt, user_prompt,
-                     max_tokens, temperature) -> str:
+                     max_tokens, temperature, model=None) -> str:
     last_error = None
     for attempt in range(MAX_RETRIES + 1):
         try:
             return _call_llm(client, client_type, system_prompt, user_prompt,
-                             max_tokens, temperature)
+                             max_tokens, temperature, model=model)
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES:
@@ -186,6 +186,7 @@ def argue_position(
     opponent_argument: Optional[str] = None,
     api_key: Optional[str] = None,
     provider: str = "anthropic",
+    model: Optional[str] = None,
 ) -> dict:
     """
     One debate turn. Returns a structured dict:
@@ -212,7 +213,7 @@ def argue_position(
         client, client_type = _get_client(provider, api_key)
         result["text"] = _call_with_retry(
             client, client_type, system_prompt, user_prompt,
-            MAX_TOKENS_ARGUMENT, TEMPERATURE_ARGUMENT,
+            MAX_TOKENS_ARGUMENT, TEMPERATURE_ARGUMENT, model=model,
         )
         result["rubric"] = compute_argument_rubric(result["text"], min(len(docs), MAX_SOURCES))
     except Exception as e:
@@ -266,6 +267,7 @@ def judge_debate(
     for_rebuttal: str = "",
     against_rebuttal: str = "",
     total_sources: int = 0,
+    model: Optional[str] = None,
 ) -> dict:
     """
     Judge the debate. Final score per side =
@@ -302,7 +304,7 @@ Judge and return JSON:"""
     try:
         client, client_type = _get_client(provider, api_key)
         raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, user_prompt,
-                               MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE)
+                               MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model)
         if "```" in raw:
             raw = raw.split("```json")[-1].split("```")[1] if "```json" in raw else raw.split("```")[1]
         llm = json.loads(raw.strip())

@@ -47,16 +47,16 @@ def _get_client(provider: str = "anthropic", api_key: Optional[str] = None):
     Raises:
         ValueError: if no API key is available for the chosen provider.
     """
-    if provider == "openai":
-        key = api_key or os.getenv("OPENAI_API_KEY", "")
-        if not key:
-            raise ValueError("No OpenAI API key found (pass api_key or set OPENAI_API_KEY).")
-        return OpenAI(api_key=key), "openai"
-    else:
-        key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
-        if not key:
-            raise ValueError("No Anthropic API key found (pass api_key or set ANTHROPIC_API_KEY).")
-        return Anthropic(api_key=key), "anthropic"
+    # SECURITY: no implicit env-var fallback — the endpoint layer resolves
+    # the key explicitly. A missing key here is a hard error, never a
+    # silent charge to the system key.
+    if not api_key:
+        raise ValueError(f"No {provider} API key provided for this request.")
+    from app.llm_providers import resolve_provider
+    client_type, base_url = resolve_provider(provider)
+    if client_type == "openai":
+        return OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {})), "openai"
+    return Anthropic(api_key=api_key), "anthropic"
 
 
 # ============================================================
@@ -210,6 +210,7 @@ def writer_agent(
     provider: str = "anthropic",
     api_key: Optional[str] = None,
     response_style: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> str:
     """
     Organize source content into a neutral research digest.
@@ -278,7 +279,7 @@ Organize this into a research digest. Present what the sources say — do NOT an
         system_prompt += f"\n\n────────────────────────────\nVOICE & STYLE (user preference)\n────────────────────────────\n{style_note}\nStyle changes the voice ONLY — every neutrality and citation rule above still applies."
 
     try:
-        answer = _call_llm_with_retry(client, client_type, system_prompt, user_prompt)
+        answer = _call_llm_with_retry(client, client_type, system_prompt, user_prompt, model=model)
         print("  ✅ Research digest created!")
         return answer
     except Exception as e:
@@ -403,12 +404,13 @@ def _build_critique_summary(critique: dict) -> str:
     return "\n".join(parts) if parts else "No critique analysis available."
 
 
-def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prompt: str) -> str:
+def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prompt: str,
+                         model: Optional[str] = None) -> str:
     """Call the LLM, retrying a couple of times on transient errors."""
     last_error = None
     for attempt in range(MAX_RETRIES + 1):
         try:
-            return _call_llm(client, client_type, system_prompt, user_prompt)
+            return _call_llm(client, client_type, system_prompt, user_prompt, model=model)
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES:
@@ -419,11 +421,12 @@ def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prom
     raise last_error
 
 
-def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str) -> str:
-    """Call the appropriate LLM"""
+def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
+              model: Optional[str] = None) -> str:
+    """Call the appropriate LLM (user's chosen model wins over the default)"""
     if client_type == "openai":
         response = client.chat.completions.create(
-            model=DEFAULT_OPENAI_MODEL,
+            model=model or DEFAULT_OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -434,7 +437,7 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str) ->
         return response.choices[0].message.content
     else:
         message = client.messages.create(
-            model=DEFAULT_ANTHROPIC_MODEL,
+            model=model or DEFAULT_ANTHROPIC_MODEL,
             max_tokens=MAX_TOKENS,
             temperature=TEMPERATURE,
             system=system_prompt,
