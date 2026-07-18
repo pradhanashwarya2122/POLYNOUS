@@ -23,6 +23,10 @@ class AgentState(TypedDict):
 
     # ── Critique results ──────────────────────────────────
     critique: Dict[str, Any]
+    critic_retries: int                   # graph-level retry counter (parse failures)
+
+    # ── Computed diagnostics ──────────────────────────────
+    computed_confidence: Optional[Dict]   # 4-factor evidence-based confidence
 
     # ── Final output ──────────────────────────────────────
     final_answer: str

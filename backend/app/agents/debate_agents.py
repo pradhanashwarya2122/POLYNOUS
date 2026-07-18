@@ -1,143 +1,348 @@
+"""
+POLYNOUS Debate Agents — FOR, AGAINST, and Judge
+
+A real adversarial pipeline, not two independent essays:
+
+  1. Both debaters receive ALL retrieved sources, numbered [SOURCE n],
+     and must cite them as [n] — citations outside 1..N are ignored by
+     the rubric, so hallucinated evidence earns nothing.
+  2. A REBUTTAL round: each side reads the opponent's opening argument
+     and must respond to its specific points. This is what makes the
+     debate genuinely adversarial.
+  3. Judging is rubric-based: transparent computed metrics (distinct
+     sources cited, share of grounded sentences) are combined 50/50
+     with the LLM judge's qualitative scores. On judge failure the
+     verdict is explicitly marked unscored — never a fabricated 5-5 TIE.
+"""
 import json
+import logging
 import os
-from dotenv import load_dotenv
+import re
+import time
+from typing import Optional
+
 from anthropic import Anthropic
 from openai import OpenAI
+from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger("polynous.debate")
 
-def argue_for_position(query: str, context: list, api_key: str = None, provider: str = "anthropic") -> str:
-    """Argue FOR the proposition using the provided API key."""
-    print("  🟢 FOR: Building argument...")
+# ============================================================
+# CONFIG
+# ============================================================
 
-    context_text = "\n".join(context[:2]) if context else "No sources provided"
+DEFAULT_ANTHROPIC_MODEL = os.getenv("DEBATE_ANTHROPIC_MODEL", "claude-haiku-4-5")
+DEFAULT_OPENAI_MODEL = os.getenv("DEBATE_OPENAI_MODEL", "gpt-4o-mini")
 
-    system_prompt = (
-        "You are a debate champion arguing FOR a proposition. "
-        "Use evidence from the provided sources. Make 2‑3 strong points with citations. "
-        "Be persuasive but factual. Start with: 'ARGUMENT FOR:'"
+MAX_TOKENS_ARGUMENT = 700
+MAX_TOKENS_JUDGE = 500
+TEMPERATURE_ARGUMENT = 0.7
+TEMPERATURE_JUDGE = 0.2
+
+MAX_RETRIES = 2
+RETRY_BACKOFF_SECONDS = 1.5
+
+MAX_SOURCES = 12               # all pipeline sources, not context[:2]
+PER_SOURCE_CHARS = 1200        # per-source budget in the prompt
+
+
+# ============================================================
+# LLM PLUMBING (shared, with retry)
+# ============================================================
+
+
+def _get_client(provider: str, api_key: Optional[str]):
+    if provider == "openai":
+        key = api_key or os.getenv("OPENAI_API_KEY", "")
+        if not key:
+            raise ValueError("No OpenAI API key available")
+        return OpenAI(api_key=key), "openai"
+    key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+    if not key:
+        raise ValueError("No Anthropic API key available")
+    return Anthropic(api_key=key), "anthropic"
+
+
+def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
+              max_tokens: int, temperature: float) -> str:
+    if client_type == "openai":
+        response = client.chat.completions.create(
+            model=DEFAULT_OPENAI_MODEL,
+            messages=[{"role": "system", "content": system_prompt},
+                      {"role": "user", "content": user_prompt}],
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return response.choices[0].message.content
+    response = client.messages.create(
+        model=DEFAULT_ANTHROPIC_MODEL,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
     )
-    messages = [{
-        "role": "user",
-        "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue FOR this proposition:"
-    }]
+    return response.content[0].text
 
+
+def _call_with_retry(client, client_type, system_prompt, user_prompt,
+                     max_tokens, temperature) -> str:
+    last_error = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            return _call_llm(client, client_type, system_prompt, user_prompt,
+                             max_tokens, temperature)
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF_SECONDS * (attempt + 1)
+                logger.warning("Debate LLM call failed (%s); retrying in %.1fs", e, wait)
+                time.sleep(wait)
+    raise last_error
+
+
+# ============================================================
+# SOURCE FORMATTING & RUBRIC (computed, transparent)
+# ============================================================
+
+
+def format_debate_sources(docs: list) -> str:
+    """Number every source [SOURCE n] so citations are verifiable."""
+    if not docs:
+        return "No sources available."
+    blocks = []
+    for i, doc in enumerate(docs[:MAX_SOURCES], 1):
+        title = (doc.get("title") or "Untitled")[:100]
+        url = (doc.get("url") or "")[:90]
+        content = (doc.get("content") or "")[:PER_SOURCE_CHARS]
+        blocks.append(f"[SOURCE {i}] {title}\nURL: {url}\n{content}")
+    return "\n\n".join(blocks)
+
+
+_CITATION_RE = re.compile(r"\[(\d{1,2})\]")
+
+
+def compute_argument_rubric(argument: str, total_sources: int) -> dict:
+    """
+    Transparent, computed argument metrics — the same idea as the critic's
+    formula confidence. Citations pointing at sources that don't exist
+    count for NOTHING.
+    """
+    argument = argument or ""
+    cited_all = [int(n) for n in _CITATION_RE.findall(argument)]
+    cited_valid = {n for n in cited_all if 1 <= n <= max(total_sources, 0)}
+    hallucinated = {n for n in cited_all if n not in cited_valid and n > 0}
+
+    def _has_valid_citation(sentence: str) -> bool:
+        return any(int(n) in cited_valid for n in _CITATION_RE.findall(sentence))
+
+    sentences = [s for s in re.split(r"(?<=[.!?])\s+", argument) if len(s.strip()) > 20]
+    # only citations to REAL sources ground a sentence — [9] of 5 counts for nothing
+    grounded = [s for s in sentences if _has_valid_citation(s)]
+    coverage = (len(grounded) / len(sentences)) if sentences else 0.0
+
+    # Evidence breadth: up to 5 pts for citing distinct real sources.
+    breadth_cap = min(total_sources, 5) or 1
+    evidence_score = min(5.0, len(cited_valid) * (5.0 / breadth_cap))
+    # Grounding: up to 5 pts for the share of sentences carrying citations.
+    grounding_score = coverage * 5.0
+
+    return {
+        "distinct_sources_cited": len(cited_valid),
+        "hallucinated_citations": len(hallucinated),
+        "sentences": len(sentences),
+        "grounded_sentences": len(grounded),
+        "citation_coverage": round(coverage, 3),
+        "computed_score": round(evidence_score + grounding_score, 1),  # 0-10
+    }
+
+
+# ============================================================
+# DEBATER PROMPTS
+# ============================================================
+
+_DEBATER_SYSTEM = """You are a debate champion arguing {side} the proposition.
+
+RULES OF EVIDENCE:
+- Use ONLY the numbered sources provided. Cite them inline as [n].
+- Every factual claim needs a citation. Uncited claims score zero.
+- Citing a source number that doesn't exist disqualifies that point.
+- Make 2-4 sharp points. Be persuasive but factual.
+{phase_rules}
+Start your answer with: '{header}'"""
+
+_OPENING_RULES = "- This is your OPENING argument: build the strongest case from the sources."
+_REBUTTAL_RULES = """- This is your REBUTTAL: your opponent's argument is shown below.
+- You MUST directly address at least two of your opponent's specific points —
+  quote or reference them, then counter with sourced evidence.
+- Simply restating your opening scores poorly."""
+
+
+def argue_position(
+    query: str,
+    docs: list,
+    side: str,                      # "FOR" | "AGAINST"
+    opponent_argument: Optional[str] = None,
+    api_key: Optional[str] = None,
+    provider: str = "anthropic",
+) -> dict:
+    """
+    One debate turn. Returns a structured dict:
+      {text, side, phase, rubric, error}
+    """
+    phase = "rebuttal" if opponent_argument else "opening"
+    header = f"{'REBUTTAL' if opponent_argument else 'ARGUMENT'} {side}:"
+    print(f"  {'🟢' if side == 'FOR' else '🔴'} {side} ({phase}): building…")
+
+    sources_text = format_debate_sources(docs)
+    system_prompt = _DEBATER_SYSTEM.format(
+        side=side,
+        phase_rules=_REBUTTAL_RULES if opponent_argument else _OPENING_RULES,
+        header=header,
+    )
+
+    user_prompt = f"Proposition: {query}\n\nSOURCES:\n{sources_text}\n"
+    if opponent_argument:
+        user_prompt += f"\nYOUR OPPONENT ARGUED:\n{opponent_argument[:2200]}\n"
+    user_prompt += f"\nDeliver your {phase} {side} the proposition:"
+
+    result = {"text": "", "side": side, "phase": phase, "rubric": None, "error": None}
     try:
-        if provider == "openai":
-            client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "system", "content": system_prompt}] + messages,
-                max_tokens=400,
-                temperature=0.8,
-            )
-            return response.choices[0].message.content
-        else:
-            client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
-            response = client.messages.create(
-                model="claude-haiku-4-5",
-                max_tokens=400,
-                temperature=0.8,
-                system=system_prompt,
-                messages=messages,
-            )
-            return response.content[0].text
+        client, client_type = _get_client(provider, api_key)
+        result["text"] = _call_with_retry(
+            client, client_type, system_prompt, user_prompt,
+            MAX_TOKENS_ARGUMENT, TEMPERATURE_ARGUMENT,
+        )
+        result["rubric"] = compute_argument_rubric(result["text"], min(len(docs), MAX_SOURCES))
     except Exception as e:
-        print(f"  ❌ FOR error: {e}")
-        return f"ERROR: {str(e)}"
+        logger.exception("%s %s failed", side, phase)
+        result["error"] = str(e)[:200]
+        result["text"] = f"[{side} {phase} unavailable: {result['error']}]"
+        result["rubric"] = compute_argument_rubric("", min(len(docs), MAX_SOURCES))
+    return result
 
 
-def argue_against_position(query: str, context: list, api_key: str = None, provider: str = "anthropic") -> str:
-    """Argue AGAINST the proposition using the provided API key."""
-    print("  🔴 AGAINST: Building counter-argument...")
+# Backward-compatible wrappers (old call sites get opening arguments)
+def argue_for_position(query, context, api_key=None, provider="anthropic") -> str:
+    docs = context if (context and isinstance(context[0], dict)) else [
+        {"title": f"Source {i+1}", "url": "", "content": c} for i, c in enumerate(context or [])
+    ]
+    return argue_position(query, docs, "FOR", api_key=api_key, provider=provider)["text"]
 
-    context_text = "\n".join(context[:2]) if context else "No sources provided"
 
-    system_prompt = (
-        "You are a debate champion arguing AGAINST a proposition. "
-        "Use evidence from the provided sources. Make 2‑3 strong counter-points with citations. "
-        "Be persuasive but factual. Start with: 'ARGUMENT AGAINST:'"
-    )
-    messages = [{
-        "role": "user",
-        "content": f"Proposition: {query}\n\nSources:\n{context_text}\n\nArgue AGAINST this proposition:"
-    }]
+def argue_against_position(query, context, api_key=None, provider="anthropic") -> str:
+    docs = context if (context and isinstance(context[0], dict)) else [
+        {"title": f"Source {i+1}", "url": "", "content": c} for i, c in enumerate(context or [])
+    ]
+    return argue_position(query, docs, "AGAINST", api_key=api_key, provider=provider)["text"]
+
+
+# ============================================================
+# JUDGE — rubric + LLM, combined transparently
+# ============================================================
+
+_JUDGE_SYSTEM = """You are an impartial debate judge. You will see each side's
+opening, rebuttal, and COMPUTED evidence metrics (citations verified against
+the real source list — you cannot be fooled by invented citations).
+
+Score each side 0-10 on argument QUALITY: logic, how directly the rebuttal
+engaged the opponent's points, and persuasiveness. The evidence dimension is
+already measured for you — do not re-score citation counts.
+
+Return ONLY a raw JSON object (no code fences):
+{"for_quality": 7, "against_quality": 8,
+ "reasoning": "2-3 sentence explanation",
+ "strongest_point": "the single best argument made by either side",
+ "best_rebuttal": "FOR" or "AGAINST" — who engaged the opponent better}"""
+
+
+def judge_debate(
+    for_arg: str,
+    against_arg: str,
+    query: str,
+    api_key: Optional[str] = None,
+    provider: str = "anthropic",
+    for_rebuttal: str = "",
+    against_rebuttal: str = "",
+    total_sources: int = 0,
+) -> dict:
+    """
+    Judge the debate. Final score per side =
+      50% computed rubric (opening + rebuttal evidence metrics)
+    + 50% LLM quality score.
+    On LLM failure: verdict is explicitly 'UNSCORED' with computed metrics
+    only — never a fabricated tie.
+    """
+    print("  ⚖️ JUDGE: computing rubric + evaluating…")
+
+    for_full = f"{for_arg}\n{for_rebuttal}".strip()
+    against_full = f"{against_arg}\n{against_rebuttal}".strip()
+    rubric_for = compute_argument_rubric(for_full, total_sources)
+    rubric_against = compute_argument_rubric(against_full, total_sources)
+
+    user_prompt = f"""Topic: {query}
+
+FOR OPENING:\n{for_arg[:1600]}
+FOR REBUTTAL:\n{(for_rebuttal or 'None')[:1400]}
+FOR COMPUTED EVIDENCE: {json.dumps(rubric_for)}
+
+AGAINST OPENING:\n{against_arg[:1600]}
+AGAINST REBUTTAL:\n{(against_rebuttal or 'None')[:1400]}
+AGAINST COMPUTED EVIDENCE: {json.dumps(rubric_against)}
+
+Judge and return JSON:"""
+
+    verdict = {
+        "rubric_for": rubric_for,
+        "rubric_against": rubric_against,
+        "parse_failed": False,
+    }
 
     try:
-        if provider == "openai":
-            client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "system", "content": system_prompt}] + messages,
-                max_tokens=400,
-                temperature=0.8,
-            )
-            return response.choices[0].message.content
+        client, client_type = _get_client(provider, api_key)
+        raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, user_prompt,
+                               MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE)
+        if "```" in raw:
+            raw = raw.split("```json")[-1].split("```")[1] if "```json" in raw else raw.split("```")[1]
+        llm = json.loads(raw.strip())
+
+        for_quality = float(llm.get("for_quality", 0))
+        against_quality = float(llm.get("against_quality", 0))
+        for_score = round(0.5 * rubric_for["computed_score"] + 0.5 * for_quality, 1)
+        against_score = round(0.5 * rubric_against["computed_score"] + 0.5 * against_quality, 1)
+
+        if abs(for_score - against_score) < 0.5:
+            winner = "TIE"
         else:
-            client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
-            response = client.messages.create(
-                model="claude-haiku-4-5",
-                max_tokens=400,
-                temperature=0.8,
-                system=system_prompt,
-                messages=messages,
-            )
-            return response.content[0].text
-    except Exception as e:
-        print(f"  ❌ AGAINST error: {e}")
-        return f"ERROR: {str(e)}"
+            winner = "FOR" if for_score > against_score else "AGAINST"
 
-
-def judge_debate(for_arg: str, against_arg: str, query: str, api_key: str = None, provider: str = "anthropic") -> dict:
-    """Judge the debate using the provided API key."""
-    print("  ⚖️ JUDGE: Evaluating...")
-
-    system_prompt = (
-        "You are an impartial debate judge. Evaluate both arguments and return JSON only:\n"
-        '{"winner": "FOR" or "AGAINST" or "TIE", '
-        '"reasoning": "Brief explanation", '
-        '"strongest_point": "Best argument", '
-        '"for_score": 7, "against_score": 8}'
-    )
-    messages = [{
-        "role": "user",
-        "content": f"Topic: {query}\n\nFOR:\n{for_arg[:1500]}\n\nAGAINST:\n{against_arg[:1500]}\n\nJudge and return JSON:"
-    }]
-
-    try:
-        if provider == "openai":
-            client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "system", "content": system_prompt}] + messages,
-                max_tokens=300,
-                temperature=0.3,
-            )
-            raw = response.choices[0].message.content
-        else:
-            client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
-            response = client.messages.create(
-                model="claude-haiku-4-5",
-                max_tokens=300,
-                temperature=0.3,
-                system=system_prompt,
-                messages=messages,
-            )
-            raw = response.content[0].text
-
-        # Parse JSON from response
-        if "```json" in raw:
-            raw = raw.split("```json")[1].split("```")[0]
-        verdict = json.loads(raw)
-        print(f"  ✅ Winner: {verdict.get('winner', 'TIE')}")
+        verdict.update({
+            "winner": winner,
+            "for_score": for_score,
+            "against_score": against_score,
+            "for_quality": for_quality,
+            "against_quality": against_quality,
+            "reasoning": llm.get("reasoning", ""),
+            "strongest_point": llm.get("strongest_point", ""),
+            "best_rebuttal": llm.get("best_rebuttal", ""),
+            "scoring": "50% computed evidence rubric + 50% judge quality score",
+        })
+        print(f"  ✅ Winner: {winner} (FOR {for_score} / AGAINST {against_score})")
         return verdict
+
     except Exception as e:
-        print(f"  ❌ Judge error: {e}")
-        return {
-            "winner": "TIE",
-            "reasoning": f"Error in judgment: {str(e)[:100]}",
+        logger.exception("Judge failed")
+        # Honest degraded verdict: computed metrics only, clearly marked.
+        verdict.update({
+            "winner": "UNSCORED",
+            "parse_failed": True,
+            "for_score": rubric_for["computed_score"],
+            "against_score": rubric_against["computed_score"],
+            "reasoning": f"Judge evaluation unavailable ({str(e)[:120]}). "
+                         "Scores shown are the computed evidence rubric only.",
             "strongest_point": "N/A",
-            "for_score": 5,
-            "against_score": 5,
-        }
+            "best_rebuttal": "N/A",
+            "scoring": "computed evidence rubric only (judge LLM failed)",
+        })
+        return verdict

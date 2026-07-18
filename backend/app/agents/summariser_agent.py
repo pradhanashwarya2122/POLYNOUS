@@ -129,18 +129,24 @@ For each document, provide:
 3. PERSPECTIVE: What angle or viewpoint does this source represent?
 4. TYPE: Is this news, academic, opinion, blog, government, or commercial?
 5. DIRECT QUOTE: One notable quote from the source (if available)
- 
-Be specific. Include numbers and names. Never inject your own opinion.\
+6. RELEVANCE TO QUERY: What this source specifically says about the user's
+   research question (if the source doesn't address it, say so plainly)
+
+Be specific. Include numbers and names. Never inject your own opinion.
+Prioritise the parts of the document that bear on the research question.\
 """
- 
- 
-def _build_user_prompt(title: str, url: str, type_note: str, content: str) -> str:
+
+
+def _build_user_prompt(title: str, url: str, type_note: str, content: str,
+                       query: str = "") -> str:
+    query_line = f"RESEARCH QUESTION: {query}\n\n" if query else ""
     return (
+        f"{query_line}"
         f"Title: {title}\n"
         f"URL: {url}\n"
         f"Content Type: {type_note}\n\n"
         f"Content:\n{content}\n\n"
-        f"Extract what this source says:"
+        f"Extract what this source says (focused on the research question):"
     )
  
  
@@ -201,6 +207,7 @@ def _summarise_one(
     api_key: Optional[str],
     model: Optional[str],
     base_url: Optional[str],
+    query: str = "",
 ) -> SummaryResult:
     title       = doc.get("title", "Untitled")
     url         = doc.get("url", "")
@@ -222,7 +229,7 @@ def _summarise_one(
         chosen_model  = model or DEFAULT_MODELS.get(ptype, DEFAULT_MODELS["anthropic"])
         result.model_used = chosen_model
  
-        user_prompt = _build_user_prompt(title, url, type_note, content)
+        user_prompt = _build_user_prompt(title, url, type_note, content, query)
  
         if ptype in ("openai", "openai_compatible"):
             def _call():
@@ -297,7 +304,7 @@ def summariser_agent(
         futures = {
             pool.submit(
                 _summarise_one,
-                i, doc, provider, api_key, model, base_url,
+                i, doc, provider, api_key, model, base_url, query,
             ): i - 1
             for i, doc in enumerate(documents, 1)
         }
@@ -355,7 +362,7 @@ def summarise_all(
         futures = {
             pool.submit(
                 _summarise_one,
-                i, doc, provider, api_key, model, base_url,
+                i, doc, provider, api_key, model, base_url, query,
             ): i - 1
             for i, doc in enumerate(documents, 1)
         }

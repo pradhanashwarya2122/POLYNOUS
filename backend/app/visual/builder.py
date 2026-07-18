@@ -91,10 +91,14 @@ def build_visual_patch(state: dict, agent_name: str, elapsed: float) -> dict:
         agreements = len(critique.get("agreement_groups") or [])
         disagreements = len(critique.get("disagreement_groups") or [])
         confidence = critique.get("overall_confidence", 0) or 0
+        failed = _critic_failed(critique) if critique else False
         patch.setdefault("agents", {})["Critic"] = _critic_panel(critique, len(state.get("summaries") or []))
-        patch.setdefault("metrics", {})["claims"] = agreements + disagreements
-        patch.setdefault("metrics", {})["confidence"] = f"{confidence}%"
-        patch.setdefault("lanes", {})["Critic"] = {"sub": f"{agreements} agree / {disagreements} disagree", "status": "done"}
+        patch.setdefault("metrics", {})["claims"] = "—" if failed else agreements + disagreements
+        patch.setdefault("metrics", {})["confidence"] = "—" if failed else f"{confidence}%"
+        patch.setdefault("lanes", {})["Critic"] = {
+            "sub": "analysis failed" if failed else f"{agreements} agree / {disagreements} disagree",
+            "status": "done",
+        }
         if agent_name == "Critic":
             patch["logs"] = _log(state, "Critic",
                                  f"{agreements} agreements, {disagreements} disagreements — confidence {confidence}%", elapsed)
@@ -108,7 +112,13 @@ def build_visual_patch(state: dict, agent_name: str, elapsed: float) -> dict:
 
     if agent_name == "Final":
         patch["progress"] = 100
-        patch["convergence"] = 100
+        # Convergence at completion = the measured confidence, never a
+        # hardcoded 100 (100% convergence with 0% confidence is a lie).
+        critique = state.get("critique") or {}
+        conf = critique.get("overall_confidence") or 0
+        if not conf:
+            conf = (state.get("computed_confidence") or {}).get("score") or 0
+        patch["convergence"] = min(100, max(0, round(conf)))
         patch["confidenceBreakdown"] = _confidence_breakdown(state)
         patch["sourceTrust"] = _source_trust(state.get("retrieved_docs") or [])
         patch["faithfulness"] = _faithfulness(state)
@@ -392,16 +402,33 @@ def _faithfulness(state: dict) -> dict:
     return {"grounded": len(cited), "total": total, "flagged": flagged}
 
 
+def _position_trust(source_nums: list, docs: list) -> str:
+    """REAL trust label for a debate position: the best domain tier among
+    the sources actually cited by that position (was hardcoded High/Med)."""
+    tiers = []
+    for n in source_nums or []:
+        if isinstance(n, int) and 1 <= n <= len(docs):
+            url = (docs[n - 1] or {}).get("url") or ""
+            if url:
+                tiers.append(_domain_tier(urlparse(url).netloc))
+    if not tiers:
+        return "—"
+    order = {"high": 0, "med": 1, "low": 2}
+    best = min(tiers, key=lambda t: order[t])
+    return {"high": "High", "med": "Med", "low": "Low"}[best]
+
+
 def _contradiction(state: dict) -> Optional[dict]:
     dis = (state.get("critique") or {}).get("disagreement_groups") or []
     if not dis:
         return None
+    docs = state.get("retrieved_docs") or []
     first = dis[0] or {}
     a, b = first.get("position_a") or {}, first.get("position_b") or {}
     return {
-        "claimA": {"label": "Position A", "trust": "High",
+        "claimA": {"label": "Position A", "trust": _position_trust(a.get("sources"), docs),
                    "text": (a.get("claim") or "N/A")[:100], "source": f"Sources {a.get('sources', [])}"},
-        "claimB": {"label": "Position B", "trust": "Med",
+        "claimB": {"label": "Position B", "trust": _position_trust(b.get("sources"), docs),
                    "text": (b.get("claim") or "N/A")[:100], "source": f"Sources {b.get('sources', [])}"},
         "resolution": first.get("nature") or "Disputed",
     }
@@ -425,14 +452,17 @@ def _suggestions(state: dict) -> list:
         and not any(m in g.lower() for m in _GAP_ERROR_MARKERS)
         and len(g) < 120  # real gaps are short phrases, error dumps are long
     ]
+    # Honest provenance: kind marks whether the suggestion came from a REAL
+    # coverage gap the critic identified, or is a generated fallback.
+    # (Previously every card carried fabricated "~30s / Medium / High" chips.)
+    kind = "Coverage gap" if gaps else "Follow-up"
     if not gaps:
         query = (state.get("query") or "this topic").rstrip("?")
         gaps = [f"Recent developments in {query}"[:70],
                 f"Counter-arguments to {query}"[:70],
                 f"Practical applications of {query}"[:70]]
     icons = ["psychology", "travel_explore", "science"]
-    return [{"icon": icons[i % 3], "agent": "Search", "title": g, "est": "~30s",
-             "diff": "Medium", "diffLevel": "med", "avail": "High", "availLevel": "high"}
+    return [{"icon": icons[i % 3], "agent": "Search", "title": g, "kind": kind}
             for i, g in enumerate(gaps[:3])]
 
 
@@ -444,7 +474,8 @@ def _make_floating_tags(state: dict) -> list:
         {"agent": "Search", "label": "Sources", "value": str(len(docs)),
          "delay": "0s", "top": "10%", "left": "30%"},
         {"agent": "Critic", "label": "Confidence",
-         "value": f"{critique.get('overall_confidence', 0)}%", "delay": "0.5s", "top": "50%", "right": "20%"},
+         "value": ("—" if _critic_failed(critique) else f"{critique.get('overall_confidence', 0)}%"),
+         "delay": "0.5s", "top": "50%", "right": "20%"},
         {"agent": "Writer", "label": "Words", "value": str(len(answer.split())),
          "delay": "1s", "bottom": "15%", "left": "45%"},
     ]

@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
 from app.state import AgentState
-from app.agents.debate_agents import argue_for_position, argue_against_position, judge_debate
+from app.agents.debate_agents import argue_position, judge_debate
 from app.search_agent import search_web
 from app.knowledge_graph.user_memory import user_memory
 from app.knowledge_graph.graph_manager import kg
@@ -35,42 +35,57 @@ def debate_search_node(state: AgentState) -> AgentState:
     return state
 
 
-def for_agent_node(state: AgentState) -> AgentState:
-    print("\n🟢 FOR AGENT")
+def _debate_turn(state: AgentState, side: str, opponent_phase_key: str = None) -> AgentState:
+    """
+    Run one debate turn (opening or rebuttal) with the FULL source list.
+    Rebuttals receive the opponent's opening argument and must respond to it.
+    """
     api_key = state.get('user_api_key')
     provider = state.get('preferred_provider', 'anthropic')
+    docs = state.get('retrieved_docs', [])
 
-    context = [
-        f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
-        for doc in state.get('retrieved_docs', [])
-    ]
+    opponent_argument = None
+    if opponent_phase_key:
+        opp_side, opp_phase = opponent_phase_key
+        for entry in state.get('debate_history', []):
+            if entry.get('side') == opp_side and entry.get('phase') == opp_phase:
+                opponent_argument = entry.get('argument')
+                break
 
-    argument = argue_for_position(
-        state['query'], context,
+    turn = argue_position(
+        state['query'], docs, side,
+        opponent_argument=opponent_argument,
         api_key=api_key,
         provider=provider,
     )
-    state['debate_history'].append({"side": "FOR", "argument": argument})
+    state['debate_history'].append({
+        "side": side,
+        "phase": turn["phase"],
+        "argument": turn["text"],
+        "rubric": turn["rubric"],
+        "error": turn["error"],
+    })
     return state
+
+
+def for_agent_node(state: AgentState) -> AgentState:
+    print("\n🟢 FOR AGENT (opening)")
+    return _debate_turn(state, "FOR")
 
 
 def against_agent_node(state: AgentState) -> AgentState:
-    print("\n🔴 AGAINST AGENT")
-    api_key = state.get('user_api_key')
-    provider = state.get('preferred_provider', 'anthropic')
+    print("\n🔴 AGAINST AGENT (opening)")
+    return _debate_turn(state, "AGAINST")
 
-    context = [
-        f"Source: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:1000]}"
-        for doc in state.get('retrieved_docs', [])
-    ]
 
-    argument = argue_against_position(
-        state['query'], context,
-        api_key=api_key,
-        provider=provider,
-    )
-    state['debate_history'].append({"side": "AGAINST", "argument": argument})
-    return state
+def for_rebuttal_node(state: AgentState) -> AgentState:
+    print("\n🟢 FOR AGENT (rebuttal — responding to AGAINST)")
+    return _debate_turn(state, "FOR", opponent_phase_key=("AGAINST", "opening"))
+
+
+def against_rebuttal_node(state: AgentState) -> AgentState:
+    print("\n🔴 AGAINST AGENT (rebuttal — responding to FOR)")
+    return _debate_turn(state, "AGAINST", opponent_phase_key=("FOR", "opening"))
 
 
 def judge_node(state: AgentState) -> AgentState:
@@ -96,35 +111,50 @@ def judge_node(state: AgentState) -> AgentState:
     except Exception as e:
         print(f"  ⚠️ User profile creation skipped: {e}")
 
-    # Get last FOR and AGAINST arguments
-    for_arg = ""
-    against_arg = ""
+    # Collect openings and rebuttals from the structured history
+    turns = {}
     for entry in state.get('debate_history', []):
-        if entry.get('side') == 'FOR':
-            for_arg = entry.get('argument', '')
-        elif entry.get('side') == 'AGAINST':
-            against_arg = entry.get('argument', '')
+        side, phase = entry.get('side'), entry.get('phase')
+        if side in ('FOR', 'AGAINST') and phase in ('opening', 'rebuttal'):
+            turns[(side, phase)] = entry.get('argument', '')
+
+    for_arg = turns.get(('FOR', 'opening'), '')
+    against_arg = turns.get(('AGAINST', 'opening'), '')
+    for_rebuttal = turns.get(('FOR', 'rebuttal'), '')
+    against_rebuttal = turns.get(('AGAINST', 'rebuttal'), '')
+    total_sources = len(state.get('retrieved_docs', []))
 
     verdict = judge_debate(
         for_arg, against_arg, state['query'],
         api_key=api_key,
         provider=provider,
+        for_rebuttal=for_rebuttal,
+        against_rebuttal=against_rebuttal,
+        total_sources=total_sources,
     )
     state['judge_verdict'] = verdict
 
-    winner = verdict.get('winner', 'FOR')
+    winner = verdict.get('winner', 'UNSCORED')
     reasoning = verdict.get('reasoning', '')
     strongest = verdict.get('strongest_point', '')
-    for_score = verdict.get('for_score', 5)
-    against_score = verdict.get('against_score', 5)
+    for_score = verdict.get('for_score', 0)
+    against_score = verdict.get('against_score', 0)
+    rubric_for = verdict.get('rubric_for', {})
+    rubric_against = verdict.get('rubric_against', {})
 
     debate_summary = f"""📋 DEBATE RESULT: {state['query']}
 
-🟢 FOR POSITION ({for_score}/10)
+🟢 FOR — OPENING ({for_score}/10)
 {for_arg[:500]}
 
-🔴 AGAINST POSITION ({against_score}/10)
+🟢 FOR — REBUTTAL
+{(for_rebuttal or 'No rebuttal delivered.')[:400]}
+
+🔴 AGAINST — OPENING ({against_score}/10)
 {against_arg[:500]}
+
+🔴 AGAINST — REBUTTAL
+{(against_rebuttal or 'No rebuttal delivered.')[:400]}
 
 ⚖️ WINNER: {winner}
 
@@ -134,9 +164,9 @@ def judge_node(state: AgentState) -> AgentState:
 📝 JUDGE'S REASONING
 {reasoning}
 
-🎯 SCORES
-• FOR: {for_score}/10
-• AGAINST: {against_score}/10
+🎯 SCORES ({verdict.get('scoring', '')})
+• FOR: {for_score}/10 — cited {rubric_for.get('distinct_sources_cited', 0)} sources, {rubric_for.get('grounded_sentences', 0)}/{rubric_for.get('sentences', 0)} claims grounded
+• AGAINST: {against_score}/10 — cited {rubric_against.get('distinct_sources_cited', 0)} sources, {rubric_against.get('grounded_sentences', 0)}/{rubric_against.get('sentences', 0)} claims grounded
 """
 
     state['final_answer'] = debate_summary
@@ -287,15 +317,22 @@ def judge_node(state: AgentState) -> AgentState:
 
 
 def create_debate_graph():
+    """search → FOR opening → AGAINST opening → FOR rebuttal →
+    AGAINST rebuttal → judge. Rebuttals read the opponent's opening,
+    making the pipeline genuinely adversarial."""
     workflow = StateGraph(AgentState)
     workflow.add_node("debate_search", debate_search_node)
     workflow.add_node("for_agent", for_agent_node)
     workflow.add_node("against_agent", against_agent_node)
+    workflow.add_node("for_rebuttal", for_rebuttal_node)
+    workflow.add_node("against_rebuttal", against_rebuttal_node)
     workflow.add_node("judge", judge_node)
     workflow.set_entry_point("debate_search")
     workflow.add_edge("debate_search", "for_agent")
     workflow.add_edge("for_agent", "against_agent")
-    workflow.add_edge("against_agent", "judge")
+    workflow.add_edge("against_agent", "for_rebuttal")
+    workflow.add_edge("for_rebuttal", "against_rebuttal")
+    workflow.add_edge("against_rebuttal", "judge")
     workflow.add_edge("judge", END)
     return workflow.compile()
 

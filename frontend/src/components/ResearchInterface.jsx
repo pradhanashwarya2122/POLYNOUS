@@ -882,11 +882,21 @@ function headerRe(emoji, word) {
   );
 }
 const SECTION_DEFS = [
-  { key: "summary",     re: headerRe("📋", "(?:EXECUTIVE\\s+)?SUMMARY") },
-  { key: "findings",    re: headerRe("🔑", "KEY\\s+FINDINGS?") },
-  { key: "limitations", re: headerRe("⚠️", "(?:CAVEATS\\s*&?\\s*)?(?:LIMITATIONS?|UNCERTAINTIES)(?:\\s*&\\s*UNCERTAINTIES)?") },
-  { key: "confidence",  re: headerRe("(?:🎯|🔬)", "CONFIDENCE(?:\\s+ASSESSMENT)?") },
-  { key: "sources",     re: headerRe("(?:📚|🔗)", "SOURCES?") },
+  // 13-section premium report headers (plus legacy fallbacks)
+  { key: "summary",       re: headerRe("📋", "EXECUTIVE\\s+(?:SUMMARY|BRIEF)|SUMMARY") },
+  { key: "sourceIntel",   re: headerRe("📚", "SOURCE\\s+INTELLIGENCE") },
+  { key: "findings",      re: headerRe("🔑", "KEY\\s+FINDINGS?") },
+  { key: "consensus",     re: headerRe("🤝", "CONSENSUS\\s+MAP|WHERE\\s+SOURCES\\s+AGREE") },
+  { key: "divergence",    re: headerRe("⚡", "DIVERGENCE\\s+MAP|WHERE\\s+SOURCES\\s+DISAGREE") },
+  { key: "unique",        re: headerRe("💡", "UNIQUE\\s+(?:INSIGHTS?|PERSPECTIVES?)") },
+  { key: "quality",       re: headerRe("⚠️", "SOURCE\\s+QUALITY(?:\\s+(?:ASSESSMENT|NOTES?))?") },
+  { key: "coverage",      re: headerRe("🔍", "COVERAGE\\s+AUDIT") },
+  { key: "confidence",    re: headerRe("(?:🎯|🔬)", "CONFIDENCE(?:\\s+(?:ASSESSMENT|ANALYSIS))?") },
+  { key: "limitations",   re: headerRe("⚠️", "(?:CAVEATS\\s*&?\\s*)?LIMITATIONS?(?:\\s*&\\s*(?:CAVEATS|UNCERTAINTIES))?") },
+  { key: "contradiction", re: headerRe("⚖️", "CONTRADICTION\\s+RESOLUTION") },
+  { key: "trajectory",    re: headerRe("🔮", "RESEARCH\\s+TRAJECTORY|FOLLOW[-\\s]?UP\\s+QUESTIONS?") },
+  { key: "bibliography",  re: headerRe("📖", "(?:SOURCE\\s+)?BIBLIOGRAPHY") },
+  { key: "sources",       re: headerRe("(?:📚|🔗)", "SOURCES?(?:\\s+ANALYZED)?") },
 ];
 
 // Split raw answer text into named sections by scanning for header positions.
@@ -943,7 +953,7 @@ function splitItems(body) {
 }
 
 function parseAnswer(text) {
-  if (!text) return { summary: "", findings: [], limitations: "", parsedConf: 0, parsedSources: [] };
+  if (!text) return { summary: "", findings: [], limitations: "", parsedConf: 0, parsedSources: [], sections: {} };
 
   const sections = splitSections(text);
 
@@ -958,8 +968,9 @@ function parseAnswer(text) {
     confSource.match(/(\d{1,3})\s*%\s*\(?(?:high|moderate|low)?/i);
   const parsedConf = confMatch ? Math.min(100, parseInt(confMatch[1], 10)) : 0;
 
-  // Sources: numbered/bracketed lines inside the sources section
-  const parsedSources = (sections.sources || "")
+  // Sources: numbered/bracketed lines inside source intelligence (13-section
+  // format) or the legacy sources section
+  const parsedSources = ((sections.sourceIntel || sections.sources) || "")
     .split(/\n|(?=\[\d+\])/)
     .map((l) => l.replace(/^\[\d+\]\s*/, "").trim())
     .filter((l) => l.length > 5);
@@ -972,6 +983,7 @@ function parseAnswer(text) {
     limitations,
     parsedConf,
     parsedSources,
+    sections,
   };
 }
 
@@ -989,13 +1001,55 @@ function SynapseDots({ color = C.green }) {
   ));
 }
 
+// Linkify bare URLs inside bibliography/source text
+function Linkify({ text }) {
+  const parts = String(text).split(/(https?:\/\/[^\s)\]]+)/g);
+  return parts.map((p, i) =>
+    /^https?:\/\//.test(p)
+      ? <a key={i} href={p} target="_blank" rel="noreferrer" style={{ color: C.cyan, textDecoration: "none", borderBottom: `1px dotted ${C.cyan}55`, wordBreak: "break-all" }}>{p}</a>
+      : <span key={i}>{p}</span>
+  );
+}
+
+// Cyan [n] citation chips inside body text
+function CitationText({ text }) {
+  const parts = String(text).split(/(\[\d{1,2}(?:,\s*\d{1,2})*\])/g);
+  return parts.map((p, i) =>
+    /^\[\d/.test(p)
+      ? <span key={i} style={{ color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.9em", fontWeight: 700 }}>{p}</span>
+      : <span key={i}>{p}</span>
+  );
+}
+
+// ─── Premium report section card (13-section briefing format) ────────────────
+function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, linkify = false }) {
+  if (!body || !body.trim()) return null;
+  return (
+    <div style={{
+      background:"rgba(5,20,36,0.7)", backdropFilter:"blur(20px)",
+      border:"1px solid rgba(255,255,255,0.08)", borderLeft:`4px solid ${accent}`,
+      borderRadius:14, padding:"24px 28px", position:"relative",
+      animation:`sectionIn 0.5s ${delay}s ease both`,
+    }}>
+      <SynapseDots color={accent} />
+      <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:accent, textTransform:"uppercase", letterSpacing:"0.2em", marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
+        <Icon name={icon} style={{ fontSize:15, color:accent }} /> {title}
+      </div>
+      <div style={{
+        fontFamily: mono ? "'JetBrains Mono',monospace" : "'Inter',sans-serif",
+        fontSize: mono ? 12 : 14, lineHeight:1.85, color:C.onSurface, whiteSpace:"pre-wrap",
+      }}>
+        {linkify ? <Linkify text={body.trim()} /> : <CitationText text={body.trim()} />}
+      </div>
+    </div>
+  );
+}
+
 // ─── Neural Synthesis Report ──────────────────────────────────────────────────
 function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onNew }) {
-  const { summary, findings, limitations, parsedConf, parsedSources } = parseAnswer(answer);
+  const { summary, findings, limitations, parsedConf, parsedSources, sections } = parseAnswer(answer);
   const confValue  = parsedConf || confidence;
   const confColor  = confValue>=80 ? C.green : confValue>=60 ? C.amber : C.crimson;
-  const forFindings     = findings.filter((_,i)=>i%2===0);
-  const againstFindings = findings.filter((_,i)=>i%2!==0);
   const allSources = parsedSources.length>0 ? parsedSources : sources.map(s=>typeof s==="string"?s:s.title||"Source");
   const filled = Math.round(confValue/10);
   const limitationPoints = parseLimitationPoints(limitations);
@@ -1042,47 +1096,27 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
         </div>
       )}
 
-      {/* Findings grid */}
+      {/* Key Findings — every card is a sourced claim from the digest.
+          (Previously split by index parity into fake "Debate Counter-Args".) */}
       {findings.length>0 && (
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,animation:"sectionIn 0.5s 0.16s ease both" }}>
-          {/* FOR */}
-          <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-            <div style={{ display:"flex",alignItems:"center",gap:8,padding:"5px 14px",background:"rgba(0,255,71,0.08)",borderRadius:9999,width:"fit-content" }}>
-              <Icon name="verified" style={{ color:C.green,fontSize:15 }} />
-              <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:C.green,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.15em" }}>Synthesis Findings</span>
-            </div>
-            {(forFindings.length>0?forFindings:findings).map((f,i)=>(
-              <div key={i} className="finding-card-green" style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"18px 20px",position:"relative",transition:"border-color 0.2s" }}>
+        <div style={{ animation:"sectionIn 0.5s 0.16s ease both" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:8,padding:"5px 14px",background:"rgba(0,255,71,0.08)",borderRadius:9999,width:"fit-content",marginBottom:14 }}>
+            <Icon name="key" style={{ color:C.green,fontSize:15 }} />
+            <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:C.green,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.15em" }}>Key Findings · {findings.length} sourced claims</span>
+          </div>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:14 }}>
+            {findings.map((f,i)=>(
+              <div key={i} className="finding-card-green" style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.07)",borderLeft:`3px solid ${C.green}55`,borderRadius:12,padding:"18px 20px",position:"relative",transition:"border-color 0.25s ease, transform 0.25s cubic-bezier(0.16,1,0.3,1)" }}
+                onMouseEnter={(e)=>{ e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.borderColor="rgba(0,255,71,0.35)"; }}
+                onMouseLeave={(e)=>{ e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.07)"; }}
+              >
                 <span style={{ position:"absolute",top:-2,left:-2,width:4,height:4,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}` }} />
                 <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
                   <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(0,255,71,0.1)",border:`1px solid ${C.green}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.green,marginTop:2 }}>{i+1}</span>
-                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}>{clean(f)}</p>
+                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}><CitationText text={clean(f)} /></p>
                 </div>
               </div>
             ))}
-          </div>
-          {/* AGAINST */}
-          <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-            <div style={{ display:"flex",alignItems:"center",gap:8,padding:"5px 14px",background:"rgba(255,32,64,0.08)",borderRadius:9999,width:"fit-content",alignSelf:"flex-end" }}>
-              <Icon name="warning" style={{ color:C.crimson,fontSize:15 }} />
-              <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:C.crimson,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.15em" }}>Debate Counter-Args</span>
-            </div>
-            {againstFindings.length>0 ? againstFindings.map((f,i)=>(
-              <div key={i} className="finding-card-crimson" style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"18px 20px",position:"relative",transition:"border-color 0.2s" }}>
-                <span style={{ position:"absolute",top:-2,right:-2,width:4,height:4,borderRadius:"50%",background:C.crimson,boxShadow:`0 0 8px ${C.crimson}` }} />
-                <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
-                  <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(255,32,64,0.1)",border:`1px solid ${C.crimson}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.crimson,marginTop:2 }}>{i+1}</span>
-                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}>{clean(f)}</p>
-                </div>
-              </div>
-            )) : (
-              <div className="finding-card-crimson" style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"18px 20px" }}>
-                <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
-                  <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(255,32,64,0.1)",border:`1px solid ${C.crimson}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.crimson,marginTop:2 }}>1</span>
-                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}>Further debate analysis not yet available for this synthesis.</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1109,12 +1143,38 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
         </div>
       )}
 
+      {/* ── Premium 13-section briefing ── */}
+      <PremiumSection icon="travel_explore" title="Source Intelligence" accent={C.cyan}
+        body={sections.sourceIntel} delay={0.18} mono />
+
+      {(sections.consensus || sections.divergence) && (
+        <div style={{ display:"grid", gridTemplateColumns: sections.consensus && sections.divergence ? "1fr 1fr" : "1fr", gap:18 }}>
+          <PremiumSection icon="handshake" title="Consensus Map" accent={C.green}
+            body={sections.consensus} delay={0.2} />
+          <PremiumSection icon="bolt" title="Divergence Map" accent={C.crimson}
+            body={sections.divergence} delay={0.22} />
+        </div>
+      )}
+
+      <PremiumSection icon="lightbulb" title="Unique Insights" accent={C.amber}
+        body={sections.unique} delay={0.24} />
+      <PremiumSection icon="fact_check" title="Source Quality Assessment" accent={C.cyan}
+        body={sections.quality} delay={0.26} />
+      <PremiumSection icon="search_off" title="Coverage Audit" accent={C.amber}
+        body={sections.coverage} delay={0.28} />
+      <PremiumSection icon="balance" title="Contradiction Resolution" accent={C.crimson}
+        body={sections.contradiction} delay={0.3} />
+      <PremiumSection icon="analytics" title="Confidence Analysis — Computed" accent={C.green}
+        body={sections.confidence} delay={0.32} mono />
+      <PremiumSection icon="explore" title="Research Trajectory" accent={C.green}
+        body={sections.trajectory} delay={0.34} />
+
       {/* Confidence Matrix */}
       <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"18px 26px",animation:"sectionIn 0.5s 0.24s ease both" }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14 }}>
           <div style={{ maxWidth:300 }}>
             <h3 style={{ fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:"1.1rem",color:C.cyan,marginBottom:6 }}>Confidence Matrix</h3>
-            <p style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.textSecondary }}>Aggregate certainty across {AGENT_NODES.length} independent agent simulations.</p>
+            <p style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.textSecondary }}>Measured from source agreement, domain diversity, recency, and citation grounding.</p>
           </div>
           <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
             {Array.from({length:10}).map((_,i)=>(
@@ -1145,21 +1205,62 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
         </div>
       )}
 
-      {/* Sources */}
-      {allSources.length>0 && (
-        <div style={{ animation:"sectionIn 0.5s 0.40s ease both" }}>
-          <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.cyan,textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:12 }}>Source Constellation (Bibliography)</div>
-          <div style={{ display:"flex",flexWrap:"wrap",gap:10 }}>
-            {allSources.map((s,i)=>(
-              <div key={i} className="source-pill" style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(0,204,255,0.2)",borderRadius:9999,padding:"6px 14px",display:"flex",alignItems:"center",gap:7,cursor:"pointer",transition:"all 0.2s" }}
-                onClick={()=>navigator.clipboard.writeText(typeof s==="string"?s:s.url||s)}>
-                <Icon name="article" style={{ color:C.cyan,fontSize:13 }} />
-                <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.onSurfaceVariant }}>[{i+1}] {typeof s==="string"?s:s.title||"Source"}</span>
-              </div>
-            ))}
+      {/* Source Constellation — structured card grid, real citation objects */}
+      {(sources?.length > 0 || allSources.length > 0) && (() => {
+        const structured = (sources?.length ? sources : allSources).map((s) =>
+          typeof s === "string" ? { title: s } : s
+        );
+        const domainOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
+        const yearOf = (d) => { const m = String(d || "").match(/\b(19|20)\d{2}\b/); return m ? m[0] : ""; };
+        return (
+          <div style={{ animation:"sectionIn 0.5s 0.40s ease both" }}>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.cyan,textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:14,display:"flex",alignItems:"center",gap:8 }}>
+              <Icon name="hub" style={{ fontSize:15,color:C.cyan }} /> Source Constellation
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))", gap:12 }}>
+              {structured.map((s, i) => {
+                const domain = domainOf(s.url);
+                const year = yearOf(s.published_date);
+                const badge = s.content_source === "scraped" ? "ARTICLE" : (s.content_source ? "SNIPPET" : null);
+                const card = (
+                  <div className="source-pill" style={{
+                    background:"rgba(5,20,36,0.7)", backdropFilter:"blur(20px)",
+                    border:"1px solid rgba(0,204,255,0.18)", borderRadius:12,
+                    padding:"14px 16px", display:"flex", gap:12, alignItems:"flex-start",
+                    cursor: s.url ? "pointer" : "default", height:"100%",
+                    transition:"transform 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.25s ease, box-shadow 0.25s ease",
+                  }}
+                    onMouseEnter={(e)=>{ e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.borderColor="rgba(0,204,255,0.45)"; e.currentTarget.style.boxShadow="0 10px 26px rgba(0,0,0,0.35)"; }}
+                    onMouseLeave={(e)=>{ e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="rgba(0,204,255,0.18)"; e.currentTarget.style.boxShadow="none"; }}
+                  >
+                    <span style={{ flexShrink:0, width:24, height:24, borderRadius:"50%", background:"rgba(0,204,255,0.1)", border:`1px solid ${C.cyan}55`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Sora',sans-serif", fontSize:11, fontWeight:800, color:C.cyan }}>{i+1}</span>
+                    <div style={{ minWidth:0, flex:1 }}>
+                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:12.5, fontWeight:600, color:C.onSurface, lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                        {s.title || "Untitled source"}
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:7, flexWrap:"wrap" }}>
+                        {domain && (
+                          <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:C.textSecondary }}>
+                            <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width="12" height="12" style={{ borderRadius:3 }} onError={(e)=>{e.currentTarget.style.display="none";}} />
+                            {domain}{year ? ` · ${year}` : ""}
+                          </span>
+                        )}
+                        {badge && (
+                          <span style={{ fontSize:8.5, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, letterSpacing:"0.06em", color:C.cyan, border:`1px solid ${C.cyan}45`, background:"rgba(0,204,255,0.07)", borderRadius:9999, padding:"1px 7px" }}>{badge}</span>
+                        )}
+                      </div>
+                    </div>
+                    {s.url && <Icon name="open_in_new" style={{ fontSize:13, color:C.textSecondary, flexShrink:0, marginTop:2 }} />}
+                  </div>
+                );
+                return s.url
+                  ? <a key={i} href={s.url} target="_blank" rel="noreferrer" style={{ textDecoration:"none" }}>{card}</a>
+                  : <div key={i}>{card}</div>;
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Footer actions */}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:22,animation:"sectionIn 0.5s 0.48s ease both" }}>
@@ -1272,6 +1373,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const [query,          setQuery]          = useState("");
   const [loading,        setLoading]        = useState(false);
   const [answer,         setAnswer]         = useState("");
+  const [activeQuery,    setActiveQuery]    = useState("");
   const [sources,        setSources]        = useState([]);
   const [confidence,     setConfidence]     = useState(0);
   const [agentStatus,    setAgentStatus]    = useState("");
@@ -1342,7 +1444,11 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     );
   }
 
-  const startResearch = async (q) => {
+  // ── SINGLE PIPELINE: the NeuralResearchEngine's /ask-visual stream is the
+  // ONE research run. The report is fed from its final patch (final_answer +
+  // citations), so what you watch being written IS the published report —
+  // no duplicate /ask-stream run, half the cost and latency.
+  const startResearch = (q) => {
     const qText = typeof q === "string" ? q : query;
     if (!qText.trim() || loading) return;
 
@@ -1351,84 +1457,15 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     setSources([]);
     setConfidence(0);
     setAgentProgress([]);
-    setAgentStatus("Initializing…");
-    // --- PATCH 6b: reset engine done and collapse for new research
+    setAgentStatus("Neural engine engaged");
     setEngineCollapsed(false);
     setEngineDone(false);
-
-    // ✅ Get JWT token
-    const token = getToken();
-
-    try {
-        const res = await fetch(`${API_BASE_URL}/ask-stream`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": token ? `Bearer ${token}` : ''
-            },
-            body: JSON.stringify({
-                query: qText,
-                debate_mode: false,
-                response_style: userStyle,   // ← ADDED user style
-            }),
-        });
-
-        if (!res.ok) {
-            throw new Error(`Server responded with ${res.status}`);
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let fullAnswer = "", srcList = [], confScore = 0;
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-            for (const line of chunk.split("\n")) {
-                if (line.startsWith("data: ")) {
-                    try {
-                        const data = JSON.parse(line.slice(6));
-                        if (data.type === "start") {
-                            setAgentStatus("Neural network activated");
-                        } else if (data.type === "progress") {
-                            setAgentStatus(data.message);
-                            setAgentProgress(prev => [...prev, data]);
-                        } else if (data.type === "token") {
-                            fullAnswer += (data.content || "");
-                            setAnswer(fullAnswer);
-                        } else if (data.type === "citations") {
-                            srcList = data.citations || [];
-                        } else if (data.type === "confidence") {
-                            confScore = data.score || 0;
-                        } else if (data.type === "end") {
-                            setAnswer(fullAnswer);
-                            setSources(srcList);
-                            setConfidence(confScore);
-                            setAgentStatus("");
-                            // --- REMOVED: setEngineCollapsed(true); (collapse now owned by onComplete)
-                            setHistory(prev => [{
-                                query: qText,
-                                confidence: confScore,
-                                date: new Date().toLocaleDateString()
-                            }, ...prev].slice(0, 10));
-                        }
-                    } catch (e) {
-                        // ignore malformed JSON
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        setAgentStatus("Connection error — is the backend running?");
-        console.error("Research error:", error);
-    } finally {
-        setLoading(false);
-    }
+    // Snapshot the query: the engine streams against THIS string, so typing
+    // in the search bar afterwards can never re-trigger the pipeline.
+    setActiveQuery(qText);
   };
 
-  const handleNew  = () => { setAnswer(""); setQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); setEngineDone(false); };
+  const handleNew  = () => { setAnswer(""); setQuery(""); setActiveQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); setEngineDone(false); };
   const handleCopy = () => { navigator.clipboard.writeText(answer); };
   const confColor  = (v) => v>=80?C.green:v>=60?C.amber:C.crimson;
   const sidebarW   = sidebarCollapsed ? 56 : 320;
@@ -1450,44 +1487,101 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
 
         {/* --- UPDATED: Engine stays visible during loading AND after answer (collapsible) --- */}
         {(loading || answer) && (
-          <div style={{
+          <div id="engine-panel" style={{
             position: "relative",
             zIndex: 20,
-            minHeight: engineCollapsed ? "60px" : "100vh",
-            transition: "min-height 0.5s ease",
+            minHeight: engineCollapsed ? "72px" : "100vh",
+            transition: "min-height 0.7s cubic-bezier(0.16,1,0.3,1)",
             overflow: "hidden",
           }}>
             {engineCollapsed && (
-              <div style={{
-                padding: "12px 24px",
-                background: "rgba(10,10,30,0.9)",
-                backdropFilter: "blur(12px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                borderBottom: "1px solid rgba(0,255,15,0.2)",
-                cursor: "pointer",
-              }} onClick={() => setEngineCollapsed(false)}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ color: "#00ff0f", fontSize: 18 }}>🧠</span>
-                  <span style={{ color: "#fff", fontFamily: "Sora, sans-serif", fontWeight: 700 }}>
-                    Neural Engine — Research Complete
-                  </span>
+              <div
+                onClick={() => {
+                  setEngineCollapsed(false);
+                  setTimeout(() => {
+                    document.getElementById("engine-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 80);
+                }}
+                style={{
+                  padding: "14px 28px",
+                  background: "linear-gradient(180deg, rgba(14,16,32,0.96), rgba(10,10,30,0.92))",
+                  backdropFilter: "blur(18px) saturate(1.1)",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  borderBottom: "1px solid transparent",
+                  borderImage: "linear-gradient(90deg, transparent, rgba(0,255,71,0.45), transparent) 1",
+                  cursor: "pointer",
+                  animation: "sectionIn 0.45s cubic-bezier(0.16,1,0.3,1) both",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "linear-gradient(180deg, rgba(18,21,40,0.98), rgba(12,13,34,0.94))"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "linear-gradient(180deg, rgba(14,16,32,0.96), rgba(10,10,30,0.92))"; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    background: "rgba(0,255,71,0.08)", border: "1px solid rgba(0,255,71,0.3)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 0 18px rgba(0,255,71,0.15)",
+                  }}>
+                    <Icon name="psychology" style={{ color: C.green, fontSize: 22 }} />
+                  </div>
+                  <div>
+                    <div style={{ color: "#fff", fontFamily: "Sora, sans-serif", fontWeight: 700, fontSize: 14, letterSpacing: "-0.01em" }}>
+                      Neural Research Engine
+                    </div>
+                    <div style={{ color: C.textSecondary, fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      Research complete · 4 agents · tap to reopen the live session
+                    </div>
+                  </div>
                 </div>
-                <span style={{ color: "#00ff0f", fontSize: 14 }}>▼ Expand</span>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "8px 16px", borderRadius: 9999,
+                  border: "1px solid rgba(0,255,71,0.3)", background: "rgba(0,255,71,0.06)",
+                  color: C.green, fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
+                  fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                  transition: "background 0.25s ease, box-shadow 0.25s ease",
+                }}>
+                  Expand
+                  <Icon name="expand_more" style={{
+                    fontSize: 17, color: C.green,
+                    transform: "rotate(0deg)", transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1)",
+                  }} />
+                </div>
               </div>
             )}
-            <div style={{ display: engineCollapsed ? "none" : "block" }}>
-              {/* PATCH 6c: onComplete callback */}
+            <div style={{
+              display: engineCollapsed ? "none" : "block",
+            }}>
+              {/* The engine's stream IS the pipeline — its final patch feeds
+                  the report below (single run, single source of truth). */}
               <NeuralResearchEngine
                 apiUrl={`${API_BASE_URL}/ask-visual`}
-                query={query}
-                onComplete={() => {
+                query={activeQuery}
+                responseStyle={userStyle}
+                onComplete={(data) => {
+                  const finalAnswer = data?.final_answer || "";
+                  const confMatch = String(data?.metrics?.confidence ?? "").match(/\d+/);
+                  const confScore = confMatch ? Math.min(100, parseInt(confMatch[0], 10)) : 0;
+                  setAnswer(finalAnswer);
+                  setSources(data?.citations || []);
+                  setConfidence(confScore);
+                  setLoading(false);
+                  setAgentStatus("");
                   setEngineDone(true);
-                  setEngineCollapsed(true);
+                  setHistory((prev) => [{
+                    query: activeQuery,
+                    confidence: confScore,
+                    date: new Date().toLocaleDateString(),
+                  }, ...prev].slice(0, 10));
+                  // Give the collapse animation a beat, then glide to the report.
+                  setTimeout(() => setEngineCollapsed(true), 250);
                   setTimeout(() => {
-                    document.getElementById("research-answer")?.scrollIntoView({ behavior: "smooth" });
-                  }, 350);
+                    document.getElementById("research-answer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 700);
+                }}
+                onError={(msg) => {
+                  setLoading(false);
+                  setAgentStatus(msg || "Research stream failed");
                 }}
               />
             </div>

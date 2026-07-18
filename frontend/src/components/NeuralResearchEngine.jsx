@@ -32,14 +32,30 @@ const styles = `
 
   .panel {
     position: relative;
-    background: rgba(255,255,255,0.025);
+    background: linear-gradient(170deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    transition: border-color 0.3s ease, transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease;
+    border-radius: 18px;
+    backdrop-filter: blur(20px) saturate(1.05);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+    transition: border-color 0.35s ease, transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease;
   }
   .panel:hover {
-    border-color: rgba(255,255,255,0.14);
-    transform: translateY(-1px);
+    border-color: rgba(255,255,255,0.16);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.06) inset;
+  }
+
+  /* Apple-grade display heading */
+  .hero-title {
+    font-family:'Sora',sans-serif; font-size:46px; font-weight:800;
+    letter-spacing:-0.035em; line-height:1.05;
+    background:linear-gradient(180deg, #ffffff 30%, #b8bec9 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .hero-title .accent {
+    background:linear-gradient(180deg, #7dffa1 20%, #00ff47 80%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 22px rgba(0,255,71,0.35));
   }
 
   .agent-top-cyan   { border-top: 2px solid rgba(79,209,197,0.55); }
@@ -130,23 +146,63 @@ const styles = `
     animation:shimmerText 2.6s linear infinite;
   }
   @keyframes orbitDot {
-    from { transform:rotate(0deg) translateX(10px) rotate(0deg); }
-    to   { transform:rotate(360deg) translateX(10px) rotate(-360deg); }
+    from { transform:rotate(0deg) translateX(12px) rotate(0deg); }
+    to   { transform:rotate(360deg) translateX(12px) rotate(-360deg); }
   }
-  .thought-orb { position:relative; width:28px; height:28px; flex-shrink:0; }
+  @keyframes orbRing {
+    0%,100% { transform:scale(0.85); opacity:0.5; } 50% { transform:scale(1.12); opacity:0.12; }
+  }
+  @keyframes orbBreathe {
+    0%,100% { transform:scale(1); box-shadow:0 0 10px rgba(0,255,71,0.55); }
+    50%     { transform:scale(1.25); box-shadow:0 0 22px rgba(0,255,71,0.95), 0 0 46px rgba(0,255,71,0.3); }
+  }
+  .thought-orb { position:relative; width:34px; height:34px; flex-shrink:0; }
   .thought-orb .orb-core {
-    position:absolute; inset:9px; border-radius:50%; background:#00ff47;
-    box-shadow:0 0 12px rgba(0,255,71,0.7); animation:softPulse 1.8s ease-in-out infinite;
+    position:absolute; inset:12px; border-radius:50%; background:#00ff47;
+    animation:orbBreathe 2.4s ease-in-out infinite;
   }
+  .thought-orb .orb-ring {
+    position:absolute; inset:3px; border-radius:50%;
+    border:1px solid rgba(0,255,71,0.5);
+    animation:orbRing 2.4s ease-in-out infinite;
+  }
+  .thought-orb .orb-ring:nth-child(2) { inset:0; animation-delay:-1.2s; border-color:rgba(0,255,71,0.28); }
   .thought-orb .orb-dot {
     position:absolute; top:50%; left:50%; width:4px; height:4px; margin:-2px;
-    border-radius:50%; background:rgba(0,255,71,0.8);
+    border-radius:50%; background:rgba(0,255,71,0.9);
     animation:orbitDot 2.2s linear infinite;
   }
-  .thought-orb .orb-dot:nth-child(2) { animation-duration:3.1s; animation-delay:-0.8s; opacity:0.6; }
-  .thought-orb .orb-dot:nth-child(3) { animation-duration:4.0s; animation-delay:-1.6s; opacity:0.35; }
-  @keyframes phraseSwap { 0%{ opacity:0; transform:translateY(5px); } 12%{ opacity:1; transform:translateY(0); } 88%{ opacity:1; } 100%{ opacity:0; transform:translateY(-5px); } }
+  .thought-orb .orb-dot:nth-child(4) { animation-duration:3.1s; animation-delay:-0.8s; opacity:0.6; width:3px; height:3px; }
+  .thought-orb .orb-dot:nth-child(5) { animation-duration:4.2s; animation-delay:-1.6s; opacity:0.35; width:3px; height:3px; }
+  .thought-orb .orb-dot:nth-child(6) { animation-duration:5.4s; animation-delay:-2.7s; opacity:0.2; }
+  @keyframes phraseSwap { 0%{ opacity:0; transform:translateY(6px); filter:blur(3px); } 14%{ opacity:1; transform:translateY(0); filter:blur(0); } 86%{ opacity:1; filter:blur(0); } 100%{ opacity:0; transform:translateY(-6px); filter:blur(3px); } }
   .phrase-swap { animation:phraseSwap 2.8s ease-in-out infinite; }
+  /* EEG-style thought trace under the phrase */
+  @keyframes traceDash { to { stroke-dashoffset:-120; } }
+  .thought-trace path { stroke-dasharray:60 60; animation:traceDash 2.2s linear infinite; }
+
+  /* ── Premium finish ── */
+  /* Top progress beam — whole-page read on research progress */
+  .progress-beam-wrap { position:fixed; top:0; left:0; right:0; height:2px; z-index:500; background:rgba(255,255,255,0.04); }
+  .progress-beam {
+    height:100%; background:linear-gradient(90deg, #4FD1C5, #00ff47 60%, #a855f7);
+    box-shadow:0 0 12px rgba(0,255,71,0.55);
+    transition:width 0.7s cubic-bezier(0.16,1,0.3,1);
+  }
+  /* Staggered card entrances */
+  @keyframes cardEnter { from { opacity:0; transform:translateY(14px) scale(0.99); } to { opacity:1; transform:translateY(0) scale(1); } }
+  .card-enter    { animation:cardEnter 0.6s cubic-bezier(0.16,1,0.3,1) both; }
+  .card-enter-1  { animation-delay:0.05s; } .card-enter-2 { animation-delay:0.12s; }
+  .card-enter-3  { animation-delay:0.19s; } .card-enter-4 { animation-delay:0.26s; }
+  /* Sheen sweep on panel hover */
+  .panel-glow { overflow:hidden; }
+  .panel-glow::after {
+    content:""; position:absolute; top:0; bottom:0; left:-70%; width:45%;
+    background:linear-gradient(105deg, transparent, rgba(255,255,255,0.045), transparent);
+    transform:skewX(-18deg); transition:left 0.7s cubic-bezier(0.16,1,0.3,1);
+    pointer-events:none;
+  }
+  .panel-glow:hover::after { left:130%; }
   .animate-spin       { animation: spin 5s linear infinite; }
   .animate-soft-pulse { animation: softPulse 2.2s ease-in-out infinite; }
   .pop-number { display:inline-block; animation: popNumber 0.35s cubic-bezier(0.34,1.56,0.64,1); }
@@ -439,7 +495,7 @@ function deepMerge(base, override) {
   return out;
 }
 
-function useLiveResearch(apiUrl, query) {
+function useLiveResearch(apiUrl, query, responseStyle) {
   const [liveData,  setLiveData]  = useState(null);
   const [liveError, setLiveError] = useState(null);
 
@@ -474,7 +530,7 @@ function useLiveResearch(apiUrl, query) {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify({ query, response_style: responseStyle || "" }),
           signal: controller.signal,
         });
 
@@ -547,7 +603,7 @@ function useLiveResearch(apiUrl, query) {
       startedRef.current = false;
       controller.abort();
     };
-  }, [apiUrl, query]);
+  }, [apiUrl, query, responseStyle]);
 
   return { liveData, liveError };
 }
@@ -694,12 +750,20 @@ const CheckRow = ({ item }) => {
 const RING_R = 20;
 const RING_C = 2 * Math.PI * RING_R;
 
-export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, onComplete }) {
-  const { liveData, liveError } = useLiveResearch(apiUrl, query);
+export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, responseStyle, onComplete, onError }) {
+  const { liveData, liveError } = useLiveResearch(apiUrl, query, responseStyle);
   const [errorDismissed, setErrorDismissed] = useState(false);
   const [infoOpen, setInfoOpen] = useState(null);
 
   useEffect(() => { if (liveError) setErrorDismissed(false); }, [liveError]);
+  // Surface stream failures to the parent so it can leave the loading state.
+  const errorFiredRef = useRef(false);
+  useEffect(() => {
+    if (liveError && !errorFiredRef.current) {
+      errorFiredRef.current = true;
+      if (typeof onError === "function") onError(liveError);
+    }
+  }, [liveError, onError]);
 
   const data = useMemo(() => {
     const merged = deepMerge(DEFAULT_DATA, dataProp || liveData || {});
@@ -707,16 +771,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
     return merged;
   }, [dataProp, liveData, query]);
 
-  // ── PATCH 2: live 1s ticker: clock keeps moving BETWEEN SSE patches ──────
-  const [localElapsed, setLocalElapsed] = useState(0);
   const isDone = (data.progress || 0) >= 100;
-  useEffect(() => {
-    if (isDone) return;
-    const startedAt = Date.now() - (data.elapsedSeconds || 0) * 1000;
-    const id = setInterval(() => setLocalElapsed((Date.now() - startedAt) / 1000), 1000);
-    return () => clearInterval(id);
-  }, [data.elapsedSeconds, isDone]);
-  const displayElapsed = isDone ? (data.elapsedSeconds || localElapsed) : Math.max(localElapsed, data.elapsedSeconds || 0);
 
   const activeCount = AGENT_NAMES.filter(
     (n) => (data.agents[n].progress || 0) > 0 && (data.agents[n].progress || 0) < 100
@@ -731,11 +786,26 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
 
   // ── "Thoughts being formulated" loader (replaces the raw elapsed timer) ──
   const THINKING_PHRASES = {
-    Search:    ["Casting the net wide…", "Reading the open web…", "Weighing source relevance…"],
-    Summarise: ["Distilling each source…", "Extracting key claims…", "Compressing knowledge…"],
-    Critic:    ["Cross-examining sources…", "Hunting for contradictions…", "Weighing the evidence…"],
-    Writer:    ["Formulating thoughts…", "Composing the narrative…", "Connecting the threads…"],
-    idle:      ["Warming up the agents…", "Formulating thoughts…"],
+    Search: [
+      "Casting the net wide…", "Reading the open web…", "Weighing source relevance…",
+      "Following citation trails…", "Sifting signal from noise…", "Pulling full articles…",
+      "Mapping the knowledge landscape…",
+    ],
+    Summarise: [
+      "Distilling each source…", "Extracting key claims…", "Compressing knowledge…",
+      "Isolating the evidence…", "Finding what each source really says…", "Trimming away the noise…",
+    ],
+    Critic: [
+      "Cross-examining sources…", "Hunting for contradictions…", "Weighing the evidence…",
+      "Checking who agrees with whom…", "Validating every citation…", "Stress-testing the claims…",
+      "Measuring consensus…",
+    ],
+    Writer: [
+      "Formulating thoughts…", "Composing the narrative…", "Connecting the threads…",
+      "Choosing the right words…", "Structuring the argument…", "Grounding every claim…",
+      "Polishing the digest…",
+    ],
+    idle: ["Warming up the agents…", "Formulating thoughts…", "Spinning up the pipeline…"],
   };
   const activeAgent = AGENT_NAMES.find((n) => (data.agents[n].progress || 0) > 0 && (data.agents[n].progress || 0) < 100);
   const [phraseTick, setPhraseTick] = useState(0);
@@ -961,11 +1031,11 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
         const pos=group.points.geometry.attributes.position.array;
         const boost=laneBoostRef.current[group.agentName]||0;
         const agentP=(live.agents[group.agentName]||0);
-        const laneState=agentP<=0?0.12:(agentP>=100?0.5:1);   // idle | done | working
-        group.material.size=1.4+laneState*0.6+boost*2;
-        group.material.opacity=(0.18+laneState*0.55)+boost*0.3;
+        const laneState=agentP<=0?0.25:(agentP>=100?0.65:1);  // idle | done | working
+        group.material.size=1.6+laneState*0.9+boost*2;
+        group.material.opacity=(0.22+laneState*0.6)+boost*0.3;
         laneBoostRef.current[group.agentName]=boost*0.94;
-        const speedMul=(agentP<=0?0.15:(agentP>=100?0.55:1.15))+boost*1.6;
+        const speedMul=(agentP<=0?0.25:(agentP>=100?0.6:1.2))+boost*1.6;
         group.pData.forEach((d2,i)=>{
           d2.progress+=d2.speed*speedMul; if(d2.progress>=1) d2.progress=0;
           const t=d2.progress;
@@ -983,12 +1053,6 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
     animate();
     return ()=>{ cancelAnimationFrame(rafId); window.removeEventListener("resize",onResize); renderer.dispose(); if(container.contains(renderer.domElement)) container.removeChild(renderer.domElement); };
   }
-
-  const formatTime = (s) => {
-    const m=Math.floor(s/60).toString().padStart(2,"0");
-    const sec=Math.floor(s%60).toString().padStart(2,"0");
-    return `${m}:${sec}`;
-  };
 
   const AgentIcon = ({ path, size=18, style }) => (
     <svg style={{ width:size, height:size, ...style }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1064,6 +1128,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
     <>
       <style>{styles}</style>
       <div className="ambient-field" />
+      <div className="progress-beam-wrap"><div className="progress-beam" style={{ width:`${displayProgress}%` }} /></div>
       {infoOpen && <InfoModal k={infoOpen} onClose={() => setInfoOpen(null)} />}
 
       {liveError && !errorDismissed && (
@@ -1106,8 +1171,8 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                 Multi-agent research session
               </span>
             </div>
-            <h1 className="font-display" style={{ fontSize:"30px", fontWeight:"700", letterSpacing:"-0.015em", color:"#FFFFFF" }}>
-              Neural Research <span className="glow-green" style={{ color:"#00ff47" }}>Engine</span>
+            <h1 className="hero-title">
+              Neural Research <span className="accent">Engine</span>
             </h1>
             <div style={{ marginTop:"14px", fontSize:"12px", fontFamily:"JetBrains Mono,monospace" }}>
               <span style={{ color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.05em" }}>Research query</span>
@@ -1128,8 +1193,18 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                 <div key={coreBurst} style={{ position:"absolute", inset:"18px", borderRadius:"50%", border:"1px solid #00ff47", animation: coreBurst ? "coreBurst 0.9s ease-out forwards" : "none" }} />
               </div>
               <div>
-                <div style={{ fontSize:"12px", color:"#dde1e9", fontWeight:"600", fontFamily:"Hanken Grotesk,sans-serif" }}>Synthesizing insights</div>
-                <div style={{ fontSize:"11.5px", color:"#8e98a8", marginTop:"3px" }}>Agents collaborating in real time</div>
+                <div style={{ fontSize:"15px", color:"#dde1e9", fontWeight:700, fontFamily:"Sora,sans-serif", letterSpacing:"-0.02em" }}>
+                  {isDone ? "Synthesis complete" : "Synthesizing insights"}
+                </div>
+                <div style={{ fontSize:"11.5px", color:"#8e98a8", marginTop:"4px", fontFamily:"Hanken Grotesk,sans-serif", display:"flex", alignItems:"center", gap:"6px" }}>
+                  {isDone
+                    ? `${completedCount2} agents finished · ${data.metrics.sources || 0} sources analysed`
+                    : <>
+                        <span style={{ display:"inline-flex", width:"5px", height:"5px", borderRadius:"50%", background:"#00ff47", boxShadow:"0 0 6px #00ff47" }} className="animate-soft-pulse" />
+                        {activeCount > 0 ? `${activeCount} of 4 agents active` : "Agents collaborating in real time"}
+                      </>
+                  }
+                </div>
               </div>
             </div>
 
@@ -1159,11 +1234,20 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                     <CheckGlyph color="#00ff47" /> Complete
                   </div>
                 ) : (
-                  <div style={{ display:"flex", alignItems:"center", gap:"11px" }}>
-                    <div className="thought-orb"><span className="orb-dot"/><span className="orb-dot"/><span className="orb-dot"/><div className="orb-core"/></div>
-                    <span key={thinkingPhrase} className="thinking-shimmer phrase-swap" style={{ fontSize:"13.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>
-                      {thinkingPhrase}
-                    </span>
+                  <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+                    <div className="thought-orb">
+                      <span className="orb-ring"/><span className="orb-ring"/>
+                      <div className="orb-core"/>
+                      <span className="orb-dot"/><span className="orb-dot"/><span className="orb-dot"/>
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
+                      <span key={thinkingPhrase} className="thinking-shimmer phrase-swap" style={{ fontSize:"13.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>
+                        {thinkingPhrase}
+                      </span>
+                      <svg className="thought-trace" width="150" height="10" viewBox="0 0 150 10" fill="none">
+                        <path d="M0 5 L18 5 L24 1.5 L30 8.5 L36 5 L60 5 L66 2.5 L72 7.5 L78 5 L104 5 L110 1 L116 9 L122 5 L150 5" stroke="rgba(0,255,71,0.45)" strokeWidth="1.2" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1176,7 +1260,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
           <main style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"24px" }}>
 
             {/* Search */}
-            <section className="panel panel-glow agent-top-cyan" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-cyan card-enter card-enter-1" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Search" />
               <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(79,209,197,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={search.stats} />
@@ -1224,7 +1308,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
             </section>
 
             {/* Summarise */}
-            <section className="panel panel-glow agent-top-blue" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-blue card-enter card-enter-2" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Summarise" />
               <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(0,255,71,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={summarise.stats} />
@@ -1253,7 +1337,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
             </section>
 
             {/* Critic */}
-            <section className="panel panel-glow agent-top-amber" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-amber card-enter card-enter-3" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Critic" />
               <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(232,168,85,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={critic.stats} />
@@ -1271,7 +1355,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
             </section>
 
             {/* Writer */}
-            <section className="panel panel-glow agent-top-violet" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
+            <section className="panel panel-glow agent-top-violet card-enter card-enter-4" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px" }}>
               <AgentHeader name="Writer" />
               <div className="font-mono" style={{ fontSize:"11.5px", marginTop:"-4px", borderLeft:"2px solid rgba(168,85,247,0.25)", paddingLeft:"14px", display:"flex", flexDirection:"column", gap:"7px" }}>
                 <StatRows stats={writer.stats} />
@@ -1569,16 +1653,20 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, on
                           <div style={{ padding:"10px", background:`${meta.color}14`, color:meta.color, borderRadius:"10px" }}>
                             <span className="material-symbols-outlined" style={{ fontSize:"20px" }}>{card.icon}</span>
                           </div>
-                          <div style={{ fontSize:"11px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", background:"rgba(255,255,255,0.04)", padding:"5px 10px", borderRadius:"7px", border:"1px solid rgba(255,255,255,0.08)" }}>Est {card.est}</div>
+                          {card.kind && (
+                            <div style={{ fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase",
+                                          color: card.kind === "Coverage gap" ? "#E8A855" : "#8e98a8",
+                                          background: card.kind === "Coverage gap" ? "rgba(232,168,85,0.08)" : "rgba(255,255,255,0.04)",
+                                          padding:"5px 11px", borderRadius:"999px",
+                                          border: `1px solid ${card.kind === "Coverage gap" ? "rgba(232,168,85,0.3)" : "rgba(255,255,255,0.08)"}` }}>
+                              {card.kind}
+                            </div>
+                          )}
                         </div>
-                        <h3 style={{ fontSize:"15.5px", fontWeight:"600", color:"#dde1e9", fontFamily:"Hanken Grotesk,sans-serif" }}>{card.title}</h3>
-                        <div style={{ display:"flex", gap:"18px", marginTop:"auto", paddingTop:"14px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"10.5px", fontFamily:"JetBrains Mono,monospace", color:LEVEL_COLOR[card.diffLevel]||"#E8A855", textTransform:"uppercase", letterSpacing:"0.04em" }}>
-                            <span className="material-symbols-outlined" style={{ fontSize:"14px" }}>signal_cellular_alt</span> {card.diff}
-                          </div>
-                          <div style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"10.5px", fontFamily:"JetBrains Mono,monospace", color:LEVEL_COLOR[card.availLevel]||"#4FD1C5", textTransform:"uppercase", letterSpacing:"0.04em" }}>
-                            <span className="material-symbols-outlined" style={{ fontSize:"14px" }}>library_books</span> {card.avail}
-                          </div>
+                        <h3 style={{ fontSize:"15.5px", fontWeight:"600", color:"#dde1e9", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.45 }}>{card.title}</h3>
+                        <div style={{ display:"flex", alignItems:"center", gap:"7px", marginTop:"auto", paddingTop:"14px", borderTop:"1px solid rgba(255,255,255,0.06)", fontSize:"10.5px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                          <span className="material-symbols-outlined" style={{ fontSize:"14px", color:meta.color }}>arrow_forward</span>
+                          {card.kind === "Coverage gap" ? "Identified by the Critic — tap to research" : "Tap to start a new session"}
                         </div>
                       </button>
                     );

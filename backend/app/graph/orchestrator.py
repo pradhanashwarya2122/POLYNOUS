@@ -79,6 +79,55 @@ def _run_side_effect(label: str, fn, *args, **kwargs) -> None:
         print(f"  ⚠️ {label} error: {e}")
 
 
+_SIGNAL_NOTES = {
+    "source_agreement": "pairwise text overlap between independent sources",
+    "domain_diversity": "entropy of source domains, trust-weighted",
+    "recency": "publication-date decay (undated sources neutral)",
+    "claim_grounding": "share of answer sentences carrying [n] citations",
+}
+
+
+def _build_confidence_section(computed: dict, critique: dict) -> str:
+    """
+    Section 9 of the premium report — GENERATED FROM MEASURED DATA, never
+    written by the LLM, so the numbers cannot be hallucinated.
+    """
+    from app.utils.computed_confidence import WEIGHTS
+
+    lines = ["🎯 CONFIDENCE ANALYSIS"]
+    critic_conf = (critique or {}).get("overall_confidence")
+    comp_score = (computed or {}).get("score")
+
+    headline = comp_score if comp_score is not None else critic_conf
+    if headline is None:
+        return "🎯 CONFIDENCE ANALYSIS\nConfidence could not be computed for this run."
+    band = "HIGH" if headline >= 75 else ("MODERATE" if headline >= 50 else "LOW")
+    lines.append(f"OVERALL CONFIDENCE: {headline}% — {band}")
+    lines.append("")
+
+    breakdown = (computed or {}).get("breakdown") or {}
+    if breakdown:
+        lines.append("SIGNAL BREAKDOWN (computed from the retrieved sources):")
+        for key, value in breakdown.items():
+            weight = int(WEIGHTS.get(key, 0) * 100)
+            note = _SIGNAL_NOTES.get(key, "")
+            lines.append(f"• {key.replace('_', ' ').title()} (weight {weight}%): {value:.2f}/1.00 — {note}")
+        explanation = (computed or {}).get("explanation")
+        if explanation:
+            lines.append("")
+            lines.append(explanation)
+
+    if critic_conf is not None and not (critique or {}).get("parse_failed"):
+        lines.append("")
+        lines.append(f"CRITIC CONSENSUS SCORE: {critic_conf}% — "
+                     f"{(critique or {}).get('confidence_explanation', 'largest agreeing source group / total sources')}")
+    elif (critique or {}).get("parse_failed"):
+        lines.append("")
+        lines.append("CRITIC CONSENSUS SCORE: unavailable (critique analysis failed this run).")
+
+    return "\n".join(lines)
+
+
 def _extract_entities(query: str) -> list:
     """Best-effort entity extraction with a simple keyword fallback."""
     try:
@@ -139,6 +188,8 @@ def search_node(state: AgentState) -> AgentState:
             'title': doc.get('title', 'Untitled'),
             'url': doc.get('url', ''),
             'source': doc.get('source', 'web'),
+            'content_source': doc.get('content_source', ''),
+            'published_date': doc.get('published_date', ''),
         }
         for doc in results
     ]
@@ -165,6 +216,7 @@ def summarise_node(state: AgentState) -> AgentState:
         documents=docs,
         query=state['query'],
         provider=provider,
+        api_key=state.get('user_api_key'),
         progress_cb=emit,
     )
     state['summaries'] = summaries
@@ -191,9 +243,13 @@ def critic_node(state: AgentState) -> AgentState:
     critique = critic_agent(
         summaries=state['summaries'],
         query=state['query'],
-        provider=provider
+        provider=provider,
+        api_key=state.get('user_api_key'),
     )
     state['critique'] = critique
+    if critique.get('parse_failed'):
+        # counted so the graph's conditional edge retries at most once
+        state['critic_retries'] = state.get('critic_retries', 0) + 1
 
     confidence = critique.get('overall_confidence', 0)
     agreements = len(critique.get('agreement_groups', []))
@@ -238,6 +294,8 @@ def writer_node(state: AgentState) -> AgentState:
         critique=state['critique'],
         citations=state['citations'],
         provider=provider,
+        api_key=state.get('user_api_key'),
+        response_style=state.get('response_style'),
     )
     state['final_answer'] = answer
 
@@ -253,6 +311,13 @@ def writer_node(state: AgentState) -> AgentState:
             )
         except Exception as e:
             logger.warning("Computed confidence failed: %s", e)
+
+    # Append the measured confidence section (section 9 of the premium
+    # report) — computed from data, never written by the LLM.
+    answer = answer.rstrip() + "\n\n" + _build_confidence_section(
+        state.get('computed_confidence') or {}, state.get('critique') or {}
+    )
+    state['final_answer'] = answer
 
     emit(f"Draft complete ({len(answer.split())} words) — storing to knowledge graph…")
 
@@ -327,6 +392,21 @@ def writer_node(state: AgentState) -> AgentState:
 # ============================================================
 
 
+def _route_after_search(state: AgentState) -> str:
+    """No sources → skip straight to the writer, which produces an honest
+    'no sources found' answer instead of running empty summarise/critic."""
+    return "summarise" if state.get('retrieved_docs') else "write"
+
+
+def _route_after_critic(state: AgentState) -> str:
+    """If the critique failed to parse, loop back to the critic ONCE
+    (the agent also self-repairs internally, so this is a second layer)."""
+    critique = state.get('critique') or {}
+    if critique.get('parse_failed') and state.get('critic_retries', 0) <= 1:
+        return "critic"
+    return "write"
+
+
 def create_orchestrator():
     workflow = StateGraph(AgentState)
     workflow.add_node("search", search_node)
@@ -334,9 +414,11 @@ def create_orchestrator():
     workflow.add_node("critic", critic_node)
     workflow.add_node("write", writer_node)
     workflow.set_entry_point("search")
-    workflow.add_edge("search", "summarise")
+    workflow.add_conditional_edges("search", _route_after_search,
+                                   {"summarise": "summarise", "write": "write"})
     workflow.add_edge("summarise", "critic")
-    workflow.add_edge("critic", "write")
+    workflow.add_conditional_edges("critic", _route_after_critic,
+                                   {"critic": "critic", "write": "write"})
     workflow.add_edge("write", END)
     return workflow.compile()
 

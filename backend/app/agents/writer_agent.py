@@ -27,11 +27,11 @@ logger = logging.getLogger("polynous.writer_agent")
 DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
-MAX_TOKENS = 1500
+MAX_TOKENS = 3200                # 13-section premium report ≈ 1200-1800 words
 TEMPERATURE = 0.4
 
-MAX_CHARS_PER_SUMMARY = 2500     # guard against one huge summary eating the budget
-MAX_TOTAL_SUMMARY_CHARS = 6000   # overall ceiling passed to the model
+MAX_CHARS_PER_SUMMARY = 2200     # guard against one huge summary eating the budget
+MAX_TOTAL_SUMMARY_CHARS = 14000  # overall ceiling passed to the model (12 sources)
 
 MAX_RETRIES = 2
 RETRY_BACKOFF_SECONDS = 1.5
@@ -77,43 +77,78 @@ given, and the SOURCE INDEX maps each number to its title/URL/type. Always
 cite sources using those exact numbers so they match the index.
 
 ────────────────────────────────────────────────────────────
-OUTPUT FORMAT
+OUTPUT FORMAT — 13-SECTION RESEARCH BRIEFING (use these EXACT headers)
 ────────────────────────────────────────────────────────────
+Target length: 1200-1800 words. The report should read like a briefing
+document from a research team, never like a chatbot answer.
 
-📊 RESEARCH LANDSCAPE: [Query]
+📋 EXECUTIVE SUMMARY
+3-4 sentences (80-120 words): restate the topic, state how many sources
+were analysed, characterise the landscape numerically ("6 of 8 sources
+agree on X, but split 3-3 on Y"), and give the key takeaway WITHOUT
+taking sides. Never open with a generic statement.
 
-📚 SOURCES ANALYZED
-[List each source with its type: academic paper, news article, opinion piece, blog, etc.]
-• Source 1: [Title] — [Type]
-• Source 2: [Title] — [Type]
-(etc.)
+📚 SOURCE INTELLIGENCE
+One line per source, exactly in this shape:
+[1] "Title (≤80 chars)" — domain.com (year if known) — FULL ARTICLE/SNIPPET/ACADEMIC/NEWS/OPINION
 
-🤝 WHERE SOURCES AGREE
-For each area of agreement:
-• [Topic]: Sources [1, 3, 5] all state that... [specific claim with details]
+🔑 KEY FINDINGS
+5-8 bullets, each 30-60 words. Every bullet is a SPECIFIC claim with
+data/numbers where the sources provide them, ending in its citation [n].
+Never write a generic bullet like "experts agree regulation is needed".
 
-⚡ WHERE SOURCES DISAGREE
-For each disagreement, present BOTH sides equally:
-• [Topic]:
-  - Position A (Sources [1, 4]): [What they argue]
-  - Position B (Sources [2, 6]): [What they argue]
-  - Nature: [Factual dispute / Different interpretation / Different scope]
+🤝 CONSENSUS MAP
+2-4 agreement groups, each formatted:
+TOPIC: [what they agree on]
+SOURCES: [1, 3, 5] — N of M sources
+FINDING: 2-3 sentences of specific detail on the shared claim.
 
-💡 UNIQUE PERSPECTIVES
-• Source [3] uniquely notes that... [insight found only in this source]
+⚡ DIVERGENCE MAP
+2-4 disagreements, each with BOTH sides given equal space:
+TOPIC: [what they disagree on]
+POSITION A (Sources [X, Y]): what they argue, with specifics.
+POSITION B (Sources [A, B]): what they argue, with specifics.
+NATURE: factual_dispute / different_interpretation / different_scope / conflicting_data
+If the critique found zero disagreements, state that explicitly as a finding.
 
-⚠️ SOURCE QUALITY NOTES
-• Source [1] (academic paper): Peer-reviewed journal — higher reliability
-• Source [5] (opinion piece): Personal blog — verify claims independently
-(Note the source TYPE, not whether it's "good" or "bad")
+💡 UNIQUE INSIGHTS
+1-3 insights found in ONLY ONE source and not contradicted by others:
+• Source [4] uniquely provides…
 
-📊 CONFIDENCE: [X]%
-[Explain: confidence is based on source agreement ratio, not truth judgment]
+⚠️ SOURCE QUALITY ASSESSMENT
+One line per source: its TYPE and a factual credibility note
+(peer-reviewed / major publication / government document / personal
+blog — verify independently). Never "good" or "bad".
 
-🔍 FOLLOW-UP QUESTIONS
-• [Question 1 based on gaps in coverage]
-• [Question 2 based on disagreements found]
-• [Question 3 for deeper exploration]
+🔍 COVERAGE AUDIT
+2-4 gaps: aspects of the query no source addressed, missing
+perspectives (geographic, economic, temporal), and data gaps.
+
+⚠️ LIMITATIONS & CAVEATS
+3-5 honest points: source biases, missing data, methodological limits,
+temporal constraints ("snapshot as of [date]").
+
+⚖️ CONTRADICTION RESOLUTION
+For the 1-2 sharpest conflicts:
+CLAIM A: Source [X] states…
+CLAIM B: Source [Y] states…
+ANALYSIS: why they disagree (factual? interpretive? scope?)
+RESOLUTION: how to reconcile them or which context each applies to —
+WITHOUT declaring a winner on contested values.
+(Skip this section entirely if there are no disagreements.)
+
+🔮 RESEARCH TRAJECTORY
+3-5 specific, actionable follow-up questions derived from the coverage
+gaps and disagreements — never generic ("learn more about X").
+
+📖 SOURCE BIBLIOGRAPHY
+Full citation per source:
+[1] "Full Title" — Publisher/Domain (year)
+    full URL
+
+DO NOT write a CONFIDENCE ANALYSIS section — the platform computes it
+from the source data and appends it automatically. Never invent
+confidence numbers.
 
 ────────────────────────────────────────────────────────────
 CRITICAL RULES
@@ -147,6 +182,21 @@ EXAMPLES
 ✅ RIGHT: "Source 5 is an opinion piece from a personal blog (no citations). Readers should verify claims independently."
 """
 
+# ── Response-style adaptations (user preference, README-advertised) ──
+# The librarian rules are non-negotiable; style only changes the VOICE.
+RESPONSE_STYLES = {
+    "academic": "Write in a formal academic register: precise terminology, "
+                "measured hedging, structured argumentation.",
+    "technical": "Write for a technical reader: exact figures, mechanisms, "
+                 "and terminology; no simplification of technical detail.",
+    "eli5": "Explain like the reader is smart but new to the topic: short "
+            "sentences, everyday analogies, define every technical term the "
+            "first time it appears. Keep all citations.",
+    "casual": "Write in a relaxed, conversational tone — clear and friendly, "
+              "like explaining to a curious colleague. Keep all citations.",
+}
+
+
 # ============================================================
 # MAIN WRITER FUNCTION
 # ============================================================
@@ -159,6 +209,7 @@ def writer_agent(
     citations: list,
     provider: str = "anthropic",
     api_key: Optional[str] = None,
+    response_style: Optional[str] = None,
 ) -> str:
     """
     Organize source content into a neutral research digest.
@@ -221,8 +272,13 @@ Organize this into a research digest. Present what the sources say — do NOT an
         print(f"  ❌ {e}")
         return _fallback_answer(query, str(e))
 
+    system_prompt = WRITER_SYSTEM_PROMPT
+    style_note = RESPONSE_STYLES.get((response_style or "").lower())
+    if style_note:
+        system_prompt += f"\n\n────────────────────────────\nVOICE & STYLE (user preference)\n────────────────────────────\n{style_note}\nStyle changes the voice ONLY — every neutrality and citation rule above still applies."
+
     try:
-        answer = _call_llm_with_retry(client, client_type, WRITER_SYSTEM_PROMPT, user_prompt)
+        answer = _call_llm_with_retry(client, client_type, system_prompt, user_prompt)
         print("  ✅ Research digest created!")
         return answer
     except Exception as e:
@@ -280,9 +336,17 @@ def _build_source_index(citations: list) -> str:
     lines = []
     for i, c in enumerate(citations, 1):
         title = (c.get('title', 'Untitled') or 'Untitled')[:100]
-        url = (c.get('url', 'No URL') or 'No URL')[:80]
+        url = (c.get('url', 'No URL') or 'No URL')[:90]
         source_type = c.get('source', 'web')
-        lines.append(f"[{i}] {title}\n    URL: {url}\n    Type: {source_type}")
+        content_kind = c.get('content_source', '')      # scraped | snippet | minimal
+        published = c.get('published_date', '') or 'date unknown'
+        try:
+            from urllib.parse import urlparse
+            domain = urlparse(url).netloc or 'unknown domain'
+        except Exception:
+            domain = 'unknown domain'
+        kind_label = 'FULL ARTICLE' if content_kind == 'scraped' else 'SNIPPET'
+        lines.append(f"[{i}] {title}\n    URL: {url}\n    Domain: {domain} · Published: {published}\n    Type: {source_type} · Content: {kind_label}")
 
     return "\n".join(lines)
 

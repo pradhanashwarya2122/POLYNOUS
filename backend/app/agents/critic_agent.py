@@ -243,6 +243,21 @@ Respond with ONLY the raw JSON object — first character {{ and last character 
     try:
         text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, user_prompt)
         analysis = _parse_json_response(text)
+
+        # Self-repair: if the response wasn't valid JSON, retry ONCE with a
+        # corrective instruction that shows the model its malformed output.
+        if analysis.get("parse_failed"):
+            print("  🔁 Critic output was not valid JSON — retrying with corrective prompt…")
+            corrective = (
+                f"{user_prompt}\n\n"
+                "IMPORTANT: Your previous response could not be parsed as JSON. "
+                "It began with:\n"
+                f"{(text or '')[:300]}\n\n"
+                "Respond again with ONLY the raw JSON object — no prose, no code "
+                "fences, first character '{' and last character '}'."
+            )
+            text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, corrective)
+            analysis = _parse_json_response(text)
     except Exception as e:
         logger.exception("Critic LLM call failed")
         print(f"  ❌ LLM call failed: {e}")

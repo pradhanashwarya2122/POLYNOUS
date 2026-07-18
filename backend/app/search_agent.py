@@ -165,6 +165,7 @@ class SourceResult:
     score: float = 0.0
     error: Optional[str] = None
     fetched_at: float = 0.0
+    published_date: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -175,6 +176,7 @@ class SourceResult:
             "content_length": self.content_length,
             "score": self.score,
             "fetched_at": self.fetched_at,
+            "published_date": self.published_date,
         }
  
  
@@ -324,6 +326,8 @@ def search_web(query: str, max_results: int = SEARCH_MAX_RESULTS, max_chars: int
             url=r.get("url", ""),
             content=r.get("content", ""),  # tavily snippet, used as fallback
             score=r.get("score", 0.0),
+            # feeds the real recency factor in computed_confidence
+            published_date=r.get("published_date") or r.get("published_at") or "",
         )
         for r in deduped
     ]

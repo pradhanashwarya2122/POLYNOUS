@@ -420,25 +420,65 @@ async def ask_stream(request: QueryRequest, req: Request):
             mode_name = "debate" if request.debate_mode else "research"
             yield f"data: {json.dumps({'type': 'start', 'mode': mode_name})}\n\n"
             
+            # ── REAL per-node progress: each event fires when that agent
+            #    actually starts/finishes, streamed live via a thread bus —
+            #    not pre-announced strings before any work happens.
+            loop = asyncio.get_event_loop()
+            bus = ProgressBus()
+            state["_progress_bus"] = bus
+
+            async def _run_node_streaming(agent_label, node_fn):
+                yield f"data: {json.dumps({'type': 'progress', 'agent': agent_label, 'message': f'{agent_label.title()} agent working...'})}\n\n"
+                future = loop.run_in_executor(None, node_fn, state)
+                while not future.done():
+                    ev = bus.get_nowait()
+                    if ev is None:
+                        await asyncio.sleep(0.15)
+                        continue
+                    yield f"data: {json.dumps({'type': 'progress', 'agent': agent_label, 'message': ev['msg']})}\n\n"
+                while (ev := bus.get_nowait()) is not None:
+                    yield f"data: {json.dumps({'type': 'progress', 'agent': agent_label, 'message': ev['msg']})}\n\n"
+                updated = future.result()
+                state.update(updated if isinstance(updated, dict) else {})
+
             try:
                 if request.debate_mode:
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'search', 'message': 'Searching debate sources...'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'for', 'message': 'Building FOR argument...'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'against', 'message': 'Building AGAINST argument...'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'judge', 'message': 'Judge evaluating...'})}\n\n"
-                    result = debate_graph.invoke(state)
+                    from app.graph.debate_graph import (
+                        debate_search_node, for_agent_node, against_agent_node,
+                        for_rebuttal_node, against_rebuttal_node, judge_node,
+                    )
+                    debate_pipeline = [
+                        ("search", debate_search_node), ("for", for_agent_node),
+                        ("against", against_agent_node), ("for", for_rebuttal_node),
+                        ("against", against_rebuttal_node), ("judge", judge_node),
+                    ]
+                    for agent_label, node_fn in debate_pipeline:
+                        async for frame in _run_node_streaming(agent_label, node_fn):
+                            yield frame
+                    result = state
                     if result.get('judge_verdict'):
                         yield f"data: {json.dumps({'type': 'verdict', 'verdict': result['judge_verdict']})}\n\n"
                     save_debate(session_id=session_id, topic=request.query,
-                                for_score=result.get('judge_verdict', {}).get('for_score', 5),
-                                against_score=result.get('judge_verdict', {}).get('against_score', 5),
-                                winner=result.get('judge_verdict', {}).get('winner', 'TIE'))
+                                for_score=result.get('judge_verdict', {}).get('for_score', 0),
+                                against_score=result.get('judge_verdict', {}).get('against_score', 0),
+                                winner=result.get('judge_verdict', {}).get('winner', 'UNSCORED'))
                 else:
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'search', 'message': 'Searching web sources...'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'summarise', 'message': 'Summarizing documents...'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'critic', 'message': 'Critiquing claims...'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': 'writer', 'message': 'Writing final answer...'})}\n\n"
-                    result = orchestrator.invoke(state)
+                    # Same conditional routing as the compiled LangGraph:
+                    # no sources → straight to writer; critic parse failure
+                    # → one retry pass.
+                    async for frame in _run_node_streaming("search", search_node):
+                        yield frame
+                    if state.get('retrieved_docs'):
+                        async for frame in _run_node_streaming("summarise", summarise_node):
+                            yield frame
+                        async for frame in _run_node_streaming("critic", critic_node):
+                            yield frame
+                        if (state.get('critique') or {}).get('parse_failed') and state.get('critic_retries', 0) <= 1:
+                            async for frame in _run_node_streaming("critic", critic_node):
+                                yield frame
+                    async for frame in _run_node_streaming("writer", writer_node):
+                        yield frame
+                    result = state
                     confidence = result.get('critique', {}).get('overall_confidence', 0)
                     yield f"data: {json.dumps({'type': 'confidence', 'score': confidence})}\n\n"
                     save_chat(session_id=session_id, query=request.query,
@@ -468,6 +508,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
     """
     body = await request.json()
     query = body.get("query", "")
+    response_style = body.get("response_style", "")
 
     # ── Sanitize (same policy as /ask and /ask-stream) ──
     if not query or not is_safe_input(query):
@@ -528,7 +569,8 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             "provider": provider,
             "preferred_provider": provider,
             "user_api_key": user_api_key,
-            "session_id": "visual",
+            "response_style": response_style,
+            "session_id": (getattr(user, "public_id", None) or "guest"),
             "user": user,
         }
 
@@ -588,6 +630,18 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         final_patch["final_answer"] = state.get("final_answer", "")
         final_patch["citations"] = state.get("citations", [])
         yield f"data: {json.dumps(final_patch)}\n\n"
+
+        # Persist chat history (this stream is now the single research
+        # pipeline — /ask-stream is no longer duplicated alongside it).
+        try:
+            save_chat(
+                session_id=state["session_id"],
+                query=query,
+                answer=state.get("final_answer", ""),
+                confidence=(state.get("critique") or {}).get("overall_confidence", 0) or 0,
+            )
+        except Exception as e:
+            print(f"⚠️ save_chat failed for visual stream: {e}")
 
     return StreamingResponse(
         event_stream(),
