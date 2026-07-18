@@ -63,15 +63,13 @@ function Globe({ containerRef }) {
       const W = container.clientWidth, H = container.clientHeight;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 1000);
-      // Pulled back so the globe + its outer rings sit fully inside the
-      // frustum with margin — previously the rings extended past the
-      // visible edges and got clipped ("cut sideways").
       camera.position.z = 3.6;
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
       renderer.setSize(W, H);
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setClearColor(0x000000, 0);
       container.insertBefore(renderer.domElement, container.firstChild);
+
       const RED = new THREE.Color(0xff2040);
       const core = new THREE.Mesh(
         new THREE.SphereGeometry(1, 64, 64),
@@ -80,6 +78,7 @@ function Globe({ containerRef }) {
       core.rotation.y = -Math.PI / 4;
       core.rotation.x = Math.PI / 8;
       scene.add(core);
+
       const tl = new THREE.TextureLoader();
       tl.crossOrigin = "anonymous";
       tl.load(
@@ -120,14 +119,45 @@ function Globe({ containerRef }) {
       scene.add(new THREE.AmbientLight(0xffffff, 0.15));
       const pl = new THREE.PointLight(RED, 2.5, 8); pl.position.set(4, 4, 4); scene.add(pl);
 
-      // ─── Flights: capitals + animated arcs that take off and land ────────
+      // ═══════════════════════════════════════════════════════════════════
+      // FLIGHTS — dense, continuous, premium-motion air-traffic layer
+      // ═══════════════════════════════════════════════════════════════════
       const GOLD = new THREE.Color(0xffd700);
+      const clock = new THREE.Clock();
+
+      // 28 real capitals spread across every inhabited continent.
       const CAPITALS = [
-        [38.9, -77.0], [51.5, -0.12], [48.85, 2.35], [55.75, 37.6],
-        [39.9, 116.4], [35.68, 139.69], [28.6, 77.2], [-35.28, 149.13],
-        [-15.79, -47.88], [30.04, 31.24], [1.29, 36.82], [19.43, -99.13],
-        [37.57, 126.98], [-33.45, -70.66], [64.13, -21.9], [-6.2, 106.85],
+        [38.90, -77.00],  // Washington DC
+        [45.42, -75.70],  // Ottawa
+        [19.43, -99.13],  // Mexico City
+        [51.50, -0.12],   // London
+        [48.85, 2.35],    // Paris
+        [52.52, 13.40],   // Berlin
+        [40.42, -3.70],   // Madrid
+        [41.90, 12.50],   // Rome
+        [59.91, 10.75],   // Oslo
+        [64.13, -21.90],  // Reykjavik
+        [55.75, 37.60],   // Moscow
+        [39.93, 32.85],   // Ankara
+        [39.90, 116.40],  // Beijing
+        [35.68, 139.69],  // Tokyo
+        [28.60, 77.20],   // New Delhi
+        [37.57, 126.98],  // Seoul
+        [-6.20, 106.85],  // Jakarta
+        [13.75, 100.50],  // Bangkok
+        [24.70, 46.70],   // Riyadh
+        [-35.28, 149.13], // Canberra
+        [-41.29, 174.78], // Wellington
+        [30.04, 31.24],   // Cairo
+        [-1.29, 36.82],   // Nairobi
+        [-25.75, 28.19],  // Pretoria
+        [9.08, 7.40],     // Abuja
+        [-15.79, -47.88], // Brasília
+        [-34.60, -58.38], // Buenos Aires
+        [-33.45, -70.66], // Santiago
+        [4.71, -74.07],   // Bogotá
       ];
+
       const latLonToVec3 = (lat, lon, r) => {
         const phi = (90 - lat) * (Math.PI / 180);
         const theta = (lon + 180) * (Math.PI / 180);
@@ -137,126 +167,273 @@ function Globe({ containerRef }) {
           r * Math.sin(phi) * Math.sin(theta)
         );
       };
+
       const flightsGroup = new THREE.Group();
       core.add(flightsGroup); // rotates with the earth so cities stay put
 
+      // ─── Capital markers: pulsing dot + halo ring, idle-animated ───────
       const capitalPts = CAPITALS.map(([lat, lon]) => latLonToVec3(lat, lon, 1.008));
-      capitalPts.forEach((p) => {
-        const dot = new THREE.Mesh(
-          new THREE.SphereGeometry(0.012, 8, 8),
-          new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.85 })
-        );
+      const capDotGeo = new THREE.SphereGeometry(0.011, 8, 8);
+      const haloGeo = new THREE.RingGeometry(0.015, 0.020, 16);
+      const capitalMarkers = capitalPts.map((p) => {
+        const dot = new THREE.Mesh(capDotGeo, new THREE.MeshBasicMaterial({
+          color: GOLD, transparent: true, opacity: 0.8,
+        }));
         dot.position.copy(p);
         flightsGroup.add(dot);
-        const halo = new THREE.Mesh(
-          new THREE.RingGeometry(0.016, 0.022, 16),
-          new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
-        );
+        const halo = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({
+          color: GOLD, transparent: true, opacity: 0.28, side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        }));
         halo.position.copy(p);
         halo.lookAt(p.clone().multiplyScalar(2));
         flightsGroup.add(halo);
+        return { dot, halo, phase: Math.random() * Math.PI * 2, speed: 0.6 + Math.random() * 0.5 };
       });
 
-      const activeFlights = [];
-      const MAX_FLIGHTS = 5;
+      // ─── Shared geometry/material templates (built once, reused) ───────
+      const PLANE_GEO = new THREE.ConeGeometry(0.012, 0.042, 6);
+      const GLOW_GEO = new THREE.ConeGeometry(0.022, 0.07, 6);
+      const RING_GEO = new THREE.RingGeometry(0.008, 0.013, 24);
 
-      const spawnFlight = () => {
-        if (activeFlights.length >= MAX_FLIGHTS) return;
+      // Single shared shader material for ALL trail lines. Per-flight fade
+      // and gradient are baked into each line's own vertex-alpha buffer, so
+      // one GPU program serves every trail — no per-frame material churn.
+      const trailMaterial = new THREE.ShaderMaterial({
+        uniforms: { uColor: { value: GOLD } },
+        vertexShader: `
+          attribute float aAlpha;
+          varying float vAlpha;
+          void main(){
+            vAlpha = aAlpha;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 uColor;
+          varying float vAlpha;
+          void main(){
+            gl_FragColor = vec4(uColor, vAlpha);
+          }
+        `,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+
+      // ─── Frustum-safe arc height ─────────────────────────────────────
+      // Vertical half-extent visible at the globe's center, given camera
+      // fov/distance, with a safety margin baked into MAX_BULGE.
+      const MAX_BULGE = 1.40;
+
+      // ─── Flight slot pool ────────────────────────────────────────────
+      const POOL_SIZE = 24;         // yields ~18-25 actually "flying" at once
+      const TRAIL_POINTS = 16;
+      const RING_POOL_SIZE = 20;
+
+      const smootherstep = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+
+      const makeSlot = () => {
+        const material = new THREE.MeshBasicMaterial({ color: 0xfff6d8, transparent: true, opacity: 0 });
+        const plane = new THREE.Mesh(PLANE_GEO, material);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: GOLD, transparent: true, opacity: 0,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        });
+        const glow = new THREE.Mesh(GLOW_GEO, glowMaterial);
+        flightsGroup.add(plane, glow);
+
+        const positions = new Float32Array(TRAIL_POINTS * 3);
+        const alphas = new Float32Array(TRAIL_POINTS);
+        const trailGeo = new THREE.BufferGeometry();
+        trailGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+        trailGeo.setAttribute("aAlpha", new THREE.BufferAttribute(alphas, 1).setUsage(THREE.DynamicDrawUsage));
+        const trail = new THREE.Line(trailGeo, trailMaterial);
+        flightsGroup.add(trail);
+
+        return {
+          plane, glow, trail, positions, alphas,
+          curve: null, duration: 0, elapsed: 0,
+          trailSpan: 0.1, fade: 1,
+          state: "idle",     // idle -> flying -> landing -> idle
+          waitTimer: 0, waitFor: 0,
+          destVec: new THREE.Vector3(),
+        };
+      };
+      const slots = Array.from({ length: POOL_SIZE }, makeSlot);
+
+      // ─── Pulse ring pool (departures + arrivals share the pool) ────────
+      const ringPool = Array.from({ length: RING_POOL_SIZE }, () => {
+        const mat = new THREE.MeshBasicMaterial({
+          color: GOLD, transparent: true, opacity: 0, side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        });
+        const mesh = new THREE.Mesh(RING_GEO, mat);
+        mesh.visible = false;
+        flightsGroup.add(mesh);
+        return { mesh, life: 0, dur: 0.5, active: false };
+      });
+      const firePulse = (pos, durationSec) => {
+        const r = ringPool.find((r) => !r.active) || ringPool[0];
+        r.mesh.position.copy(pos);
+        r.mesh.lookAt(pos.clone().multiplyScalar(2));
+        r.mesh.scale.set(1, 1, 1);
+        r.mesh.material.opacity = 0.85;
+        r.mesh.visible = true;
+        r.life = 0;
+        r.dur = durationSec;
+        r.active = true;
+      };
+
+      // ─── Spawn a new route into a slot ───────────────────────────────
+      const spawnRoute = (slot) => {
         let ai = Math.floor(Math.random() * capitalPts.length);
         let bi = Math.floor(Math.random() * capitalPts.length);
         while (bi === ai) bi = Math.floor(Math.random() * capitalPts.length);
         const a = capitalPts[ai], b = capitalPts[bi];
-        const dist = a.distanceTo(b);
-        const bulge = Math.min(1.008 + dist * 0.22, 1.34);
-        const mid = a.clone().add(b).multiplyScalar(0.5).normalize().multiplyScalar(bulge);
-        const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
-        const points = curve.getPoints(48);
-        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-        const lineMat = new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false });
-        const line = new THREE.Line(lineGeo, lineMat);
-        flightsGroup.add(line);
+        const dist = a.distanceTo(b); // 0 (adjacent) .. ~2 (antipodal)
 
-        const plane = new THREE.Mesh(
-          new THREE.ConeGeometry(0.014, 0.05, 6),
-          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 })
-        );
-        flightsGroup.add(plane);
+        const bulge = Math.min(1.012 + 0.22 * Math.pow(dist, 0.6), MAX_BULGE);
+        const p1 = a.clone().lerp(b, 0.25).normalize().multiplyScalar(bulge * 0.92);
+        const p2 = a.clone().lerp(b, 0.75).normalize().multiplyScalar(bulge);
+        slot.curve = new THREE.CubicBezierCurve3(a.clone(), p1, p2, b.clone());
+        slot.destVec.copy(b);
 
-        activeFlights.push({
-          curve, line, plane, destination: b.clone(),
-          t: 0, speed: 0.00045 + Math.random() * 0.00035,
-          state: "flying", landTimer: 0,
+        const distNorm = Math.min(dist / 2, 1);
+        slot.duration = THREE.MathUtils.lerp(14, 22, distNorm) + Math.random() * 6; // 14-28s
+        slot.elapsed = -Math.random() * 0.6; // slight randomized easing/start offset
+        slot.trailSpan = 0.08 + Math.random() * 0.07; // 8-15% of arc
+        slot.state = "flying";
+        slot.fade = 1;
+
+        slot.plane.material.opacity = 0;
+        slot.glow.material.opacity = 0;
+        firePulse(a, 0.5);
+      };
+
+      // give every slot a staggered, asynchronous first departure
+      slots.forEach((slot, i) => {
+        slot.waitFor = i * (18 / POOL_SIZE) + Math.random() * 1.5;
+        slot.state = "idle";
+      });
+
+      // ─── Per-frame update ─────────────────────────────────────────────
+      const tmpAhead = new THREE.Vector3();
+      const tmpPos = new THREE.Vector3();
+      const tmpAhead2 = new THREE.Vector3();
+      const tmpTrail = new THREE.Vector3();
+      const tmpV1 = new THREE.Vector3();
+      const tmpV2 = new THREE.Vector3();
+
+      const updateFlights = (dt) => {
+        // idle capital pulse (independent of flight activity)
+        const now = clock.getElapsedTime();
+        capitalMarkers.forEach((m) => {
+          const s = 1 + 0.18 * (0.5 + 0.5 * Math.sin(now * m.speed + m.phase));
+          m.halo.scale.set(s, s, s);
+          m.halo.material.opacity = 0.16 + 0.14 * (0.5 + 0.5 * Math.sin(now * m.speed + m.phase));
         });
-      };
 
-      const landingRings = [];
-      const triggerLanding = (pos) => {
-        const ring = new THREE.Mesh(
-          new THREE.RingGeometry(0.01, 0.016, 24),
-          new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
-        );
-        ring.position.copy(pos);
-        ring.lookAt(pos.clone().multiplyScalar(2));
-        flightsGroup.add(ring);
-        landingRings.push({ mesh: ring, life: 0 });
-      };
-
-      for (let i = 0; i < 4; i++) setTimeout(spawnFlight, i * 700);
-      const spawnInterval = setInterval(() => {
-        if (activeFlights.length < MAX_FLIGHTS) spawnFlight();
-      }, 1800);
-
-      const updateFlights = () => {
-        for (let i = activeFlights.length - 1; i >= 0; i--) {
-          const f = activeFlights[i];
-          if (f.state === "flying") {
-            f.t += f.speed;
-            if (f.t >= 1) {
-              f.t = 1;
-              f.state = "landed";
-              triggerLanding(f.destination);
+        for (const slot of slots) {
+          if (slot.state === "idle") {
+            slot.waitTimer += dt;
+            if (slot.waitTimer >= slot.waitFor) {
+              slot.waitTimer = 0;
+              spawnRoute(slot);
             }
-            const pos = f.curve.getPointAt(f.t);
-            f.plane.position.copy(pos);
-            const ahead = f.curve.getPointAt(Math.min(f.t + 0.01, 1));
-            f.plane.lookAt(ahead.clone().multiplyScalar(1.6));
-            f.plane.rotateX(Math.PI / 2);
-            f.line.material.opacity = 0.22;
-          } else {
-            f.landTimer += 1;
-            f.plane.material.opacity = Math.max(0, 0.95 - f.landTimer * 0.05);
-            f.line.material.opacity = Math.max(0, 0.22 - f.landTimer * 0.012);
-            if (f.landTimer > 20) {
-              flightsGroup.remove(f.line, f.plane);
-              f.line.geometry.dispose(); f.line.material.dispose();
-              f.plane.geometry.dispose(); f.plane.material.dispose();
-              activeFlights.splice(i, 1);
+            continue;
+          }
+
+          if (slot.state === "flying") {
+            slot.elapsed += dt;
+            const rawT = THREE.MathUtils.clamp(slot.elapsed / slot.duration, 0, 1);
+            const u = smootherstep(rawT);
+
+            const pos = slot.curve.getPointAt(u, tmpPos);
+            slot.plane.position.copy(pos);
+            slot.glow.position.copy(pos);
+
+            // orientation: forward tangent + radial "up", plus a bank roll
+            const uAhead = Math.min(u + 0.012, 1);
+            const ahead = slot.curve.getPointAt(uAhead, tmpAhead);
+            slot.plane.up.copy(pos).normalize();
+            slot.plane.lookAt(ahead);
+            slot.plane.rotateX(Math.PI / 2);
+
+            const uAhead2 = Math.min(u + 0.03, 1);
+            const ahead2 = slot.curve.getPointAt(uAhead2, tmpAhead2);
+            const legA = tmpV1.copy(ahead).sub(pos).normalize();
+            const legB = tmpV2.copy(ahead2).sub(ahead).normalize();
+            const turnDelta = legA.angleTo(legB);
+            const bankSign = Math.sign((ahead.x - pos.x) - (ahead2.x - ahead.x)) || 1;
+            slot.plane.rotateZ(THREE.MathUtils.clamp(turnDelta * 6 * bankSign, -0.5, 0.5));
+
+            slot.glow.quaternion.copy(slot.plane.quaternion);
+
+            // ramp opacity in on spawn, matching the departure pulse timing
+            const inOpacity = THREE.MathUtils.clamp(slot.elapsed >= 0 ? Math.min(slot.elapsed / 0.4, 1) : 0, 0, 1);
+            slot.plane.material.opacity = 0.95 * inOpacity;
+            slot.glow.material.opacity = 0.28 * inOpacity;
+
+            // rolling trail buffer — update in place, no reallocation
+            for (let i = 0; i < TRAIL_POINTS; i++) {
+              const f = i / (TRAIL_POINTS - 1);
+              const su = Math.max(0, u - slot.trailSpan * (1 - f));
+              const sp = slot.curve.getPointAt(Math.min(su, 1), tmpTrail);
+              slot.positions[i * 3] = sp.x;
+              slot.positions[i * 3 + 1] = sp.y;
+              slot.positions[i * 3 + 2] = sp.z;
+              slot.alphas[i] = Math.pow(f, 1.3) * 0.32 * inOpacity;
+            }
+            slot.trail.geometry.attributes.position.needsUpdate = true;
+            slot.trail.geometry.attributes.aAlpha.needsUpdate = true;
+
+            if (slot.elapsed >= slot.duration) {
+              slot.state = "landing";
+              slot.elapsed = 0;
+              firePulse(slot.destVec, 0.7);
+            }
+          } else if (slot.state === "landing") {
+            slot.elapsed += dt;
+            const fadeT = THREE.MathUtils.clamp(slot.elapsed / 0.7, 0, 1); // 600-800ms
+            const op = 1 - fadeT;
+            slot.plane.material.opacity = 0.95 * op;
+            slot.glow.material.opacity = 0.28 * op;
+            for (let i = 0; i < TRAIL_POINTS; i++) slot.alphas[i] *= (1 - dt * 3);
+            slot.trail.geometry.attributes.aAlpha.needsUpdate = true;
+
+            if (fadeT >= 1) {
+              slot.state = "idle";
+              slot.waitTimer = 0;
+              slot.waitFor = 0.3 + Math.random() * 0.9; // 300-1200ms
             }
           }
         }
-        for (let i = landingRings.length - 1; i >= 0; i--) {
-          const r = landingRings[i];
-          r.life += 1;
-          const s = 1 + r.life * 0.18;
+
+        // pulse rings (departures + arrivals)
+        for (const r of ringPool) {
+          if (!r.active) continue;
+          r.life += dt;
+          const t = THREE.MathUtils.clamp(r.life / r.dur, 0, 1);
+          const s = 1 + t * 5.5;
           r.mesh.scale.set(s, s, s);
-          r.mesh.material.opacity = Math.max(0, 0.9 - r.life * 0.045);
-          if (r.life > 22) {
-            flightsGroup.remove(r.mesh);
-            r.mesh.geometry.dispose(); r.mesh.material.dispose();
-            landingRings.splice(i, 1);
-          }
+          r.mesh.material.opacity = 0.85 * (1 - t);
+          if (t >= 1) { r.active = false; r.mesh.visible = false; }
         }
       };
 
+      // ─── Main render loop ───────────────────────────────────────────
       const tick = () => {
         animId = requestAnimationFrame(tick);
+        const dt = Math.min(clock.getDelta(), 0.05); // clamp so tab-switches don't jump flights
         core.rotation.y += 0.0008;
         ring1.rotation.z -= 0.0018;
         ring2.rotation.z += 0.0009;
-        updateFlights();
+        updateFlights(dt);
         renderer.render(scene, camera);
       };
       tick();
+
       const onResize = () => {
         if (!container) return;
         camera.aspect = container.clientWidth / container.clientHeight;
@@ -264,10 +441,23 @@ function Globe({ containerRef }) {
         renderer.setSize(container.clientWidth, container.clientHeight);
       };
       window.addEventListener("resize", onResize);
+
       container._cleanup = () => {
         cancelAnimationFrame(animId);
-        clearInterval(spawnInterval);
         window.removeEventListener("resize", onResize);
+
+        // dispose pooled flight geometry/materials
+        PLANE_GEO.dispose(); GLOW_GEO.dispose(); RING_GEO.dispose();
+        capDotGeo.dispose(); haloGeo.dispose();
+        trailMaterial.dispose();
+        slots.forEach((s) => {
+          s.plane.material.dispose();
+          s.glow.material.dispose();
+          s.trail.geometry.dispose();
+        });
+        ringPool.forEach((r) => r.mesh.material.dispose());
+        capitalMarkers.forEach((m) => { m.dot.material.dispose(); m.halo.material.dispose(); });
+
         renderer.dispose();
         if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
       };
