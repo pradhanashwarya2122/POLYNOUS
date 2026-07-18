@@ -63,7 +63,10 @@ function Globe({ containerRef }) {
       const W = container.clientWidth, H = container.clientHeight;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 1000);
-      camera.position.z = 2.5;
+      // Pulled back so the globe + its outer rings sit fully inside the
+      // frustum with margin — previously the rings extended past the
+      // visible edges and got clipped ("cut sideways").
+      camera.position.z = 3.6;
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
       renderer.setSize(W, H);
       renderer.setPixelRatio(window.devicePixelRatio);
@@ -112,15 +115,145 @@ function Globe({ containerRef }) {
         );
         ring.rotation.x = rx; ring.rotation.y = ry; scene.add(ring); return ring;
       };
-      const ring1 = mkRing(1.35, Math.PI / 2.5, 0, 0.09);
-      const ring2 = mkRing(1.55, Math.PI / 1.5, Math.PI / 8, 0.045);
+      const ring1 = mkRing(1.14, Math.PI / 2.5, 0, 0.09);
+      const ring2 = mkRing(1.24, Math.PI / 1.8, Math.PI / 8, 0.045);
       scene.add(new THREE.AmbientLight(0xffffff, 0.15));
       const pl = new THREE.PointLight(RED, 2.5, 8); pl.position.set(4, 4, 4); scene.add(pl);
+
+      // ─── Flights: capitals + animated arcs that take off and land ────────
+      const GOLD = new THREE.Color(0xffd700);
+      const CAPITALS = [
+        [38.9, -77.0], [51.5, -0.12], [48.85, 2.35], [55.75, 37.6],
+        [39.9, 116.4], [35.68, 139.69], [28.6, 77.2], [-35.28, 149.13],
+        [-15.79, -47.88], [30.04, 31.24], [1.29, 36.82], [19.43, -99.13],
+        [37.57, 126.98], [-33.45, -70.66], [64.13, -21.9], [-6.2, 106.85],
+      ];
+      const latLonToVec3 = (lat, lon, r) => {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lon + 180) * (Math.PI / 180);
+        return new THREE.Vector3(
+          -r * Math.sin(phi) * Math.cos(theta),
+          r * Math.cos(phi),
+          r * Math.sin(phi) * Math.sin(theta)
+        );
+      };
+      const flightsGroup = new THREE.Group();
+      core.add(flightsGroup); // rotates with the earth so cities stay put
+
+      const capitalPts = CAPITALS.map(([lat, lon]) => latLonToVec3(lat, lon, 1.008));
+      capitalPts.forEach((p) => {
+        const dot = new THREE.Mesh(
+          new THREE.SphereGeometry(0.012, 8, 8),
+          new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.85 })
+        );
+        dot.position.copy(p);
+        flightsGroup.add(dot);
+        const halo = new THREE.Mesh(
+          new THREE.RingGeometry(0.016, 0.022, 16),
+          new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
+        );
+        halo.position.copy(p);
+        halo.lookAt(p.clone().multiplyScalar(2));
+        flightsGroup.add(halo);
+      });
+
+      const activeFlights = [];
+      const MAX_FLIGHTS = 5;
+
+      const spawnFlight = () => {
+        if (activeFlights.length >= MAX_FLIGHTS) return;
+        let ai = Math.floor(Math.random() * capitalPts.length);
+        let bi = Math.floor(Math.random() * capitalPts.length);
+        while (bi === ai) bi = Math.floor(Math.random() * capitalPts.length);
+        const a = capitalPts[ai], b = capitalPts[bi];
+        const dist = a.distanceTo(b);
+        const bulge = Math.min(1.008 + dist * 0.22, 1.34);
+        const mid = a.clone().add(b).multiplyScalar(0.5).normalize().multiplyScalar(bulge);
+        const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+        const points = curve.getPoints(48);
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMat = new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false });
+        const line = new THREE.Line(lineGeo, lineMat);
+        flightsGroup.add(line);
+
+        const plane = new THREE.Mesh(
+          new THREE.ConeGeometry(0.014, 0.05, 6),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 })
+        );
+        flightsGroup.add(plane);
+
+        activeFlights.push({
+          curve, line, plane, destination: b.clone(),
+          t: 0, speed: 0.00045 + Math.random() * 0.00035,
+          state: "flying", landTimer: 0,
+        });
+      };
+
+      const landingRings = [];
+      const triggerLanding = (pos) => {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.01, 0.016, 24),
+          new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
+        );
+        ring.position.copy(pos);
+        ring.lookAt(pos.clone().multiplyScalar(2));
+        flightsGroup.add(ring);
+        landingRings.push({ mesh: ring, life: 0 });
+      };
+
+      for (let i = 0; i < 4; i++) setTimeout(spawnFlight, i * 700);
+      const spawnInterval = setInterval(() => {
+        if (activeFlights.length < MAX_FLIGHTS) spawnFlight();
+      }, 1800);
+
+      const updateFlights = () => {
+        for (let i = activeFlights.length - 1; i >= 0; i--) {
+          const f = activeFlights[i];
+          if (f.state === "flying") {
+            f.t += f.speed;
+            if (f.t >= 1) {
+              f.t = 1;
+              f.state = "landed";
+              triggerLanding(f.destination);
+            }
+            const pos = f.curve.getPointAt(f.t);
+            f.plane.position.copy(pos);
+            const ahead = f.curve.getPointAt(Math.min(f.t + 0.01, 1));
+            f.plane.lookAt(ahead.clone().multiplyScalar(1.6));
+            f.plane.rotateX(Math.PI / 2);
+            f.line.material.opacity = 0.22;
+          } else {
+            f.landTimer += 1;
+            f.plane.material.opacity = Math.max(0, 0.95 - f.landTimer * 0.05);
+            f.line.material.opacity = Math.max(0, 0.22 - f.landTimer * 0.012);
+            if (f.landTimer > 20) {
+              flightsGroup.remove(f.line, f.plane);
+              f.line.geometry.dispose(); f.line.material.dispose();
+              f.plane.geometry.dispose(); f.plane.material.dispose();
+              activeFlights.splice(i, 1);
+            }
+          }
+        }
+        for (let i = landingRings.length - 1; i >= 0; i--) {
+          const r = landingRings[i];
+          r.life += 1;
+          const s = 1 + r.life * 0.18;
+          r.mesh.scale.set(s, s, s);
+          r.mesh.material.opacity = Math.max(0, 0.9 - r.life * 0.045);
+          if (r.life > 22) {
+            flightsGroup.remove(r.mesh);
+            r.mesh.geometry.dispose(); r.mesh.material.dispose();
+            landingRings.splice(i, 1);
+          }
+        }
+      };
+
       const tick = () => {
         animId = requestAnimationFrame(tick);
         core.rotation.y += 0.0008;
         ring1.rotation.z -= 0.0018;
         ring2.rotation.z += 0.0009;
+        updateFlights();
         renderer.render(scene, camera);
       };
       tick();
@@ -133,6 +266,7 @@ function Globe({ containerRef }) {
       window.addEventListener("resize", onResize);
       container._cleanup = () => {
         cancelAnimationFrame(animId);
+        clearInterval(spawnInterval);
         window.removeEventListener("resize", onResize);
         renderer.dispose();
         if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
@@ -278,7 +412,7 @@ const ALL_TOPICS = [
   { icon: "home_work", abbr: "WRK", label: "Is remote work better for productivity?" },
   { icon: "smart_toy", abbr: "AI", label: "Should AI development be regulated globally?" },
   { icon: "rocket_launch", abbr: "SPC", label: "Should we colonize Mars?" },
-  { icon: "dna", abbr: "GEN", label: "Should genetic engineering be allowed in humans?" },
+  { icon: "genetics", abbr: "GEN", label: "Should genetic engineering be allowed in humans?" },
   { icon: "payments", abbr: "ECO", label: "Is universal basic income economically viable?" },
   { icon: "devices", abbr: "NET", label: "Should social media be regulated like utilities?" },
   { icon: "how_to_vote", abbr: "GOV", label: "Should voting be mandatory?" },
@@ -287,9 +421,38 @@ const ALL_TOPICS = [
   { icon: "psychology", abbr: "PHI", label: "Is artificial consciousness possible?" },
   { icon: "account_balance", abbr: "SOC", label: "Should billionaires exist?" },
   { icon: "public", abbr: "POL", label: "Is capitalism sustainable long-term?" },
-  { icon: "genetics", abbr: "SCI", label: "Should we bring back extinct species?" },
+  { icon: "pets", abbr: "SCI", label: "Should we bring back extinct species?" },
   { icon: "security", abbr: "ETH", label: "Is privacy more important than security?" },
   { icon: "satellite", abbr: "EXP", label: "Is space exploration worth the cost?" },
+  { icon: "translate", abbr: "LNG", label: "Will AI translation make learning languages obsolete?" },
+  { icon: "handshake", abbr: "DIP", label: "Do international sanctions actually work?" },
+  { icon: "groups", abbr: "DEM", label: "Is democracy the best system of government?" },
+  { icon: "shield", abbr: "MIL", label: "Should nations abolish standing armies?" },
+  { icon: "policy", abbr: "REG", label: "Should Big Tech be broken up?" },
+  { icon: "vaccines", abbr: "PUB", label: "Should vaccines be mandatory for school attendance?" },
+  { icon: "sports_soccer", abbr: "SPT", label: "Should college athletes be paid salaries?" },
+  { icon: "flight", abbr: "AVI", label: "Should short-haul domestic flights be banned?" },
+  { icon: "menu_book", abbr: "LIT", label: "Should classic literature be updated for modern sensitivities?" },
+  { icon: "child_care", abbr: "FAM", label: "Should parents limit kids' social media until age 16?" },
+  { icon: "elderly", abbr: "AGE", label: "Should there be a mandatory retirement age?" },
+  { icon: "work", abbr: "LAB", label: "Should the four-day work week be standard?" },
+  { icon: "savings", abbr: "TAX", label: "Should wealth be taxed, not just income?" },
+  { icon: "real_estate_agent", abbr: "HOU", label: "Should cities cap rent increases by law?" },
+  { icon: "local_hospital", abbr: "HLT", label: "Should healthcare be a universal right?" },
+  { icon: "water_drop", abbr: "WAT", label: "Should access to fresh water be a human right?" },
+  { icon: "solar_power", abbr: "SLR", label: "Can renewables fully replace fossil fuels by 2050?" },
+  { icon: "factory", abbr: "IND", label: "Should carbon-heavy industries be taxed more?" },
+  { icon: "recycling", abbr: "RCY", label: "Is recycling actually effective at scale?" },
+  { icon: "agriculture", abbr: "AGR", label: "Should lab-grown meat replace traditional farming?" },
+  { icon: "emoji_events", abbr: "OLY", label: "Should the Olympics drop host-city bidding?" },
+  { icon: "sports_esports", abbr: "GAM", label: "Should esports be included in the Olympics?" },
+  { icon: "fingerprint", abbr: "BIO2", label: "Should biometric ID be required for online access?" },
+  { icon: "podcasts", abbr: "MDA", label: "Are podcasts replacing traditional journalism?" },
+  { icon: "museum", abbr: "HIS", label: "Should museums return artifacts to their countries of origin?" },
+  { icon: "monitor_heart", abbr: "AGI", label: "Should AI be granted legal personhood?" },
+  { icon: "military_tech", abbr: "WAR", label: "Should autonomous weapons be banned outright?" },
+  { icon: "volunteer_activism", abbr: "CHR", label: "Is billionaire philanthropy a substitute for taxation?" },
+  { icon: "directions_car", abbr: "TRN", label: "Should self-driving cars be legal on all public roads?" },
 ];
 
 function shuffle(arr) {
@@ -494,17 +657,17 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
       }}>
         {/* ✅ GLOBE - FULLY PRESERVED */}
         <div ref={globeRef} style={{
-          position: "absolute", right: 20, top: 20, width: 500, height: 500,
+          position: "absolute", right: -10, top: -10, width: 620, height: 620,
           zIndex: 1, pointerEvents: "none",
-          WebkitMaskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 55%, transparent 100%)",
-          maskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 55%, transparent 100%)",
+          WebkitMaskImage: "radial-gradient(ellipse 78% 78% at 50% 50%, black 50%, transparent 100%)",
+          maskImage: "radial-gradient(ellipse 78% 78% at 50% 50%, black 50%, transparent 100%)",
         }}>
           <Globe containerRef={globeRef} />
         </div>
-        <div style={{ position: "absolute", right: 0, top: 0, width: 500, height: 500, background: "radial-gradient(circle at 70% 30%, rgba(255,32,64,0.06) 0%, transparent 65%)", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ position: "absolute", right: 0, top: 0, width: 620, height: 620, background: "radial-gradient(circle at 70% 30%, rgba(255,32,64,0.06) 0%, transparent 65%)", pointerEvents: "none", zIndex: 0 }} />
 
         {/* Scrollable content */}
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "0 52px 64px", position: "relative", zIndex: 2, scrollbarWidth: "none" }}>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "0 52px 64px", position: "relative", zIndex: 5, scrollbarWidth: "none" }}>
           <div style={{ maxWidth: 920, paddingTop: 52 }}>
 
             {/* ─── HERO ─────────────────────────────────────────────── */}
@@ -538,7 +701,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                     <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.crimson, textTransform: "uppercase", letterSpacing: "1.5px", fontWeight: 600 }}>Enter Proposition</label>
                     <div style={{ display: "flex", gap: 6 }}>
                       {[{ key: "concise", label: "Concise" }, { key: "detailed", label: "Detailed" }].map(({ key, label }) => (
-                        <button key={key} onClick={() => setAnswerLength(key)} style={{ padding: "6px 18px", borderRadius: 20, border: `1px solid ${answerLength === key ? C.crimson : "rgba(255,255,255,0.1)"}`, background: answerLength === key ? "rgba(255,32,64,0.1)" : "transparent", color: answerLength === key ? C.crimson : "#8899aa", cursor: "pointer", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", fontWeight: answerLength === key ? 700 : 400, transition: "all 0.2s" }}>{label}</button>
+                        <button key={key} type="button" disabled={loading} onClick={() => setAnswerLength(key)} style={{ padding: "6px 18px", borderRadius: 20, border: `1px solid ${answerLength === key ? C.crimson : "rgba(255,255,255,0.1)"}`, background: answerLength === key ? "rgba(255,32,64,0.1)" : "transparent", color: answerLength === key ? C.crimson : "#8899aa", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.45 : 1, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", fontWeight: answerLength === key ? 700 : 400, transition: "all 0.2s" }}>{label}</button>
                       ))}
                     </div>
                   </div>
