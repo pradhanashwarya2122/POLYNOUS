@@ -192,8 +192,14 @@ function Globe({ containerRef }) {
       });
 
       // ─── Shared geometry/material templates (built once, reused) ───────
-      const PLANE_GEO = new THREE.ConeGeometry(0.012, 0.042, 6);
-      const GLOW_GEO = new THREE.ConeGeometry(0.022, 0.07, 6);
+      // Small airplane silhouette: fuselage + wings + tailplane + vertical fin,
+      // built from shared geometries so every pooled plane reuses the same
+      // buffers — only materials (for per-plane opacity) are unique.
+      const BODY_GEO = new THREE.BoxGeometry(0.007, 0.007, 0.05);
+      const WING_GEO = new THREE.BoxGeometry(0.058, 0.0025, 0.017);
+      const TAIL_GEO = new THREE.BoxGeometry(0.024, 0.0025, 0.012);
+      const FIN_GEO = new THREE.BoxGeometry(0.0025, 0.015, 0.014);
+      const GLOW_GEO = new THREE.ConeGeometry(0.02, 0.06, 6);
       const RING_GEO = new THREE.RingGeometry(0.008, 0.013, 24);
 
       // Single shared shader material for ALL trail lines. Per-flight fade
@@ -227,15 +233,31 @@ function Globe({ containerRef }) {
       const MAX_BULGE = 1.40;
 
       // ─── Flight slot pool ────────────────────────────────────────────
-      const POOL_SIZE = 24;         // yields ~18-25 actually "flying" at once
-      const TRAIL_POINTS = 16;
-      const RING_POOL_SIZE = 20;
+      const POOL_SIZE = 42;         // more planes in the sky at once
+      const TRAIL_POINTS = 26;      // longer, smoother contrails
+      const RING_POOL_SIZE = 34;
 
       const smootherstep = (t) => t * t * t * (t * (t * 6 - 15) + 10);
 
+      const makePlane = () => {
+        const group = new THREE.Group();
+        const mats = [];
+        const addPart = (geo, pos) => {
+          const mat = new THREE.MeshBasicMaterial({ color: 0xfff6d8, transparent: true, opacity: 0 });
+          const mesh = new THREE.Mesh(geo, mat);
+          if (pos) mesh.position.set(pos[0], pos[1], pos[2]);
+          group.add(mesh);
+          mats.push(mat);
+        };
+        addPart(BODY_GEO);                       // fuselage, nose at local -Z
+        addPart(WING_GEO, [0, 0, 0.002]);        // main wings
+        addPart(TAIL_GEO, [0, 0, 0.021]);        // tailplane, near the back
+        addPart(FIN_GEO, [0, 0.008, 0.021]);     // vertical fin
+        return { group, mats };
+      };
+
       const makeSlot = () => {
-        const material = new THREE.MeshBasicMaterial({ color: 0xfff6d8, transparent: true, opacity: 0 });
-        const plane = new THREE.Mesh(PLANE_GEO, material);
+        const { group: plane, mats: planeMats } = makePlane();
         const glowMaterial = new THREE.MeshBasicMaterial({
           color: GOLD, transparent: true, opacity: 0,
           blending: THREE.AdditiveBlending, depthWrite: false,
@@ -252,7 +274,7 @@ function Globe({ containerRef }) {
         flightsGroup.add(trail);
 
         return {
-          plane, glow, trail, positions, alphas,
+          plane, planeMats, glow, trail, positions, alphas,
           curve: null, duration: 0, elapsed: 0,
           trailSpan: 0.1, fade: 1,
           state: "idle",     // idle -> flying -> landing -> idle
@@ -300,20 +322,20 @@ function Globe({ containerRef }) {
         slot.destVec.copy(b);
 
         const distNorm = Math.min(dist / 2, 1);
-        slot.duration = THREE.MathUtils.lerp(14, 22, distNorm) + Math.random() * 6; // 14-28s
+        slot.duration = THREE.MathUtils.lerp(4, 7, distNorm) + Math.random() * 2; // 4-9s — fast crossings
         slot.elapsed = -Math.random() * 0.6; // slight randomized easing/start offset
-        slot.trailSpan = 0.08 + Math.random() * 0.07; // 8-15% of arc
+        slot.trailSpan = 0.16 + Math.random() * 0.14; // 16-30% of arc — long, visible contrails
         slot.state = "flying";
         slot.fade = 1;
 
-        slot.plane.material.opacity = 0;
+        slot.planeMats.forEach((m) => { m.opacity = 0; });
         slot.glow.material.opacity = 0;
         firePulse(a, 0.5);
       };
 
       // give every slot a staggered, asynchronous first departure
       slots.forEach((slot, i) => {
-        slot.waitFor = i * (18 / POOL_SIZE) + Math.random() * 1.5;
+        slot.waitFor = i * (6 / POOL_SIZE) + Math.random() * 0.8;
         slot.state = "idle";
       });
 
@@ -358,7 +380,6 @@ function Globe({ containerRef }) {
             const ahead = slot.curve.getPointAt(uAhead, tmpAhead);
             slot.plane.up.copy(pos).normalize();
             slot.plane.lookAt(ahead);
-            slot.plane.rotateX(Math.PI / 2);
 
             const uAhead2 = Math.min(u + 0.03, 1);
             const ahead2 = slot.curve.getPointAt(uAhead2, tmpAhead2);
@@ -372,7 +393,7 @@ function Globe({ containerRef }) {
 
             // ramp opacity in on spawn, matching the departure pulse timing
             const inOpacity = THREE.MathUtils.clamp(slot.elapsed >= 0 ? Math.min(slot.elapsed / 0.4, 1) : 0, 0, 1);
-            slot.plane.material.opacity = 0.95 * inOpacity;
+            slot.planeMats.forEach((m) => { m.opacity = 0.95 * inOpacity; });
             slot.glow.material.opacity = 0.28 * inOpacity;
 
             // rolling trail buffer — update in place, no reallocation
@@ -383,7 +404,7 @@ function Globe({ containerRef }) {
               slot.positions[i * 3] = sp.x;
               slot.positions[i * 3 + 1] = sp.y;
               slot.positions[i * 3 + 2] = sp.z;
-              slot.alphas[i] = Math.pow(f, 1.3) * 0.32 * inOpacity;
+              slot.alphas[i] = Math.pow(f, 1.3) * 0.55 * inOpacity;
             }
             slot.trail.geometry.attributes.position.needsUpdate = true;
             slot.trail.geometry.attributes.aAlpha.needsUpdate = true;
@@ -397,7 +418,7 @@ function Globe({ containerRef }) {
             slot.elapsed += dt;
             const fadeT = THREE.MathUtils.clamp(slot.elapsed / 0.7, 0, 1); // 600-800ms
             const op = 1 - fadeT;
-            slot.plane.material.opacity = 0.95 * op;
+            slot.planeMats.forEach((m) => { m.opacity = 0.95 * op; });
             slot.glow.material.opacity = 0.28 * op;
             for (let i = 0; i < TRAIL_POINTS; i++) slot.alphas[i] *= (1 - dt * 3);
             slot.trail.geometry.attributes.aAlpha.needsUpdate = true;
@@ -405,7 +426,7 @@ function Globe({ containerRef }) {
             if (fadeT >= 1) {
               slot.state = "idle";
               slot.waitTimer = 0;
-              slot.waitFor = 0.3 + Math.random() * 0.9; // 300-1200ms
+              slot.waitFor = 0.1 + Math.random() * 0.3; // 100-400ms — quick turnaround
             }
           }
         }
@@ -426,9 +447,9 @@ function Globe({ containerRef }) {
       const tick = () => {
         animId = requestAnimationFrame(tick);
         const dt = Math.min(clock.getDelta(), 0.05); // clamp so tab-switches don't jump flights
-        core.rotation.y += 0.0008;
-        ring1.rotation.z -= 0.0018;
-        ring2.rotation.z += 0.0009;
+        core.rotation.y += 0.0022;
+        ring1.rotation.z -= 0.004;
+        ring2.rotation.z += 0.002;
         updateFlights(dt);
         renderer.render(scene, camera);
       };
@@ -447,11 +468,12 @@ function Globe({ containerRef }) {
         window.removeEventListener("resize", onResize);
 
         // dispose pooled flight geometry/materials
-        PLANE_GEO.dispose(); GLOW_GEO.dispose(); RING_GEO.dispose();
+        BODY_GEO.dispose(); WING_GEO.dispose(); TAIL_GEO.dispose(); FIN_GEO.dispose();
+        GLOW_GEO.dispose(); RING_GEO.dispose();
         capDotGeo.dispose(); haloGeo.dispose();
         trailMaterial.dispose();
         slots.forEach((s) => {
-          s.plane.material.dispose();
+          s.planeMats.forEach((m) => m.dispose());
           s.glow.material.dispose();
           s.trail.geometry.dispose();
         });
