@@ -10,13 +10,20 @@ Debate Chamber's counterpart to builder.py. Same conventions:
     because the frontend deepMerge replaces arrays wholesale.
 """
 import re
+from urllib.parse import urlparse
 
 from app.visual.builder import (
     _log,
     _plain,
     _recent_sources,
     _content_depth_levels,
+    _domain_tier,
 )
+from app.utils.computed_confidence import _parse_date
+from datetime import datetime, timezone
+
+# domain-tier → numeric trust score shown per source (transparent mapping)
+_TIER_SCORE = {"high": 90, "med": 70, "low": 50}
 
 DEBATE_PROGRESS = {
     "Search": 15,
@@ -213,6 +220,94 @@ def _judge_panel(state: dict) -> dict:
     }
 
 
+def _freshness(published_date) -> str:
+    """green <6mo · amber 6-18mo · red older · unknown when undated."""
+    dt = _parse_date(published_date)
+    if not dt:
+        return "unknown"
+    months = (datetime.now(timezone.utc) - dt).days / 30.4
+    return "fresh" if months < 6 else ("aging" if months < 18 else "stale")
+
+
+def _enriched_sources(state: dict) -> list:
+    """Per-source metadata for the report: trust (domain-tier mapped),
+    freshness (real dates), and how often each side actually cited it."""
+    docs = state.get("retrieved_docs") or []
+    all_turn_text = " ".join(e.get("argument") or "" for e in state.get("debate_history") or [])
+    cited_counts = {}
+    for n in _CITE_RE.findall(all_turn_text):
+        n = int(n.strip("[]"))
+        cited_counts[n] = cited_counts.get(n, 0) + 1
+    out = []
+    for i, d in enumerate(docs, 1):
+        url = d.get("url") or ""
+        tier = _domain_tier(urlparse(url).netloc) if url else "med"
+        out.append({
+            "id": i,
+            "title": (d.get("title") or "Untitled")[:100],
+            "url": url,
+            "domain": urlparse(url).netloc.replace("www.", "") if url else "",
+            "trust_score": _TIER_SCORE[tier],
+            "trust_tier": tier,
+            "published_date": d.get("published_date") or "",
+            "freshness": _freshness(d.get("published_date")),
+            "cited_count": cited_counts.get(i, 0),
+            "content_kind": "full article" if d.get("content_source") == "scraped" else "snippet",
+        })
+    return out
+
+
+def _density_label(words: int, grounded: int) -> str:
+    """Words per grounded claim — flags rhetoric padding vs dense argument."""
+    if not grounded:
+        return "ungrounded"
+    wpc = words / grounded
+    return "dense" if wpc < 45 else ("moderate" if wpc < 90 else "padded")
+
+
+def _debate_analytics(state: dict) -> dict:
+    """
+    Per-side analytics. COMPUTED metrics come from the citation rubric and
+    source data; the two judge-assessed rows are labelled as such and are
+    absent when the verdict is unscored.
+    """
+    verdict = state.get("judge_verdict") or {}
+    unscored = verdict.get("parse_failed") or verdict.get("winner") == "UNSCORED"
+    sources = _enriched_sources(state)
+
+    def side_stats(side):
+        turns = [e for e in state.get("debate_history") or []
+                 if e.get("side") == side and not e.get("error")]
+        rubrics = [e.get("rubric") or {} for e in turns]
+        text = " ".join(e.get("argument") or "" for e in turns)
+        words = len(text.split())
+        grounded = sum(r.get("grounded_sentences", 0) for r in rubrics)
+        cited = set()
+        for n in _CITE_RE.findall(text):
+            cited.add(int(n.strip("[]")))
+        trusts = [s["trust_score"] for s in sources if s["id"] in cited]
+        scores = [r.get("computed_score", 0) for r in rubrics if r]
+        return {
+            "evidence_quality": round(sum(scores) / len(scores) * 10) if scores else 0,
+            "source_diversity": len([n for n in cited if 1 <= n <= len(sources)]),
+            "source_trust_avg": round(sum(trusts) / len(trusts)) if trusts else 0,
+            "argument_density": _density_label(words, grounded),
+            "hallucinated_citations": sum(r.get("hallucinated_citations", 0) for r in rubrics),
+        }
+
+    analytics = {
+        "computed": {"FOR": side_stats("FOR"), "AGAINST": side_stats("AGAINST")},
+        "judge_assessed": None,
+    }
+    if not unscored:
+        analytics["judge_assessed"] = {
+            "argument_quality": {"FOR": verdict.get("for_quality"), "AGAINST": verdict.get("against_quality")},
+            "best_rebuttal": verdict.get("best_rebuttal"),
+            "note": "assessed by the judge model, not computed",
+        }
+    return analytics
+
+
 def _split_points(text: str) -> list:
     """Server-side split of an argument into display points — the frontend
     never regex-parses answer blobs again."""
@@ -304,6 +399,13 @@ def build_debate_patch(state: dict, stage: str, elapsed: float) -> dict:
             "against_rebuttal": _plain(_turn(state, "AGAINST", "rebuttal").get("argument", "")),
             "for_points": _split_points(for_opening),
             "against_points": _split_points(against_opening),
+            # Steelman check: each side's fair restatement of its opponent
+            "steelman": {
+                "for_restates_against": _turn(state, "FOR", "opening").get("steelman"),
+                "against_restates_for": _turn(state, "AGAINST", "opening").get("steelman"),
+            },
+            "analytics": _debate_analytics(state),
+            "sources": _enriched_sources(state),
         }
         patch["citations"] = [{"title": d.get("title", "Untitled"), "url": d.get("url", "")}
                               for d in docs]

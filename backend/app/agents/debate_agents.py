@@ -36,8 +36,8 @@ logger = logging.getLogger("polynous.debate")
 DEFAULT_ANTHROPIC_MODEL = os.getenv("DEBATE_ANTHROPIC_MODEL", "claude-haiku-4-5")
 DEFAULT_OPENAI_MODEL = os.getenv("DEBATE_OPENAI_MODEL", "gpt-4o-mini")
 
-MAX_TOKENS_ARGUMENT = 700
-MAX_TOKENS_JUDGE = 500
+MAX_TOKENS_ARGUMENT = 800    # opening includes the steelman restatement
+MAX_TOKENS_JUDGE = 900       # verdict JSON now carries framing/minority/follow-ups
 TEMPERATURE_ARGUMENT = 0.7
 TEMPERATURE_JUDGE = 0.2
 
@@ -172,7 +172,11 @@ RULES OF EVIDENCE:
 {phase_rules}
 Start your answer with: '{header}'"""
 
-_OPENING_RULES = "- This is your OPENING argument: build the strongest case from the sources."
+_OPENING_RULES = """- This is your OPENING argument: build the strongest case from the sources.
+- BEFORE your argument, include a STEELMAN: on its own line write
+  'STEELMAN: <a fair, accurate 1-2 sentence statement of the OPPOSING side's
+  strongest argument>'. State it as its best advocate would — no strawmen.
+  Then leave a blank line and begin your argument with the required header."""
 _REBUTTAL_RULES = """- This is your REBUTTAL: your opponent's argument is shown below.
 - You MUST directly address at least two of your opponent's specific points —
   quote or reference them, then counter with sourced evidence.
@@ -208,13 +212,22 @@ def argue_position(
         user_prompt += f"\nYOUR OPPONENT ARGUED:\n{opponent_argument[:2200]}\n"
     user_prompt += f"\nDeliver your {phase} {side} the proposition:"
 
-    result = {"text": "", "side": side, "phase": phase, "rubric": None, "error": None}
+    result = {"text": "", "side": side, "phase": phase, "rubric": None, "error": None, "steelman": None}
     try:
         client, client_type = _get_client(provider, api_key)
         result["text"] = _call_with_retry(
             client, client_type, system_prompt, user_prompt,
             MAX_TOKENS_ARGUMENT, TEMPERATURE_ARGUMENT, model=model,
         )
+        # Extract the steelman line (opening turns only) so the UI can show it
+        if phase == "opening":
+            m = re.search(r"STEELMAN:\s*(.+?)(?:\n\s*\n|\nARGUMENT|\nREBUTTAL)",
+                          result["text"], re.S | re.I)
+            if m:
+                result["steelman"] = m.group(1).strip()[:400]
+                # remove it from the argument body shown/typed
+                result["text"] = re.sub(r"STEELMAN:.*?(?:\n\s*\n)", "",
+                                        result["text"], count=1, flags=re.S | re.I).strip()
         result["rubric"] = compute_argument_rubric(result["text"], min(len(docs), MAX_SOURCES))
     except Exception as e:
         logger.exception("%s %s failed", side, phase)
@@ -255,7 +268,14 @@ Return ONLY a raw JSON object (no code fences):
 {"for_quality": 7, "against_quality": 8,
  "reasoning": "2-3 sentence explanation",
  "strongest_point": "the single best argument made by either side",
- "best_rebuttal": "FOR" or "AGAINST" — who engaged the opponent better}"""
+ "best_rebuttal": "FOR" or "AGAINST" — who engaged the opponent better,
+ "certainty": 0-100 — how certain you are in this quality assessment,
+ "framing_check": {"assumed_frame": "the binary frame this debate assumes, in a few words",
+   "alternatives": ["2-3 alternative framings of the question"]},
+ "minority_report": {"could_flip": true/false,
+   "condition": "under what stricter or different standard the verdict could flip (or why it could not)",
+   "note": "one sentence"},
+ "follow_up_questions": ["3 specific, researchable follow-up questions raised by this debate"]}"""
 
 
 def judge_debate(
@@ -314,12 +334,20 @@ Judge and return JSON:"""
         for_score = round(0.5 * rubric_for["computed_score"] + 0.5 * for_quality, 1)
         against_score = round(0.5 * rubric_against["computed_score"] + 0.5 * against_quality, 1)
 
-        if abs(for_score - against_score) < 0.5:
+        gap = abs(for_score - against_score)
+        if gap < 0.5:
             winner = "TIE"
         else:
             winner = "FOR" if for_score > against_score else "AGAINST"
+        # margin label computed from the real score gap, never LLM-invented
+        margin = "split" if gap < 0.5 else ("close" if gap < 1.0 else ("clear" if gap < 2.0 else "decisive"))
 
         verdict.update({
+            "margin": margin,
+            "judge_certainty": max(0, min(100, int(llm.get("certainty", 0) or 0))),
+            "framing_check": llm.get("framing_check") or None,
+            "minority_report": llm.get("minority_report") or None,
+            "follow_up_questions": [q for q in (llm.get("follow_up_questions") or []) if isinstance(q, str)][:4],
             "winner": winner,
             "for_score": for_score,
             "against_score": against_score,

@@ -77,6 +77,7 @@ def _debate_turn(state: AgentState, side: str, opponent_phase_key: str = None) -
         "phase": turn["phase"],
         "argument": turn["text"],
         "rubric": turn["rubric"],
+        "steelman": turn.get("steelman"),
         "error": turn["error"],
     })
     r = turn.get("rubric") or {}

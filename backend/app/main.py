@@ -685,6 +685,45 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.post("/debate-vote")
+async def debate_vote(request: Request, db: Session = Depends(get_db)):
+    """
+    Record whether the user agrees with the judge's verdict. This is REAL
+    telemetry — it feeds the Judge Track Record strip in the debate report.
+    """
+    from app.database import DebateVote
+    body = await request.json()
+    topic = sanitize_query(body.get("topic", ""))[:500]
+    judge_winner = str(body.get("judge_winner", ""))[:20]
+    agree = bool(body.get("agree"))
+    if not topic or judge_winner not in ("FOR", "AGAINST", "TIE"):
+        raise HTTPException(400, "topic and a valid judge_winner are required")
+    vote = DebateVote(
+        user_id=getattr(request.state, "user_public_id", None),
+        topic=topic, judge_winner=judge_winner, user_agrees=agree,
+    )
+    db.add(vote)
+    db.commit()
+    total = db.query(DebateVote).count()
+    agrees = db.query(DebateVote).filter(DebateVote.user_agrees == True).count()  # noqa: E712
+    return {"recorded": True, "sample_size": total,
+            "agreement_rate_with_users": round(agrees / total, 2) if total else None}
+
+
+def _judge_track_record(db) -> dict:
+    """Real historical agreement rate between judge verdicts and user votes.
+    Honest empty state — null rate until votes actually exist."""
+    from app.database import DebateVote
+    try:
+        total = db.query(DebateVote).count()
+        if total == 0:
+            return {"sample_size": 0, "agreement_rate_with_users": None}
+        agrees = db.query(DebateVote).filter(DebateVote.user_agrees == True).count()  # noqa: E712
+        return {"sample_size": total, "agreement_rate_with_users": round(agrees / total, 2)}
+    except Exception:
+        return {"sample_size": 0, "agreement_rate_with_users": None}
+
+
 @app.post("/debate-visual")
 async def debate_visual(request: Request, db: Session = Depends(get_db)):
     """
@@ -741,6 +780,9 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
         async def error_stream():
             yield f"data: {json.dumps({'error': key_error})}\n\n"
         return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    # computed before the stream starts — the db session closes with the request
+    track_record = _judge_track_record(db)
 
     async def event_stream():
         start_time = time.time()
@@ -817,7 +859,9 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
 
         # Final patch (judge_node already persisted via save_debate — do NOT
         # save again here; the old /ask-stream path double-saved).
-        yield f"data: {json.dumps(build_debate_patch(state, 'Final', time.time() - start_time))}\n\n"
+        final_patch = build_debate_patch(state, 'Final', time.time() - start_time)
+        final_patch["judge_track_record"] = track_record
+        yield f"data: {json.dumps(final_patch)}\n\n"
 
     return StreamingResponse(
         event_stream(),

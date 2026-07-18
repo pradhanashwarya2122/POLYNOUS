@@ -181,6 +181,18 @@ class Message(Base):
 # ============================================================
 # USER PREFERENCES (separate table)
 # ============================================================
+class DebateVote(Base):
+    """User verdict votes — powers the Judge Track Record strip.
+    agreement rate = share of votes agreeing with the judge's winner."""
+    __tablename__ = "debate_votes"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=True)          # public_id or null (guest view)
+    topic = Column(Text, nullable=False)
+    judge_winner = Column(String(20), nullable=False)
+    user_agrees = Column(Boolean, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class UserPreferences(Base):
     __tablename__ = "user_preferences"
     user_id = Column(String, primary_key=True)

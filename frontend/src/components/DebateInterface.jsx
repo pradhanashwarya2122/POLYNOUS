@@ -581,6 +581,275 @@ function ScoreBar({ label, score, color, fillGradient, delay = 0 }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TRIBUNAL REPORT SECTIONS — Steelman · Framing · Analytics ·
+// Sources · Minority Report · Track Record · Vote · Case File
+// Every number is computed or judge-assessed-and-labelled.
+// ═══════════════════════════════════════════════════════════════
+
+const FRESHNESS_DOT = { fresh: "#10e0a0", aging: "#ffb020", stale: "#c23b4d", unknown: "#556" };
+const TRUST_COLOR = (t) => (t >= 80 ? "#10e0a0" : t >= 60 ? C.onSurfaceVariant : "#ffb020");
+
+function TribunalCard({ icon, iconColor, title, right, children, delay = 0, accent }) {
+  return (
+    <div style={{
+      background: "rgba(14,14,28,0.72)", backdropFilter: "blur(14px)",
+      border: `1px solid ${accent || "rgba(255,255,255,0.09)"}`,
+      borderRadius: 16, padding: "20px 24px", marginBottom: 18,
+      animation: `fadeUp 0.5s ${delay}s ease both`,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: iconColor }}>
+          <Icon name={icon} style={{ fontSize: 15, color: iconColor }} /> {title}
+        </div>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Shown between the topic banner and the podiums
+function PreVerdictStrips({ verdict, debate }) {
+  const [framingOpen, setFramingOpen] = useState(true);
+  const [steelOpen, setSteelOpen] = useState(false);
+  const framing = verdict?.framing_check;
+  const steel = debate?.steelman;
+  const hasSteel = steel && (steel.for_restates_against || steel.against_restates_for);
+  if (!framing && !hasSteel) return null;
+  return (
+    <div style={{ marginBottom: 22 }}>
+      {framing && framingOpen && (
+        <TribunalCard icon="explore" iconColor={C.purple} title="Framing Check" accent="rgba(168,85,247,0.22)"
+          right={<button onClick={() => setFramingOpen(false)} style={{ background: "none", border: "none", color: C.textSecondary, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>dismiss ▾</button>}>
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.7, color: C.onSurface }}>
+            This debate assumes a <span style={{ color: C.purple, fontWeight: 700 }}>{framing.assumed_frame}</span> frame.
+            {(framing.alternatives || []).length > 0 && <> Alternative framings: <span style={{ color: C.onSurfaceVariant }}>{framing.alternatives.join(" · ")}</span>.</>}
+          </p>
+        </TribunalCard>
+      )}
+      {hasSteel && (
+        <TribunalCard icon="handshake" iconColor="#10e0a0" title="Steelman Check" accent="rgba(16,224,160,0.2)"
+          right={<button onClick={() => setSteelOpen(o => !o)} style={{ background: "none", border: "none", color: "#10e0a0", cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>{steelOpen ? "▲ collapse" : "▶ view restatements"}</button>}>
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+            Before arguing, each side was required to restate the opponent's strongest point fairly.
+          </p>
+          {steelOpen && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+              {[["FOR restates AGAINST", steel.for_restates_against, C.green],
+                ["AGAINST restates FOR", steel.against_restates_for, C.crimson]].map(([label, text, col]) => (
+                <div key={label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${col}30`, borderRadius: 11, padding: "13px 15px" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: col, textTransform: "uppercase", marginBottom: 7 }}>{label}</div>
+                  <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, lineHeight: 1.65, color: C.onSurface, fontStyle: "italic" }}>{text ? `"${text}"` : "Not delivered this round."}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </TribunalCard>
+      )}
+    </div>
+  );
+}
+
+// Shown after the verdict panel
+function DebateExtras({ result, activeTopic, onNewDebate }) {
+  const verdict = result?.verdict || {};
+  const analytics = result?.debate?.analytics;
+  const sources = result?.debate?.sources || [];
+  const trackRecord = result?.trackRecord;
+  const followUps = verdict?.follow_up_questions || [];
+  const minority = verdict?.minority_report;
+  const [voted, setVoted] = useState(null);
+  const [voteStats, setVoteStats] = useState(null);
+
+  const castVote = async (agree) => {
+    setVoted(agree ? "agree" : "disagree");
+    try {
+      const token = window.__POLYNOUS_ACCESS_TOKEN__ || localStorage.getItem('polynous_token') || '';
+      const res = await fetch(`${API_BASE_URL}/debate-vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ topic: activeTopic, judge_winner: verdict.winner, agree }),
+      });
+      if (res.ok) setVoteStats(await res.json());
+    } catch { /* vote is best-effort */ }
+  };
+
+  const exportCaseFile = () => {
+    const docket = `PLYN-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.abs([...activeTopic].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)).toString(16).slice(0, 6).toUpperCase()}`;
+    const rows = (label, obj) => Object.entries(obj || {}).map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`).join("\n");
+    const body = `═══════════════════════════════════════════════════════
+  POLYNOUS DEBATE TRIBUNAL — CASE FILE
+  Docket No. ${docket}
+  Filed: ${new Date().toUTCString()}
+═══════════════════════════════════════════════════════
+
+PROPOSITION UNDER REVIEW
+  ${activeTopic}
+
+VERDICT
+  Winner: ${verdict.winner || "—"} · Margin: ${verdict.margin || "—"} · Judge certainty: ${verdict.judge_certainty ?? "—"}%
+  Scoring: ${verdict.scoring || "—"}
+  FOR ${verdict.for_score ?? "—"}/10 · AGAINST ${verdict.against_score ?? "—"}/10
+
+JUDGE'S REASONING
+  ${verdict.reasoning || "—"}
+
+MINORITY REPORT
+  ${minority ? `${minority.could_flip ? "Verdict could flip" : "Verdict holds"} — ${minority.condition || ""}. ${minority.note || ""}` : "None recorded."}
+
+FOR — OPENING
+${result?.debate?.for_opening || "—"}
+
+FOR — REBUTTAL
+${result?.debate?.for_rebuttal || "—"}
+
+AGAINST — OPENING
+${result?.debate?.against_opening || "—"}
+
+AGAINST — REBUTTAL
+${result?.debate?.against_rebuttal || "—"}
+
+COMPUTED ANALYTICS
+  FOR:\n${rows("FOR", analytics?.computed?.FOR)}
+  AGAINST:\n${rows("AGAINST", analytics?.computed?.AGAINST)}
+
+SOURCES CITED
+${sources.map(s => `  [${s.id}] ${s.title} — ${s.domain} · trust ${s.trust_score} · ${s.freshness} · cited ${s.cited_count}×\n      ${s.url}`).join("\n")}
+
+═══════════════════════════════════════════════════════
+  Signed: FOR Advocate · AGAINST Advocate · The Judge
+  Generated by POLYNOUS — computed metrics, honest verdicts.
+═══════════════════════════════════════════════════════
+`;
+    const blob = new Blob([body], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `polynous-case-${docket}.txt`;
+    a.click();
+  };
+
+  const unscored = verdict.winner === "UNSCORED";
+  const comp = analytics?.computed;
+  const judged = analytics?.judge_assessed;
+
+  return (
+    <div style={{ marginTop: 22 }}>
+      {/* Minority report */}
+      {minority && !unscored && (
+        <TribunalCard icon="balance" iconColor="#e0a458" title="Minority Report" accent="rgba(224,164,88,0.25)" delay={0.05}>
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.7, color: "#e0c9a0" }}>
+            {minority.could_flip ? "⚠ This verdict is sensitive: " : "This verdict is robust: "}
+            {minority.condition}{minority.note ? ` — ${minority.note}` : ""}
+          </p>
+        </TribunalCard>
+      )}
+
+      {/* Judge track record + vote — REAL telemetry, honest empty state */}
+      <TribunalCard icon="monitoring" iconColor={C.gold} title="Judge Track Record" delay={0.1}
+        right={voteStats && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.gold }}>vote recorded ✓</span>}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: C.onSurfaceVariant }}>
+            {(() => {
+              const tr = voteStats || trackRecord;
+              if (!tr || !tr.sample_size) return "No verdict votes recorded yet — yours would be the first.";
+              if (tr.sample_size < 5) return `${tr.sample_size} vote${tr.sample_size > 1 ? "s" : ""} recorded — not enough yet for a reliable agreement rate.`;
+              return `Historically agrees with user votes ${Math.round(tr.agreement_rate_with_users * 100)}% of the time (${tr.sample_size} debates).`;
+            })()}
+          </p>
+          {!unscored && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "0.08em" }}>Do you agree?</span>
+              {["agree", "disagree"].map(v => (
+                <button key={v} disabled={!!voted} onClick={() => castVote(v === "agree")} style={{
+                  padding: "6px 15px", borderRadius: 9999, cursor: voted ? "default" : "pointer",
+                  border: `1px solid ${voted === v ? C.gold : "rgba(255,255,255,0.14)"}`,
+                  background: voted === v ? "rgba(255,215,0,0.1)" : "transparent",
+                  color: voted === v ? C.gold : C.onSurfaceVariant,
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+                  opacity: voted && voted !== v ? 0.35 : 1, transition: "all 0.2s",
+                }}>{v}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      </TribunalCard>
+
+      {/* Analytics */}
+      {comp && (
+        <TribunalCard icon="analytics" iconColor={C.cyan} title="Debate Analytics" delay={0.15}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: "9px 16px", fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
+            <span style={{ color: C.textSecondary, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>Computed metric</span>
+            <span style={{ color: C.green, fontWeight: 700, textAlign: "right" }}>FOR</span>
+            <span style={{ color: C.crimson, fontWeight: 700, textAlign: "right" }}>AGAINST</span>
+            {[["Evidence quality", "evidence_quality", v => `${v}%`],
+              ["Source diversity", "source_diversity", v => `${v} sources`],
+              ["Source trust (avg)", "source_trust_avg", v => v ? `${v}` : "—"],
+              ["Argument density", "argument_density", v => v],
+              ["Hallucinated citations", "hallucinated_citations", v => v],
+            ].map(([label, key, fmt]) => (
+              [<span key={label} style={{ color: C.onSurfaceVariant }}>{label}</span>,
+               <span key={label + "f"} style={{ color: C.onSurface, textAlign: "right" }}>{fmt(comp.FOR?.[key])}</span>,
+               <span key={label + "a"} style={{ color: C.onSurface, textAlign: "right" }}>{fmt(comp.AGAINST?.[key])}</span>]
+            ))}
+          </div>
+          {judged && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.07)", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.onSurfaceVariant }}>
+              Judge-assessed quality: <span style={{ color: C.green, fontWeight: 700 }}>FOR {judged.argument_quality?.FOR}/10</span> · <span style={{ color: C.crimson, fontWeight: 700 }}>AGAINST {judged.argument_quality?.AGAINST}/10</span> · best rebuttal: <span style={{ color: C.gold }}>{judged.best_rebuttal}</span>
+              <div style={{ fontSize: 10, color: C.textSecondary, marginTop: 4 }}>({judged.note})</div>
+            </div>
+          )}
+        </TribunalCard>
+      )}
+
+      {/* Sources cited */}
+      {sources.length > 0 && (
+        <TribunalCard icon="menu_book" iconColor="#00ccff" title="Sources Cited" delay={0.2}
+          right={<span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary }}>🟢 &lt;6mo · 🟡 6–18mo · 🔴 stale</span>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            {sources.map(s => (
+              <a key={s.id} href={s.url || undefined} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 11, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(0,204,255,0.12)", borderRadius: 11, padding: "10px 14px", transition: "border-color 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(0,204,255,0.4)"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,204,255,0.12)"}>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: "#00ccff", flexShrink: 0 }}>[{s.id}]</span>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: FRESHNESS_DOT[s.freshness] || FRESHNESS_DOT.unknown, flexShrink: 0 }} title={`freshness: ${s.freshness}`} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, fontWeight: 600, color: C.onSurface, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, marginTop: 2 }}>{s.domain} · {s.content_kind}</div>
+                </div>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 700, color: TRUST_COLOR(s.trust_score), flexShrink: 0 }}>Trust {s.trust_score}</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: s.cited_count ? C.onSurfaceVariant : C.textSecondary, flexShrink: 0 }}>{s.cited_count ? `Cited ${s.cited_count}×` : "Uncited"}</span>
+              </a>
+            ))}
+          </div>
+        </TribunalCard>
+      )}
+
+      {/* Follow-ups + case file */}
+      {(followUps.length > 0 || true) && (
+        <TribunalCard icon="quiz" iconColor={C.green} title="Follow-up Questions" delay={0.25}
+          right={<button onClick={exportCaseFile} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 9999, border: "1px solid rgba(255,215,0,0.3)", background: "rgba(255,215,0,0.06)", color: C.gold, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <Icon name="folder_zip" style={{ fontSize: 14 }} /> Export Case File
+          </button>}>
+          {followUps.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {followUps.map((q, i) => (
+                <button key={i} onClick={() => onNewDebate?.(q)} style={{ textAlign: "left", display: "flex", alignItems: "center", gap: 10, background: "rgba(0,230,77,0.03)", border: "1px solid rgba(0,230,77,0.14)", borderRadius: 11, padding: "11px 15px", cursor: "pointer", transition: "border-color 0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(0,230,77,0.4)"}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,230,77,0.14)"}>
+                  <Icon name="arrow_forward" style={{ fontSize: 14, color: C.green, flexShrink: 0 }} />
+                  <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: C.onSurface }}>{q}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.textSecondary, textTransform: "uppercase", flexShrink: 0 }}>debate this →</span>
+                </button>
+              ))}
+            </div>
+          ) : <p className="de-empty" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.textSecondary, fontStyle: "italic" }}>No follow-up questions generated this round.</p>}
+        </TribunalCard>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
