@@ -1103,6 +1103,8 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
       for_rebuttal: data?.debate?.for_rebuttal || "",
       against_rebuttal: data?.debate?.against_rebuttal || "",
       citations: data?.citations || [],
+      debate: data?.debate || {},               // steelman, analytics, sources
+      trackRecord: data?.judge_track_record || null,
     });
     setLoading(false);
     setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100);
@@ -1210,7 +1212,9 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
 
             {/* ─── LIVE DEBATE ENGINE (real pipeline, no fake progress) ── */}
             {loading && (
-              <div style={{ margin: "0 -8px", animation: "fadeUp 0.4s ease both" }}>
+              // Full-bleed: escape the scroll container's 52px side padding so
+              // the engine (and its hero band) runs edge to edge.
+              <div style={{ margin: "0 -52px", animation: "fadeUp 0.4s ease both" }}>
                 <DebateEngine
                   apiUrl={`${API_BASE_URL}/debate-visual`}
                   query={activeTopic}
@@ -1259,6 +1263,9 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                       New Debate
                     </button>
                   </div>
+
+                  {/* Framing + Steelman checks (tribunal integrity strip) */}
+                  <PreVerdictStrips verdict={verdict} debate={result.debate} />
 
                   {/* Two-column podiums */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 64px 1fr", gap: 18, alignItems: "start", marginBottom: 28 }}>
@@ -1326,6 +1333,13 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                         The judge could not score this debate — the numbers shown are the computed evidence rubric only, not a quality verdict.
                       </div>
                     )}
+                    {verdict.winner !== "UNSCORED" && (verdict.margin || verdict.judge_certainty != null) && (
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.onSurfaceVariant, marginBottom: 18, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        {verdict.margin && <>Margin: <span style={{ color: winColor, fontWeight: 700 }}>{verdict.margin}</span></>}
+                        {verdict.margin && verdict.judge_certainty != null && " · "}
+                        {verdict.judge_certainty != null && <>Judge certainty: <span style={{ color: winColor, fontWeight: 700 }}>{verdict.judge_certainty}%</span></>}
+                      </div>
+                    )}
                     <div style={{ width: 48, height: 2, background: `${winColor}40`, borderRadius: 2, margin: "0 auto 22px" }} />
 
                     {/* Reasoning sentences */}
@@ -1351,6 +1365,10 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                       </div>
                     )}
                   </div>
+
+                  {/* Tribunal report sections: minority report, track record +
+                      vote, analytics, sources cited, follow-ups, case file */}
+                  <DebateExtras result={result} activeTopic={activeTopic} onNewDebate={(q) => { setTopic(q); fireDebate(q); }} />
 
                   {/* Action row */}
                   <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 64 }}>

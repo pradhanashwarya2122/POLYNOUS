@@ -53,10 +53,22 @@ const styles = `
   .de-top-gold    { border-top:2px solid rgba(255,215,0,0.45); }
 
   .de-hero {
-    font-family:'Sora',sans-serif; font-size:44px; font-weight:800; font-style:italic;
+    font-family:'Sora',sans-serif; font-size:clamp(48px, 5.2vw, 72px); font-weight:800; font-style:italic;
     letter-spacing:-0.04em; line-height:1.02; transform:skewX(-4deg);
     background:linear-gradient(180deg, #ffffff 25%, #c9ccd8 100%);
     -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  /* Full-bleed header band: escapes the root padding so it runs edge to
+     edge, with a gradient hairline separating it from the arena. */
+  .de-header-band {
+    margin:-52px -64px 0; padding:56px 64px 40px;
+    min-height:34vh; display:flex; align-items:center;
+    background:
+      radial-gradient(ellipse 70% 90% at 15% 0%, rgba(255,32,64,0.07), transparent 55%),
+      linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    border-bottom:1px solid transparent;
+    border-image:linear-gradient(90deg, transparent, rgba(255,32,64,0.4), rgba(168,85,247,0.35), transparent) 1;
+    width:calc(100% + 128px);
   }
   .de-hero .accent {
     background:linear-gradient(180deg, #ff7a8c 15%, #ff2040 80%);
@@ -504,36 +516,38 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
       <div className="de-beam-wrap"><div className="de-beam" style={{ width:`${data.progress}%` }} /></div>
       {infoOpen && <InfoModal k={infoOpen} onClose={() => setInfoOpen(null)} />}
 
-      {/* ── Header ── */}
-      <header style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", position:"relative", zIndex:2 }}>
-        <div>
-          <div style={{ display:"flex", alignItems:"center", gap:"9px", marginBottom:"12px" }}>
-            <div className="de-pulse" style={{ width:"6px", height:"6px", borderRadius:"50%", background:C.crimson, boxShadow:`0 0 8px ${C.crimson}` }} />
-            <span className="de-eyebrow" style={{ letterSpacing:"0.2em" }}>Adversarial debate session</span>
+      {/* ── Header — full-bleed hero band spanning the entire page ── */}
+      <header className="de-header-band" style={{ position:"relative", zIndex:2 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", gap:"40px", flexWrap:"wrap" }}>
+          <div style={{ flex:"1 1 480px", minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px" }}>
+              <div className="de-pulse" style={{ width:"7px", height:"7px", borderRadius:"50%", background:C.crimson, boxShadow:`0 0 10px ${C.crimson}` }} />
+              <span className="de-eyebrow" style={{ letterSpacing:"0.24em", fontSize:"11px" }}>Adversarial debate session</span>
+            </div>
+            <h1 className="de-hero">Debate <span className="accent">Engine</span></h1>
+            <div style={{ marginTop:"22px", fontFamily:"JetBrains Mono,monospace" }}>
+              <span className="de-eyebrow" style={{ fontSize:"11px" }}>Proposition</span><br />
+              <span style={{ color:"#e2e0fc", display:"inline-block", marginTop:"8px", fontSize:"16px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, lineHeight:1.5, maxWidth:"620px" }}>{data.query || query}</span>
+            </div>
           </div>
-          <h1 className="de-hero">Debate <span className="accent">Engine</span></h1>
-          <div style={{ marginTop:"14px", fontFamily:"JetBrains Mono,monospace", fontSize:"12px" }}>
-            <span className="de-eyebrow">Proposition</span><br />
-            <span style={{ color:"#c3c1dc", display:"inline-block", marginTop:"6px" }}>{data.query || query}</span>
-          </div>
-        </div>
-        <div style={{ display:"flex", gap:"32px", alignItems:"center" }}>
-          <div>
-            <div className="de-eyebrow" style={{ marginBottom:"6px" }}>Stage</div>
-            <div style={{ fontFamily:"Sora,sans-serif", fontSize:"16px", fontWeight:700, color:C.onSurface }}>{data.stage?.label || "Idle"}</div>
-            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10.5px", color:C.secondary, marginTop:"3px" }}>{data.stage?.sub}</div>
-          </div>
-          <div>
-            <div className="de-eyebrow" style={{ marginBottom:"6px" }}>Progress</div>
-            <div style={{ fontSize:"26px", fontFamily:"Sora,sans-serif", color:"#fff", fontWeight:700 }}>{data.progress}<span style={{ fontSize:"14px", color:C.secondary }}>%</span></div>
-          </div>
-          <div style={{ minWidth:"180px" }}>
-            <div className="de-eyebrow" style={{ marginBottom:"6px" }}>{isDone ? "Status" : "Arena activity"}</div>
-            {isDone
-              ? <div style={{ fontFamily:"Sora,sans-serif", fontSize:"15px", fontWeight:700, color: verdictUnscored ? C.gold : C.crimson }}>
-                  {verdictUnscored ? "Verdict unscored" : `Verdict: ${data.metrics?.winner || "—"}`}
-                </div>
-              : <span key={phrase} className="de-shimmer de-phrase" style={{ fontSize:"13.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>{phrase}</span>}
+          <div style={{ display:"flex", gap:"44px", alignItems:"center", flexWrap:"wrap" }}>
+            <div>
+              <div className="de-eyebrow" style={{ marginBottom:"9px", fontSize:"11px" }}>Stage</div>
+              <div style={{ fontFamily:"Sora,sans-serif", fontSize:"22px", fontWeight:700, color:C.onSurface, letterSpacing:"-0.02em" }}>{data.stage?.label || "Idle"}</div>
+              <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"11.5px", color:C.secondary, marginTop:"5px" }}>{data.stage?.sub}</div>
+            </div>
+            <div>
+              <div className="de-eyebrow" style={{ marginBottom:"9px", fontSize:"11px" }}>Progress</div>
+              <div style={{ fontSize:"38px", fontFamily:"Sora,sans-serif", color:"#fff", fontWeight:800, lineHeight:1 }}>{data.progress}<span style={{ fontSize:"17px", color:C.secondary }}>%</span></div>
+            </div>
+            <div style={{ minWidth:"210px" }}>
+              <div className="de-eyebrow" style={{ marginBottom:"9px", fontSize:"11px" }}>{isDone ? "Status" : "Arena activity"}</div>
+              {isDone
+                ? <div style={{ fontFamily:"Sora,sans-serif", fontSize:"19px", fontWeight:700, color: verdictUnscored ? C.gold : C.crimson }}>
+                    {verdictUnscored ? "Verdict unscored" : `Verdict: ${data.metrics?.winner || "—"}`}
+                  </div>
+                : <span key={phrase} className="de-shimmer de-phrase" style={{ fontSize:"15.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>{phrase}</span>}
+            </div>
           </div>
         </div>
       </header>
