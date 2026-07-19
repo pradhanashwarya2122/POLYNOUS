@@ -1835,6 +1835,13 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
     return () => { cancelAnimationFrame(animRef.current); window.removeEventListener("resize", resize); };
   }, [positions, hovered, selectedNode, filter, filteredEdges, searchQuery, pan, zoom, hoveredConnections, highlightNode, pathResult, focusMode, focusNeighbors, centralityMode, centrality, maxDeg, growthStep, growthPlaying, revealedNodeIds]);
 
+  // Re-measure graph canvas after the sidebar collapse/expand transition finishes,
+  // since offsetWidth changes without a window resize event.
+  useEffect(() => {
+    const id = setTimeout(() => window.dispatchEvent(new Event("resize")), 400);
+    return () => clearTimeout(id);
+  }, [sidebarCollapsed]);
+
   const sidebarWidth = sidebarCollapsed ? 56 : 320;
 
   if (!introComplete) {
@@ -1886,7 +1893,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
         position: "relative",
         zIndex: 10,
         height: "100vh",
-        transition: "margin-left 0.35s cubic-bezier(0.4,0,0.2,1)",
+        transition: "margin-left 0.25s cubic-bezier(0.4,0,0.2,1)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",

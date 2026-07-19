@@ -19,86 +19,70 @@ const C = {
 };
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
   .de-root * { box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
 
   .de-ambient {
     position:fixed; inset:0; z-index:0; pointer-events:none;
-    background:
-      radial-gradient(ellipse 55% 40% at 12% 8%, rgba(0,230,77,0.045), transparent 60%),
-      radial-gradient(ellipse 55% 40% at 88% 8%, rgba(255,32,64,0.06), transparent 60%),
-      radial-gradient(ellipse 45% 30% at 50% 95%, rgba(168,85,247,0.04), transparent 60%);
+    background:radial-gradient(ellipse 60% 40% at 85% 0%, rgba(255,32,64,0.04), transparent 60%);
   }
   .de-beam-wrap { position:fixed; top:0; left:0; right:0; height:2px; z-index:500; background:rgba(255,255,255,0.04); }
   .de-beam {
-    height:100%; background:linear-gradient(90deg, #00e64d, #a855f7 50%, #ff2040);
-    box-shadow:0 0 12px rgba(255,32,64,0.5);
-    transition:width 0.7s cubic-bezier(0.16,1,0.3,1);
+    height:100%; background:#ff2040;
+    transition:width 0.25s cubic-bezier(0.2,0,0,1);
   }
 
   .de-panel {
     position:relative;
     background:linear-gradient(170deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
-    border:1px solid rgba(255,255,255,0.08); border-radius:18px;
+    border:1px solid rgba(255,255,255,0.08); border-radius:12px;
     backdrop-filter:blur(20px) saturate(1.05);
     box-shadow:0 1px 0 rgba(255,255,255,0.04) inset;
     transition:border-color 0.35s ease, transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease;
     overflow:hidden;
   }
-  .de-panel:hover { transform:translateY(-2px); box-shadow:0 14px 40px rgba(0,0,0,0.35); }
+  .de-panel:hover { border-color:rgba(255,255,255,0.14); box-shadow:0 8px 24px rgba(0,0,0,0.35); }
+  .de-root button:focus-visible, .de-root a:focus-visible { outline:2px solid #ff2040; outline-offset:2px; border-radius:6px; }
+  @media (prefers-reduced-motion: reduce) {
+    .de-root *, .de-root *::before, .de-root *::after { animation:none !important; transition:none !important; }
+  }
   .de-top-green   { border-top:2px solid rgba(0,230,77,0.55); }
   .de-top-crimson { border-top:2px solid rgba(255,32,64,0.55); }
   .de-top-gold    { border-top:2px solid rgba(255,215,0,0.45); }
 
   .de-hero {
-    font-family:'Sora',sans-serif; font-size:clamp(48px, 5.2vw, 72px); font-weight:800; font-style:italic;
-    letter-spacing:-0.04em; line-height:1.02; transform:skewX(-4deg);
-    background:linear-gradient(180deg, #ffffff 25%, #c9ccd8 100%);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
+    font-family:'Sora',sans-serif; font-size:clamp(32px, 3vw, 42px); font-weight:700;
+    letter-spacing:-0.02em; line-height:1.1; color:#e8eaf2;
   }
   /* Full-bleed header band: escapes the root padding so it runs edge to
      edge, with a gradient hairline separating it from the arena. */
   .de-header-band {
     margin:-52px -64px 0; padding:56px 64px 40px;
     min-height:34vh; display:flex; align-items:center;
-    background:
-      radial-gradient(ellipse 70% 90% at 15% 0%, rgba(255,32,64,0.07), transparent 55%),
-      linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-    border-bottom:1px solid transparent;
-    border-image:linear-gradient(90deg, transparent, rgba(255,32,64,0.4), rgba(168,85,247,0.35), transparent) 1;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    border-bottom:1px solid rgba(255,255,255,0.08);
     width:calc(100% + 128px);
   }
-  .de-hero .accent {
-    background:linear-gradient(180deg, #ff7a8c 15%, #ff2040 80%);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-    filter:drop-shadow(0 0 26px rgba(255,32,64,0.4));
-  }
+  .de-hero .accent { color:#ff2040; }
 
   @keyframes deSpin { from { transform:rotate(0); } to { transform:rotate(360deg); } }
   @keyframes deSoftPulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
   @keyframes deCursor { 0%,100% { opacity:1; } 50% { opacity:0; } }
   @keyframes deSlideUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes deCardIn { from { opacity:0; transform:translateY(14px) scale(0.99); } to { opacity:1; transform:translateY(0) scale(1); } }
-  @keyframes dePhrase { 0%{ opacity:0; transform:translateY(6px); filter:blur(3px); } 14%{ opacity:1; transform:translateY(0); filter:blur(0); } 86%{ opacity:1; } 100%{ opacity:0; transform:translateY(-6px); filter:blur(3px); } }
-  @keyframes deVsPulse {
-    0%,100% { box-shadow:0 0 18px rgba(168,85,247,0.35); transform:scale(1); }
-    50%     { box-shadow:0 0 34px rgba(168,85,247,0.65); transform:scale(1.06); }
-  }
-  @keyframes deShimmer { 0% { background-position:200% center; } 100% { background-position:-200% center; } }
+  @keyframes dePhrase { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+
 
   .de-card-in { animation:deCardIn 0.6s cubic-bezier(0.16,1,0.3,1) both; }
   .de-d1 { animation-delay:0.05s; } .de-d2 { animation-delay:0.12s; } .de-d3 { animation-delay:0.19s; }
   .de-log { animation:deSlideUp 0.2s cubic-bezier(0.22,1,0.36,1) both; }
   .de-spin { animation:deSpin 5s linear infinite; }
-  .de-pulse { animation:deSoftPulse 2s ease-in-out infinite; }
-  .de-phrase { animation:dePhrase 2.8s ease-in-out infinite; }
-  .de-shimmer {
-    background:linear-gradient(90deg, #525c6e 20%, #e2e0fc 40%, #ff2040 50%, #e2e0fc 60%, #525c6e 80%);
-    background-size:200% auto; -webkit-background-clip:text; background-clip:text; color:transparent;
-    animation:deShimmer 2.6s linear infinite;
-  }
+  .de-pulse { }
+  .de-phrase { animation:dePhrase 250ms cubic-bezier(0.2,0,0,1) both; }
+  .de-shimmer { color:#9aa3b5; }
 
   .de-scroll::-webkit-scrollbar { width:4px; }
   .de-scroll::-webkit-scrollbar-track { background:transparent; }
@@ -120,33 +104,24 @@ const styles = `
   }
   .de-info-btn:hover { color:#e2e0fc; border-color:rgba(255,255,255,0.35); transform:scale(1.08); }
 
-  @keyframes deBackdropIn { from { opacity:0; } to { opacity:1; } }
-  @keyframes deModalIn { from { opacity:0; transform:translateY(14px) scale(0.985); } to { opacity:1; transform:translateY(0) scale(1); } }
-  .de-backdrop {
-    position:fixed; inset:0; z-index:1000; background:rgba(10,6,14,0.74);
-    backdrop-filter:blur(18px) saturate(1.1);
-    display:flex; align-items:center; justify-content:center; padding:32px;
-    animation:deBackdropIn 0.25s ease-out forwards;
-  }
-  .de-modal {
-    position:relative; width:100%; max-width:600px; max-height:82vh; overflow-y:auto;
-    background:linear-gradient(165deg, rgba(30,20,28,0.98), rgba(14,10,18,0.98));
-    border:1px solid rgba(255,255,255,0.1); border-radius:22px; padding:40px 44px 36px;
-    box-shadow:0 32px 80px rgba(0,0,0,0.55);
-    animation:deModalIn 0.32s cubic-bezier(0.16,1,0.3,1) forwards;
-  }
-  .de-modal::before {
-    content:""; position:absolute; top:0; left:44px; right:44px; height:1px;
-    background:linear-gradient(90deg, transparent, var(--accent, #ff2040), transparent); opacity:0.55;
+  /* Anchored info popover — small, near the button, never full-screen */
+  @keyframes dePopIn { from { opacity:0; transform:translateY(-4px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+  .de-pop {
+    position:fixed; width:340px; max-height:56vh; overflow-y:auto; z-index:1000;
+    background:rgba(19,17,28,0.98); border:1px solid rgba(255,255,255,0.12);
+    border-radius:12px; padding:20px 22px;
+    box-shadow:0 16px 48px rgba(0,0,0,0.5);
+    transform-origin:top center;
+    animation:dePopIn 200ms cubic-bezier(0.2,0,0,1) both;
   }
 
   .de-clash-track { position:relative; height:14px; border-radius:9999px; overflow:hidden; background:rgba(255,255,255,0.06); }
-  .de-clash-for { position:absolute; top:0; bottom:0; left:0; background:linear-gradient(90deg, rgba(0,230,77,0.9), rgba(0,230,77,0.45)); transition:width 0.9s cubic-bezier(0.16,1,0.3,1); }
-  .de-clash-against { position:absolute; top:0; bottom:0; right:0; background:linear-gradient(270deg, rgba(255,32,64,0.9), rgba(255,32,64,0.45)); transition:width 0.9s cubic-bezier(0.16,1,0.3,1); }
+  .de-clash-for { position:absolute; top:0; bottom:0; left:0; background:linear-gradient(90deg, rgba(0,230,77,0.9), rgba(0,230,77,0.45)); transition:width 0.25s cubic-bezier(0.2,0,0,1); }
+  .de-clash-against { position:absolute; top:0; bottom:0; right:0; background:linear-gradient(270deg, rgba(255,32,64,0.9), rgba(255,32,64,0.45)); transition:width 0.25s cubic-bezier(0.2,0,0,1); }
   .de-clash-marker {
-    position:absolute; top:-4px; bottom:-4px; width:3px; border-radius:2px;
-    background:#fff; box-shadow:0 0 12px rgba(255,255,255,0.8);
-    transition:left 0.9s cubic-bezier(0.16,1,0.3,1);
+    position:absolute; top:-3px; bottom:-3px; width:2px; border-radius:2px;
+    background:#e8eaf2;
+    transition:left 0.25s cubic-bezier(0.2,0,0,1);
   }
   ::selection { background:#ff2040; color:#0a0a1e; }
 `;
@@ -204,43 +179,45 @@ const INFO = {
   },
 };
 
-function InfoModal({ k, onClose }) {
-  const info = INFO[k];
+function InfoPopover({ open, onClose }) {
+  const ref = useRef(null);
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onDown);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("mousedown", onDown); };
   }, [onClose]);
+  const info = open && INFO[open.k];
   if (!info) return null;
+  const W = 340;
+  const left = Math.min(Math.max(12, open.x - W / 2), (window.innerWidth || 1280) - W - 12);
+  const top = Math.min(open.y + 10, (window.innerHeight || 800) * 0.42);
   return (
-    <div className="de-backdrop" onClick={onClose}>
-      <div className="de-modal de-scroll" style={{ "--accent": info.accent }} onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} aria-label="Close" style={{ position:"absolute", top:"22px", right:"24px", background:"none", border:"none", color:C.secondary, fontSize:"20px", cursor:"pointer", lineHeight:1 }}>×</button>
-        <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, letterSpacing:"0.22em", textTransform:"uppercase", color:info.accent, marginBottom:"14px" }}>{info.eyebrow}</div>
-        <h2 style={{ fontFamily:"Sora,sans-serif", fontSize:"26px", fontWeight:700, letterSpacing:"-0.025em", color:C.onSurface, marginBottom:"18px" }}>{info.title}</h2>
-        <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"14.5px", lineHeight:1.8, color:"#c3c1dc" }}>{info.what}</p>
-        {info.terms.length > 0 && (
-          <>
-            <div style={{ height:"1px", background:"linear-gradient(90deg, rgba(255,255,255,0.14), transparent)", margin:"26px 0 22px" }} />
-            <div style={{ display:"flex", flexDirection:"column", gap:"15px" }}>
-              {info.terms.map(([term, desc]) => (
-                <div key={term} style={{ display:"flex", gap:"14px", alignItems:"baseline" }}>
-                  <div style={{ width:"4px", height:"4px", borderRadius:"50%", background:info.accent, flexShrink:0 }} />
-                  <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"13.5px", lineHeight:1.7, color:C.secondary, margin:0 }}>
-                    <span style={{ color:C.onSurface, fontWeight:600 }}>{term}.</span> {desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+    <div ref={ref} className="de-pop de-scroll" role="dialog" aria-label={info.title} style={{ left, top }}>
+      <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, letterSpacing:"0.18em", textTransform:"uppercase", color:info.accent, marginBottom:"8px" }}>{info.eyebrow}</div>
+      <h3 style={{ fontFamily:"Sora,sans-serif", fontSize:"16px", fontWeight:700, letterSpacing:"-0.01em", color:"#e8eaf2", marginBottom:"10px" }}>{info.title}</h3>
+      <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"12.5px", lineHeight:1.7, color:"#9aa3b5" }}>{info.what}</p>
+      {info.terms.length > 0 && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"9px", marginTop:"12px", paddingTop:"12px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+          {info.terms.map(([term, desc]) => (
+            <p key={term} style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"12px", lineHeight:1.65, color:"#9aa3b5", margin:0 }}>
+              <span style={{ color:"#e8eaf2", fontWeight:600 }}>{term}.</span> {desc}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 const InfoBtn = ({ k, onOpen }) => (
-  <button type="button" className="de-info-btn" aria-label="What is this?" onClick={(e) => { e.stopPropagation(); onOpen(k); }}>i</button>
+  <button type="button" className="de-info-btn" aria-label="What is this?"
+    onClick={(e) => {
+      e.stopPropagation();
+      const r = e.currentTarget.getBoundingClientRect();
+      onOpen((prev) => (prev && prev.k === k ? null : { k, x: r.left + r.width / 2, y: r.bottom }));
+    }}>i</button>
 );
 
 // ── Data plumbing (same conventions as NeuralResearchEngine) ────────────────
@@ -367,16 +344,24 @@ function useTypewriter(fullText, cps = 120) {
 }
 
 // ── Small building blocks ────────────────────────────────────────────────────
+// Per-bar hover tooltips explain WHAT each bar is, not just its value.
+const BAR_TOOLTIPS = {
+  "Citations per paragraph": (i, h) => `Paragraph ${i + 1} — ${h}% of this argument's densest paragraph`,
+  "Content depth per source": (i, h) => `Source ${i + 1} — captured ${h}% of a full article`,
+};
+
 const Bars = ({ signal, accent, meaning }) => {
   if (!signal || !signal.levels || !signal.levels.length) {
     return <div className="de-empty" style={{ padding:"6px 0" }}>No signal data yet</div>;
   }
+  const tip = BAR_TOOLTIPS[signal.eyebrow] || ((i, h) => `Item ${i + 1} — ${h}%`);
   return (
     <div>
       <div className="de-eyebrow" style={{ marginBottom:"8px" }}>{signal.eyebrow}</div>
       <div className="de-bars">
         {signal.levels.map((h, i) => (
-          <div key={i} className="de-bar" style={{ height:`${Math.max(4, Math.min(100, h))}%`, background:`linear-gradient(180deg, ${accent}, ${accent}55)` }} />
+          <div key={i} className="de-bar" title={tip(i, Math.round(h))}
+            style={{ height:`${Math.max(4, Math.min(100, h))}%`, background:`linear-gradient(180deg, ${accent}, ${accent}55)`, cursor:"default" }} />
         ))}
       </div>
       {meaning && <div style={{ marginTop:"8px", fontSize:"10px", fontFamily:"Hanken Grotesk,sans-serif", color:C.dim, lineHeight:1.5 }}>{meaning}</div>}
@@ -514,20 +499,20 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
       <style>{styles}</style>
       <div className="de-ambient" />
       <div className="de-beam-wrap"><div className="de-beam" style={{ width:`${data.progress}%` }} /></div>
-      {infoOpen && <InfoModal k={infoOpen} onClose={() => setInfoOpen(null)} />}
+      {infoOpen && <InfoPopover open={infoOpen} onClose={() => setInfoOpen(null)} />}
 
       {/* ── Header — full-bleed hero band spanning the entire page ── */}
       <header className="de-header-band" style={{ position:"relative", zIndex:2 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", gap:"40px", flexWrap:"wrap" }}>
           <div style={{ flex:"1 1 480px", minWidth:0 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px" }}>
-              <div className="de-pulse" style={{ width:"7px", height:"7px", borderRadius:"50%", background:C.crimson, boxShadow:`0 0 10px ${C.crimson}` }} />
-              <span className="de-eyebrow" style={{ letterSpacing:"0.24em", fontSize:"11px" }}>Adversarial debate session</span>
-            </div>
             <h1 className="de-hero">Debate <span className="accent">Engine</span></h1>
-            <div style={{ marginTop:"22px", fontFamily:"JetBrains Mono,monospace" }}>
-              <span className="de-eyebrow" style={{ fontSize:"11px" }}>Proposition</span><br />
-              <span style={{ color:"#e2e0fc", display:"inline-block", marginTop:"8px", fontSize:"16px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, lineHeight:1.5, maxWidth:"620px" }}>{data.query || query}</span>
+            <div style={{ marginTop:"26px" }}>
+              <span className="de-eyebrow" style={{ fontSize:"10.5px", letterSpacing:"0.26em" }}>Proposition under review</span>
+              {/* Formal serif for the case being tried — editorial register,
+                  distinct from the punchy Sora hero above it. */}
+              <div style={{ color:"#efeefc", marginTop:"10px", fontSize:"clamp(21px, 2vw, 27px)", fontFamily:"'Cormorant Garamond',serif", fontStyle:"italic", fontWeight:600, lineHeight:1.4, maxWidth:"640px", letterSpacing:"0.005em" }}>
+                “{data.query || query}”
+              </div>
             </div>
           </div>
           <div style={{ display:"flex", gap:"44px", alignItems:"center", flexWrap:"wrap" }}>
@@ -560,7 +545,7 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
         <div className="de-card-in de-d2" style={{ display:"flex", flexDirection:"column", gap:"22px" }}>
           {/* VS + clash */}
           <section className="de-panel" style={{ padding:"22px", display:"flex", flexDirection:"column", gap:"18px", alignItems:"center" }}>
-            <div style={{ width:"54px", height:"54px", borderRadius:"50%", border:`1px solid ${C.purple}66`, background:`${C.purple}14`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Sora,sans-serif", fontStyle:"italic", fontWeight:800, fontSize:"17px", color:C.purple, animation:"deVsPulse 2.6s ease-in-out infinite" }}>VS</div>
+            <div style={{ width:"54px", height:"54px", borderRadius:"50%", border:`1px solid ${C.purple}66`, background:`${C.purple}14`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Sora,sans-serif", fontStyle:"italic", fontWeight:800, fontSize:"17px", color:C.purple }}>VS</div>
             <div style={{ width:"100%" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"9px" }}>
                 <span className="de-eyebrow" style={{ color:C.green }}>FOR {clashLive ? `${data.clash.forShare}%` : ""}</span>

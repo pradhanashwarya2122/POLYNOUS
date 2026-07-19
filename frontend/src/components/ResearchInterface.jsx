@@ -867,6 +867,22 @@ function clean(text) {
     .trim();
 }
 
+// Multi-line body sanitizer for section blocks: the LLM is instructed not
+// to emit markdown, but this guarantees it — stray ##, **, ---, and list
+// dashes are stripped/normalized so the styled components stay clean.
+function cleanBlock(text) {
+  if (!text) return "";
+  return text
+    .replace(/^\s*-{3,}\s*$/gm, "")          // --- divider lines
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/`{1,3}/g, "")
+    .replace(/^(\s*)[-*]\s+/gm, "$1• ")      // markdown dashes → bullets
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // Section header matcher: tolerates emoji prefixes, **bold**, colons,
 // case variations, and "&" joins (e.g. "CAVEATS & LIMITATIONS & UNCERTAINTIES").
 //
@@ -1022,24 +1038,48 @@ function CitationText({ text }) {
 }
 
 // ─── Premium report section card (13-section briefing format) ────────────────
+// Headings are HARD-LOCKED here — the LLM's text never carries or styles
+// them. Each section owns a fixed eyebrow + Sora display title; the body is
+// sanitized prose mapped into the card.
+const SECTION_EYEBROWS = {
+  "Source Intelligence": "Retrieval record",
+  "Consensus Map": "Where sources agree",
+  "Divergence Map": "Where sources conflict",
+  "Unique Insights": "Single-source findings",
+  "Source Quality Assessment": "Credibility review",
+  "Coverage Audit": "What's missing",
+  "Contradiction Resolution": "Conflict analysis",
+  "Confidence Analysis — Computed": "Measured, not guessed",
+  "Research Trajectory": "Where to go next",
+};
+
 function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, linkify = false }) {
-  if (!body || !body.trim()) return null;
+  const cleaned = cleanBlock(body);
+  if (!cleaned) return null;
   return (
     <div style={{
       background:"rgba(5,20,36,0.7)", backdropFilter:"blur(20px)",
       border:"1px solid rgba(255,255,255,0.08)", borderLeft:`4px solid ${accent}`,
-      borderRadius:14, padding:"24px 28px", position:"relative",
+      borderRadius:14, padding:"26px 30px", position:"relative",
       animation:`sectionIn 0.5s ${delay}s ease both`,
     }}>
       <SynapseDots color={accent} />
-      <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:accent, textTransform:"uppercase", letterSpacing:"0.2em", marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
-        <Icon name={icon} style={{ fontSize:15, color:accent }} /> {title}
+      {/* Hard-locked heading block — permanent structure, custom typography */}
+      <div style={{ marginBottom:18 }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9.5, color:accent, textTransform:"uppercase", letterSpacing:"0.24em", fontWeight:700, marginBottom:7, opacity:0.85 }}>
+          {SECTION_EYEBROWS[title] || "Section"}
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <Icon name={icon} style={{ fontSize:19, color:accent }} />
+          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0 }}>{title}</h3>
+        </div>
+        <div style={{ height:2, width:44, background:`linear-gradient(90deg, ${accent}, transparent)`, borderRadius:2, marginTop:11 }} />
       </div>
       <div style={{
         fontFamily: mono ? "'JetBrains Mono',monospace" : "'Inter',sans-serif",
         fontSize: mono ? 12 : 14, lineHeight:1.85, color:C.onSurface, whiteSpace:"pre-wrap",
       }}>
-        {linkify ? <Linkify text={body.trim()} /> : <CitationText text={body.trim()} />}
+        {linkify ? <Linkify text={cleaned} /> : <CitationText text={cleaned} />}
       </div>
     </div>
   );
@@ -1089,10 +1129,15 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
       {summary && (
         <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${C.green}`,borderRadius:14,padding:28,position:"relative",animation:"sectionIn 0.5s 0.08s ease both" }}>
           <SynapseDots color={C.green} />
-          <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.green,textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:14,display:"flex",alignItems:"center",gap:8 }}>
-            <Icon name="auto_awesome" style={{ fontSize:15,color:C.green }} /> Executive Summary
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:C.green,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,marginBottom:7,opacity:0.85 }}>The briefing in brief</div>
+            <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+              <Icon name="auto_awesome" style={{ fontSize:19,color:C.green }} />
+              <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Executive Summary</h3>
+            </div>
+            <div style={{ height:2,width:44,background:`linear-gradient(90deg, ${C.green}, transparent)`,borderRadius:2,marginTop:11 }} />
           </div>
-          <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.85,color:C.onSurface,whiteSpace:"pre-wrap" }}>{clean(summary)}</p>
+          <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14.5,lineHeight:1.9,color:C.onSurface,whiteSpace:"pre-wrap" }}>{cleanBlock(summary)}</p>
         </div>
       )}
 
@@ -1191,8 +1236,13 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
       {limitations && (
         <div style={{ background:"rgba(255,170,0,0.04)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,170,0,0.15)",borderLeft:`4px solid ${C.amber}`,borderRadius:14,padding:"22px 26px",position:"relative",animation:"sectionIn 0.5s 0.32s ease both" }}>
           <SynapseDots color={C.amber} />
-          <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.amber,textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:16,display:"flex",alignItems:"center",gap:8 }}>
-            <Icon name="warning" style={{ fontSize:15,color:C.amber }} /> ⚠️ Caveats &amp; Limitations
+          <div style={{ marginBottom:18 }}>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:C.amber,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,marginBottom:7,opacity:0.85 }}>Honest boundaries</div>
+            <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+              <Icon name="warning" style={{ fontSize:19,color:C.amber }} />
+              <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Caveats &amp; Limitations</h3>
+            </div>
+            <div style={{ height:2,width:44,background:`linear-gradient(90deg, ${C.amber}, transparent)`,borderRadius:2,marginTop:11 }} />
           </div>
           <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
             {limitationPoints.length>0 ? limitationPoints.map((pt,i)=>(

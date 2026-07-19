@@ -1,29 +1,30 @@
-import * as THREE from 'three'
 import { API_BASE_URL } from '../config';
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 /* ─────────────────────────────────────────────
-   DESIGN TOKENS  (HTML file palette)
+   DESIGN TOKENS
 ───────────────────────────────────────────── */
 const C = {
-  orange:        "#FF8C00",
-  orangeDark:    "#B36200",
-  orangeLight:   "#FFA94D",
-  orangeGlow:    "rgba(255,140,0,0.18)",
-  crimson:       "#ff2040",
-  gold:          "#ffd700",
-  void:          "#0A0A1E",
-  panel:         "#12122b",
-  border:        "#33334d",
-  surface:       "rgba(10,10,30,0.65)",
-  surfaceHigh:   "rgba(40,40,61,0.65)",
-  text:          "#E0E0E0",
-  textMuted:     "#8888a0",
-  white10:       "rgba(255,255,255,0.10)",
-  white5:        "rgba(255,255,255,0.05)",
-  fontDisplay:   "'Teko',sans-serif",
-  fontMono:      "'JetBrains Mono',monospace",
-  fontBody:      "'Inter',sans-serif",
+  void:        "#0a0a1e",
+  surface:     "rgba(255,255,255,0.03)",
+  raised:      "rgba(255,255,255,0.05)",
+  border:      "rgba(255,255,255,0.08)",
+  borderHover: "rgba(255,255,255,0.14)",
+  text:        "#e8eaf2",
+  sub:         "#9aa3b5",
+  muted:       "#6b7386",
+  accent:      "#ffa94d",
+  good:        "#4ade80",
+  warn:        "#fbbf24",
+  bad:         "#f87171",
+  fontDisplay: "'Sora',sans-serif",
+  fontMono:    "'JetBrains Mono',monospace",
+  fontBody:    "'Hanken Grotesk',sans-serif",
+};
+
+const label11 = {
+  fontFamily: C.fontMono, fontSize: 11, fontWeight: 600,
+  textTransform: "uppercase", letterSpacing: "0.08em",
 };
 
 /* ─────────────────────────────────────────────
@@ -32,81 +33,26 @@ const C = {
 function Styles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&family=Material+Symbols+Outlined&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&family=Hanken+Grotesk:wght@400;500;600&family=Material+Symbols+Outlined&display=swap');
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      html { scroll-behavior: smooth; }
-      body { background: #0A0A1E; color: #E0E0E0; font-family: 'JetBrains Mono', monospace; overflow-x: hidden; }
+      body { background: #0a0a1e; color: #e8eaf2; font-family: 'Hanken Grotesk', sans-serif; overflow-x: hidden; }
 
-      /* Scrollbar */
       ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: #0A0A1E; }
-      ::-webkit-scrollbar-thumb { background: #33334d; border-radius: 3px; }
-      ::-webkit-scrollbar-thumb:hover { background: #FF8C00; }
+      ::-webkit-scrollbar-track { background: #0a0a1e; }
+      ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 3px; }
 
-      /* Keyframes */
-      @keyframes spin       { to { transform: rotate(360deg); } }
-      @keyframes pulseGlow  { 0%,100%{box-shadow:0 0 6px rgba(255,140,0,0.4)}50%{box-shadow:0 0 22px rgba(255,140,0,0.9)} }
-      @keyframes fadeUp     { from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)} }
-      @keyframes fadeIn     { from{opacity:0}to{opacity:1} }
-      @keyframes ping       { 0%{transform:scale(1);opacity:0.6}100%{transform:scale(2.2);opacity:0} }
-      @keyframes pulseText  { 0%,100%{opacity:0.55}50%{opacity:1} }
-      @keyframes slideRight { from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)} }
-      @keyframes strandPulse{ 0%,100%{opacity:0.15}50%{opacity:0.55} }
+      @keyframes spin   { to { transform: rotate(360deg); } }
+      @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-      /* Scroll-triggered reveals */
-      .reveal {
-        opacity: 0;
-        transform: translateY(32px);
-        transition: opacity 0.6s ease, transform 0.6s ease;
-      }
-      .reveal.visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .reveal-left {
-        opacity: 0;
-        transform: translateX(-24px);
-        transition: opacity 0.5s ease, transform 0.5s ease;
-      }
-      .reveal-left.visible {
-        opacity: 1;
-        transform: translateX(0);
+      .reveal-once { animation: fadeUp 250ms cubic-bezier(0.2,0,0,1) both; }
+
+      button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+        outline: 2px solid ${"#ffa94d"};
+        outline-offset: 2px;
       }
 
-      /* Clip path card */
-      .card-clip {
-        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-      }
-
-      /* Particle dot bg */
-      .particle-dots {
-        background-image: radial-gradient(rgba(255,140,0,0.28) 1px, transparent 1px);
-        background-size: 20px 20px;
-        opacity: 0.28;
-      }
-
-      /* Text glow */
-      .text-glow {
-        text-shadow: 0 0 30px rgba(255,140,0,0.65);
-      }
-
-      /* Border glow utility */
-      .border-glow {
-        border: 1px solid rgba(255,140,0,0.28);
-        box-shadow: inset 0 0 12px rgba(255,140,0,0.08), 0 0 12px rgba(255,140,0,0.08);
-      }
-
-      /* Hover lift */
-      .lift:hover { transform: translateY(-3px); transition: transform 0.25s ease; }
-
-      /* Nav active left bar */
-      .nav-active::before {
-        content: '';
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 3px;
-        background: #FF8C00;
-        border-radius: 0 2px 2px 0;
+      @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; transition: none !important; }
       }
     `}</style>
   );
@@ -117,189 +63,12 @@ function Styles() {
 ───────────────────────────────────────────── */
 function Icon({ name, style: s }) {
   return (
-    <span style={{
+    <span aria-hidden="true" style={{
       fontFamily: "Material Symbols Outlined",
       fontVariationSettings: "'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24",
       lineHeight: 1, display: "inline-block",
       ...(s || {})
     }}>{name}</span>
-  );
-}
-
-/* ─────────────────────────────────────────────
-   THREE.JS NEURAL STRAND CANVAS  (from HTML)
-───────────────────────────────────────────── */
-function NeuralStrandCanvas() {
-  const mountRef = useRef(null);
-
-  useEffect(() => {
-    let THREE;
-    let animId;
-    let renderer;
-
-    const load = async () => {
-      try {
-        THREE = (await import("three")).default || (await import("three"));
-      } catch (_) {
-        return;
-      }
-
-      const container = mountRef.current;
-      if (!container) return;
-      const width  = container.clientWidth  || window.innerWidth;
-      const height = 480;
-
-      const scene  = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-      camera.position.z = 100;
-
-      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      container.appendChild(renderer.domElement);
-
-      const primaryColor = 0xff8c00;
-      const strandCount  = 25;
-      const pointsPer    = 100;
-      const strands      = [];
-
-      for (let i = 0; i < strandCount; i++) {
-        const geo = new THREE.BufferGeometry();
-        const pos = new Float32Array(pointsPer * 3);
-        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-        
-        const mat = new THREE.LineBasicMaterial({
-          color: primaryColor,
-          transparent: true,
-          opacity: 0.35 + Math.random() * 0.55,
-          blending: THREE.AdditiveBlending,
-        });
-        
-        const line = new THREE.Line(geo, mat);
-        scene.add(line);
-        strands.push({
-          line,
-          offset:    Math.random() * Math.PI * 2,
-          speed:     0.0003 + Math.random() * 0.0006,
-          amplitude: 10 + Math.random() * 20,
-          frequency: 0.01 + Math.random() * 0.015,
-          yOffset:   (Math.random() - 0.5) * 60,
-          zOffset:   (Math.random() - 0.5) * 50,
-        });
-      }
-
-      const glowStrands = [];
-      for (let i = 0; i < Math.floor(strandCount / 2); i++) {
-        const geo = new THREE.BufferGeometry();
-        const pos = new Float32Array(pointsPer * 3);
-        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-        
-        const mat = new THREE.LineBasicMaterial({
-          color: primaryColor,
-          transparent: true,
-          opacity: 0.08 + Math.random() * 0.12,
-          blending: THREE.AdditiveBlending,
-        });
-        
-        const line = new THREE.Line(geo, mat);
-        scene.add(line);
-        glowStrands.push({
-          line,
-          offset:    Math.random() * Math.PI * 2,
-          speed:     0.0003 + Math.random() * 0.0006,
-          amplitude: 12 + Math.random() * 22,
-          frequency: 0.01 + Math.random() * 0.015,
-          yOffset:   (Math.random() - 0.5) * 60,
-          zOffset:   (Math.random() - 0.5) * 50,
-        });
-      }
-
-      const pCount = 400;
-      const pGeo   = new THREE.BufferGeometry();
-      const pPos   = new Float32Array(pCount * 3);
-      for (let i = 0; i < pCount; i++) {
-        pPos[i*3]   = (Math.random()-0.5)*500;
-        pPos[i*3+1] = (Math.random()-0.5)*300;
-        pPos[i*3+2] = (Math.random()-0.5)*200;
-      }
-      pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
-      
-      const pMat  = new THREE.PointsMaterial({ 
-        color: primaryColor, 
-        size: 0.8,
-        transparent: true, 
-        opacity: 0.25,
-        blending: THREE.AdditiveBlending 
-      });
-      const dust  = new THREE.Points(pGeo, pMat);
-      scene.add(dust);
-
-      const animate = () => {
-        const time = Date.now() * 0.001;
-        
-        strands.forEach(s => {
-          const pos = s.line.geometry.attributes.position.array;
-          for (let j = 0; j < pointsPer; j++) {
-            const x = (j - pointsPer/2) * 5;
-            pos[j*3]   = x;
-            pos[j*3+1] = Math.sin(x*s.frequency + time + s.offset) * s.amplitude + s.yOffset;
-            pos[j*3+2] = Math.cos(x*s.frequency*0.5 + time + s.offset) * (s.amplitude*0.5) + s.zOffset;
-          }
-          s.line.geometry.attributes.position.needsUpdate = true;
-          s.line.rotation.y += s.speed;
-        });
-        
-        glowStrands.forEach(s => {
-          const pos = s.line.geometry.attributes.position.array;
-          for (let j = 0; j < pointsPer; j++) {
-            const x = (j - pointsPer/2) * 5;
-            pos[j*3]   = x + 0.5;
-            pos[j*3+1] = Math.sin(x*s.frequency + time + s.offset) * s.amplitude + s.yOffset + 0.3;
-            pos[j*3+2] = Math.cos(x*s.frequency*0.5 + time + s.offset) * (s.amplitude*0.5) + s.zOffset;
-          }
-          s.line.geometry.attributes.position.needsUpdate = true;
-          s.line.rotation.y += s.speed;
-        });
-        
-        dust.rotation.y += 0.00008;
-        renderer.render(scene, camera);
-        animId = requestAnimationFrame(animate);
-      };
-
-      const onResize = () => {
-        const w = container.clientWidth || window.innerWidth;
-        camera.aspect = w / 480;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, 480);
-      };
-      window.addEventListener("resize", onResize);
-      animate();
-    };
-
-    load();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      if (renderer && mountRef.current) {
-        try { mountRef.current.removeChild(renderer.domElement); } catch(_){}
-        renderer.dispose();
-      }
-    };
-  }, []);
-
-  return (
-    <div
-      ref={mountRef}
-      style={{
-        position: "absolute", top: 0, left: 0, right: 0,
-        height: 480, zIndex: 0, pointerEvents: "none",
-        maskImage: "linear-gradient(to bottom,black 55%,transparent 100%)",
-        WebkitMaskImage: "linear-gradient(to bottom,black 55%,transparent 100%)",
-        overflow: "hidden",
-      }}
-    >
-      <div className="particle-dots" style={{ position: "absolute", inset: 0 }} />
-    </div>
   );
 }
 
@@ -318,7 +87,7 @@ const NAV = [
 ];
 
 /* ═══════════════════════════════════════════════════════════════
-   SIDEBAR  (exact structure from doc 1, orange-themed)
+   SIDEBAR
 ═══════════════════════════════════════════════════════════════ */
 function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
   const go  = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
@@ -332,96 +101,62 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
     return (
       <aside
         style={{
-          position: "fixed",
-          left: 0,
-          top: 0,
-          height: "100%",
-          width: 56,
-          background: "rgba(10,10,30,0.65)",
+          position: "fixed", left: 0, top: 0, height: "100%", width: 56,
+          background: "rgba(10,10,30,0.9)",
           backdropFilter: "blur(24px)",
-          borderRight: "1px solid rgba(255,255,255,0.1)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          padding: "16px 0",
-          zIndex: 30,
+          borderRight: `1px solid ${C.border}`,
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "16px 0", zIndex: 30,
         }}
       >
-        {/* Expand button */}
         <button
           onClick={() => setCollapsed(false)}
-          style={{
-            background: "none",
-            border: "none",
-            color: C.orange,
-            cursor: "pointer",
-            marginBottom: 32,
-          }}
+          aria-label="Expand sidebar"
+          style={{ background: "none", border: "none", color: C.sub, cursor: "pointer", marginBottom: 32 }}
         >
           <Icon name="chevron_right" style={{ fontSize: 22 }} />
         </button>
 
-        {/* Nav icons */}
         {NAV.map(({ icon, label, path, active }) => (
-          <div
+          <button
             key={label}
             onClick={() => go(path)}
             title={label}
+            aria-label={label}
             style={{
-              padding: "12px 0",
-              cursor: "pointer",
-              color: active ? C.orange : C.textMuted,
-              width: "100%",
-              display: "flex",
-              justifyContent: "center",
+              padding: "12px 0", cursor: "pointer", border: "none", background: "none",
+              color: active ? C.accent : C.sub,
+              width: "100%", display: "flex", justifyContent: "center",
+              transition: "color 150ms",
             }}
           >
             <Icon name={icon} style={{ fontSize: 20, color: "inherit" }} />
-          </div>
+          </button>
         ))}
 
-        {/* Bottom actions */}
-        <div
-          style={{
-            marginTop: "auto",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 14,
-          }}
-        >
-          <div
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <button
             onClick={() => go("/research")}
+            aria-label="New research"
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: C.orange,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
+              width: 34, height: 34, borderRadius: "50%", background: C.accent, border: "none",
+              display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
             }}
           >
             <Icon name="add" style={{ fontSize: 16, color: C.void }} />
-          </div>
+          </button>
           <div
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: "50%",
-              background: "#1e1e32",
-              border: "1px solid rgba(255,140,0,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              width: 30, height: 30, borderRadius: "50%",
+              background: C.raised, border: `1px solid ${C.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            <Icon name="face" style={{ color: C.orange, fontSize: 14 }} />
+            <Icon name="face" style={{ color: C.sub, fontSize: 14 }} />
           </div>
-          <div onClick={bye} style={{ cursor: "pointer", color: C.crimson }}>
+          <button onClick={bye} aria-label="Log out" style={{ cursor: "pointer", color: C.bad, background: "none", border: "none" }}>
             <Icon name="logout" style={{ fontSize: 14 }} />
-          </div>
+          </button>
         </div>
       </aside>
     );
@@ -430,195 +165,101 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
   return (
     <aside
       style={{
-        position: "fixed",
-        left: 0,
-        top: 0,
-        height: "100%",
-        width: 320,
-        background: "rgba(10,10,30,0.65)",
+        position: "fixed", left: 0, top: 0, height: "100%", width: 320,
+        background: "rgba(10,10,30,0.9)",
         backdropFilter: "blur(24px)",
-        borderRight: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 0 20px rgba(255,140,0,0.08)",
-        display: "flex",
-        flexDirection: "column",
-        padding: 24,
-        zIndex: 30,
-        transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
-        overflow: "hidden",
+        borderRight: `1px solid ${C.border}`,
+        display: "flex", flexDirection: "column",
+        padding: 24, zIndex: 30, overflow: "hidden",
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          marginBottom: 40,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32 }}>
         <div>
           <h1
             style={{
-              fontFamily: "'Sora',sans-serif",
-              fontSize: 28,
-              fontWeight: 800,
-              color: C.orange,
-              letterSpacing: "-0.03em",
-              whiteSpace: "nowrap",
+              fontFamily: C.fontDisplay, fontSize: 24, fontWeight: 700,
+              color: C.text, letterSpacing: "-0.02em", whiteSpace: "nowrap",
             }}
           >
             POLYNOUS
           </h1>
-          <p
-            style={{
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 10,
-              color: C.textMuted,
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              opacity: 0.7,
-            }}
-          >
+          <p style={{ ...label11, fontSize: 10, color: C.muted }}>
             Cerebral Vitality Engine
           </p>
         </div>
         <button
           onClick={() => setCollapsed(true)}
-          style={{
-            background: "none",
-            border: "none",
-            color: C.textMuted,
-            cursor: "pointer",
-            padding: 4,
-            marginLeft: 8,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = C.textMuted)}
+          aria-label="Collapse sidebar"
+          style={{ background: "none", border: "none", color: C.sub, cursor: "pointer", padding: 4, marginLeft: 8 }}
         >
           <Icon name="chevron_left" style={{ fontSize: 20 }} />
         </button>
       </div>
 
       {/* Navigation */}
-      <nav
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          overflow: "hidden",
-        }}
-      >
+      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
         {NAV.map(({ icon, label, path, active }) => (
-          <div
+          <button
             key={label}
             onClick={() => go(path)}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 16px",
-              borderRadius: 9999,
-              cursor: "pointer",
-              color: active ? C.orange : C.textMuted,
-              background: active ? "rgba(255,140,0,0.15)" : "transparent",
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 13,
-              fontWeight: active ? 700 : 400,
-              transition: "all 0.2s",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "10px 16px", borderRadius: 6, cursor: "pointer",
+              color: active ? C.accent : C.sub,
+              background: active ? "rgba(255,169,77,0.08)" : "transparent",
+              border: "none", textAlign: "left",
+              fontFamily: C.fontBody, fontSize: 14,
+              fontWeight: active ? 600 : 400,
+              transition: "background 150ms, color 150ms",
+              whiteSpace: "nowrap", overflow: "hidden", width: "100%",
             }}
             onMouseEnter={(e) => {
-              if (!active) {
-                e.currentTarget.style.color = C.orange;
-                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-              }
+              if (!active) { e.currentTarget.style.color = C.text; e.currentTarget.style.background = C.raised; }
             }}
             onMouseLeave={(e) => {
-              if (!active) {
-                e.currentTarget.style.color = C.textMuted;
-                e.currentTarget.style.background = "transparent";
-              }
+              if (!active) { e.currentTarget.style.color = C.sub; e.currentTarget.style.background = "transparent"; }
             }}
           >
-            <Icon
-              name={icon}
-              style={{ fontSize: 20, color: "inherit", flexShrink: 0 }}
-            />
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-              {label}
-            </span>
-          </div>
+            <Icon name={icon} style={{ fontSize: 20, color: "inherit", flexShrink: 0 }} />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+          </button>
         ))}
       </nav>
 
-      {/* Bottom actions (user, logout, new research) */}
-      <div
-        style={{
-          borderTop: "1px solid rgba(255,255,255,0.05)",
-          paddingTop: 24,
-          marginTop: 24,
-        }}
-      >
+      {/* Bottom actions */}
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, marginTop: 24 }}>
         <button
           onClick={() => go("/research")}
           style={{
-            width: "100%",
-            padding: 12,
-            background: C.orange,
-            color: C.void,
-            fontWeight: 700,
-            borderRadius: 9999,
-            border: "none",
-            cursor: "pointer",
-            fontFamily: "'Sora',sans-serif",
-            fontSize: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            transition: "transform 0.2s",
+            width: "100%", padding: 12,
+            background: C.accent, color: C.void, fontWeight: 700,
+            borderRadius: 6, border: "none", cursor: "pointer",
+            fontFamily: C.fontDisplay, fontSize: 14,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            transition: "opacity 150ms",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
         >
           <Icon name="add" style={{ fontSize: 18, color: C.void }} /> New Research
         </button>
 
-        <div
-          style={{
-            marginTop: 20,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
+        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
           <div
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              background: "#1e1e32",
-              border: "1px solid rgba(255,140,0,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
+              width: 40, height: 40, borderRadius: "50%",
+              background: C.raised, border: `1px solid ${C.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
             }}
           >
-            <Icon name="face" style={{ color: C.orange, fontSize: 22 }} />
+            <Icon name="face" style={{ color: C.sub, fontSize: 22 }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{
-                fontFamily: "'JetBrains Mono',monospace",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#fff",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                fontFamily: C.fontBody, fontSize: 14, fontWeight: 600, color: C.text,
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               }}
             >
               {user?.username || "Guest"}
@@ -626,13 +267,8 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
             <button
               onClick={bye}
               style={{
-                fontSize: 10,
-                color: C.crimson,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "'JetBrains Mono',monospace",
-                padding: 0,
+                fontSize: 11, color: C.bad, background: "none", border: "none",
+                cursor: "pointer", fontFamily: C.fontMono, padding: 0,
               }}
             >
               Disconnect
@@ -645,43 +281,36 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
 }
 
 /* ─────────────────────────────────────────────
-   METRIC CARD  (HTML design, clip-path style)
+   METRIC CARD
 ───────────────────────────────────────────── */
-function MetricCard({ value, label, sub, icon, delay = 0 }) {
+function MetricCard({ value, label, delay = 0 }) {
   return (
-    <div className="reveal border-glow card-clip lift"
+    <div className="reveal-once"
       style={{
-        background:"linear-gradient(180deg,rgba(255,140,0,0.06) 0%,rgba(10,10,30,0.85) 100%)",
-        padding:"28px 20px", display:"flex", flexDirection:"column",
-        alignItems:"center", justifyContent:"center", minHeight:140,
-        position:"relative", animationDelay:`${delay}ms`, cursor:"default",
-        transition:"box-shadow 0.25s",
+        background: C.surface,
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        padding: 24,
+        display: "flex", flexDirection: "column",
+        alignItems: "flex-start", justifyContent: "center", minHeight: 112,
+        animationDelay: `${delay}ms`,
+        transition: "border-color 150ms",
       }}
-      onMouseEnter={e => e.currentTarget.style.boxShadow="0 0 24px rgba(255,140,0,0.35)"}
-      onMouseLeave={e => e.currentTarget.style.boxShadow=""}
+      onMouseEnter={e => e.currentTarget.style.borderColor = C.borderHover}
+      onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
     >
-      {icon && (
-        <Icon name={icon} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)",
-                                    fontSize:11, color: C.orange, opacity:0.45 }} />
-      )}
-      <div style={{ fontFamily: C.fontDisplay, fontSize:52, fontWeight:700, color:"#fff", lineHeight:1 }}>
+      <div style={{ fontFamily: C.fontDisplay, fontSize: 32, fontWeight: 700, color: C.text, lineHeight: 1.1 }}>
         {value}
       </div>
-      <div style={{ fontFamily: C.fontMono, fontSize:10, color: C.textMuted,
-                    textTransform:"uppercase", letterSpacing:"0.15em", marginTop:6 }}>
+      <div style={{ ...label11, color: C.sub, marginTop: 8 }}>
         {label}
       </div>
-      {sub && (
-        <div style={{ fontFamily: C.fontMono, fontSize:10, color: C.orange, marginTop:6 }}>
-          {sub}
-        </div>
-      )}
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────
-   SUGGESTION DATA  (from JSX file, verbatim)
+   SUGGESTION DATA
 ───────────────────────────────────────────── */
 const RESEARCH_PATHS    = ["Deep Learning Neural Architectures","Quantum Machine Learning","CRISPR Gene Editing","Blockchain Consensus","Fusion Energy Breakthroughs","Autonomous Vehicle Safety","Synthetic Biology Ethics","Neuromorphic Computing"];
 const NEW_DOMAINS       = ["Space Colonization Ethics","Ocean Floor Mining","Quantum Biology Frontiers","Atmospheric Carbon Capture","Brain-Computer Interfaces","Lab-Grown Meat Production","Asteroid Mining Economics","Digital Consciousness"];
@@ -694,26 +323,11 @@ const getRandomSuggestions = () => {
   const d = shuffle(NEW_DOMAINS);
   const db= shuffle(DEBATE_CHALLENGES);
   return [
-    { type:"Research Path",   topic:r[0],  color: C.orange,  mode:"research", desc:"Based on your neural interest profile." },
-    { type:"New Domain",      topic:d[0],  color: C.gold,    mode:"research", desc:"Your cognitive patterns suggest high affinity." },
-    { type:"Debate Challenge",topic:db[0], color: C.crimson, mode:"debate",   desc:"High-entropy topic awaiting your perspective." },
+    { type:"Research Path",   topic:r[0],  color: C.accent, mode:"research", desc:"A topic you might want to explore further." },
+    { type:"New Domain",      topic:d[0],  color: C.good,   mode:"research", desc:"An area outside your recent research." },
+    { type:"Debate Challenge",topic:db[0], color: C.bad,    mode:"debate",   desc:"An open question to argue both sides of." },
   ];
 };
-
-/* ─────────────────────────────────────────────
-   SCROLL REVEAL HOOK
-───────────────────────────────────────────── */
-function useScrollReveal() {
-  useEffect(() => {
-    const els = document.querySelectorAll(".reveal, .reveal-left");
-    const io  = new IntersectionObserver(
-      entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("visible"); }),
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
-    );
-    els.forEach(el => io.observe(el));
-    return () => io.disconnect();
-  });
-}
 
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
@@ -729,8 +343,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
   const [suggestions, setSuggestions] = useState(getRandomSuggestions());
   const [loading,     setLoading]     = useState(true);
   const [activeTab,   setActiveTab]   = useState("All Activity");
-
-  useScrollReveal();
 
   /* rotate suggestions every 5 s */
   useEffect(() => {
@@ -749,12 +361,10 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
   const fetchAllData = useCallback(async () => {
   setLoading(true);
   try {
-    // Get token from localStorage (most reliable source)
     const accessToken = localStorage.getItem('polynous_token');
-    
-    // If no token, try cookies or other sources
+
     if (!accessToken) {
-      console.warn('⚠️ No auth token found — memory data will be empty');
+      console.warn('No auth token found — memory data will be empty');
       setStats({ total_research: 0, total_debates: 0, avg_confidence: 0, unique_topics: 0 });
       setInterests([]);
       setHistory([]);
@@ -763,8 +373,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
       return;
     }
 
-    console.log('🔑 Token found, fetching memory data...');
-    
     const base = API_BASE_URL || 'http://localhost:8000';
     const headers = {
       'Authorization': `Bearer ${accessToken}`,
@@ -778,7 +386,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
       fetch(`${base}/memory/debates`, { headers })
     ]);
 
-    // Parse responses safely
     let statsData = { total_research: 0, total_debates: 0, avg_confidence: 0, unique_topics: 0 };
     let interestsData = { interests: [] };
     let historyData = { history: [] };
@@ -802,10 +409,6 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
       try { debatesData = await debatesRes.json(); } catch(e) { console.error('Debates parse error:', e); }
     }
 
-    console.log('📊 Loaded stats:', statsData);
-    console.log('📜 Loaded history:', historyData.history?.length, 'entries');
-    console.log('🗣️ Loaded debates:', debatesData.debates?.length, 'entries');
-
     setStats(statsData);
     setInterests(interestsData.interests || []);
     setHistory(historyData.history || []);
@@ -824,7 +427,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
     setSyncMsg(null);
     try {
       await fetchAllData();
-      setSyncMsg("Neural map synced successfully.");
+      setSyncMsg("Memory synced successfully.");
     } catch(_) {
       setSyncMsg("Sync failed. Please try again.");
     } finally {
@@ -850,12 +453,12 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
       if (!g[date]) g[date] = [];
       g[date].push({ query:d.topic||"Untitled Debate", mode:"debate",
                      confidence:Math.max(d.for_score||0, d.against_score||0)*10,
-                     kind:"debate", debateData:d });
+                     kind:"debate", debateData:d, timestamp:d.timestamp });
     });
     return g;
   }, [history, debates]);
 
-  const getConfColor = v => v >= 80 ? C.orange : v >= 60 ? C.gold : C.crimson;
+  const getConfColor = v => v >= 80 ? C.good : v >= 60 ? C.warn : C.bad;
 
   const sidebarW = collapsed ? 56 : 320;
   const grouped  = groupedHistory();
@@ -875,7 +478,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background: C.void, color: C.text, fontFamily: C.fontMono, overflowX:"hidden" }}>
+    <div style={{ minHeight:"100vh", background: C.void, color: C.text, fontFamily: C.fontBody, overflowX:"hidden" }}>
       <Styles />
 
       <Sidebar
@@ -888,114 +491,99 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
       <main style={{
         marginLeft: sidebarW,
-        transition:"margin-left 0.35s cubic-bezier(0.4,0,0.2,1)",
+        transition:"margin-left 250ms cubic-bezier(0.2,0,0,1)",
         position:"relative", zIndex:10,
       }}>
 
-        {/* ══ HERO SECTION ══ */}
-        <section style={{ position:"relative", overflow:"hidden", minHeight:420,
-                          display:"flex", alignItems:"flex-end", paddingBottom:48 }}>
-          <NeuralStrandCanvas />
-
-          <div style={{ position:"absolute", inset:0, zIndex:1,
-                        background:"linear-gradient(180deg,rgba(10,10,30,0.1) 0%,rgba(10,10,30,0.85) 100%)" }} />
-
-          <div style={{ position:"relative", zIndex:2, padding:"0 40px", width:"100%",
-                        display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
-            <div style={{ animation:"fadeUp 0.7s ease both" }}>
-              <div style={{ fontFamily: C.fontDisplay, fontSize:"clamp(3.5rem,7vw,5rem)",
-                            fontWeight:700, color: C.text, letterSpacing:"0.04em",
-                            lineHeight:0.95, textTransform:"uppercase", marginBottom:-6 }}>
-                NEURAL
-              </div>
-              <div className="text-glow"
-                style={{ fontFamily: C.fontDisplay, fontSize:"clamp(5rem,10vw,8rem)",
-                         fontWeight:700, color: C.orange, letterSpacing:"0.03em",
-                         lineHeight:0.9, textTransform:"uppercase" }}>
-                MEMORY BANK
-              </div>
-              <p style={{ fontFamily: C.fontMono, fontSize:13, color: C.textMuted,
-                          textTransform:"uppercase", letterSpacing:"0.22em", marginTop:18,
-                          maxWidth:460, lineHeight:1.8 }}>
-                Your research history.,<br/>Stored, connected, never forgotten.
-              </p>
-            </div>
-
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              style={{
-                display:"flex", alignItems:"center", gap:8,
-                background:"rgba(40,40,61,0.6)", backdropFilter:"blur(12px)",
-                border:`1px solid rgba(255,140,0,0.35)`,
-                padding:"10px 26px", borderRadius:4,
-                color: C.orange, fontFamily: C.fontMono, fontSize:12,
-                cursor: syncing ? "not-allowed" : "pointer",
-                opacity: syncing ? 0.75 : 1,
-                animation: syncing ? "pulseGlow 2s infinite" : "none",
-                transition:"all 0.3s",
-                clipPath:"polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)",
-                flexShrink:0, marginBottom:4,
-              }}
-              onMouseEnter={e => { if(!syncing){ e.currentTarget.style.background = C.orange; e.currentTarget.style.color = C.void; }}}
-              onMouseLeave={e => { e.currentTarget.style.background="rgba(40,40,61,0.6)"; e.currentTarget.style.color = C.orange; }}
-            >
-              <Icon name="sync" style={{ fontSize:18, animation: syncing ? "spin 1s linear infinite" : "none" }} />
-              {syncing ? "Syncing..." : "Sync Nodes"}
-            </button>
+        {/* ══ PAGE HEADER ══ */}
+        <section className="reveal-once" style={{
+          padding:"48px 32px 32px",
+          display:"flex", justifyContent:"space-between", alignItems:"flex-end",
+          maxWidth:1200, margin:"0 auto", gap:24, flexWrap:"wrap",
+        }}>
+          <div>
+            <h1 style={{ fontFamily: C.fontDisplay, fontSize:32, fontWeight:700,
+                         color: C.text, letterSpacing:"-0.02em", lineHeight:1.1 }}>
+              Memory Bank
+            </h1>
+            <p style={{ fontFamily: C.fontBody, fontSize:14, color: C.sub, marginTop:8 }}>
+              Your research history — stored, connected, never forgotten.
+            </p>
           </div>
+
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            style={{
+              display:"flex", alignItems:"center", gap:8,
+              background: C.raised,
+              border:`1px solid ${C.border}`,
+              padding:"8px 16px", borderRadius:6,
+              color: C.text, fontFamily: C.fontMono, fontSize:12, fontWeight:600,
+              cursor: syncing ? "not-allowed" : "pointer",
+              opacity: syncing ? 0.7 : 1,
+              transition:"border-color 150ms",
+              flexShrink:0,
+            }}
+            onMouseEnter={e => { if(!syncing) e.currentTarget.style.borderColor = C.borderHover; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}
+          >
+            <Icon name="sync" style={{ fontSize:16, animation: syncing ? "spin 1s linear infinite" : "none" }} />
+            {syncing ? "Syncing..." : "Sync"}
+          </button>
         </section>
 
         {/* ══ PAGE BODY ══ */}
-        <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 40px 80px" }}>
+        <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 32px 48px" }}>
 
           {loading && !stats && (
             <div style={{ display:"flex", justifyContent:"center", alignItems:"center",
-                          minHeight:320, flexDirection:"column", gap:18 }}>
-              <div style={{ width:48, height:48, border:`3px solid rgba(255,140,0,0.2)`,
-                            borderTop:`3px solid ${C.orange}`, borderRadius:"50%",
+                          minHeight:320, flexDirection:"column", gap:16 }}>
+              <div style={{ width:40, height:40, border:`3px solid ${C.border}`,
+                            borderTop:`3px solid ${C.accent}`, borderRadius:"50%",
                             animation:"spin 1s linear infinite" }} />
-              <p style={{ color: C.textMuted, fontFamily: C.fontMono, fontSize:13 }}>
-                Loading neural pathways...
+              <p style={{ color: C.sub, fontFamily: C.fontBody, fontSize:14 }}>
+                Loading your memory…
               </p>
             </div>
           )}
 
           {/* ── METRIC CARDS ── */}
           {stats && (
-            <section style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:20, marginBottom:44 }}>
-              <MetricCard value={stats.total_research || 0} label="Total Sessions"  sub="+12% this week" icon="hexagon" delay={0}   />
-              <MetricCard value={stats.total_debates   || 0} label="Total Debates"  sub="+8% this week"  icon="hexagon" delay={80}  />
-              <MetricCard value={stats.unique_topics   || 0} label="Unique Topics"  sub="+15% this week" icon="hexagon" delay={160} />
-              <MetricCard value={`${stats.avg_confidence || 0}%`} label="Avg Confidence" sub="+11%"      icon="show_chart" delay={240} />
+            <section style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:16, marginBottom:32 }}>
+              <MetricCard value={stats.total_research || 0} label="Research Sessions" delay={0}   />
+              <MetricCard value={stats.total_debates   || 0} label="Debates"          delay={60}  />
+              <MetricCard value={stats.unique_topics   || 0} label="Unique Topics"    delay={120} />
+              <MetricCard value={`${stats.avg_confidence || 0}%`} label="Avg Confidence" delay={180} />
             </section>
           )}
 
           {/* ── ACTIVE CLUSTERS ── */}
           {interests.length > 0 && (
-            <section className="reveal" style={{ marginBottom:44 }}>
-              <h3 style={{ fontFamily: C.fontMono, fontSize:11, color: C.textMuted,
-                           textTransform:"uppercase", letterSpacing:"0.2em", marginBottom:16 }}>
-                Active Clusters
+            <section className="reveal-once" style={{ marginBottom:32 }}>
+              <h3 style={{ fontFamily: C.fontDisplay, fontSize:17, fontWeight:700,
+                           color: C.text, marginBottom:12 }}>
+                Research Interests
               </h3>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                 {interests.slice(0,12).map((int, i) => (
                   <button
                     key={i}
                     onClick={() => handleTopicClick(int.topic, "research")}
+                    title={`${int.topic} — interest strength ${int.strength}`}
                     style={{
-                      padding:"8px 18px", borderRadius:9999,
-                      border:`1px solid ${C.orange}`,
-                      background:"transparent",
-                      color: C.text, fontFamily: C.fontMono, fontSize:11,
-                      cursor:"pointer", transition:"all 0.2s",
+                      padding:"8px 12px", borderRadius:6,
+                      border:`1px solid ${C.border}`,
+                      background: C.surface,
+                      color: C.text, fontFamily: C.fontBody, fontSize:13,
+                      cursor:"pointer", transition:"border-color 150ms, background 150ms",
                       display:"flex", alignItems:"center", gap:8,
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = C.orangeGlow; e.currentTarget.style.color = C.orange; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.text; }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = C.borderHover; e.currentTarget.style.background = C.raised; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = C.surface; }}
                   >
                     {int.topic}
-                    <span style={{ color: C.orange, fontWeight:700 }}>+{int.strength}</span>
+                    <span style={{ fontFamily: C.fontMono, fontSize:11, fontWeight:600, color: C.accent }}>+{int.strength}</span>
                   </button>
                 ))}
               </div>
@@ -1003,19 +591,17 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
           )}
 
           {/* ── TABS ── */}
-          <div className="reveal card-clip"
-            style={{ display:"inline-flex", border:`1px solid #222244`,
-                     borderRadius:6, overflow:"hidden", marginBottom:28, padding:2 }}>
+          <div className="reveal-once"
+            style={{ display:"inline-flex", border:`1px solid ${C.border}`,
+                     borderRadius:6, overflow:"hidden", marginBottom:24, background: C.surface }}>
             {TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 style={{
-                  padding:"8px 28px", border:"none", cursor:"pointer",
-                  fontFamily: C.fontMono, fontSize:11, textTransform:"uppercase", letterSpacing:"0.08em",
-                  background: activeTab === tab ? C.orangeDark : "transparent",
-                  color:      activeTab === tab ? "#fff"       : C.textMuted,
-                  boxShadow:  activeTab === tab ? "inset 0 0 10px rgba(255,140,0,0.15)" : "none",
-                  borderLeft: tab !== TABS[0] ? `1px solid #222244` : "none",
-                  transition:"all 0.2s",
+                  padding:"8px 16px", border:"none", cursor:"pointer",
+                  ...label11,
+                  background: activeTab === tab ? C.raised : "transparent",
+                  color:      activeTab === tab ? C.text   : C.sub,
+                  transition:"background 150ms, color 150ms",
                 }}
               >
                 {tab}
@@ -1025,81 +611,78 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
           {/* ── ACTIVITY FEED / TIMELINE ── */}
           {(activeTab === "All Activity" || activeTab === "Research") && (
-            <section style={{ marginBottom:44 }}>
-              <div style={{ border:`1px solid #222244`, borderRadius:8,
-                            background: C.void, overflow:"hidden" }}>
+            <section style={{ marginBottom:32 }}>
+              <div style={{ border:`1px solid ${C.border}`, borderRadius:12,
+                            background: C.surface, overflow:"hidden" }}>
                 {Object.entries(filteredGrouped()).length > 0 ? (
-                  Object.entries(filteredGrouped()).map(([date, items], gi) => (
+                  Object.entries(filteredGrouped()).map(([date, items]) => (
                     <div key={date}>
-                      <div style={{ display:"flex", alignItems:"center", gap:14,
-                                    padding:"12px 20px", borderBottom:`1px solid #222244`,
-                                    background:"rgba(18,18,43,0.6)" }}>
-                        <div style={{ flex:1, borderTop:`1px solid #222244` }} />
-                        <span style={{ fontFamily: C.fontMono, fontSize:10,
-                                       color: C.textMuted, whiteSpace:"nowrap" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12,
+                                    padding:"8px 16px", borderBottom:`1px solid ${C.border}`,
+                                    background: C.raised }}>
+                        <span style={{ ...label11, fontSize:10, color: C.muted, whiteSpace:"nowrap" }}>
                           {date}
                         </span>
-                        <div style={{ flex:1, borderTop:`1px solid #222244` }} />
                       </div>
                       {items.map((item, i) => {
                         const isDebate    = item.kind === "debate";
-                        const dotColor    = isDebate ? C.crimson : getConfColor(item.confidence);
+                        const dotColor    = isDebate ? C.bad : getConfColor(item.confidence);
                         const badgeText   = isDebate
                           ? (item.debateData ? `${item.debateData.for_score}/${item.debateData.against_score}` : "DEBATE")
                           : `${item.confidence}%`;
+                        const badgeTitle  = isDebate
+                          ? "Debate score — for / against"
+                          : `Answer confidence: ${item.confidence}%`;
                         const isLast = i === items.length - 1;
                         return (
                           <div
                             key={i}
-                            className="reveal"
+                            className="reveal-once"
                             onClick={() => handleTopicClick(item.query, item.mode || "research")}
                             style={{
-                              padding:"20px 24px",
-                              borderBottom: isLast ? "none" : `1px solid #222244`,
+                              padding:"16px 24px",
+                              borderBottom: isLast ? "none" : `1px solid ${C.border}`,
                               display:"flex", alignItems:"center", justifyContent:"space-between",
-                              cursor:"pointer", transition:"background 0.2s",
-                              animationDelay:`${i * 60}ms`,
+                              cursor:"pointer", transition:"background 150ms",
+                              animationDelay:`${Math.min(i,5) * 60}ms`,
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#12122b"}
+                            onMouseEnter={e => e.currentTarget.style.background = C.raised}
                             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                           >
-                            <div style={{ display:"flex", alignItems:"flex-start", gap:16 }}>
-                              <div style={{ marginTop:4, width:12, height:12, borderRadius:"50%",
-                                            background: dotColor, flexShrink:0,
-                                            boxShadow:`0 0 10px ${dotColor}` }} />
+                            <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+                              <div title={badgeTitle}
+                                   style={{ marginTop:5, width:8, height:8, borderRadius:"50%",
+                                            background: dotColor, flexShrink:0 }} />
                               <div>
                                 <h4 style={{ fontFamily: C.fontBody, fontSize:14, fontWeight:600,
-                                             color:"#fff", marginBottom:10 }}>
+                                             color: C.text, marginBottom:8 }}>
                                   {item.query}
                                 </h4>
                                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                                  <span style={{ padding:"3px 10px", background:"#12122b",
-                                                 color: C.textMuted, fontSize:10,
-                                                 borderRadius:3, textTransform:"uppercase" }}>
+                                  <span style={{ padding:"3px 8px", background: C.raised,
+                                                 color: C.sub, ...label11, fontSize:10,
+                                                 borderRadius:6 }}>
                                     {item.mode || "research"}
                                   </span>
                                   {item.topics?.filter(t=>t).slice(0,3).map((t,j)=>(
                                     <span key={j}
                                       onClick={e=>{e.stopPropagation(); handleTopicClick(t,"research");}}
-                                      style={{ padding:"3px 10px", background:"#12122b",
-                                               color: C.textMuted, fontSize:10,
-                                               borderRadius:3, textTransform:"uppercase", cursor:"pointer" }}>
+                                      style={{ padding:"3px 8px", background: C.raised,
+                                               color: C.sub, ...label11, fontSize:10,
+                                               borderRadius:6, cursor:"pointer" }}>
                                       {t}
                                     </span>
                                   ))}
                                 </div>
                               </div>
                             </div>
-                            <div style={{ display:"flex", alignItems:"center", gap:24, flexShrink:0 }}>
-                              <span style={{ fontFamily: C.fontMono, fontSize:14,
-                                             fontWeight:700, color: C.orange }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:16, flexShrink:0 }}>
+                              <span title={badgeTitle}
+                                    style={{ fontFamily: C.fontMono, fontSize:13,
+                                             fontWeight:600, color: dotColor,
+                                             fontVariantNumeric:"tabular-nums" }}>
                                 {badgeText}
                               </span>
-                              {item.timestamp && (
-                                <span style={{ fontFamily: C.fontMono, fontSize:10, color: C.textMuted }}>
-                                  {new Date(item.timestamp).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}
-                                </span>
-                              )}
                             </div>
                           </div>
                         );
@@ -1108,9 +691,9 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                   ))
                 ) : (
                   !loading && (
-                    <div style={{ textAlign:"center", padding:"48px 20px", color: C.textMuted,
-                                  fontFamily: C.fontMono, fontSize:13 }}>
-                      No research yet — start asking questions.
+                    <div style={{ textAlign:"center", padding:"48px 24px", color: C.sub,
+                                  fontFamily: C.fontBody, fontSize:14 }}>
+                      No research sessions yet — start asking questions.
                     </div>
                   )
                 )}
@@ -1120,58 +703,57 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
           {/* ── DEBATES TAB ── */}
           {(activeTab === "All Activity" || activeTab === "Debates") && debates.length > 0 && (
-            <section style={{ marginBottom:44 }}>
+            <section style={{ marginBottom:32 }}>
               {activeTab === "Debates" && (
-                <h3 style={{ fontFamily: C.fontMono, fontSize:11, color: C.textMuted,
-                             textTransform:"uppercase", letterSpacing:"0.2em", marginBottom:20 }}>
+                <h3 style={{ fontFamily: C.fontDisplay, fontSize:17, fontWeight:700,
+                             color: C.text, marginBottom:16 }}>
                   Debate History
                 </h3>
               )}
-              <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {debates.map((d, i) => (
-                  <div key={i} className="reveal"
+                  <div key={i} className="reveal-once"
                     onClick={() => handleTopicClick(d.topic, "debate")}
                     style={{
-                      background: C.surface, backdropFilter:"blur(20px)",
-                      border:"1px solid rgba(255,32,64,0.28)", borderRadius:8, padding:20,
-                      cursor:"pointer", transition:"background 0.2s",
-                      boxShadow:"0 0 14px rgba(255,32,64,0.1)",
-                      animationDelay:`${i*70}ms`,
+                      background: C.surface,
+                      border:`1px solid ${C.border}`, borderRadius:12, padding:24,
+                      cursor:"pointer", transition:"background 150ms, border-color 150ms",
+                      animationDelay:`${Math.min(i,5)*60}ms`,
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.surfaceHigh}
-                    onMouseLeave={e => e.currentTarget.style.background = C.surface}
+                    onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.borderColor = C.borderHover; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = C.surface; e.currentTarget.style.borderColor = C.border; }}
                   >
-                    <h4 style={{ fontFamily: C.fontBody, fontSize:15, fontWeight:600,
-                                 color:"#fff", marginBottom:14 }}>
+                    <h4 style={{ fontFamily: C.fontBody, fontSize:14, fontWeight:600,
+                                 color: C.text, marginBottom:12 }}>
                       {d.topic}
                     </h4>
-                    <div style={{ display:"flex", gap:16, marginBottom:10 }}>
-                      <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", gap:16, marginBottom:12 }}>
+                      <div style={{ flex:1 }} title={`FOR argued at ${d.for_score}/10`}>
                         <div style={{ display:"flex", justifyContent:"space-between",
-                                      fontFamily: C.fontMono, fontSize:10, marginBottom:5 }}>
-                          <span style={{ color: C.orange }}>FOR</span>
-                          <span style={{ color: C.orange }}>{d.for_score}/10</span>
+                                      ...label11, fontSize:10, marginBottom:4 }}>
+                          <span style={{ color: C.good }}>FOR</span>
+                          <span style={{ color: C.good, fontVariantNumeric:"tabular-nums" }}>{d.for_score}/10</span>
                         </div>
-                        <div style={{ height:4, borderRadius:2, background:"rgba(255,255,255,0.06)" }}>
+                        <div style={{ height:4, borderRadius:2, background: C.raised }}>
                           <div style={{ width:`${(d.for_score||0)*10}%`, height:"100%",
-                                        borderRadius:2, background: C.orange, transition:"width 1s ease" }} />
+                                        borderRadius:2, background: C.good }} />
                         </div>
                       </div>
-                      <div style={{ flex:1 }}>
+                      <div style={{ flex:1 }} title={`AGAINST argued at ${d.against_score}/10`}>
                         <div style={{ display:"flex", justifyContent:"space-between",
-                                      fontFamily: C.fontMono, fontSize:10, marginBottom:5 }}>
-                          <span style={{ color: C.crimson }}>AGAINST</span>
-                          <span style={{ color: C.crimson }}>{d.against_score}/10</span>
+                                      ...label11, fontSize:10, marginBottom:4 }}>
+                          <span style={{ color: C.bad }}>AGAINST</span>
+                          <span style={{ color: C.bad, fontVariantNumeric:"tabular-nums" }}>{d.against_score}/10</span>
                         </div>
-                        <div style={{ height:4, borderRadius:2, background:"rgba(255,255,255,0.06)" }}>
+                        <div style={{ height:4, borderRadius:2, background: C.raised }}>
                           <div style={{ width:`${(d.against_score||0)*10}%`, height:"100%",
-                                        borderRadius:2, background: C.crimson, transition:"width 1s ease" }} />
+                                        borderRadius:2, background: C.bad }} />
                         </div>
                       </div>
                     </div>
-                    <div style={{ fontFamily: C.fontMono, fontSize:11, fontWeight:700,
-                                  color: d.winner==="FOR" ? C.orange : d.winner==="AGAINST" ? C.crimson : C.gold }}>
-                      🏆 Winner: {d.winner}
+                    <div style={{ ...label11, fontSize:10,
+                                  color: d.winner==="FOR" ? C.good : d.winner==="AGAINST" ? C.bad : C.sub }}>
+                      Winner: {d.winner || "—"}
                     </div>
                   </div>
                 ))}
@@ -1181,50 +763,41 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
           {/* Debates empty state */}
           {(activeTab === "All Activity" || activeTab === "Debates") && debates.length === 0 && !loading && (
-            <div style={{ textAlign:"center", padding:"40px 20px", color: C.textMuted,
-                          fontFamily: C.fontMono, fontSize:12, marginBottom:44 }}>
+            <div style={{ textAlign:"center", padding:"32px 24px", color: C.sub,
+                          fontFamily: C.fontBody, fontSize:14, marginBottom:32 }}>
               No debates yet — start a debate to see your history.
             </div>
           )}
 
-          {/* ── SUGGESTED SYNAPTIC PATHS ── */}
-          <section className="reveal" style={{ paddingBottom:40 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:24 }}>
-              <h3 style={{ fontFamily: C.fontDisplay, fontSize:26, fontWeight:600,
-                           color:"#fff", textTransform:"uppercase", letterSpacing:"0.06em", margin:0 }}>
-                Suggested Synaptic Paths
-              </h3>
-              <Icon name="auto_awesome" style={{ color: C.gold, fontSize:20,
-                                                  animation:"pulseText 2s infinite" }} />
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          {/* ── SUGGESTED TOPICS ── */}
+          <section className="reveal-once" style={{ paddingBottom:32 }}>
+            <h3 style={{ fontFamily: C.fontDisplay, fontSize:17, fontWeight:700,
+                         color: C.text, marginBottom:16 }}>
+              Suggested Topics
+            </h3>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {suggestions.map((s, i) => (
                 <div
                   key={`${s.topic}-${i}`}
                   onClick={() => handleTopicClick(s.topic, s.mode)}
-                  className="reveal-left"
                   style={{
-                    background: C.surface, backdropFilter:"blur(20px)",
-                    border:`1px solid ${C.white10}`,
-                    borderLeft:`4px solid ${s.color}`,
-                    borderRadius:8, padding:"18px 22px", cursor:"pointer",
-                    transition:"transform 0.2s ease, background 0.2s ease",
-                    animationDelay:`${i * 120}ms`,
+                    background: C.surface,
+                    border:`1px solid ${C.border}`,
+                    borderLeft:`3px solid ${s.color}`,
+                    borderRadius:12, padding:"16px 24px", cursor:"pointer",
+                    transition:"background 150ms, border-color 150ms",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.transform="translateX(8px)"; e.currentTarget.style.background = C.surfaceHigh; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform="translateX(0)";   e.currentTarget.style.background = C.surface; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.raised; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.surface; }}
                 >
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                    <span style={{ fontFamily: C.fontMono, fontSize:9, color: s.color,
-                                   textTransform:"uppercase", letterSpacing:"0.15em" }}>
-                      {s.type}
-                    </span>
+                  <div style={{ ...label11, fontSize:10, color: s.color, marginBottom:4 }}>
+                    {s.type}
                   </div>
                   <h4 style={{ fontFamily: C.fontBody, fontSize:14, fontWeight:600,
-                               color:"#fff", margin:"0 0 4px" }}>
+                               color: C.text, margin:"0 0 4px" }}>
                     {s.topic}
                   </h4>
-                  <p style={{ fontFamily: C.fontBody, fontSize:12, color: C.textMuted, margin:0 }}>
+                  <p style={{ fontFamily: C.fontBody, fontSize:13, color: C.sub, margin:0 }}>
                     {s.desc}
                   </p>
                 </div>
@@ -1237,18 +810,15 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
       {/* ── SYNC TOAST ── */}
       {syncMsg && (
-        <div style={{
+        <div className="reveal-once" style={{
           position:"fixed", bottom:32, right:32, zIndex:100,
-          background: syncMsg.includes("failed") ? "rgba(255,32,64,0.12)" : "rgba(255,140,0,0.12)",
-          backdropFilter:"blur(20px)",
-          border:`1px solid ${syncMsg.includes("failed") ? "rgba(255,32,64,0.4)" : "rgba(255,140,0,0.4)"}`,
-          borderRadius:8, padding:"14px 24px",
-          fontFamily: C.fontMono, fontSize:12,
-          color: syncMsg.includes("failed") ? C.crimson : C.orange,
-          animation:"fadeUp 0.4s ease",
-          clipPath:"polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)",
+          background:"rgba(10,10,30,0.95)",
+          border:`1px solid ${syncMsg.includes("failed") ? C.bad : C.border}`,
+          borderRadius:12, padding:"12px 24px",
+          fontFamily: C.fontBody, fontSize:14,
+          color: syncMsg.includes("failed") ? C.bad : C.text,
         }}>
-          {syncMsg.includes("failed") ? "⚠ " : "✓ "}{syncMsg}
+          {syncMsg}
         </div>
       )}
     </div>

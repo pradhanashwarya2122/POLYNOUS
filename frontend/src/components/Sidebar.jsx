@@ -30,21 +30,33 @@ const NAV = [
   { icon: "settings",         label: "Settings",        path: "/settings" },
 ];
 
+const FOCUS_CSS = `
+  .pn-nav-item:focus-visible, .pn-icon-btn:focus-visible {
+    outline: 2px solid #a855f7;
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+`;
+
 export default function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
   const go = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
   const bye = () => (onLogout ? onLogout() : (localStorage.clear(), (window.location.href = "/")));
+  const keyGo = (fn) => (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
 
   // ── Collapsed State ─────────────────────────────────────────
   if (collapsed) return (
     <aside style={{
       position: "fixed", left: 0, top: 0, height: "100%", width: 56,
       background: "rgba(10,10,30,0.65)", backdropFilter: "blur(24px)",
-      borderRight: "1px solid " + C.white10,
+      borderRight: "1px solid rgba(168,85,247,0.22)",
       display: "flex", flexDirection: "column", alignItems: "center",
       padding: "16px 0", zIndex: 30,
     }}>
+      <style>{FOCUS_CSS}</style>
       <button
         onClick={() => setCollapsed(false)}
+        aria-label="Expand sidebar"
+        className="pn-icon-btn"
         style={{ background: "none", border: "none", color: C.purple, cursor: "pointer", marginBottom: 32 }}
       >
         <Icon name="chevron_right" style={{ fontSize: 22 }} />
@@ -54,11 +66,17 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
         <div
           key={label}
           onClick={() => go(path)}
+          onKeyDown={keyGo(() => go(path))}
+          role="button"
+          tabIndex={0}
+          aria-label={label}
           title={label}
+          className="pn-nav-item"
           style={{
             padding: "12px 0", cursor: "pointer",
             color: active ? C.purple : C.onSurfaceVariant,
             width: "100%", display: "flex", justifyContent: "center",
+            transition: "color 0.2s",
           }}
         >
           <Icon name={icon} style={{ fontSize: 20, color: "inherit" }} />
@@ -68,6 +86,11 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
         <div
           onClick={() => go("/research")}
+          onKeyDown={keyGo(() => go("/research"))}
+          role="button"
+          tabIndex={0}
+          aria-label="New Research"
+          className="pn-nav-item"
           style={{
             width: 34, height: 34, borderRadius: "50%", background: C.purple,
             display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
@@ -81,7 +104,15 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
         }}>
           <Icon name="face" style={{ color: C.purple, fontSize: 14 }} />
         </div>
-        <div onClick={bye} style={{ cursor: "pointer", color: C.purple }}>
+        <div
+          onClick={bye}
+          onKeyDown={keyGo(bye)}
+          role="button"
+          tabIndex={0}
+          aria-label="Log out"
+          className="pn-nav-item"
+          style={{ cursor: "pointer", color: C.purple }}
+        >
           <Icon name="logout" style={{ fontSize: 14 }} />
         </div>
       </div>
@@ -93,11 +124,12 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
     <aside style={{
       position: "fixed", left: 0, top: 0, height: "100%", width: 320,
       background: "rgba(10,10,30,0.65)", backdropFilter: "blur(24px)",
-      borderRight: "1px solid " + C.white10,
+      borderRight: "1px solid rgba(168,85,247,0.22)",
       boxShadow: "0 0 20px rgba(168,85,247,0.08)",
       display: "flex", flexDirection: "column", padding: 24, zIndex: 30,
-      transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)", overflow: "hidden",
+      transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)", overflow: "hidden",
     }}>
+      <style>{FOCUS_CSS}</style>
       {/* Logo + Collapse */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 40 }}>
         <div>
@@ -113,6 +145,8 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
         </div>
         <button
           onClick={() => setCollapsed(true)}
+          aria-label="Collapse sidebar"
+          className="pn-icon-btn"
           style={{
             background: "none", border: "none", color: C.textSecondary,
             cursor: "pointer", padding: 4, marginLeft: 8,
@@ -130,6 +164,10 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
           <div
             key={label}
             onClick={() => go(path)}
+            onKeyDown={keyGo(() => go(path))}
+            role="button"
+            tabIndex={0}
+            className="pn-nav-item"
             style={{
               display: "flex", alignItems: "center", gap: 12,
               padding: "10px 16px", borderRadius: 9999, cursor: "pointer",

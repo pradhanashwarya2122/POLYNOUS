@@ -17,12 +17,11 @@ const styles = `
   .font-mono    { font-family:'JetBrains Mono',monospace; font-feature-settings:'zero' 1; }
 
   /* green glow accents */
-  .glow-green      { text-shadow: 0 0 18px rgba(0,255,71,0.45); }
-  .panel-glow:hover{ box-shadow: 0 0 24px rgba(0,255,71,0.07); border-color: rgba(0,255,71,0.22) !important; }
+  .panel-glow:hover{ border-color: rgba(255,255,255,0.14) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
 
   /* live clock pulse */
   @keyframes tickPulse { 0%,100%{ opacity:1; } 50%{ opacity:0.55; } }
-  .tick-dot { animation: tickPulse 1s ease-in-out infinite; }
+  .tick-dot { }
 
   body {
     background-color: #0a0a1e;
@@ -34,7 +33,7 @@ const styles = `
     position: relative;
     background: linear-gradient(170deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 18px;
+    border-radius: 12px;
     backdrop-filter: blur(20px) saturate(1.05);
     box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
     transition: border-color 0.35s ease, transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease;
@@ -47,16 +46,10 @@ const styles = `
 
   /* Apple-grade display heading */
   .hero-title {
-    font-family:'Sora',sans-serif; font-size:46px; font-weight:800;
-    letter-spacing:-0.035em; line-height:1.05;
-    background:linear-gradient(180deg, #ffffff 30%, #b8bec9 100%);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
+    font-family:'Sora',sans-serif; font-size:clamp(30px, 2.8vw, 40px); font-weight:700;
+    letter-spacing:-0.02em; line-height:1.1; color:#e8eaf2;
   }
-  .hero-title .accent {
-    background:linear-gradient(180deg, #7dffa1 20%, #00ff47 80%);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-    filter:drop-shadow(0 0 22px rgba(0,255,71,0.35));
-  }
+  .hero-title .accent { color:#00ff47; }
 
   .agent-top-cyan   { border-top: 2px solid rgba(79,209,197,0.55); }
   .agent-top-blue   { border-top: 2px solid rgba(0,255,71,0.55); }
@@ -93,8 +86,8 @@ const styles = `
   .fade-in      { animation: fadeIn 0.4s ease-out forwards; opacity:0; }
   .log-entry    { animation: slideUpFade 0.18s cubic-bezier(0.22,1,0.36,1) forwards; }
   .log-entry-new{ animation: slideUpFade 0.18s cubic-bezier(0.22,1,0.36,1) forwards, flashHighlight 0.9s ease-out forwards; border-radius:8px; }
-  .synthesis-core { animation: pulseCore 2.4s ease-in-out infinite; }
-  .float-tag    { animation: tagPop 5s ease-in-out infinite; }
+  .synthesis-core { }
+  .float-tag    { animation: fadeIn 0.25s ease-out both; }
   .error-banner { animation: errorSlideIn 0.3s ease-out forwards; }
   .query-caret {
     display:inline-block; width:2px; height:1em; background:#00ff47;
@@ -139,70 +132,22 @@ const styles = `
   @keyframes shimmerText {
     0% { background-position:200% center; } 100% { background-position:-200% center; }
   }
-  .thinking-shimmer {
-    background:linear-gradient(90deg, #525c6e 20%, #dde1e9 40%, #00ff47 50%, #dde1e9 60%, #525c6e 80%);
-    background-size:200% auto;
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-    animation:shimmerText 2.6s linear infinite;
-  }
-  @keyframes orbitDot {
-    from { transform:rotate(0deg) translateX(12px) rotate(0deg); }
-    to   { transform:rotate(360deg) translateX(12px) rotate(-360deg); }
-  }
-  @keyframes orbRing {
-    0%,100% { transform:scale(0.85); opacity:0.5; } 50% { transform:scale(1.12); opacity:0.12; }
-  }
-  @keyframes orbBreathe {
-    0%,100% { transform:scale(1); box-shadow:0 0 10px rgba(0,255,71,0.55); }
-    50%     { transform:scale(1.25); box-shadow:0 0 22px rgba(0,255,71,0.95), 0 0 46px rgba(0,255,71,0.3); }
-  }
-  .thought-orb { position:relative; width:34px; height:34px; flex-shrink:0; }
-  .thought-orb .orb-core {
-    position:absolute; inset:12px; border-radius:50%; background:#00ff47;
-    animation:orbBreathe 2.4s ease-in-out infinite;
-  }
-  .thought-orb .orb-ring {
-    position:absolute; inset:3px; border-radius:50%;
-    border:1px solid rgba(0,255,71,0.5);
-    animation:orbRing 2.4s ease-in-out infinite;
-  }
-  .thought-orb .orb-ring:nth-child(2) { inset:0; animation-delay:-1.2s; border-color:rgba(0,255,71,0.28); }
-  .thought-orb .orb-dot {
-    position:absolute; top:50%; left:50%; width:4px; height:4px; margin:-2px;
-    border-radius:50%; background:rgba(0,255,71,0.9);
-    animation:orbitDot 2.2s linear infinite;
-  }
-  .thought-orb .orb-dot:nth-child(4) { animation-duration:3.1s; animation-delay:-0.8s; opacity:0.6; width:3px; height:3px; }
-  .thought-orb .orb-dot:nth-child(5) { animation-duration:4.2s; animation-delay:-1.6s; opacity:0.35; width:3px; height:3px; }
-  .thought-orb .orb-dot:nth-child(6) { animation-duration:5.4s; animation-delay:-2.7s; opacity:0.2; }
-  @keyframes phraseSwap { 0%{ opacity:0; transform:translateY(6px); filter:blur(3px); } 14%{ opacity:1; transform:translateY(0); filter:blur(0); } 86%{ opacity:1; filter:blur(0); } 100%{ opacity:0; transform:translateY(-6px); filter:blur(3px); } }
-  .phrase-swap { animation:phraseSwap 2.8s ease-in-out infinite; }
-  /* EEG-style thought trace under the phrase */
-  @keyframes traceDash { to { stroke-dashoffset:-120; } }
-  .thought-trace path { stroke-dasharray:60 60; animation:traceDash 2.2s linear infinite; }
+  .thinking-shimmer { color:#9aa3b5; }
+  .thought-dot { width:8px; height:8px; border-radius:50%; background:#00ff47; flex-shrink:0; }
 
   /* ── Premium finish ── */
   /* Top progress beam — whole-page read on research progress */
   .progress-beam-wrap { position:fixed; top:0; left:0; right:0; height:2px; z-index:500; background:rgba(255,255,255,0.04); }
   .progress-beam {
-    height:100%; background:linear-gradient(90deg, #4FD1C5, #00ff47 60%, #a855f7);
-    box-shadow:0 0 12px rgba(0,255,71,0.55);
-    transition:width 0.7s cubic-bezier(0.16,1,0.3,1);
+    height:100%; background:#00ff47;
+    transition:width 0.25s cubic-bezier(0.2,0,0,1);
   }
   /* Staggered card entrances */
   @keyframes cardEnter { from { opacity:0; transform:translateY(14px) scale(0.99); } to { opacity:1; transform:translateY(0) scale(1); } }
   .card-enter    { animation:cardEnter 0.6s cubic-bezier(0.16,1,0.3,1) both; }
   .card-enter-1  { animation-delay:0.05s; } .card-enter-2 { animation-delay:0.12s; }
   .card-enter-3  { animation-delay:0.19s; } .card-enter-4 { animation-delay:0.26s; }
-  /* Sheen sweep on panel hover */
   .panel-glow { overflow:hidden; }
-  .panel-glow::after {
-    content:""; position:absolute; top:0; bottom:0; left:-70%; width:45%;
-    background:linear-gradient(105deg, transparent, rgba(255,255,255,0.045), transparent);
-    transform:skewX(-18deg); transition:left 0.7s cubic-bezier(0.16,1,0.3,1);
-    pointer-events:none;
-  }
-  .panel-glow:hover::after { left:130%; }
   .animate-spin       { animation: spin 5s linear infinite; }
   .animate-soft-pulse { animation: softPulse 2.2s ease-in-out infinite; }
   .pop-number { display:inline-block; animation: popNumber 0.35s cubic-bezier(0.34,1.56,0.64,1); }
@@ -246,6 +191,10 @@ const styles = `
   .task-row      { transition:background 0.2s ease; border-radius:8px; }
   .task-row:hover{ background:rgba(255,255,255,0.03); }
   .empty-note    { font-size:11.5px; color:#525c6e; font-family:'JetBrains Mono',monospace; font-style:italic; }
+  button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid #00ff47; outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation:none !important; transition:none !important; }
+  }
   ::selection    { background:#00ff47; color:#0a0a1e; }
 `;
 
@@ -1235,19 +1184,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                   </div>
                 ) : (
                   <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-                    <div className="thought-orb">
-                      <span className="orb-ring"/><span className="orb-ring"/>
-                      <div className="orb-core"/>
-                      <span className="orb-dot"/><span className="orb-dot"/><span className="orb-dot"/>
-                    </div>
-                    <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
-                      <span key={thinkingPhrase} className="thinking-shimmer phrase-swap" style={{ fontSize:"13.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>
-                        {thinkingPhrase}
-                      </span>
-                      <svg className="thought-trace" width="150" height="10" viewBox="0 0 150 10" fill="none">
-                        <path d="M0 5 L18 5 L24 1.5 L30 8.5 L36 5 L60 5 L66 2.5 L72 7.5 L78 5 L104 5 L110 1 L116 9 L122 5 L150 5" stroke="rgba(0,255,71,0.45)" strokeWidth="1.2" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
+                    <span className="thought-dot" aria-hidden="true" />
+                    <span key={thinkingPhrase} className="thinking-shimmer phrase-swap" style={{ fontSize:"13.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>
+                      {thinkingPhrase}
+                    </span>
                   </div>
                 )}
               </div>

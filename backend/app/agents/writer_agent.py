@@ -151,6 +151,27 @@ from the source data and appends it automatically. Never invent
 confidence numbers.
 
 ────────────────────────────────────────────────────────────
+OUTPUT FORMAT RULES — the frontend renders your text directly
+────────────────────────────────────────────────────────────
+Your text is displayed as-is inside styled components. The section header
+lines above (📋 EXECUTIVE SUMMARY etc.) are STRUCTURAL DELIMITERS the
+platform parses out and replaces with its own styled headings — write them
+exactly as given, once each, and NOTHING else may look like formatting:
+
+1. NO markdown syntax anywhere in the body text: no ##, no ###, no
+   **bold**, no _italics_, no --- divider lines, no ``` fences, no
+   markdown "- " or "* " list dashes. For lists use the "•" character.
+2. NO icon or symbol names in the text (no "key", "handshake", "bolt",
+   "lightbulb", "analytics" etc.) — the frontend chooses icons itself.
+3. Citations are bare bracketed numbers only: [1] or [2, 4, 6]. Never
+   footnote dashes, never restate the source list inline outside the
+   SOURCE INTELLIGENCE and SOURCE BIBLIOGRAPHY sections.
+4. Do not repeat a section's heading inside its own body, and do not
+   invent extra headings, sub-headings, or divider rows.
+5. Write flowing prose and "•" bullets — the platform's typography
+   carries all hierarchy.
+
+────────────────────────────────────────────────────────────
 CRITICAL RULES
 ────────────────────────────────────────────────────────────
 
