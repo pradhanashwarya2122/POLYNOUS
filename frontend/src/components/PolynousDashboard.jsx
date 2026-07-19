@@ -92,34 +92,27 @@ function Styles() {
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{background:#0a0a1e;color:#e2e0fc;font-family:'Hanken Grotesk',sans-serif;overflow-x:hidden}
     ::selection{background:rgba(0,255,15,0.25)}
-    @keyframes rainbow-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-    @keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
-    @keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    @keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes popIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
     @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-    .period-btn{padding:4px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;border:none;background:transparent;cursor:pointer;border-radius:9999px;transition:all 0.2s;color:#b9ccb0}
+    .period-btn{padding:4px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;border:none;background:transparent;cursor:pointer;border-radius:9999px;transition:all 0.15s;color:#9aa3b5}
     .period-btn-active{background:rgba(0,255,15,0.1);color:#00ff0f}
-    .period-btn-inactive:hover{color:#e2e0fc}
-    .card-glow{transition:box-shadow 0.4s ease}
-    .card-glow:hover{box-shadow:0 0 30px rgba(0,204,255,0.08),0 0 60px rgba(0,255,15,0.04)!important}
-    .hover-tooltip{animation:fadeSlideUp 0.18s cubic-bezier(0.34,1.56,0.64,1) forwards;pointer-events:none}
-    .topic-popup{animation:popIn 0.2s cubic-bezier(0.34,1.56,0.64,1) forwards;pointer-events:none}
-    .topics-expanded{animation:fadeSlideUp 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards}
+    .period-btn-inactive:hover{color:#e8eaf2}
+    .card-glow{transition:border-color 0.15s ease}
+    .card-glow:hover{border-color:rgba(255,255,255,0.14)!important}
+    .hover-tooltip{animation:fadeSlideUp 0.15s ease forwards;pointer-events:none}
+    .topic-popup{animation:popIn 0.15s ease forwards;pointer-events:none}
+    .topics-expanded{animation:fadeSlideUp 0.2s ease forwards}
+    button:focus-visible,input:focus-visible,[role="button"]:focus-visible{outline:2px solid #00ccff;outline-offset:2px}
     .analytics-heading {
-      font-family: 'Anton', sans-serif;
-      font-size: clamp(3.4rem, 7.5vw, 6rem);
-      font-weight: 400;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      line-height: 0.95;
-      background: linear-gradient(90deg, #ff2040 0%, #ff6b35 14%, #ffd700 28%, #00ff0f 42%, #00ccff 57%, #4dabf7 71%, #a855f7 85%, #ff2040 100%);
-      background-size: 200% 200%;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: rainbow-shift 4s ease infinite;
-      filter: drop-shadow(0 0 40px rgba(168,85,247,0.35));
+      font-family: 'Sora', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      color: #e8eaf2;
     }
+    @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important;} }
   `}</style>;
 }
 

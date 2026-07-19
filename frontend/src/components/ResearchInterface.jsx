@@ -91,6 +91,24 @@ function Styles() {
       @keyframes sectionIn  { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes pulse-green { 0%,100% { opacity:.5; transform:scale(1); } 50% { opacity:1; transform:scale(1.1); } }
       @keyframes pulseBrain  { 0%,100% { opacity:1; transform:scale(1); filter:drop-shadow(0 0 8px ${C.green}); } 50% { opacity:.7; transform:scale(1.05); filter:drop-shadow(0 0 15px ${C.green}); } }
+
+      /* accessibility + motion preferences */
+      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid ${C.green}; outline-offset: 2px; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; transition: none !important; }
+      }
+
+      /* print: the report becomes a clean paper document */
+      @media print {
+        body, #root { background: #fff !important; }
+        * { background: transparent !important; box-shadow: none !important;
+            backdrop-filter: none !important; color: #111 !important;
+            border-color: #ccc !important; animation: none !important; }
+        canvas, aside, .no-print, button { display: none !important; }
+        #research-answer { padding: 0 !important; }
+        #research-answer section, #research-answer > div > div { page-break-inside: avoid; }
+        a { color: #0a5 !important; text-decoration: underline !important; }
+      }
     `}</style>
   );
 }
@@ -1011,10 +1029,10 @@ function parseLimitationPoints(text) {
     .filter((l) => l.length > 15 && !/^(&|CONFIDENCE|SOURCES)/i.test(l));
 }
 
-function SynapseDots({ color = C.green }) {
-  return [{ top:-2,left:-2},{top:-2,right:-2},{bottom:-2,left:-2},{bottom:-2,right:-2}].map((pos,i)=>(
-    <span key={i} style={{ position:"absolute",width:4,height:4,borderRadius:"50%",background:color,boxShadow:`0 0 8px ${color}`,...pos }} />
-  ));
+function SynapseDots() {
+  // Retired under the design-restraint pass — decorative corner dots read
+  // as template flourish. Kept as a no-op so existing call sites are safe.
+  return null;
 }
 
 // Linkify bare URLs inside bibliography/source text
@@ -1030,11 +1048,17 @@ function Linkify({ text }) {
 // Cyan [n] citation chips inside body text
 function CitationText({ text }) {
   const parts = String(text).split(/(\[\d{1,2}(?:,\s*\d{1,2})*\])/g);
-  return parts.map((p, i) =>
-    /^\[\d/.test(p)
-      ? <span key={i} style={{ color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.9em", fontWeight: 700 }}>{p}</span>
-      : <span key={i}>{p}</span>
-  );
+  return parts.map((p, i) => {
+    if (!/^\[\d/.test(p)) return <span key={i}>{p}</span>;
+    const first = (p.match(/\d{1,2}/) || [])[0];
+    return (
+      <button key={i} type="button" aria-label={`Jump to source ${first}`}
+        onClick={() => document.getElementById(`source-ref-${first}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+        style={{ color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.9em", fontWeight: 700, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+        {p}
+      </button>
+    );
+  });
 }
 
 // ─── Premium report section card (13-section briefing format) ────────────────
@@ -1197,22 +1221,22 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
           <PremiumSection icon="handshake" title="Consensus Map" accent={C.green}
             body={sections.consensus} delay={0.2} />
           <PremiumSection icon="bolt" title="Divergence Map" accent={C.crimson}
-            body={sections.divergence} delay={0.22} />
+            body={sections.divergence} delay={0.14} />
         </div>
       )}
 
       <PremiumSection icon="lightbulb" title="Unique Insights" accent={C.amber}
-        body={sections.unique} delay={0.24} />
+        body={sections.unique} delay={0.16} />
       <PremiumSection icon="fact_check" title="Source Quality Assessment" accent={C.cyan}
-        body={sections.quality} delay={0.26} />
+        body={sections.quality} delay={0.18} />
       <PremiumSection icon="search_off" title="Coverage Audit" accent={C.amber}
-        body={sections.coverage} delay={0.28} />
+        body={sections.coverage} delay={0.18} />
       <PremiumSection icon="balance" title="Contradiction Resolution" accent={C.crimson}
-        body={sections.contradiction} delay={0.3} />
+        body={sections.contradiction} delay={0.2} />
       <PremiumSection icon="analytics" title="Confidence Analysis — Computed" accent={C.green}
-        body={sections.confidence} delay={0.32} mono />
+        body={sections.confidence} delay={0.2} mono />
       <PremiumSection icon="explore" title="Research Trajectory" accent={C.green}
-        body={sections.trajectory} delay={0.34} />
+        body={sections.trajectory} delay={0.2} />
 
       {/* Confidence Matrix */}
       <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"18px 26px",animation:"sectionIn 0.5s 0.24s ease both" }}>
@@ -1223,7 +1247,7 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
           </div>
           <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
             {Array.from({length:10}).map((_,i)=>(
-              <div key={i} style={{ width:20,height:20,borderRadius:"50%",background:i<filled?C.green:"rgba(255,255,255,0.07)",boxShadow:i<filled?`0 0 10px ${C.green}`:"none",border:i>=filled?"1px solid rgba(255,255,255,0.13)":"none",animation:i<filled&&i%3===0?"pulse-green 2s infinite":"none",transition:"all 0.3s" }} />
+              <div key={i} style={{ width:20,height:20,borderRadius:"50%",background:i<filled?C.green:"rgba(255,255,255,0.07)",boxShadow:i<filled?`0 0 10px ${C.green}`:"none",border:i>=filled?"1px solid rgba(255,255,255,0.13)":"none",transition:"all 0.3s" }} />
             ))}
           </div>
         </div>
@@ -1304,8 +1328,8 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
                   </div>
                 );
                 return s.url
-                  ? <a key={i} href={s.url} target="_blank" rel="noreferrer" style={{ textDecoration:"none" }}>{card}</a>
-                  : <div key={i}>{card}</div>;
+                  ? <a key={i} id={`source-ref-${i+1}`} href={s.url} target="_blank" rel="noreferrer" style={{ textDecoration:"none" }}>{card}</a>
+                  : <div key={i} id={`source-ref-${i+1}`}>{card}</div>;
               })}
             </div>
           </div>

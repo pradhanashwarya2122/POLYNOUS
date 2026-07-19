@@ -675,13 +675,7 @@ function TopicCards({ onSelect }) {
   const [cards, setCards] = useState(() => shuffle(ALL_TOPICS).slice(0, 6));
   const [flipping, setFlipping] = useState(false);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setFlipping(true);
-      setTimeout(() => { setCards(shuffle(ALL_TOPICS).slice(0, 6)); setFlipping(false); }, 420);
-    }, 4200);
-    return () => clearInterval(id);
-  }, []);
+  // Auto-shuffle retired (design restraint): cards shuffle once on mount only.
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
@@ -1152,7 +1146,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
             {/* ─── HERO ─────────────────────────────────────────────── */}
             <Reveal animation="fadeUp" delay={0}>
               <div style={{ position: "relative", display: "inline-block", marginBottom: 4 }}>
-                <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(72px,8vw,110px)", fontWeight: 800, color: C.crimson, fontStyle: "italic", transform: "skewX(-10deg)", letterSpacing: "-0.05em", lineHeight: 1, textShadow: "0 0 40px rgba(255,32,64,0.4)", margin: 0 }}>DEBATE</h2>
+                <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(72px,8vw,110px)", fontWeight: 800, color: C.crimson, fontStyle: "italic", transform: "skewX(-10deg)", letterSpacing: "-0.05em", lineHeight: 1, textShadow: "none", margin: 0 }}>DEBATE</h2>
                 <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(72px,8vw,110px)", fontWeight: 800, color: "#fff", fontStyle: "italic", transform: "skewX(-10deg)", letterSpacing: "-0.05em", lineHeight: 1, marginTop: "clamp(-28px,-3vw,-36px)", textShadow: "rgba(255,32,64,0.55) 0px -5px 20px, rgba(0,0,0,0.5) 0px 4px 14px", position: "relative", zIndex: 2 }}>CHAMBER</h2>
                 <div style={{ position: "absolute", left: "-8%", top: "43%", width: "116%", height: 5, background: C.crimson, transform: "rotate(-8deg)", opacity: 0.88, filter: "blur(2px)", boxShadow: "0 0 22px rgba(255,32,64,0.9)", zIndex: 1, pointerEvents: "none" }} />
                 <div style={{ position: "absolute", left: "-8%", top: "43%", width: "116%", height: 2, background: "#fff", transform: "rotate(-8deg)", zIndex: 3, pointerEvents: "none" }} />
@@ -1317,12 +1311,12 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                   {/* Verdict panel */}
                   <div style={{ background: "rgba(10,10,30,0.75)", border: `1px solid ${winColor}28`, borderRadius: 20, padding: "32px 36px", marginBottom: 28, textAlign: "center", animation: "dropIn 0.5s 0.3s ease both" }}>
                     <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-                      <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg, #ffe566, #ffd700)", display: "flex", alignItems: "center", justifyContent: "center", animation: "orbPulse 2.5s infinite" }}>
+                      <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg, #ffe566, #ffd700)", display: "flex", alignItems: "center", justifyContent: "center", animation: "none" }}>
                         <Icon name="balance" style={{ fontSize: 26, color: "#7a5800" }} />
                       </div>
                     </div>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: C.textSecondary, marginBottom: 12 }}>Analysis Verdict</div>
-                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(1.3rem,3vw,1.9rem)", fontWeight: 900, color: verdict.winner === "UNSCORED" ? "#ffd700" : winColor, letterSpacing: "-0.02em", animation: "winnerGlow 2.5s 0.8s 3", marginBottom: 20 }}>
+                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(1.3rem,3vw,1.9rem)", fontWeight: 900, color: verdict.winner === "UNSCORED" ? "#ffd700" : winColor, letterSpacing: "-0.02em", animation: "none", marginBottom: 20 }}>
                       {verdict.winner === "FOR" ? "Supporting Arguments Prevail"
                         : verdict.winner === "AGAINST" ? "Counter Arguments Prevail"
                         : verdict.winner === "UNSCORED" ? "Verdict Unscored"

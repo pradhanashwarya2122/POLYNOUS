@@ -95,27 +95,15 @@ const styles = `
     animation: cursorBlink 0.8s step-end infinite;
   }
 
-  /* ── Info modal (premium explainer) ── */
-  @keyframes backdropIn { from { opacity:0; } to { opacity:1; } }
-  @keyframes modalIn    { from { opacity:0; transform:translateY(14px) scale(0.985); } to { opacity:1; transform:translateY(0) scale(1); } }
-  .info-backdrop {
-    position:fixed; inset:0; z-index:1000;
-    background:rgba(6,6,18,0.72); backdrop-filter:blur(18px) saturate(1.1);
-    display:flex; align-items:center; justify-content:center; padding:32px;
-    animation:backdropIn 0.25s ease-out forwards;
-  }
-  .info-modal {
-    position:relative; width:100%; max-width:600px; max-height:82vh; overflow-y:auto;
-    background:linear-gradient(165deg, rgba(22,24,38,0.98), rgba(12,13,24,0.98));
-    border:1px solid rgba(255,255,255,0.1); border-radius:22px;
-    padding:40px 44px 36px;
-    box-shadow:0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset;
-    animation:modalIn 0.32s cubic-bezier(0.16,1,0.3,1) forwards;
-  }
-  .info-modal::before {
-    content:""; position:absolute; top:0; left:44px; right:44px; height:1px;
-    background:linear-gradient(90deg, transparent, var(--accent, #00ff47), transparent);
-    opacity:0.55;
+  /* ── Anchored info popover — small, near the button ── */
+  @keyframes popIn { from { opacity:0; transform:translateY(-4px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+  .info-pop {
+    position:fixed; width:340px; max-height:56vh; overflow-y:auto; z-index:1000;
+    background:rgba(18,20,32,0.98); border:1px solid rgba(255,255,255,0.12);
+    border-radius:12px; padding:20px 22px;
+    box-shadow:0 16px 48px rgba(0,0,0,0.5);
+    transform-origin:top center;
+    animation:popIn 200ms cubic-bezier(0.2,0,0,1) both;
   }
   .info-term { color:#dde1e9; font-weight:600; }
   .info-btn {
@@ -345,54 +333,43 @@ function InfoBtn({ k, onOpen, style }) {
   return (
     <button
       type="button" className="info-btn" style={style} aria-label="What is this?"
-      onClick={(e) => { e.stopPropagation(); onOpen(k); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        const r = e.currentTarget.getBoundingClientRect();
+        onOpen((prev) => (prev && prev.k === k ? null : { k, x: r.left + r.width / 2, y: r.bottom }));
+      }}
     >i</button>
   );
 }
 
-function InfoModal({ k, onClose }) {
-  const info = INFO[k];
+function InfoPopover({ open, onClose }) {
+  const ref = useRef(null);
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onDown);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("mousedown", onDown); };
   }, [onClose]);
+  const info = open && INFO[open.k];
   if (!info) return null;
+  const W = 340;
+  const left = Math.min(Math.max(12, open.x - W / 2), (window.innerWidth || 1280) - W - 12);
+  const top = Math.min(open.y + 10, (window.innerHeight || 800) * 0.42);
   return (
-    <div className="info-backdrop" onClick={onClose}>
-      <div className="info-modal custom-scrollbar" style={{ "--accent": info.accent }} onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={onClose} aria-label="Close"
-          style={{ position:"absolute", top:"22px", right:"24px", background:"none", border:"none", color:"#8e98a8", fontSize:"20px", cursor:"pointer", lineHeight:1, padding:"4px" }}
-        >×</button>
-        <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, letterSpacing:"0.22em", textTransform:"uppercase", color:info.accent, marginBottom:"14px" }}>
-          {info.eyebrow}
+    <div ref={ref} className="info-pop custom-scrollbar" role="dialog" aria-label={info.title} style={{ left, top }}>
+      <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, letterSpacing:"0.18em", textTransform:"uppercase", color:info.accent, marginBottom:"8px" }}>{info.eyebrow}</div>
+      <h3 style={{ fontFamily:"Sora,sans-serif", fontSize:"16px", fontWeight:700, letterSpacing:"-0.01em", color:"#e8eaf2", marginBottom:"10px" }}>{info.title}</h3>
+      <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"12.5px", lineHeight:1.7, color:"#9aa3b5" }}>{info.what}</p>
+      {info.terms.length > 0 && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"9px", marginTop:"12px", paddingTop:"12px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+          {info.terms.map(([term, desc]) => (
+            <p key={term} style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"12px", lineHeight:1.65, color:"#9aa3b5", margin:0 }}>
+              <span className="info-term">{term}.</span> {desc}
+            </p>
+          ))}
         </div>
-        <h2 style={{ fontFamily:"Sora,sans-serif", fontSize:"26px", fontWeight:700, letterSpacing:"-0.025em", color:"#dde1e9", marginBottom:"18px" }}>
-          {info.title}
-        </h2>
-        <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"14.5px", lineHeight:1.8, color:"#b9c0cd" }}>
-          {info.what}
-        </p>
-        {info.terms.length > 0 && (
-          <>
-            <div style={{ height:"1px", background:"linear-gradient(90deg, rgba(255,255,255,0.14), transparent)", margin:"26px 0 22px" }} />
-            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"10px", fontWeight:600, letterSpacing:"0.18em", textTransform:"uppercase", color:"#8e98a8", marginBottom:"16px" }}>
-              How to read it
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:"15px" }}>
-              {info.terms.map(([term, desc]) => (
-                <div key={term} style={{ display:"flex", gap:"14px", alignItems:"baseline" }}>
-                  <div style={{ width:"4px", height:"4px", borderRadius:"50%", background:info.accent, flexShrink:0, transform:"translateY(-2px)" }} />
-                  <p style={{ fontFamily:"Hanken Grotesk,sans-serif", fontSize:"13.5px", lineHeight:1.7, color:"#8e98a8", margin:0 }}>
-                    <span className="info-term">{term}.</span> {desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -602,6 +579,14 @@ const SIGNAL_MEANING = {
   "Words per paragraph": "Each bar = one draft paragraph · 100% ≈ 120 words",
 };
 
+// Per-bar hover tooltips explain WHAT the bar represents, not just its value.
+const BAR_TIP = {
+  "Content depth per source": (i, h) => `Source ${i + 1} — captured ${h}% of a full article (~4,000 chars)`,
+  "Compression ratio per doc": (i, h) => `Document ${i + 1} — summary is ${h}% the size of the original`,
+  "Sources per claim group": (i, h) => `Claim group ${i + 1} — backed by ${h}% of all sources`,
+  "Words per paragraph": (i, h) => `Paragraph ${i + 1} — about ${h}% of a full 120-word paragraph`,
+};
+
 function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, levels, compact = false }) {
   const v    = NLI_VARIANTS[variant] || NLI_VARIANTS.neutral;
   const bars = levels && levels.length ? levels : [];
@@ -654,8 +639,8 @@ function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, 
             }}
           >
             {hoverIdx === i && (
-              <div style={{ position:"absolute", bottom:"100%", left:"50%", transform:"translateX(-50%)", marginBottom:"6px", background:"#12141C", border:`1px solid ${v.badge}55`, borderRadius:"5px", padding:"2px 6px", fontSize:"9.5px", fontFamily:"JetBrains Mono,monospace", color:v.badge, whiteSpace:"nowrap" }}>
-                {Math.round(h)}%
+              <div style={{ position:"absolute", bottom:"100%", left: i < 3 ? "0" : i > bars.length - 4 ? "auto" : "50%", right: i > bars.length - 4 ? "0" : "auto", transform: i < 3 || i > bars.length - 4 ? "none" : "translateX(-50%)", marginBottom:"6px", background:"#12141C", border:`1px solid ${v.badge}55`, borderRadius:"6px", padding:"4px 9px", fontSize:"10px", fontFamily:"Hanken Grotesk,sans-serif", color:"#e8eaf2", whiteSpace:"nowrap", zIndex:5 }}>
+                {(BAR_TIP[eyebrow] || ((idx, val) => `Item ${idx + 1} — ${val}%`))(i, Math.round(h))}
               </div>
             )}
           </div>
@@ -1078,7 +1063,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
       <style>{styles}</style>
       <div className="ambient-field" />
       <div className="progress-beam-wrap"><div className="progress-beam" style={{ width:`${displayProgress}%` }} /></div>
-      {infoOpen && <InfoModal k={infoOpen} onClose={() => setInfoOpen(null)} />}
+      {infoOpen && <InfoPopover open={infoOpen} onClose={() => setInfoOpen(null)} />}
 
       {liveError && !errorDismissed && (
         <div className="error-banner" style={{
