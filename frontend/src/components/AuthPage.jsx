@@ -29,10 +29,13 @@ function GlobalStyles() {
         color: #e2e0fc;
         font-family: 'Hanken Grotesk', sans-serif;
         min-height: 100vh;
-        overflow: hidden;
+        /* allow the taller sign-up form to scroll instead of clipping;
+           "safe center" centers when it fits, aligns to top when it overflows */
+        overflow-y: auto;
         display: flex;
-        align-items: center;
+        align-items: safe center;
         justify-content: center;
+        padding: 32px 16px;
       }
 
       ::selection { background: rgba(0,255,15,0.25); }

@@ -52,6 +52,8 @@ function Styles() {
       @keyframes pulseText  { 0%,100%{opacity:0.55}50%{opacity:1} }
       @keyframes slideRight { from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)} }
       @keyframes strandPulse{ 0%,100%{opacity:0.15}50%{opacity:0.55} }
+      button:focus-visible, [role="button"]:focus-visible, a:focus-visible { outline:2px solid #FF8C00; outline-offset:2px; }
+      @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important;} }
 
       /* Scroll-triggered reveals */
       .reveal {
@@ -657,7 +659,7 @@ function MetricCard({ value, label, sub, icon, delay = 0 }) {
         position:"relative", animationDelay:`${delay}ms`, cursor:"default",
         transition:"box-shadow 0.25s",
       }}
-      onMouseEnter={e => e.currentTarget.style.boxShadow="0 0 24px rgba(255,140,0,0.35)"}
+      onMouseEnter={e => e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.35)"}
       onMouseLeave={e => e.currentTarget.style.boxShadow=""}
     >
       {icon && (
@@ -932,7 +934,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                 color: C.orange, fontFamily: C.fontMono, fontSize:12,
                 cursor: syncing ? "not-allowed" : "pointer",
                 opacity: syncing ? 0.75 : 1,
-                animation: syncing ? "pulseGlow 2s infinite" : "none",
+                animation: "none",
                 transition:"all 0.3s",
                 clipPath:"polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)",
                 flexShrink:0, marginBottom:4,
@@ -1066,7 +1068,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                             <div style={{ display:"flex", alignItems:"flex-start", gap:16 }}>
                               <div style={{ marginTop:4, width:12, height:12, borderRadius:"50%",
                                             background: dotColor, flexShrink:0,
-                                            boxShadow:`0 0 10px ${dotColor}` }} />
+                                            }} />
                               <div>
                                 <h4 style={{ fontFamily: C.fontBody, fontSize:14, fontWeight:600,
                                              color:"#fff", marginBottom:10 }}>
@@ -1194,8 +1196,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                            color:"#fff", textTransform:"uppercase", letterSpacing:"0.06em", margin:0 }}>
                 Suggested Synaptic Paths
               </h3>
-              <Icon name="auto_awesome" style={{ color: C.gold, fontSize:20,
-                                                  animation:"pulseText 2s infinite" }} />
+              <Icon name="auto_awesome" style={{ color: C.gold, fontSize:20 }} />
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               {suggestions.map((s, i) => (

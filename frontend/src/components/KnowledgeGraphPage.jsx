@@ -1851,6 +1851,13 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
           @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');
           * { box-sizing: border-box; }
         `}</style>
+        <Sidebar
+          onNavigate={path => onNavigate ? onNavigate(path) : (window.location.href = path)}
+          user={user || { username: "Ashwarya" }}
+          onLogout={() => onLogout ? onLogout() : (localStorage.clear(), window.location.href = "/")}
+          collapsed={sidebarCollapsed}
+          setCollapsed={setSidebarCollapsed}
+        />
         <BigBangIntro onComplete={() => setIntroComplete(true)} />
       </>
     );
