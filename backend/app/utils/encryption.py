@@ -128,6 +128,14 @@ def validate_key_format(api_key: str, provider: str) -> tuple[bool, str]:
     elif provider == "mistral":
         if len(api_key) < 20:
             return False, "Mistral key seems too short"
+
+    elif provider == "nvidia":
+        if not api_key.startswith("nvapi-"):
+            return False, "NVIDIA NIM keys must start with 'nvapi-'"
+
+    elif provider == "deepseek":
+        if not api_key.startswith("sk-"):
+            return False, "DeepSeek keys must start with 'sk-'"
     
     if len(api_key) > 500:
         return False, "API key too long (max 500 characters)"

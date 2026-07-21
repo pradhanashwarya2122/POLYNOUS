@@ -14,7 +14,7 @@ GLOBAL_KEY = os.getenv("ENCRYPTION_KEY")
 def add_missing_columns():
     """Ensure the new JSON columns exist (for SQLite and PostgreSQL)."""
     json_cols = ["preferences", "notifications", "integrations"]
-    text_cols = ["google_api_key", "mistral_api_key", "groq_api_key"]
+    text_cols = ["google_api_key", "mistral_api_key", "groq_api_key", "nvidia_api_key", "deepseek_api_key"]
     is_sqlite = 'sqlite' in str(engine.url)
     added = 0
     for col, coltype in [(c, "JSON") for c in json_cols] + [(c, "TEXT") for c in text_cols]:

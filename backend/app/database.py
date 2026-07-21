@@ -104,6 +104,8 @@ class User(Base):
     google_api_key = Column(Text, nullable=True)
     mistral_api_key = Column(Text, nullable=True)
     groq_api_key = Column(Text, nullable=True)
+    nvidia_api_key = Column(Text, nullable=True)
+    deepseek_api_key = Column(Text, nullable=True)
 
     # ── Pinecone / Neo4j BYO ───────────────────────
     pinecone_api_key_enc = Column(Text, nullable=True)
@@ -191,6 +193,18 @@ class DebateVote(Base):
     judge_winner = Column(String(20), nullable=False)
     user_agrees = Column(Boolean, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class FreeKeyClaim(Base):
+    """Tracks which free starter-key each user has claimed, so each user
+    gets exactly one and pool keys are never handed out twice. Stores a
+    fingerprint (hash) of the key, never the key itself."""
+    __tablename__ = "free_key_claims"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)   # public_id
+    key_fingerprint = Column(String(64), nullable=False, index=True)
+    provider = Column(String(30), nullable=False)
+    claimed_at = Column(DateTime, default=datetime.utcnow)
 
 
 class UserPreferences(Base):

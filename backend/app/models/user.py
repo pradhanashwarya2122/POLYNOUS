@@ -38,6 +38,8 @@ class User(Base):
     google_api_key = Column(String(500), nullable=True)
     mistral_api_key = Column(String(500), nullable=True)
     groq_api_key = Column(String(500), nullable=True)
+    nvidia_api_key = Column(String(500), nullable=True)
+    deepseek_api_key = Column(String(500), nullable=True)
     preferred_provider = Column(String(50), default="anthropic")
     
     # Profile

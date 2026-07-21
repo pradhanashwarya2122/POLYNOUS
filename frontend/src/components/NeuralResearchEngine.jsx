@@ -684,7 +684,7 @@ const CheckRow = ({ item }) => {
 const RING_R = 20;
 const RING_C = 2 * Math.PI * RING_R;
 
-export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, responseStyle, onComplete, onError }) {
+export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, responseStyle, streaming = true, onComplete, onError }) {
   const { liveData, liveError } = useLiveResearch(apiUrl, query, responseStyle);
   const [errorDismissed, setErrorDismissed] = useState(false);
   const [infoOpen, setInfoOpen] = useState(null);
@@ -752,7 +752,9 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
   const thinkingPhrase = phrasePool[phraseTick % phrasePool.length];
 
   // ── Writer typewriter: full draft, smooth reveal, auto-scroll ────────────
-  const { visibleText: draftVisible, typing: draftTyping } = useTypewriter(data.agents.Writer.draftText, 110);
+  // "Streaming / progressive token output" preference: on = typewriter reveal,
+  // off = the draft appears instantly (near-infinite chars/sec).
+  const { visibleText: draftVisible, typing: draftTyping } = useTypewriter(data.agents.Writer.draftText, streaming ? 110 : 100000);
   const draftRef = useRef(null);
   useEffect(() => {
     if (draftRef.current) draftRef.current.scrollTop = draftRef.current.scrollHeight;

@@ -46,10 +46,19 @@ class APIKeysResponse(BaseModel):
     google: dict = {"has_key": False, "preview": None, "is_valid": False}
     mistral: dict = {"has_key": False, "preview": None, "is_valid": False}
     groq: dict = {"has_key": False, "preview": None, "is_valid": False}
+    nvidia: dict = {"has_key": False, "preview": None, "is_valid": False}
+    deepseek: dict = {"has_key": False, "preview": None, "is_valid": False}
     tavily: dict = {"has_key": False, "preview": None, "is_valid": False}
     voyage: dict = {"has_key": False, "preview": None, "is_valid": False}
     preferred_provider: str = "anthropic"
     models: dict = {}             # user's chosen model per provider
+
+
+class CustomKeyTest(BaseModel):
+    """Verify ANY OpenAI-compatible key against an arbitrary endpoint."""
+    base_url: str
+    api_key: str
+    model: Optional[str] = None
 
 # ============================================================
 # HELPER: Get current user (used by other endpoints)
@@ -186,16 +195,82 @@ async def set_preferred_provider(
     db: Session = Depends(get_db)
 ):
     """Set preferred AI provider"""
-    
+
     if provider not in LLM_PROVIDERS:
         raise HTTPException(status_code=400, detail=f"Provider must be one of: {list(LLM_PROVIDERS)}")
 
     user.preferred_provider = provider
     db.commit()
-    
+
     return {
         "message": f"Preferred provider set to {provider}",
         "preferred_provider": provider
+    }
+
+
+# ============================================================
+# FREE STARTER KEY — one per new user, from the shuffled pool
+# ============================================================
+
+def _has_any_llm_key(user) -> bool:
+    for p in LLM_PROVIDERS:
+        if getattr(user, f"{p}_api_key", None):
+            return True
+    return False
+
+
+@router.get("/free-key/status")
+async def free_key_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Is a free starter key available for this user to claim?"""
+    from app.services import free_keys as fk
+    from app.database import FreeKeyClaim
+    claimed_fps = {c.key_fingerprint for c in db.query(FreeKeyClaim).all()}
+    already = db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).first() is not None
+    return {
+        "pool_configured": fk.pool_configured(),
+        "available": fk.available_count(claimed_fps),
+        "already_claimed": already,
+        "has_own_key": _has_any_llm_key(user),
+    }
+
+
+@router.post("/free-key/claim")
+async def claim_free_key(user: User = Depends(get_current_db_user), db: Session = Depends(get_db)):
+    """
+    Grant this user ONE free starter key from the pool, encrypt it into their
+    account, and set it as preferred. Idempotent-ish: refuses if the user
+    already claimed one or already has their own key.
+    """
+    from app.services import free_keys as fk
+    from app.database import FreeKeyClaim
+
+    if db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).first():
+        raise HTTPException(400, "You have already claimed your free starter key.")
+    if _has_any_llm_key(user):
+        raise HTTPException(400, "You already have an API key configured — free keys are for new users.")
+
+    claimed_fps = {c.key_fingerprint for c in db.query(FreeKeyClaim).all()}
+    entry = fk.pick_unclaimed(claimed_fps)
+    if not entry:
+        detail = ("No free keys are available right now — please add your own key in Settings."
+                  if fk.pool_configured() else
+                  "Free starter keys aren't set up yet — please add your own key in Settings.")
+        raise HTTPException(404, detail)
+
+    provider, key = entry["provider"], entry["key"]
+    encrypted = encrypt_api_key(key, user.encryption_key)
+    if not encrypted:
+        raise HTTPException(500, "Could not secure the key. Please try again.")
+
+    setattr(user, f"{provider}_api_key", encrypted)
+    user.preferred_provider = provider
+    db.add(FreeKeyClaim(user_id=user.public_id, key_fingerprint=entry["fp"], provider=provider))
+    db.commit()
+
+    return {
+        "status": "claimed",
+        "provider": provider,
+        "message": f"Free {provider.title()} starter key added to your account. You're ready to research!",
     }
 
 # ============================================================
@@ -256,6 +331,38 @@ async def test_key(
     user: User = Depends(get_current_db_user)
 ):
     """Test an API key without saving it"""
-    
+
     result = await test_api_key(key_data.api_key.strip(), key_data.provider)
     return result
+
+
+@router.post("/test-custom")
+async def test_custom_key(
+    data: CustomKeyTest,
+    user: User = Depends(get_current_db_user)
+):
+    """
+    Verify ANY OpenAI-compatible key against an arbitrary base URL (the
+    "Custom / Other" tester). Does NOT save — just answers legit or not.
+    """
+    base_url = (data.base_url or "").strip()
+    api_key = (data.api_key or "").strip()
+    if not base_url or not api_key:
+        return {"valid": False, "message": "Both a base URL and an API key are required."}
+    if not base_url.startswith("http"):
+        return {"valid": False, "message": "Base URL must start with http(s)://"}
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        if data.model:
+            # a minimal 1-token completion is the most universal proof of life
+            client.chat.completions.create(
+                model=data.model,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+            )
+            return {"valid": True, "message": f"Key works with {data.model} ✅"}
+        client.models.list()
+        return {"valid": True, "message": "Key is valid — endpoint reachable ✅"}
+    except Exception as e:
+        return {"valid": False, "message": f"Verification failed: {str(e)[:180]}"}

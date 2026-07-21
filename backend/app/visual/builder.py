@@ -19,7 +19,8 @@ from typing import Optional
 from collections import Counter
 from urllib.parse import urlparse
 
-AGENT_PROGRESS = {"Search": 25, "Summarise": 50, "Critic": 75, "Writer": 95, "Final": 100}
+AGENT_PROGRESS = {"Search": 25, "Summarise": 50, "Critic": 65, "Writer": 95, "Final": 100}
+# Critic becomes 82 on its second (post-deepen) pass — see build_visual_patch.
 
 
 def init_visual_state(query: str) -> dict:
@@ -63,6 +64,10 @@ def build_visual_patch(state: dict, agent_name: str, elapsed: float) -> dict:
 
     if agent_name != "Final":
         progress = AGENT_PROGRESS.get(agent_name, 0)
+        # After a gap-driven deepen cycle the critic runs a second time — nudge
+        # its progress forward (65 → 82) so the bar never jumps backwards.
+        if agent_name == "Critic" and state.get("research_cycles", 0) >= 1:
+            progress = 82
         patch["progress"] = progress
         # Real convergence proxy: pipeline progress scaled by critic
         # confidence once the critique exists; plain progress before that.

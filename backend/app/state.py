@@ -25,6 +25,7 @@ class AgentState(TypedDict):
     # ── Critique results ──────────────────────────────────
     critique: Dict[str, Any]
     critic_retries: int                   # graph-level retry counter (parse failures)
+    research_cycles: int                  # gap-driven deepen loop counter (bounded)
 
     # ── Computed diagnostics ──────────────────────────────
     computed_confidence: Optional[Dict]   # 4-factor evidence-based confidence
@@ -46,3 +47,10 @@ class AgentState(TypedDict):
     # ── Knowledge Graph ───────────────────────────────────
     graph_context: str
     graph_results: List[Dict]
+
+    # ── Live-stream plumbing ───────────────────────────────
+    # MUST be declared here: LangGraph strips any state key not present
+    # in this TypedDict between node steps (verified empirically), so
+    # without this the ProgressBus reference would vanish after the
+    # first node and every make_emitter() call downstream would go silent.
+    _progress_bus: Optional[Any]

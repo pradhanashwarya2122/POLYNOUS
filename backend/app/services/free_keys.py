@@ -1,0 +1,64 @@
+"""
+app/services/free_keys.py
+
+Free starter-key pool. Every new user may claim ONE key from
+backend/free_keys.json. Claims are tracked by key fingerprint (a SHA-256
+hash) in the free_key_claims table, so:
+  * each user gets exactly one free key, and
+  * a given pool key is never handed to two different users.
+
+The pool file can be freely reordered / shuffled / appended between requests —
+we match on fingerprint, not position.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+from typing import Optional
+
+from app.llm_providers import LLM_PROVIDERS
+
+# backend/free_keys.json  (this file lives in app/services/)
+_POOL_PATH = Path(__file__).resolve().parents[2] / "free_keys.json"
+
+
+def _fingerprint(key: str) -> str:
+    return hashlib.sha256(key.strip().encode("utf-8")).hexdigest()
+
+
+def _load_pool() -> list[dict]:
+    """Return the list of valid, filled-in pool entries (placeholders skipped)."""
+    path = os.getenv("FREE_KEYS_PATH", str(_POOL_PATH))
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+    entries = data.get("keys", []) if isinstance(data, dict) else []
+    valid = []
+    for e in entries:
+        key = (e.get("key") or "").strip()
+        provider = (e.get("provider") or "").strip().lower()
+        if not key or key.startswith("PASTE_") or provider not in LLM_PROVIDERS:
+            continue
+        valid.append({"provider": provider, "key": key, "fp": _fingerprint(key)})
+    return valid
+
+
+def pool_configured() -> bool:
+    return len(_load_pool()) > 0
+
+
+def available_count(claimed_fingerprints: set[str]) -> int:
+    return sum(1 for e in _load_pool() if e["fp"] not in claimed_fingerprints)
+
+
+def pick_unclaimed(claimed_fingerprints: set[str]) -> Optional[dict]:
+    """First pool entry not already claimed by anyone. Returns
+    {provider, key, fp} or None if the pool is empty/exhausted."""
+    for e in _load_pool():
+        if e["fp"] not in claimed_fingerprints:
+            return e
+    return None

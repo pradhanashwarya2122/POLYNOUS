@@ -637,6 +637,7 @@ function UserProfileWidget() {
     {label:"My Research", icon:"biotech",    route:"/research"},
     {label:"Memory Bank", icon:"neurology",  route:"/memory"},
     {label:"Settings",    icon:"settings",   route:"/settings"},
+    {label:"Help", icon:"help", route:"/info"},
     {label:"Logout",      icon:"logout",     action:()=>{localStorage.removeItem("polynous_user");window.location.reload();}},
   ];
   return (

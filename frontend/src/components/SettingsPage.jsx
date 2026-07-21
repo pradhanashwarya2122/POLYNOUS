@@ -68,6 +68,9 @@ const api = {
   getApiKeys:   ()               => safeFetch('/settings/api-keys'),
   saveApiKey:   (provider, key, model)  => safeFetch('/settings/api-keys', { method: "PUT",    body: JSON.stringify({ provider, api_key: key, ...(model ? { model } : {}) }) }),
   setPreferredProvider: (provider) => safeFetch(`/settings/api-keys/preferred-provider?provider=${encodeURIComponent(provider)}`, { method: "PUT" }),
+  freeKeyStatus: () => safeFetch('/settings/api-keys/free-key/status'),
+  claimFreeKey:  () => safeFetch('/settings/api-keys/free-key/claim', { method: "POST" }),
+  testCustomKey: (base_url, api_key, model) => safeFetch('/settings/api-keys/test-custom', { method: "POST", body: JSON.stringify({ base_url, api_key, model: model || null }) }),
   deleteApiKey: (provider)       => safeFetch(`/settings/api-keys/${provider}`, { method: "DELETE" }),
   testApiKey:   (provider, key)  => safeFetch('/settings/api-keys/test', { method: "POST", body: JSON.stringify({ provider, api_key: key }) }),
 
@@ -301,6 +304,7 @@ const NAV = [
   { icon: "picture_as_pdf", label: "PDF Lab", path: "/pdf-lab" },
   { icon: "analytics", label: "Analytics", path: "/analytics" },
   { icon: "settings", label: "Settings", path: "/settings", active: true },
+  { icon: "help", label: "Help", path: "/info" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -891,6 +895,12 @@ const PROVIDERS = {
                models: ["mistral-small-latest", "mistral-large-latest"] },
   groq:      { label: "Groq",              icon: "bolt",           color: "#ff6b6b",  placeholder: "gsk_…",
                models: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"] },
+  nvidia:    { label: "NVIDIA NIM",        icon: "memory",         color: "#76b900",  placeholder: "nvapi-…",
+               models: ["meta/llama-3.3-70b-instruct", "meta/llama-3.1-70b-instruct",
+                        "nvidia/llama-3.3-nemotron-super-49b-v1", "openai/gpt-oss-120b",
+                        "deepseek-ai/deepseek-v4-flash"] },
+  deepseek:  { label: "DeepSeek",          icon: "waves",          color: "#4d6bff",  placeholder: "sk-…",
+               models: ["deepseek-chat", "deepseek-reasoner"] },
   tavily:    { label: "Tavily Search",     icon: "travel_explore", color: C.gold,     placeholder: "tvly-…",
                models: null }, // search service — no model choice
 };
@@ -1536,9 +1546,50 @@ function ApiKeysSection({ push }) {
     }
   };
 
+  // ── Free starter key ──
+  const [freeStatus, setFreeStatus] = useState(null);
+  const [claiming, setClaiming] = useState(false);
+  useEffect(() => { api.freeKeyStatus().then(setFreeStatus).catch(() => setFreeStatus(null)); }, []);
+  const claimFree = async () => {
+    setClaiming(true);
+    try {
+      const r = await api.claimFreeKey();
+      push(r.message || "Free key added", "ok");
+      await load();
+      api.freeKeyStatus().then(setFreeStatus).catch(() => {});
+    } catch (err) {
+      push(err.message || "Could not claim free key", "err");
+    } finally {
+      setClaiming(false);
+    }
+  };
+  const showFreeBanner = freeStatus && freeStatus.pool_configured &&
+    !freeStatus.already_claimed && !freeStatus.has_own_key && freeStatus.available > 0;
+
   return (
     <Card>
       <SectionHead icon="key" title="API Keys" subtitle="Bring your own keys · system services managed automatically" />
+
+      {showFreeBanner && (
+        <div style={{ marginBottom: 20, padding: "16px 18px", borderRadius: 12,
+          background: "rgba(0,204,255,0.06)", border: "1px solid rgba(0,204,255,0.22)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontFamily: C.fontHead, fontWeight: 700, fontSize: 14, color: C.cyan, marginBottom: 4 }}>
+              🎁 Claim your free starter key
+            </div>
+            <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.5, maxWidth: 460 }}>
+              New here? Get one free API key to try POLYNOUS instantly — no card, no setup. You can add your own key anytime.
+            </div>
+          </div>
+          <button onClick={claimFree} disabled={claiming} style={{
+            padding: "10px 22px", borderRadius: 9999, border: "none", flexShrink: 0,
+            background: C.cyan, color: "#04121c", fontFamily: C.fontMono, fontSize: 12, fontWeight: 700,
+            cursor: claiming ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 7 }}>
+            {claiming && <InlineSpinner />}{claiming ? "Claiming…" : "Claim free key"}
+          </button>
+        </div>
+      )}
       <div style={{ marginBottom: 20 }}>
         <Label>Preferred AI Provider</Label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1573,9 +1624,73 @@ function ApiKeysSection({ push }) {
               push={push}
             />
           ))}
+          <CustomKeyTester push={push} />
         </div>
       )}
     </Card>
+  );
+}
+
+// ── Verify ANY OpenAI-compatible key against a custom endpoint (test only) ──
+function CustomKeyTester({ push }) {
+  const [open, setOpen] = useState(false);
+  const [baseUrl, setBaseUrl] = useState("");
+  const [key, setKey] = useState("");
+  const [model, setModel] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const doTest = async () => {
+    if (!baseUrl.trim() || !key.trim()) { push("Enter a base URL and a key", "err"); return; }
+    setTesting(true); setResult(null);
+    try {
+      const r = await api.testCustomKey(baseUrl.trim(), key.trim(), model.trim());
+      setResult(r?.valid ? { ok: true, msg: r.message } : { ok: false, msg: r?.message || "Invalid" });
+    } catch (err) {
+      setResult({ ok: false, msg: err.message || "Verification failed" });
+    } finally { setTesting(false); }
+  };
+
+  return (
+    <div style={{ background: "rgba(28,28,46,0.55)", border: `1px dashed ${C.white10}`, borderRadius: 13, padding: "18px 20px" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%",
+        background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 9, background: `${C.purple}12`, border: `1px solid ${C.purple}30`,
+          display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon name="tune" style={{ fontSize: 18, color: C.purple }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: C.fontHead, fontWeight: 600, color: C.onSurface, fontSize: 15 }}>Custom / Other provider</div>
+          <div style={{ fontSize: 11.5, color: C.textSecondary, fontFamily: C.fontMono, marginTop: 2 }}>
+            Verify any OpenAI-compatible key against its endpoint
+          </div>
+        </div>
+        <Icon name={open ? "expand_less" : "expand_more"} style={{ fontSize: 22, color: C.textSecondary }} />
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="Base URL — e.g. https://integrate.api.nvidia.com/v1"
+            style={{ ...inputStyle }} onFocus={onFI} onBlur={onFO} />
+          <input type="password" value={key} onChange={e => setKey(e.target.value)} placeholder="API key"
+            style={{ ...inputStyle }} onFocus={onFI} onBlur={onFO} />
+          <input value={model} onChange={e => setModel(e.target.value)} placeholder="Model (optional — e.g. deepseek-ai/deepseek-v4-flash)"
+            style={{ ...inputStyle }} onFocus={onFI} onBlur={onFO} />
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <button onClick={doTest} disabled={testing} style={{ padding: "9px 20px", borderRadius: 8, border: `1px solid ${C.purple}55`,
+              background: `${C.purple}12`, color: C.purple, cursor: testing ? "wait" : "pointer",
+              fontFamily: C.fontMono, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 7 }}>
+              {testing && <InlineSpinner />}{testing ? "Verifying…" : "Verify key"}
+            </button>
+            {result && (
+              <span style={{ fontFamily: C.fontMono, fontSize: 12, color: result.ok ? C.green : C.crimson, display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name={result.ok ? "check_circle" : "cancel"} style={{ fontSize: 15 }} /> {result.msg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1607,6 +1722,13 @@ function PreferencesSection({ push }) {
   useEffect(() => { load(); }, [load]);
 
   const scheduleSave = useCallback((prefs) => {
+    // Mirror to localStorage immediately so preferences (esp. Default Mode,
+    // read by the app's landing redirect) take effect without a re-login.
+    if (prefs.default_mode) localStorage.setItem("polynous_default_mode", prefs.default_mode);
+    if (prefs.response_style) localStorage.setItem("polynous_response_style", prefs.response_style);
+    if (prefs.streaming_enabled !== undefined) localStorage.setItem("polynous_streaming", prefs.streaming_enabled);
+    if (prefs.auto_save !== undefined) localStorage.setItem("polynous_autosave", prefs.auto_save);
+    if (prefs.confidence_threshold !== undefined) localStorage.setItem("polynous_confidence_threshold", prefs.confidence_threshold);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       setSaving(true);

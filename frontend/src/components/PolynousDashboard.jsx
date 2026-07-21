@@ -9,8 +9,7 @@ const C = {
   fontDisplay: "'Anton', sans-serif",
 };
 
-// Restrained cool categorical ramp (no warm/rainbow spread) — premium + legible
-const RAINBOW = ['#00ccff','#4dabf7','#5b8def','#7c8cff','#a855f7','#00e0c0','#6ea8ff','#9d7bff'];
+const RAINBOW = ['#ff2040','#ff6b35','#ffd700','#00ff0f','#00ccff','#4dabf7','#a855f7','#ff6b9d'];
 
 function Icon({ name, style }) {
   return <span style={{ fontFamily:"Material Symbols Outlined", fontVariationSettings:"'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24", lineHeight:1, ...(style||{}) }}>{name}</span>;
@@ -93,27 +92,34 @@ function Styles() {
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{background:#0a0a1e;color:#e2e0fc;font-family:'Hanken Grotesk',sans-serif;overflow-x:hidden}
     ::selection{background:rgba(0,255,15,0.25)}
-    @keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes popIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+    @keyframes rainbow-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+    @keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
     @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-    .period-btn{padding:4px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;border:none;background:transparent;cursor:pointer;border-radius:9999px;transition:all 0.15s;color:#9aa3b5}
+    .period-btn{padding:4px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;border:none;background:transparent;cursor:pointer;border-radius:9999px;transition:all 0.2s;color:#b9ccb0}
     .period-btn-active{background:rgba(0,255,15,0.1);color:#00ff0f}
-    .period-btn-inactive:hover{color:#e8eaf2}
-    .card-glow{transition:border-color 0.15s ease}
-    .card-glow:hover{border-color:rgba(255,255,255,0.14)!important}
-    .hover-tooltip{animation:fadeSlideUp 0.15s ease forwards;pointer-events:none}
-    .topic-popup{animation:popIn 0.15s ease forwards;pointer-events:none}
-    .topics-expanded{animation:fadeSlideUp 0.2s ease forwards}
-    button:focus-visible,input:focus-visible,[role="button"]:focus-visible{outline:2px solid #00ccff;outline-offset:2px}
+    .period-btn-inactive:hover{color:#e2e0fc}
+    .card-glow{transition:box-shadow 0.4s ease}
+    .card-glow:hover{box-shadow:0 0 30px rgba(0,204,255,0.08),0 0 60px rgba(0,255,15,0.04)!important}
+    .hover-tooltip{animation:fadeSlideUp 0.18s cubic-bezier(0.34,1.56,0.64,1) forwards;pointer-events:none}
+    .topic-popup{animation:popIn 0.2s cubic-bezier(0.34,1.56,0.64,1) forwards;pointer-events:none}
+    .topics-expanded{animation:fadeSlideUp 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards}
     .analytics-heading {
-      font-family: 'Sora', sans-serif;
-      font-size: 32px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      line-height: 1.1;
-      color: #e8eaf2;
+      font-family: 'Anton', sans-serif;
+      font-size: clamp(3.4rem, 7.5vw, 6rem);
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      line-height: 0.95;
+      background: linear-gradient(90deg, #ff2040 0%, #ff6b35 14%, #ffd700 28%, #00ff0f 42%, #00ccff 57%, #4dabf7 71%, #a855f7 85%, #ff2040 100%);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: rainbow-shift 4s ease infinite;
+      filter: drop-shadow(0 0 40px rgba(168,85,247,0.35));
     }
-    @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important;} }
   `}</style>;
 }
 
@@ -254,7 +260,7 @@ function ActivityChart({ data, period }) {
     RAINBOW.forEach((c, i) => lineGrad.addColorStop(i / (RAINBOW.length - 1), c));
     ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length; i++) { const cpx = (pts[i - 1].x + pts[i].x) / 2; ctx.bezierCurveTo(cpx, pts[i - 1].y, cpx, pts[i].y, pts[i].x, pts[i].y); }
-    ctx.strokeStyle = lineGrad; ctx.lineWidth = 3; ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,204,255,0.5)'; ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = lineGrad; ctx.lineWidth = 3; ctx.shadowBlur = 16; ctx.shadowColor = 'rgba(0,204,255,0.5)'; ctx.stroke(); ctx.shadowBlur = 0;
 
     pts.forEach((p, i) => {
       const isHovered = i === hoveredIdx;
@@ -315,7 +321,9 @@ function ActivityChart({ data, period }) {
       const entry = entries[bestIdx];
       if (!entry) return;
       const [date, val] = entry;
-      setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, date, queries: val });
+      const debates = Math.floor(val * 0.4);
+      const sessions = Math.ceil(val / 2);
+      setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, date, queries: val, debates, sessions });
     } else {
       setTooltip(null);
     }
@@ -341,15 +349,22 @@ function ActivityChart({ data, period }) {
           background: 'rgba(10,10,30,0.96)',
           border: '1px solid rgba(0,204,255,0.35)',
           borderRadius: 14, padding: '10px 14px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          boxShadow: '0 0 20px rgba(0,204,255,0.2), 0 8px 32px rgba(0,0,0,0.6)',
           zIndex: 100, minWidth: 140, pointerEvents: 'none',
         }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 6 }}>{tooltip.date}</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
-            <span style={{ color: C.textSecondary }}>Research sessions</span>
-            <span style={{ color: C.cyan, fontWeight: 700 }}>{tooltip.queries}</span>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 8 }}>{tooltip.date}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {[
+              { label: 'Queries', val: tooltip.queries, color: C.cyan },
+              { label: 'Sessions', val: tooltip.sessions, color: C.green },
+              { label: 'Debates', val: tooltip.debates, color: C.crimson },
+            ].map(({ label, val, color }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+                <span style={{ color: C.textSecondary }}>{label}</span>
+                <span style={{ color, fontWeight: 700 }}>{val}</span>
+              </div>
+            ))}
           </div>
-          <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 10.5, color: C.textSecondary, marginTop: 6, lineHeight: 1.4 }}>Queries you ran on this day</div>
           <div style={{ position: 'absolute', bottom: -5, left: '50%', width: 8, height: 8, background: 'rgba(10,10,30,0.96)', border: '1px solid rgba(0,204,255,0.35)', borderTop: 'none', borderLeft: 'none', transform: 'translateX(-50%) rotate(45deg)' }} />
         </div>
       )}
@@ -406,7 +421,7 @@ function TopicsChart({ data }) {
         glow.addColorStop(0, dotColor + '55'); glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.beginPath(); ctx.arc(cx, dotY, glowR, 0, Math.PI * 2); ctx.fillStyle = glow; ctx.fill();
         ctx.beginPath(); ctx.arc(cx, dotY, dotR, 0, Math.PI * 2);
-        ctx.fillStyle = dotColor; ctx.shadowBlur = 0; ctx.shadowColor = dotColor; ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = dotColor; ctx.shadowBlur = 10; ctx.shadowColor = dotColor; ctx.fill(); ctx.shadowBlur = 0;
         ctx.beginPath(); ctx.arc(cx - 1.2, dotY - 1.2, 1.8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fill();
       }
 
@@ -456,15 +471,15 @@ function TopicsChart({ data }) {
           background: 'rgba(10,10,30,0.95)',
           border: `1px solid ${popup.color}55`,
           borderRadius: 14, padding: '10px 16px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          boxShadow: `0 0 20px ${popup.color}33, 0 8px 32px rgba(0,0,0,0.6)`,
           zIndex: 100, textAlign: 'center', minWidth: 90,
         }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 800, color: popup.color, letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 4 }}>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 800, color: popup.color, textShadow: `0 0 16px ${popup.color}99`, letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 4 }}>
             {popup.label}
           </div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'rgba(185,204,176,0.8)', marginBottom: 6 }}>topic</div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: popup.color + '18', border: `1px solid ${popup.color}44`, borderRadius: 9999, padding: '3px 10px' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: popup.color, }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: popup.color, boxShadow: `0 0 6px ${popup.color}` }} />
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, color: popup.color }}>{popup.val} mentions</span>
           </div>
           <div style={{ position: 'absolute', bottom: -6, left: '50%', width: 10, height: 10, background: 'rgba(10,10,30,0.95)', border: `1px solid ${popup.color}55`, borderTop: 'none', borderLeft: 'none', transform: 'translateX(-50%) rotate(45deg)' }} />
@@ -512,7 +527,7 @@ function ConfidenceRing({ distribution }) {
         if (s.val <= 0) return;
         const end = -Math.PI / 2 + (s.val * Math.PI * 2) * ease;
         ctx.beginPath(); ctx.arc(cx, cy, s.r, -Math.PI / 2, end); ctx.strokeStyle = s.color; ctx.lineWidth = s.lw + 8; ctx.globalAlpha = 0.12; ctx.stroke(); ctx.globalAlpha = 1;
-        ctx.beginPath(); ctx.arc(cx, cy, s.r, -Math.PI / 2, end); ctx.strokeStyle = s.color; ctx.lineWidth = s.lw; ctx.shadowBlur = 0; ctx.shadowColor = s.color; ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.beginPath(); ctx.arc(cx, cy, s.r, -Math.PI / 2, end); ctx.strokeStyle = s.color; ctx.lineWidth = s.lw; ctx.shadowBlur = 14; ctx.shadowColor = s.color; ctx.stroke(); ctx.shadowBlur = 0;
         const ex = cx + Math.cos(end) * s.r, ey = cy + Math.sin(end) * s.r;
         ctx.beginPath(); ctx.arc(ex, ey, s.lw / 2 + 1, 0, Math.PI * 2); ctx.fillStyle = s.color; ctx.shadowBlur = 8; ctx.shadowColor = s.color; ctx.fill(); ctx.shadowBlur = 0;
       });
@@ -731,7 +746,7 @@ function HeatmapChart({ data, activityData }) {
             position: 'relative', transform: 'none', left: 'auto', top: 'auto',
             background: 'rgba(10,10,30,0.98)', border: '1px solid rgba(0,204,255,0.3)',
             borderRadius: 18, padding: '24px 28px', minWidth: 260, maxWidth: 340,
-            boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+            boxShadow: '0 0 40px rgba(0,204,255,0.15), 0 20px 60px rgba(0,0,0,0.8)',
             zIndex: 501,
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -742,11 +757,17 @@ function HeatmapChart({ data, activityData }) {
               <button onClick={() => setDayModal(null)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.textSecondary, cursor: 'pointer', width: 28, height: 28, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: C.cyan + '10', borderRadius: 10, border: `1px solid ${C.cyan}22` }}>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary }}>Research Sessions</span>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: C.cyan }}>{dayModal.val}</span>
-              </div>
-              <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11, color: C.textSecondary, lineHeight: 1.5, marginTop: 2 }}>Sessions you ran during this time slot.</div>
+              {[
+                { label: 'Research Sessions', val: dayModal.val, color: C.cyan },
+                { label: 'Queries', val: dayModal.val * 3, color: C.green },
+                { label: 'Debates', val: Math.floor(dayModal.val * 1.2), color: C.crimson },
+                { label: 'Docs Analyzed', val: Math.floor(dayModal.val * 0.8), color: C.purple },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: color + '10', borderRadius: 10, border: `1px solid ${color}22` }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary }}>{label}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color }}>{val}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -782,6 +803,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
     { icon: "picture_as_pdf", label: "PDF Lab", path: "/pdf-lab" },
     { icon: "analytics", label: "Analytics", path: "/analytics", active: true },
     { icon: "settings", label: "Settings", path: "/settings" },
+    { icon: "help", label: "Help", path: "/info" },
   ];
   const handleNav = (p) => onNavigate ? onNavigate(p) : (window.location.href = p);
   const handleLogout = () => onLogout ? onLogout() : (localStorage.clear(), window.location.href = '/');

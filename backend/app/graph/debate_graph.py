@@ -370,3 +370,35 @@ def create_debate_graph():
 
 debate_graph = create_debate_graph()
 print("✅ Debate Orchestrator Ready!")
+
+
+# ============================================================
+# GRAPH NODE → VISUAL STAGE / PANEL MAP
+# ============================================================
+# debate_builder.build_debate_patch() needs the exact STAGE string (it
+# encodes both side and phase, e.g. "FOR-rebuttal" vs "FOR-opening").
+# The panel map is only for the announce frame's `panels` dict key.
+DEBATE_NODE_TO_STAGE = {
+    "debate_search":    "Search",
+    "for_agent":        "FOR-opening",
+    "against_agent":    "AGAINST-opening",
+    "for_rebuttal":     "FOR-rebuttal",
+    "against_rebuttal": "AGAINST-rebuttal",
+    "judge":            "Judge",
+}
+
+DEBATE_STAGE_TO_PANEL = {
+    "Search": "Evidence",
+    "FOR-opening": "FOR", "FOR-rebuttal": "FOR",
+    "AGAINST-opening": "AGAINST", "AGAINST-rebuttal": "AGAINST",
+    "Judge": "Judge",
+}
+
+DEBATE_STAGE_PHASE = {
+    "Search":           {"label": "Gathering evidence", "sub": "Querying the web…"},
+    "FOR-opening":      {"label": "FOR opening",         "sub": "Building the supporting case…"},
+    "AGAINST-opening":  {"label": "AGAINST opening",      "sub": "Building the counter case…"},
+    "FOR-rebuttal":     {"label": "FOR rebuttal",         "sub": "Countering the opposition…"},
+    "AGAINST-rebuttal": {"label": "AGAINST rebuttal",     "sub": "Countering the support…"},
+    "Judge":            {"label": "Judging",              "sub": "Scoring rubric + argument quality…"},
+}

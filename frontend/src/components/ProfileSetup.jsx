@@ -385,6 +385,8 @@ const API_KEY_CONFIGS = [
   { id: 'google',    label: 'Google Gemini', placeholder: 'AIza••••••••••••••••••••••', icon: 'auto_awesome', iconColor: '#8ab4f8', iconBg: 'rgba(138,180,248,0.1)', iconBorder: 'rgba(138,180,248,0.2)', stateKey: 'googleKey', visibleKey: 'googleVisible', statusKey: 'googleStatus', provider: 'google' },
   { id: 'mistral',   label: 'Mistral',   placeholder: 'Mistral key••••••••••••••••', icon: 'air', iconColor: '#f4a261', iconBg: 'rgba(244,162,97,0.1)', iconBorder: 'rgba(244,162,97,0.2)', stateKey: 'mistralKey', visibleKey: 'mistralVisible', statusKey: 'mistralStatus', provider: 'mistral' },
   { id: 'groq',      label: 'Groq',      placeholder: 'gsk_••••••••••••••••••••••••', icon: 'bolt', iconColor: '#ff6b6b', iconBg: 'rgba(255,107,107,0.1)', iconBorder: 'rgba(255,107,107,0.2)', stateKey: 'groqKey', visibleKey: 'groqVisible', statusKey: 'groqStatus', provider: 'groq' },
+  { id: 'nvidia',    label: 'NVIDIA NIM',  placeholder: 'nvapi-••••••••••••••••••••', icon: 'memory', iconColor: '#76b900', iconBg: 'rgba(118,185,0,0.1)', iconBorder: 'rgba(118,185,0,0.2)', stateKey: 'nvidiaKey', visibleKey: 'nvidiaVisible', statusKey: 'nvidiaStatus', provider: 'nvidia' },
+  { id: 'deepseek',  label: 'DeepSeek',    placeholder: 'sk-••••••••••••••••••••••••', icon: 'waves', iconColor: '#4d6bff', iconBg: 'rgba(77,107,255,0.1)', iconBorder: 'rgba(77,107,255,0.2)', stateKey: 'deepseekKey', visibleKey: 'deepseekVisible', statusKey: 'deepseekStatus', provider: 'deepseek' },
   { id: 'tavily',    label: 'Tavily',    placeholder: 'tvly-••••••••••••••••••••••', icon: 'travel_explore', iconColor: '#00ccff', iconBg: 'rgba(0,204,255,0.08)', iconBorder: 'rgba(0,204,255,0.18)', stateKey: 'tavilyKey', visibleKey: 'tavilyVisible', statusKey: 'tavilyStatus', provider: 'tavily' },
 ]
 
@@ -503,7 +505,7 @@ export default function ProfileSetup({ onComplete, email, token }) {
   const inputRef = useRef(null)
 
   // ─── API key state ───────────────────────────────────────────────────────
-  const [apiKeys, setApiKeys] = useState({ openaiKey: '', anthropicKey: '', tavilyKey: '', googleKey: '', mistralKey: '', groqKey: '' })
+  const [apiKeys, setApiKeys] = useState({ openaiKey: '', anthropicKey: '', tavilyKey: '', googleKey: '', mistralKey: '', groqKey: '', nvidiaKey: '', deepseekKey: '' })
   const [apiVisibility, setApiVisibility] = useState({ openaiVisible: false, anthropicVisible: false, tavilyVisible: false })
   const [apiStatuses, setApiStatuses] = useState({ openaiStatus: 'idle', anthropicStatus: 'idle', tavilyStatus: 'idle' })
 

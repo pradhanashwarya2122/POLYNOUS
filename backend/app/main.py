@@ -29,8 +29,11 @@ import os
 import json
 import uuid
 from dotenv import load_dotenv
-from app.graph.orchestrator import orchestrator, search_node, summarise_node, critic_node, writer_node
-from app.graph.debate_graph import debate_graph
+from app.graph.orchestrator import orchestrator, RESEARCH_NODE_TO_PANEL, RESEARCH_NODE_PHASE
+from app.graph.debate_graph import (
+    debate_graph, DEBATE_NODE_TO_STAGE, DEBATE_STAGE_TO_PANEL, DEBATE_STAGE_PHASE,
+)
+from app.visual.graph_stream import stream_compiled_graph
 from app.state import AgentState
 from typing import Optional
 import asyncio, time
@@ -442,43 +445,57 @@ async def ask_stream(request: QueryRequest, req: Request):
             
             mode_name = "debate" if request.debate_mode else "research"
             yield f"data: {json.dumps({'type': 'start', 'mode': mode_name})}\n\n"
-            
-            # ── REAL per-node progress: each event fires when that agent
-            #    actually starts/finishes, streamed live via a thread bus —
-            #    not pre-announced strings before any work happens.
+
+            # ── Streamed through the SAME compiled graph /ask-visual and
+            #    /debate-visual use — no duplicated pipeline or routing
+            #    logic lives here, only this endpoint's own frame shape.
             loop = asyncio.get_event_loop()
             bus = ProgressBus()
             state["_progress_bus"] = bus
+            start_time = time.time()
 
-            async def _run_node_streaming(agent_label, node_fn):
-                yield f"data: {json.dumps({'type': 'progress', 'agent': agent_label, 'message': f'{agent_label.title()} agent working...'})}\n\n"
-                future = loop.run_in_executor(None, node_fn, state)
-                while not future.done():
-                    ev = bus.get_nowait()
-                    if ev is None:
-                        await asyncio.sleep(0.15)
-                        continue
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': agent_label, 'message': ev['msg']})}\n\n"
-                while (ev := bus.get_nowait()) is not None:
-                    yield f"data: {json.dumps({'type': 'progress', 'agent': agent_label, 'message': ev['msg']})}\n\n"
-                updated = future.result()
-                state.update(updated if isinstance(updated, dict) else {})
+            def _on_bus_event(ev):
+                return f"data: {json.dumps({'type': 'progress', 'agent': ev['agent'], 'message': ev['msg']})}\n\n"
+
+            def _on_error(node_name, exc):
+                return f"data: {json.dumps({'type': 'error', 'message': 'Research request failed. Please rephrase your query.'})}\n\n"
+
+            if request.debate_mode:
+                def _on_task(node_name):
+                    label = DEBATE_NODE_TO_STAGE.get(node_name, node_name).split("-")[0].lower()
+                    return f"data: {json.dumps({'type': 'progress', 'agent': label, 'message': f'{label.title()} agent working...'})}\n\n"
+
+                def _on_task_result(node_name, elapsed):
+                    return None  # /ask-stream has no rich visual patches — bus events carry the detail
+
+                graph = debate_graph
+            else:
+                def _on_task(node_name):
+                    label = RESEARCH_NODE_TO_PANEL.get(node_name, node_name).lower()
+                    if node_name == "deepen":
+                        label = "critic"
+                    return f"data: {json.dumps({'type': 'progress', 'agent': label, 'message': f'{label.title()} agent working...'})}\n\n"
+
+                def _on_task_result(node_name, elapsed):
+                    return None
+
+                graph = orchestrator
 
             try:
+                async for frame in stream_compiled_graph(
+                    loop, graph, state, bus,
+                    on_task=_on_task,
+                    on_task_result=_on_task_result,
+                    on_bus_event=_on_bus_event,
+                    start_time=start_time,
+                    on_error=_on_error,
+                ):
+                    yield frame
+                if state.get("_stream_error"):
+                    return
+
+                result = state
                 if request.debate_mode:
-                    from app.graph.debate_graph import (
-                        debate_search_node, for_agent_node, against_agent_node,
-                        for_rebuttal_node, against_rebuttal_node, judge_node,
-                    )
-                    debate_pipeline = [
-                        ("search", debate_search_node), ("for", for_agent_node),
-                        ("against", against_agent_node), ("for", for_rebuttal_node),
-                        ("against", against_rebuttal_node), ("judge", judge_node),
-                    ]
-                    for agent_label, node_fn in debate_pipeline:
-                        async for frame in _run_node_streaming(agent_label, node_fn):
-                            yield frame
-                    result = state
                     if result.get('judge_verdict'):
                         yield f"data: {json.dumps({'type': 'verdict', 'verdict': result['judge_verdict']})}\n\n"
                     save_debate(session_id=session_id, topic=request.query,
@@ -486,33 +503,17 @@ async def ask_stream(request: QueryRequest, req: Request):
                                 against_score=result.get('judge_verdict', {}).get('against_score', 0),
                                 winner=result.get('judge_verdict', {}).get('winner', 'UNSCORED'))
                 else:
-                    # Same conditional routing as the compiled LangGraph:
-                    # no sources → straight to writer; critic parse failure
-                    # → one retry pass.
-                    async for frame in _run_node_streaming("search", search_node):
-                        yield frame
-                    if state.get('retrieved_docs'):
-                        async for frame in _run_node_streaming("summarise", summarise_node):
-                            yield frame
-                        async for frame in _run_node_streaming("critic", critic_node):
-                            yield frame
-                        if (state.get('critique') or {}).get('parse_failed') and state.get('critic_retries', 0) <= 1:
-                            async for frame in _run_node_streaming("critic", critic_node):
-                                yield frame
-                    async for frame in _run_node_streaming("writer", writer_node):
-                        yield frame
-                    result = state
                     confidence = result.get('critique', {}).get('overall_confidence', 0)
                     yield f"data: {json.dumps({'type': 'confidence', 'score': confidence})}\n\n"
                     save_chat(session_id=session_id, query=request.query,
                               answer=result.get('final_answer', ''), confidence=confidence)
-                
+
                 answer = result.get('final_answer', '')
                 words = answer.split()
                 for i in range(0, len(words), 3):
                     chunk = ' '.join(words[i:i+3])
                     yield f"data: {json.dumps({'type': 'token', 'content': chunk + ' '})}\n\n"
-                
+
                 yield f"data: {json.dumps({'type': 'citations', 'citations': result.get('citations', [])})}\n\n"
                 yield f"data: {json.dumps({'type': 'end'})}\n\n"
             except Exception as e:
@@ -622,41 +623,31 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             patch["elapsedSeconds"] = round(time.time() - start_time, 1)
             return patch
 
-        # Ordered pipeline — node runs FIRST, patch built AFTER (real data).
-        pipeline = [
-            ("Search",    search_node,    {"label": "Searching",   "sub": "Querying Tavily and scraping…"}),
-            ("Summarise", summarise_node, {"label": "Summarising", "sub": "Extracting key points…"}),
-            ("Critic",    critic_node,    {"label": "Critiquing",  "sub": "Cross-checking claims…"}),
-            ("Writer",    writer_node,    {"label": "Writing",     "sub": "Drafting research digest…"}),
-        ]
+        def _on_task(node_name):
+            panel = RESEARCH_NODE_TO_PANEL.get(node_name)
+            phase = RESEARCH_NODE_PHASE.get(node_name)
+            if not panel or not phase:
+                return None
+            return f"data: {json.dumps({'agents': {panel: {'progress': 10, 'phase': phase}}, 'lanes': {panel: {'sub': '', 'status': 'working'}}})}\n\n"
 
-        for agent_name, node_fn, phase in pipeline:
-            # announce agent start (panel leaves Idle, lane shows working)
-            yield f"data: {json.dumps({'agents': {agent_name: {'progress': 10, 'phase': phase}}, 'lanes': {agent_name: {'sub': '', 'status': 'working'}}})}\n\n"
+        def _on_task_result(node_name, elapsed):
+            panel = RESEARCH_NODE_TO_PANEL.get(node_name, node_name)
+            return f"data: {json.dumps(build_visual_patch(state, panel, elapsed))}\n\n"
 
-            # run blocking node in a thread; stream bus events while it works
-            future = loop.run_in_executor(None, node_fn, state)
-            while not future.done():
-                ev = bus.get_nowait()
-                if ev is None:
-                    await asyncio.sleep(0.15)
-                    continue
-                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
-
-            # drain any events emitted just before the node finished
-            while (ev := bus.get_nowait()) is not None:
-                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
-
-            try:
-                nonlocal_state = future.result()
-                state.update(nonlocal_state if isinstance(nonlocal_state, dict) else {})
-            except Exception as e:
-                yield f"data: {json.dumps({'error': f'{agent_name} agent failed: {str(e)[:200]}'})}\n\n"
-                return
-
-            elapsed = time.time() - start_time
-            patch = build_visual_patch(state, agent_name, elapsed)
-            yield f"data: {json.dumps(patch)}\n\n"
+        # The compiled graph (app/graph/orchestrator.py) is the ONLY place
+        # routing decisions live now — no-docs bail, critic parse-failure
+        # retry, and the Phase-1 gap-driven deepen loop all fire for real
+        # here via LangGraph's own node execution, not a duplicated list.
+        async for frame in stream_compiled_graph(
+            loop, orchestrator, state, bus,
+            on_task=_on_task,
+            on_task_result=_on_task_result,
+            on_bus_event=lambda ev: f"data: {json.dumps(_event_to_patch(ev))}\n\n",
+            start_time=start_time,
+        ):
+            yield frame
+        if state.get("_stream_error"):
+            return
 
         # ── Final diagnostics patch (elapsed recomputed — fix #4) ──
         elapsed = time.time() - start_time
@@ -666,17 +657,22 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         final_patch["citations"] = state.get("citations", [])
         yield f"data: {json.dumps(final_patch)}\n\n"
 
-        # Persist chat history (this stream is now the single research
-        # pipeline — /ask-stream is no longer duplicated alongside it).
-        try:
-            save_chat(
-                session_id=state["session_id"],
-                query=query,
-                answer=state.get("final_answer", ""),
-                confidence=(state.get("critique") or {}).get("overall_confidence", 0) or 0,
-            )
-        except Exception as e:
-            print(f"⚠️ save_chat failed for visual stream: {e}")
+        # Persist chat history — honours the user's Auto-save preference.
+        auto_save = True
+        if user is not None:
+            auto_save = (getattr(user, "preferences", None) or {}).get("auto_save", True)
+        if auto_save:
+            try:
+                save_chat(
+                    session_id=state["session_id"],
+                    query=query,
+                    answer=state.get("final_answer", ""),
+                    confidence=(state.get("critique") or {}).get("overall_confidence", 0) or 0,
+                )
+            except Exception as e:
+                print(f"⚠️ save_chat failed for visual stream: {e}")
+        else:
+            print("ℹ️ Auto-save off — skipping chat persistence for this run")
 
     return StreamingResponse(
         event_stream(),
@@ -728,12 +724,10 @@ def _judge_track_record(db) -> dict:
 async def debate_visual(request: Request, db: Session = Depends(get_db)):
     """
     Stream live adversarial-debate data for the DebateEngine component.
-    Mirror of /ask-visual for the 6-stage debate pipeline.
+    Mirror of /ask-visual for the 6-stage debate pipeline — the compiled
+    debate_graph is the only place the FOR→AGAINST→rebuttal ordering
+    lives; this endpoint just narrates its real node events over SSE.
     """
-    from app.graph.debate_graph import (
-        debate_search_node, for_agent_node, against_agent_node,
-        for_rebuttal_node, against_rebuttal_node, judge_node,
-    )
     from app.visual.debate_builder import init_debate_visual_state, build_debate_patch
 
     body = await request.json()
@@ -820,42 +814,32 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
             patch["elapsedSeconds"] = round(time.time() - start_time, 1)
             return patch
 
-        stage_panel = {"Search": "Evidence", "FOR-opening": "FOR", "AGAINST-opening": "AGAINST",
-                       "FOR-rebuttal": "FOR", "AGAINST-rebuttal": "AGAINST", "Judge": "Judge"}
-        pipeline = [
-            ("Search",           debate_search_node,    {"label": "Gathering evidence", "sub": "Querying the web…"}),
-            ("FOR-opening",      for_agent_node,        {"label": "FOR opening",        "sub": "Building the supporting case…"}),
-            ("AGAINST-opening",  against_agent_node,    {"label": "AGAINST opening",    "sub": "Building the counter case…"}),
-            ("FOR-rebuttal",     for_rebuttal_node,     {"label": "FOR rebuttal",       "sub": "Countering the opposition…"}),
-            ("AGAINST-rebuttal", against_rebuttal_node, {"label": "AGAINST rebuttal",   "sub": "Countering the support…"}),
-            ("Judge",            judge_node,            {"label": "Judging",            "sub": "Scoring rubric + argument quality…"}),
-        ]
+        def _on_task(node_name):
+            stage = DEBATE_NODE_TO_STAGE.get(node_name)
+            phase = DEBATE_STAGE_PHASE.get(stage)
+            panel = DEBATE_STAGE_TO_PANEL.get(stage)
+            if not stage or not phase or not panel:
+                return None
+            announce = {"stage": phase, "panels": {panel: {"phase": {"label": phase["label"], "sub": phase["sub"]}}}}
+            return f"data: {json.dumps(announce)}\n\n"
 
-        for stage_name, node_fn, stage_label in pipeline:
-            announce = {
-                "stage": stage_label,
-                "panels": {stage_panel[stage_name]: {"phase": {"label": stage_label["label"], "sub": stage_label["sub"]}}},
-            }
-            yield f"data: {json.dumps(announce)}\n\n"
+        def _on_task_result(node_name, elapsed):
+            stage = DEBATE_NODE_TO_STAGE.get(node_name, node_name)
+            return f"data: {json.dumps(build_debate_patch(state, stage, elapsed))}\n\n"
 
-            future = loop.run_in_executor(None, node_fn, state)
-            while not future.done():
-                ev = bus.get_nowait()
-                if ev is None:
-                    await asyncio.sleep(0.15)
-                    continue
-                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
-            while (ev := bus.get_nowait()) is not None:
-                yield f"data: {json.dumps(_event_to_patch(ev))}\n\n"
-
-            try:
-                updated = future.result()
-                state.update(updated if isinstance(updated, dict) else {})
-            except Exception as e:
-                yield f"data: {json.dumps({'error': f'{stage_name} failed: {str(e)[:200]}'})}\n\n"
-                return
-
-            yield f"data: {json.dumps(build_debate_patch(state, stage_name, time.time() - start_time))}\n\n"
+        # The compiled debate_graph (search → FOR opening → AGAINST opening
+        # → FOR rebuttal → AGAINST rebuttal → judge) is the only place this
+        # ordering lives now.
+        async for frame in stream_compiled_graph(
+            loop, debate_graph, state, bus,
+            on_task=_on_task,
+            on_task_result=_on_task_result,
+            on_bus_event=lambda ev: f"data: {json.dumps(_event_to_patch(ev))}\n\n",
+            start_time=start_time,
+        ):
+            yield frame
+        if state.get("_stream_error"):
+            return
 
         # Final patch (judge_node already persisted via save_debate — do NOT
         # save again here; the old /ask-stream path double-saved).

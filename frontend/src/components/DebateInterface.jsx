@@ -540,6 +540,7 @@ const NAV = [
   { icon: "picture_as_pdf", label: "PDF Lab", path: "/pdf-lab" },
   { icon: "analytics", label: "Analytics", path: "/analytics" },
   { icon: "settings", label: "Settings", path: "/settings" },
+  { icon: "help", label: "Help", path: "/info" },
 ];
 
 function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {

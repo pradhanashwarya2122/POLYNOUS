@@ -13,6 +13,7 @@ temporarily down.
 """
 import logging
 import time
+from typing import Optional
 
 from langgraph.graph import StateGraph, END
 
@@ -129,6 +130,73 @@ def _build_confidence_section(computed: dict, critique: dict) -> str:
     return "\n".join(lines)
 
 
+MIN_USABLE_CONTENT = 300     # chars — below this a scraped doc is "thin"
+MIN_USABLE_DOCS = 5          # fewer than this triggers query reformulation
+_GAP_ERROR_MARKERS = ("analysis could not be completed", "error code", "could not parse",
+                      "not_found_error", "api key", "llm response", "unavailable")
+
+
+def _usable_docs(docs: list) -> list:
+    """Docs with enough real content to reason over."""
+    return [d for d in (docs or [])
+            if (d.get("content_length") or len(d.get("content") or "")) >= MIN_USABLE_CONTENT]
+
+
+def _substantive_gaps(critique: dict) -> list:
+    """Real coverage gaps the critic found — error strings filtered out."""
+    raw = (critique or {}).get("coverage_gaps") or []
+    return [g.strip() for g in raw
+            if isinstance(g, str) and g.strip()
+            and len(g) < 160
+            and not any(m in g.lower() for m in _GAP_ERROR_MARKERS)]
+
+
+def _reformulate_query(query: str, provider: str, api_key: str, model) -> Optional[str]:
+    """One cheap LLM call to broaden/clarify a query that found too little.
+    Uses the user's own key ONLY — returns None on any failure (heuristic-free
+    fallback: caller just keeps the original results)."""
+    if not api_key:
+        return None
+    try:
+        from app.llm_providers import resolve_provider, default_model
+        client_type, base_url = resolve_provider(provider)
+        prompt = (f'A web search for this query returned too few usable sources:\n"{query}"\n'
+                  "Rewrite it as ONE broader or clearer web-search query likely to find more "
+                  "sources. Return only the rewritten query — no quotes, no explanation.")
+        if client_type == "openai":
+            from openai import OpenAI
+            c = OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {}))
+            r = c.chat.completions.create(model=model or default_model(provider),
+                                          messages=[{"role": "user", "content": prompt}],
+                                          max_tokens=60, temperature=0.3)
+            out = r.choices[0].message.content
+        else:
+            from anthropic import Anthropic
+            c = Anthropic(api_key=api_key)
+            r = c.messages.create(model=model or default_model(provider), max_tokens=60,
+                                  temperature=0.3, messages=[{"role": "user", "content": prompt}])
+            out = r.content[0].text
+        out = (out or "").strip().strip('"').split("\n")[0][:200]
+        return out if out and out.lower() != (query or "").lower() else None
+    except Exception as e:
+        logger.warning("Query reformulation failed: %s", e)
+        return None
+
+
+def _merge_docs(existing: list, new: list) -> list:
+    """Append new docs, deduped against existing by URL."""
+    seen = {d.get("url") for d in existing if d.get("url")}
+    merged = list(existing)
+    for d in new:
+        u = d.get("url")
+        if u and u in seen:
+            continue
+        if u:
+            seen.add(u)
+        merged.append(d)
+    return merged
+
+
 def _extract_entities(query: str) -> list:
     """Best-effort entity extraction with a simple keyword fallback."""
     try:
@@ -162,6 +230,21 @@ def search_node(state: AgentState) -> AgentState:
     emit = make_emitter(state, "Search")
 
     results = search_web(state['query'], progress_cb=emit)
+
+    # ── AUTONOMY: thin results → the agent reformulates ONCE and re-searches ──
+    if len(_usable_docs(results)) < MIN_USABLE_DOCS:
+        alt = _reformulate_query(state['query'], _get_provider(state),
+                                 state.get('user_api_key'), state.get('model'))
+        if alt:
+            emit(f"Search agent: thin results — reformulating query → \"{alt[:60]}\"")
+            more = search_web(alt, progress_cb=emit)
+            before = len(results)
+            results = _merge_docs(results, more)
+            emit(f"Reformulated search added {len(results) - before} new sources "
+                 f"({len(results)} total)")
+        else:
+            emit(f"Search agent: {len(results)} sources found (reformulation skipped)")
+
     state['retrieved_docs'] = results
 
     # Hybrid search for enhanced context
@@ -210,8 +293,16 @@ def summarise_node(state: AgentState) -> AgentState:
 
     provider = _get_provider(state)
     emit = make_emitter(state, "Summarise")
-    docs = state.get('retrieved_docs', [])
-    emit(f"Summarising {len(docs)} documents in parallel…")
+    all_docs = state.get('retrieved_docs', [])
+
+    # ── TRIAGE: skip thin sources — a real agent decision, surfaced ──
+    docs = _usable_docs(all_docs)
+    skipped = len(all_docs) - len(docs)
+    if skipped:
+        emit(f"Summariser triage: skipped {skipped} thin source{'s' if skipped != 1 else ''} "
+             f"(< {MIN_USABLE_CONTENT} chars) — summarising {len(docs)} substantive documents")
+    else:
+        emit(f"Summarising {len(docs)} documents in parallel…")
 
     # google/mistral/groq route through the summariser's openai_compatible
     # path with the matching base_url; user-chosen model wins over defaults.
@@ -270,6 +361,72 @@ def critic_node(state: AgentState) -> AgentState:
     print(f"✅ Analysis complete: {agreements} agreements, {disagreements} disagreements")
     print(f"📊 Confidence: {confidence}% (source agreement ratio)")
 
+    return state
+
+
+def deepen_node(state: AgentState) -> AgentState:
+    """
+    DEEPEN AGENT — the pipeline's genuinely agentic step. When the critic
+    reports real coverage gaps, this dispatches targeted follow-up searches
+    on the top 2 gaps, integrates the new evidence, re-summarises only the
+    delta, and hands back to the critic for a second, better-informed pass.
+    Strictly bounded to one extra cycle.
+    """
+    print("\n" + "=" * 60)
+    print("🔁 DEEPEN AGENT (gap-driven re-search)")
+    print("=" * 60)
+    state['current_agent'] = 'deepen'
+    emit = make_emitter(state, "Critic")   # surfaced on the Critic lane
+
+    gaps = _substantive_gaps(state.get('critique'))[:2]
+    provider = _get_provider(state)
+    emit(f"Critic identified {len(gaps)} coverage gap"
+         f"{'s' if len(gaps) != 1 else ''} — dispatching targeted re-search",
+         {"progress": 72})
+
+    existing = state.get('retrieved_docs', [])
+    new_docs = []
+    for i, gap in enumerate(gaps, 1):
+        gap_q = gap if len(gap.split()) > 2 else f"{state['query']} {gap}"
+        emit(f"Deepen {i}/{len(gaps)}: searching \"{gap[:60]}\"…")
+        try:
+            found = search_web(gap_q, max_results=4, progress_cb=emit)
+            new_docs = _merge_docs(new_docs, found)
+        except Exception as e:
+            logger.warning("Deepen search failed for gap '%s': %s", gap[:40], e)
+
+    # dedupe the new docs against what we already had
+    merged = _merge_docs(existing, new_docs)
+    genuinely_new = [d for d in merged if d not in existing]
+    state['retrieved_docs'] = merged
+    state['research_cycles'] = state.get('research_cycles', 0) + 1
+
+    # keep citations in sync with the enlarged evidence pool
+    state['citations'] = [
+        {'title': d.get('title', 'Untitled'), 'url': d.get('url', ''),
+         'source': d.get('source', 'web'), 'content_source': d.get('content_source', ''),
+         'published_date': d.get('published_date', '')}
+        for d in merged
+    ]
+
+    # re-summarise ONLY the new, substantive docs and merge into summaries
+    fresh = _usable_docs(genuinely_new)
+    if fresh:
+        base_url = OPENAI_COMPATIBLE_BASE_URLS.get(provider)
+        new_summaries = summariser_agent(
+            documents=fresh,
+            query=state['query'],
+            provider="openai_compatible" if base_url else provider,
+            api_key=state.get('user_api_key'),
+            model=state.get('model'),
+            base_url=base_url,
+            progress_cb=emit,
+        )
+        state['summaries'] = (state.get('summaries') or []) + new_summaries
+
+    emit(f"Research cycle {state['research_cycles'] + 1}: {len(fresh)} new sources integrated "
+         f"({len(merged)} total) — re-examining with the critic", {"progress": 78})
+    print(f"✅ Deepen complete: +{len(fresh)} new sources, {len(merged)} total")
     return state
 
 
@@ -407,11 +564,16 @@ def _route_after_search(state: AgentState) -> str:
 
 
 def _route_after_critic(state: AgentState) -> str:
-    """If the critique failed to parse, loop back to the critic ONCE
-    (the agent also self-repairs internally, so this is a second layer)."""
+    """Three-way decision the critic 'makes':
+      1. parse failure  → retry the critic once (self-repair backstop)
+      2. real coverage gaps + no deepen cycle spent → DEEPEN (gap-driven
+         re-search), then the critic runs again on richer evidence
+      3. otherwise      → write the report."""
     critique = state.get('critique') or {}
     if critique.get('parse_failed') and state.get('critic_retries', 0) <= 1:
         return "critic"
+    if state.get('research_cycles', 0) < 1 and _substantive_gaps(critique):
+        return "deepen"
     return "write"
 
 
@@ -420,16 +582,43 @@ def create_orchestrator():
     workflow.add_node("search", search_node)
     workflow.add_node("summarise", summarise_node)
     workflow.add_node("critic", critic_node)
+    workflow.add_node("deepen", deepen_node)
     workflow.add_node("write", writer_node)
     workflow.set_entry_point("search")
     workflow.add_conditional_edges("search", _route_after_search,
                                    {"summarise": "summarise", "write": "write"})
     workflow.add_edge("summarise", "critic")
     workflow.add_conditional_edges("critic", _route_after_critic,
-                                   {"critic": "critic", "write": "write"})
+                                   {"critic": "critic", "deepen": "deepen", "write": "write"})
+    workflow.add_edge("deepen", "critic")   # richer evidence → re-examine
     workflow.add_edge("write", END)
     return workflow.compile()
 
 
 orchestrator = create_orchestrator()
 print("✅ Multi-Agent Orchestrator Ready!")
+
+
+# ============================================================
+# GRAPH NODE → VISUAL PANEL MAP
+# ============================================================
+# Facts about the graph's own structure, co-located with the graph
+# definition so the SSE layer (app/main.py) never has to duplicate or
+# guess at routing/node names — it only asks "which panel does this
+# graph node belong to?" `deepen` reuses the Critic panel since the
+# frontend has no separate card for the gap-driven re-search step.
+RESEARCH_NODE_TO_PANEL = {
+    "search": "Search",
+    "summarise": "Summarise",
+    "critic": "Critic",
+    "deepen": "Critic",
+    "write": "Writer",
+}
+
+RESEARCH_NODE_PHASE = {
+    "search":    {"label": "Searching",   "sub": "Querying Tavily and scraping…"},
+    "summarise": {"label": "Summarising", "sub": "Extracting key points…"},
+    "critic":    {"label": "Critiquing",  "sub": "Cross-checking claims…"},
+    "deepen":    {"label": "Deepening",   "sub": "Gap-driven re-search…"},
+    "write":     {"label": "Writing",     "sub": "Drafting research digest…"},
+}

@@ -470,6 +470,7 @@ const NAV = [
   { icon: "picture_as_pdf", label: "PDF Lab",         path: "/pdf-lab" },
   { icon: "analytics",      label: "Analytics",       path: "/analytics" },
   { icon: "settings",       label: "Settings",        path: "/settings" },
+  { icon: "help", label: "Help", path: "/info" },
 ];
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -1110,7 +1111,7 @@ function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, li
 }
 
 // ─── Neural Synthesis Report ──────────────────────────────────────────────────
-function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onNew }) {
+function NeuralSynthesisReport({ query, answer, sources, confidence, confThreshold = 70, onCopy, onNew }) {
   const { summary, findings, limitations, parsedConf, parsedSources, sections } = parseAnswer(answer);
   const confValue  = parsedConf || confidence;
   const confColor  = confValue>=80 ? C.green : confValue>=60 ? C.amber : C.crimson;
@@ -1148,6 +1149,16 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, onCopy, onN
           </div>
         </div>
       </div>
+
+      {/* Confidence-threshold guard — honours the user's Settings preference */}
+      {confValue > 0 && confValue < confThreshold && (
+        <div style={{ display:"flex",alignItems:"center",gap:12,background:"rgba(255,170,0,0.06)",border:"1px solid rgba(255,170,0,0.28)",borderRadius:12,padding:"14px 18px",animation:"sectionIn 0.4s ease both" }}>
+          <Icon name="warning" style={{ fontSize:20,color:C.amber,flexShrink:0 }} />
+          <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13.5,color:"#e2d0a0",lineHeight:1.5 }}>
+            This answer's confidence (<strong>{confValue}%</strong>) is below your <strong>{confThreshold}%</strong> threshold — the sources were thin or disagreed. Treat it as a lead, not a conclusion, and consider a follow-up query.
+          </span>
+        </div>
+      )}
 
       {/* Summary */}
       {summary && (
@@ -1456,6 +1467,8 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mounted,        setMounted]        = useState(false);
   const [userStyle,      setUserStyle]      = useState("academic");
+  const [streamingOn,    setStreamingOn]    = useState(true);
+  const [confThreshold,  setConfThreshold]  = useState(70);
   const [fontsLoaded,    setFontsLoaded]    = useState(false);
 
   // --- NEW: engine collapse state
@@ -1484,6 +1497,8 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
         if (res.ok) {
           const data = await res.json();
           setUserStyle(data.response_style || "academic");
+          if (data.streaming_enabled !== undefined) setStreamingOn(!!data.streaming_enabled);
+          if (data.confidence_threshold !== undefined) setConfThreshold(Number(data.confidence_threshold) || 70);
         }
       } catch (e) {
         // ignore
@@ -1632,6 +1647,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
                 apiUrl={`${API_BASE_URL}/ask-visual`}
                 query={activeQuery}
                 responseStyle={userStyle}
+                streaming={streamingOn}
                 onComplete={(data) => {
                   const finalAnswer = data?.final_answer || "";
                   const confMatch = String(data?.metrics?.confidence ?? "").match(/\d+/);
@@ -1686,7 +1702,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
 
             {/* Report */}
             <div style={{ maxWidth:860,margin:"0 auto" }}>
-              <NeuralSynthesisReport query={query} answer={answer} sources={sources} confidence={confidence} onCopy={handleCopy} onNew={handleNew} />
+              <NeuralSynthesisReport query={query} answer={answer} sources={sources} confidence={confidence} confThreshold={confThreshold} onCopy={handleCopy} onNew={handleNew} />
             </div>
 
             {/* History */}

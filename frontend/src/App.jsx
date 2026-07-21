@@ -16,6 +16,7 @@ import KnowledgeGraphPage from './components/KnowledgeGraphPage';
 import SemanticSearchPage from './components/SemanticSearchPage';
 import PdfLabPage from './components/PdfLabPage';
 import PolynousDashboard from './components/PolynousDashboard';
+import InfoPage from './components/InfoPage';
 import { API_BASE_URL } from './config';
 
 // ═══════════════════════════════════════════════════════════════
@@ -47,7 +48,12 @@ const getInitialAuthState = () => {
 // ═══════════════════════════════════════════════════════════════
 function loadUserPreferences(userEmail) {
   const userId = userEmail || 'guest_user'
-  fetch(`${API_BASE_URL}/settings/preferences?user_id=${encodeURIComponent(userId)}`)
+  // The endpoint is auth-gated — must send the token, or default_mode etc.
+  // never populate localStorage (previously a silent 401).
+  const token = localStorage.getItem('polynous_token') || window.__POLYNOUS_ACCESS_TOKEN__ || ''
+  fetch(`${API_BASE_URL}/settings/preferences?user_id=${encodeURIComponent(userId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
     .then(r => r.json())
     .then(data => {
       if (data.default_mode) localStorage.setItem('polynous_default_mode', data.default_mode)
@@ -160,6 +166,9 @@ export default function App() {
   const navigateTo = (path) => { window.location.href = path }
   const startResearch = (topic) => { window.location.href = `/research?query=${encodeURIComponent(topic)}` }
 
+  // Landing destination honours the user's "Default Mode" preference
+  const defaultRoute = (localStorage.getItem('polynous_default_mode') === 'debate') ? '/debate' : '/research'
+
   // ═══════════════════════════════════════════════════════════
   // PROFILE SETUP MODE — Full screen, bypasses Router
   // ═══════════════════════════════════════════════════════════
@@ -225,23 +234,29 @@ export default function App() {
         {/* ── PUBLIC ROUTES ─────────────────────────────── */}
         <Route 
           path="/" 
-          element={isLoggedIn ? <Navigate to="/research" replace /> : <PremiumHomepage user={user} onNavigate={navigateTo} />} 
+          element={isLoggedIn ? <Navigate to={defaultRoute} replace /> : <PremiumHomepage user={user} onNavigate={navigateTo} />} 
         />
         
         {/* ✅ Auth page — allows access when profile setup is needed */}
         <Route 
           path="/auth" 
           element={
-            isLoggedIn && !needsProfileSetup 
-              ? <Navigate to="/research" replace /> 
+            isLoggedIn && !needsProfileSetup
+              ? <Navigate to={defaultRoute} replace />
               : <AuthPage onLogin={handleLogin} />
           } 
         />
         
         {/* ✅ OAuth Callback — only ONE route */}
-        <Route 
-          path="/auth/callback" 
-          element={<OAuthCallback onLogin={handleLogin} />} 
+        <Route
+          path="/auth/callback"
+          element={<OAuthCallback onLogin={handleLogin} />}
+        />
+
+        {/* ✅ Help / Info — PUBLIC so troubleshooting is readable even when login is broken */}
+        <Route
+          path="/info"
+          element={<InfoPage user={user} onNavigate={navigateTo} onLogout={handleLogout} />}
         />
 
         {/* ── PROTECTED ROUTES ──────────────────────────── */}
