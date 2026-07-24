@@ -166,6 +166,7 @@ class SourceResult:
     error: Optional[str] = None
     fetched_at: float = 0.0
     published_date: str = ""
+    from_scrape_cache: bool = False   # served from the 15-min scrape TTL cache
 
     def to_dict(self) -> dict:
         return {
@@ -177,6 +178,7 @@ class SourceResult:
             "score": self.score,
             "fetched_at": self.fetched_at,
             "published_date": self.published_date,
+            "from_scrape_cache": self.from_scrape_cache,
         }
  
  
@@ -334,6 +336,9 @@ def search_web(query: str, max_results: int = SEARCH_MAX_RESULTS, max_chars: int
  
     def _scrape_one(source: SourceResult) -> SourceResult:
         snippet = source.content
+        # Was this URL already in the scrape TTL cache? (checked before scrape
+        # so we can honestly report "served from scrape cache")
+        source.from_scrape_cache = _cache.get(source.url) is not None
         scraped, error = scrape_full_content(source.url, max_chars=max_chars)
 
         if scraped and len(scraped) > 200:

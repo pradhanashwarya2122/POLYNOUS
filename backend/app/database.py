@@ -1,20 +1,13 @@
 # database.py — PostgreSQL preferred, SQLite fallback for local dev
-from sqlalchemy import (
-    create_engine,
-    Column,
-    String,
-    DateTime,
-    Text,
-    Boolean,
-    Integer,
-    JSON,
-    Float,
-    ForeignKey,
-)
-from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, relationship
+#
+# NOTE: this module no longer DEFINES any ORM models. There is exactly one
+# declarative Base, defined in app.models.user; every model lives in
+# app.models and is re-exported here for backward compatibility. This kills
+# the old dual-User-model hazard (two `User` classes for table "users" on two
+# different Bases with divergent columns).
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker, scoped_session
 import os
-import sys
-import re
 from datetime import datetime
 
 # ============================================================
@@ -67,169 +60,91 @@ SessionLocal = scoped_session(
 print("✅ Session factory created (scoped_session)")
 
 # ============================================================
-# DECLARATIVE BASE
+# DECLARATIVE BASE + MODELS — single source of truth in app.models
 # ============================================================
-Base = declarative_base()
-
-# ============================================================
-# MERGED USER MODEL – All columns from both files
-# ============================================================
-class User(Base):
-    __tablename__ = "users"
-
-    # ── Primary Keys ──────────────────────────────
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    public_id = Column(String(36), unique=True, index=True, nullable=False)
-
-    # ── Auth ───────────────────────────────────────
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    username = Column(String(100), unique=False, index=True, nullable=True)
-    hashed_password = Column(String(255), nullable=False)
-
-    # ── OAuth ──────────────────────────────────────
-    google_id = Column(String, nullable=True)
-    github_id = Column(String, nullable=True)
-
-    # ── Security ───────────────────────────────────
-    failed_login_attempts = Column(Integer, default=0)
-    locked_until = Column(DateTime, nullable=True)
-    password_changed_at = Column(DateTime, default=datetime.utcnow)
-    encryption_key = Column(String(255), nullable=True)
-
-    # ── BYOK – Encrypted with user's encryption_key ─
-    anthropic_api_key = Column(Text, nullable=True)
-    openai_api_key = Column(Text, nullable=True)
-    tavily_api_key = Column(Text, nullable=True)
-    voyage_api_key = Column(Text, nullable=True)
-    google_api_key = Column(Text, nullable=True)
-    mistral_api_key = Column(Text, nullable=True)
-    groq_api_key = Column(Text, nullable=True)
-    nvidia_api_key = Column(Text, nullable=True)
-    deepseek_api_key = Column(Text, nullable=True)
-
-    # ── Pinecone / Neo4j BYO ───────────────────────
-    pinecone_api_key_enc = Column(Text, nullable=True)
-    pinecone_environment = Column(String, nullable=True)
-    pinecone_index_name = Column(String, nullable=True)
-    neo4j_uri = Column(String, nullable=True)
-    neo4j_user = Column(String, nullable=True)
-    neo4j_password_enc = Column(Text, nullable=True)
-
-    # ── Preferences & Notifications ────────────────
-    preferred_provider = Column(String(50), default="anthropic")
-    preferences = Column(JSON, default=lambda: {
-        "default_mode": "research",
-        "response_style": "academic",
-        "streaming_enabled": True,
-        "auto_save": True,
-        "confidence_threshold": 70,
-    })
-    notifications = Column(JSON, default=lambda: {
-        "email": False,
-        "research": True,
-        "weekly": False,
-        "rate_limit": True,
-    })
-    integrations = Column(JSON, default=lambda: {
-        "google": {"connected": False},
-        "github": {"connected": False},
-        "notion": {"connected": False},
-    })
-
-    # ── Profile ────────────────────────────────────
-    tier = Column(String(20), default="free")
-    is_active = Column(Boolean, default=True)
-    email_verified = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_login = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # ── Relationships ──────────────────────────────
-    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+# Import the ONE Base and every model from app.models. `import app.models`
+# has the side effect of registering all model classes on Base.metadata, so
+# both create_all (dev fallback) and Alembic autogenerate see the full schema.
+from app.models import (  # noqa: E402
+    Base,
+    User,
+    Conversation,
+    Message,
+    DebateVote,
+    FreeKeyClaim,
+    UserPreferences,
+)
 
 
 # ============================================================
-# CONVERSATION & MESSAGE MODELS
+# DATABASE INITIALIZATION — Alembic migrations (default) or create_all
 # ============================================================
-class Conversation(Base):
-    __tablename__ = "conversations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    public_id = Column(String(36), unique=True, default=lambda: None)
-    title = Column(String(200), default="New Research")
-    mode = Column(String(20), default="research")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    user = relationship("User", back_populates="conversations")
-    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+def _has_table(table_name: str) -> bool:
+    from sqlalchemy import inspect as sa_inspect
+    try:
+        return sa_inspect(engine).has_table(table_name)
+    except Exception:
+        return False
 
 
-class Message(Base):
-    __tablename__ = "messages"
+def run_migrations() -> None:
+    """
+    Bring the database schema up to head using Alembic, adopting pre-existing
+    databases automatically:
 
-    id = Column(Integer, primary_key=True, index=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
-    role = Column(String(20), nullable=False)
-    content = Column(String(10000))
-    sources = Column(JSON, default=[])
-    confidence = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+      * fresh DB (no 'users' table)         → upgrade head  (creates everything)
+      * legacy DB (has 'users', no alembic) → stamp head    (adopt as-is, no DDL)
+      * already-migrated DB                 → upgrade head   (apply any pending)
 
-    conversation = relationship("Conversation", back_populates="messages")
+    This lets the existing local polynous.db and the production Postgres both
+    switch to migrations with zero manual steps. Raises on failure in
+    production; degrades to create_all locally.
+    """
+    from alembic.config import Config
+    from alembic import command
 
+    ini_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic.ini")
+    cfg = Config(ini_path)
+    # env.py reads the URL from here, so a spawned CLI and this in-process call
+    # always target the same database.
+    cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
 
-# ============================================================
-# USER PREFERENCES (separate table)
-# ============================================================
-class DebateVote(Base):
-    """User verdict votes — powers the Judge Track Record strip.
-    agreement rate = share of votes agreeing with the judge's winner."""
-    __tablename__ = "debate_votes"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, nullable=True)          # public_id or null (guest view)
-    topic = Column(Text, nullable=False)
-    judge_winner = Column(String(20), nullable=False)
-    user_agrees = Column(Boolean, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    has_users = _has_table("users")
+    has_alembic = _has_table("alembic_version")
 
-
-class FreeKeyClaim(Base):
-    """Tracks which free starter-key each user has claimed, so each user
-    gets exactly one and pool keys are never handed out twice. Stores a
-    fingerprint (hash) of the key, never the key itself."""
-    __tablename__ = "free_key_claims"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, nullable=False, index=True)   # public_id
-    key_fingerprint = Column(String(64), nullable=False, index=True)
-    provider = Column(String(30), nullable=False)
-    claimed_at = Column(DateTime, default=datetime.utcnow)
+    if has_users and not has_alembic:
+        print("🔖 Existing database detected without Alembic — stamping head (adopt, no DDL).")
+        command.stamp(cfg, "head")
+    else:
+        print("⬆️  Running Alembic migrations to head…")
+        command.upgrade(cfg, "head")
+    print("✅ Database schema at head.")
 
 
-class UserPreferences(Base):
-    __tablename__ = "user_preferences"
-    user_id = Column(String, primary_key=True)
-    theme = Column(String, default="dark")
-    notifications_enabled = Column(Boolean, default=True)
-    email_notifications = Column(Boolean, default=False)
-    research_depth = Column(String, default="standard")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-# ============================================================
-# DATABASE INITIALIZATION
-# ============================================================
 def init_db():
+    """
+    Startup schema init. Prefers Alembic migrations (ALEMBIC_AUTO_UPGRADE,
+    default on). Falls back to create_all only if migrations are disabled or
+    unavailable — so local dev never hard-fails on a missing Alembic setup.
+    """
+    auto = os.getenv("ALEMBIC_AUTO_UPGRADE", "1").lower() not in ("0", "false", "no", "off")
+    if auto:
+        try:
+            run_migrations()
+            return
+        except Exception as e:
+            print(f"❌ Alembic migration failed: {e}")
+            if IS_PRODUCTION:
+                raise
+            print("⚠️  Falling back to create_all for local dev…")
     try:
         Base.metadata.create_all(bind=engine)
-        print("✅ Database tables created/verified!")
+        print("✅ Database tables created/verified (create_all fallback)!")
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         if IS_PRODUCTION:
             raise
-        else:
-            print("⚠️  Continuing without database – some features may not work")
+        print("⚠️  Continuing without database – some features may not work")
 
 
 # ============================================================
@@ -253,7 +168,7 @@ def get_db():
 def check_database_connection():
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         return True, "Database connection OK"
     except Exception as e:
@@ -270,8 +185,11 @@ __all__ = [
     "User",
     "Conversation",
     "Message",
+    "DebateVote",
+    "FreeKeyClaim",
     "UserPreferences",
     "init_db",
+    "run_migrations",
     "get_db",
     "check_database_connection",
     "DATABASE_URL",

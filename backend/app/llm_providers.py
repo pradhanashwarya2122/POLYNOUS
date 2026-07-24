@@ -57,6 +57,62 @@ KEY_PREFIXES = {
 }
 
 
+# ============================================================
+# PRICING — ESTIMATED USD per 1,000,000 tokens (input, output)
+# ============================================================
+# These are ESTIMATES for cost-awareness only, not billing. Public list
+# prices drift over time and per-account rates vary, so every cost figure
+# derived from this table is surfaced to users as an estimate ("est."), and
+# a model with no entry yields a null cost (rendered as "—"), never a guess.
+PRICING = {
+    "anthropic": {
+        "claude-haiku-4-5":        (1.00, 5.00),
+        "claude-haiku-4-5-20251001": (1.00, 5.00),
+        "claude-sonnet-5":         (3.00, 15.00),
+        "claude-opus-4-8":         (15.00, 75.00),
+    },
+    "openai": {
+        "gpt-4o-mini":  (0.15, 0.60),
+        "gpt-5.1-mini": (0.25, 2.00),
+        "gpt-5.1":      (1.25, 10.00),
+    },
+    "google": {
+        "gemini-2.5-flash": (0.30, 2.50),
+        "gemini-2.5-pro":   (1.25, 10.00),
+    },
+    "mistral": {
+        "mistral-small-latest": (0.10, 0.30),
+        "mistral-large-latest": (2.00, 6.00),
+    },
+    "groq": {
+        "llama-3.3-70b-versatile": (0.59, 0.79),
+        "mixtral-8x7b-32768":      (0.24, 0.24),
+    },
+    "nvidia": {
+        # NVIDIA NIM hosted — public list prices vary; conservative estimates.
+        "meta/llama-3.3-70b-instruct": (0.60, 0.60),
+        "meta/llama-3.1-70b-instruct": (0.60, 0.60),
+    },
+    "deepseek": {
+        "deepseek-chat":     (0.27, 1.10),
+        "deepseek-reasoner": (0.55, 2.19),
+    },
+}
+
+
+def price_for(provider: str, model: str):
+    """(input_rate, output_rate) per 1M tokens for a provider/model, or None
+    if we have no estimate for it (caller renders cost as '—')."""
+    table = PRICING.get(provider or "", {})
+    if model in table:
+        return table[model]
+    # try the provider's default model as a best-effort fallback
+    dm = DEFAULT_MODELS.get(provider or "")
+    if dm and dm in table:
+        return table[dm]
+    return None
+
+
 def resolve_provider(provider: str):
     """
     Returns (client_type, base_url):

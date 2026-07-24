@@ -421,7 +421,7 @@ function deepMerge(base, override) {
   return out;
 }
 
-function useLiveResearch(apiUrl, query, responseStyle) {
+function useLiveResearch(apiUrl, query, responseStyle, forceFresh = false) {
   const [liveData,  setLiveData]  = useState(null);
   const [liveError, setLiveError] = useState(null);
 
@@ -456,7 +456,7 @@ function useLiveResearch(apiUrl, query, responseStyle) {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ query, response_style: responseStyle || "" }),
+          body: JSON.stringify({ query, response_style: responseStyle || "", force_fresh: !!forceFresh }),
           signal: controller.signal,
         });
 
@@ -529,7 +529,7 @@ function useLiveResearch(apiUrl, query, responseStyle) {
       startedRef.current = false;
       controller.abort();
     };
-  }, [apiUrl, query, responseStyle]);
+  }, [apiUrl, query, responseStyle, forceFresh]);
 
   return { liveData, liveError };
 }
@@ -684,8 +684,8 @@ const CheckRow = ({ item }) => {
 const RING_R = 20;
 const RING_C = 2 * Math.PI * RING_R;
 
-export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, responseStyle, streaming = true, onComplete, onError }) {
-  const { liveData, liveError } = useLiveResearch(apiUrl, query, responseStyle);
+export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, responseStyle, streaming = true, forceFresh = false, onComplete, onError }) {
+  const { liveData, liveError } = useLiveResearch(apiUrl, query, responseStyle, forceFresh);
   const [errorDismissed, setErrorDismissed] = useState(false);
   const [infoOpen, setInfoOpen] = useState(null);
 

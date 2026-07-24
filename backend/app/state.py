@@ -33,6 +33,10 @@ class AgentState(TypedDict):
     # ── Final output ──────────────────────────────────────
     final_answer: str
     citations: List[Dict]
+    report: Optional[Dict]                # structured writer JSON contract (Phase 3)
+
+    # ── Cost / token telemetry (Phase 6) ──────────────────
+    usage: Optional[Dict]                 # per-request token/cost accumulator
 
     # ── Debate mode ───────────────────────────────────────
     debate_mode: bool

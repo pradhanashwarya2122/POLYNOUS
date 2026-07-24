@@ -792,6 +792,107 @@ function StatCard({ icon, color, label, value, trend }) {
   );
 }
 
+// ─── EVALUATION CARD ─────────────────────────────────────────
+// Renders the latest eval-harness summary from GET /evals/summary. Honest
+// empty state when no runs exist; every number comes from the endpoint —
+// nothing is fabricated or interpolated here.
+function EvaluationCard({ summary }) {
+  const shell = {
+    background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)",
+    border: "1px solid " + C.white10, borderRadius: 20, padding: 22,
+    minHeight: 200, display: "flex", flexDirection: "column",
+  };
+  const heading = (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <SvgTarget size={20} color={C.green} />
+      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", margin: 0 }}>
+        Evaluation
+      </h3>
+    </div>
+  );
+
+  // loading (not yet fetched) vs explicit empty state
+  if (!summary) {
+    return (
+      <div className="card-glow" style={shell}>
+        {heading}
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.textSecondary, fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+          Loading…
+        </div>
+      </div>
+    );
+  }
+
+  if (!summary.available) {
+    return (
+      <div className="card-glow" style={shell}>
+        {heading}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, textAlign: "center" }}>
+          <SvgTarget size={34} color="rgba(0,255,15,0.3)" />
+          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: "#fff" }}>
+            {summary.message || "No evaluation runs yet"}
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.textSecondary, maxWidth: 300, lineHeight: 1.6 }}>
+            Run <span style={{ color: C.green }}>python -m evals.run_eval --api-key …</span> to measure pipeline grounding, citation honesty, and confidence calibration.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const t = summary.totals || {};
+  const tiles = [
+    { label: "Grounded ratio", value: t.avg_grounded_ratio != null ? t.avg_grounded_ratio.toFixed(2) : "—", color: C.green },
+    { label: "Avg confidence", value: t.avg_computed_confidence != null ? Math.round(t.avg_computed_confidence) + "%" : "—", color: C.cyan },
+    { label: "Cite density /100w", value: t.avg_citation_density != null ? t.avg_citation_density.toFixed(1) : "—", color: C.purple },
+    { label: "Hallucinated cites", value: t.total_hallucinated_citations != null ? t.total_hallucinated_citations : "—", color: (t.total_hallucinated_citations || 0) > 0 ? C.crimson : C.green },
+  ];
+  const cats = Object.entries(summary.by_category || {});
+
+  return (
+    <div className="card-glow" style={shell}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        {heading}
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary }}>
+          {summary.n_questions} q · {summary.provider}{summary.n_pipeline_errors > 0 ? ` · ${summary.n_pipeline_errors} err` : ""}
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 14 }}>
+        {tiles.map((tile) => (
+          <div key={tile.label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid " + C.white10, borderRadius: 12, padding: "12px 14px" }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary, marginBottom: 5 }}>{tile.label}</div>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 21, fontWeight: 800, color: tile.color }}>{tile.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {cats.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "0.12em" }}>Grounded ratio by category</div>
+          {cats.map(([cat, d]) => {
+            const g = d?.pipeline?.grounded_ratio;
+            const pct = typeof g === "number" ? Math.round(g * 100) : 0;
+            return (
+              <div key={cat} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#cfe", width: 96, flexShrink: 0 }}>{cat}</span>
+                <div style={{ flex: 1, height: 6, borderRadius: 4, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: C.green, borderRadius: 4 }} />
+                </div>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, width: 30, textAlign: "right" }}>{typeof g === "number" ? g.toFixed(2) : "—"}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ marginTop: "auto", paddingTop: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.textSecondary }}>
+        Latest run · {summary.timestamp}
+      </div>
+    </div>
+  );
+}
+
 // ─── SIDEBAR ─────────────────────────────────────────────────
 function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
   const NAV = [
@@ -983,6 +1084,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
   const [debates, setDebates] = useState([]);
+  const [evalSummary, setEvalSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -1006,6 +1108,12 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
         setStats({ totalQueries: statsData.total_research || 0, totalDebates: statsData.total_debates || 0, avgConfidence: statsData.avg_confidence || 0, uniqueTopics: statsData.unique_topics || 0 });
         setHistory(historyData.history || []);
         setDebates(debatesData.debates || []);
+        // Evaluation-harness summary — separate, non-blocking; explicit empty
+        // state when no runs exist. Never fabricates numbers.
+        try {
+          const eRes = await fetch(`${base}/evals/summary`, { headers });
+          setEvalSummary(eRes.ok ? await eRes.json() : { available: false, message: "No evaluation runs yet" });
+        } catch { setEvalSummary({ available: false, message: "No evaluation runs yet" }); }
     } catch (e) {
         console.error("Dashboard error:", e);
         setError("Failed to load analytics. Please try again.");
@@ -1211,6 +1319,11 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
                 </div>
                 <div style={{ flex: 1, minHeight: 0 }}><HeatmapChart data={hourlyData} activityData={activityData} /></div>
               </div>
+            </div>
+
+            {/* Row 3 — Evaluation harness summary (real data or empty state) */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, paddingBottom: 40 }}>
+              <EvaluationCard summary={evalSummary} />
             </div>
           </>
         )}

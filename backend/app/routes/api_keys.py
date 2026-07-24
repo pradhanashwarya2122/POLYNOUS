@@ -223,7 +223,7 @@ def _has_any_llm_key(user) -> bool:
 async def free_key_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Is a free starter key available for this user to claim?"""
     from app.services import free_keys as fk
-    from app.database import FreeKeyClaim
+    from app.models import FreeKeyClaim
     claimed_fps = {c.key_fingerprint for c in db.query(FreeKeyClaim).all()}
     already = db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).first() is not None
     return {
@@ -242,7 +242,7 @@ async def claim_free_key(user: User = Depends(get_current_db_user), db: Session 
     already claimed one or already has their own key.
     """
     from app.services import free_keys as fk
-    from app.database import FreeKeyClaim
+    from app.models import FreeKeyClaim
 
     if db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).first():
         raise HTTPException(400, "You have already claimed your free starter key.")

@@ -29,6 +29,8 @@ from anthropic import Anthropic
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from app.utils.json_extract import extract_json_object
+
 load_dotenv()
 
 logger = logging.getLogger("polynous.critic_agent")
@@ -191,6 +193,7 @@ def critic_agent(
     provider: str = "anthropic",
     api_key: Optional[str] = None,
     model: Optional[str] = None,
+    usage_sink: Optional[dict] = None,
 ) -> dict:
     """
     Analyze source summaries to find agreements, disagreements, and insights.
@@ -241,7 +244,8 @@ Respond with ONLY the raw JSON object — first character {{ and last character 
         return _empty_result(str(e))
 
     try:
-        text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, user_prompt, model=model)
+        text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, user_prompt, model=model,
+                                    usage=usage_sink, provider=provider)
         analysis = _parse_json_response(text)
 
         # Self-repair: if the response wasn't valid JSON, retry ONCE with a
@@ -256,7 +260,8 @@ Respond with ONLY the raw JSON object — first character {{ and last character 
                 "Respond again with ONLY the raw JSON object — no prose, no code "
                 "fences, first character '{' and last character '}'."
             )
-            text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, corrective, model=model)
+            text = _call_llm_with_retry(client, client_type, CRITIC_SYSTEM_PROMPT, corrective, model=model,
+                                        usage=usage_sink, provider=provider)
             analysis = _parse_json_response(text)
     except Exception as e:
         logger.exception("Critic LLM call failed")
@@ -328,12 +333,13 @@ def _build_combined_summaries(summaries: list) -> str:
 
 
 def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prompt: str,
-                         model: Optional[str] = None) -> str:
+                         model: Optional[str] = None, usage=None, provider: str = "anthropic") -> str:
     """Call the LLM, retrying a couple of times on transient errors."""
     last_error = None
     for attempt in range(MAX_RETRIES + 1):
         try:
-            return _call_llm(client, client_type, system_prompt, user_prompt, model=model)
+            return _call_llm(client, client_type, system_prompt, user_prompt, model=model,
+                             usage=usage, provider=provider)
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES:
@@ -345,12 +351,14 @@ def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prom
 
 
 def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
-              model: Optional[str] = None) -> str:
+              model: Optional[str] = None, usage=None, provider: str = "anthropic") -> str:
     """Call the appropriate LLM and return text response."""
+    from app.utils.usage import record as _record_usage
 
     if client_type == "openai":
+        used_model = model or DEFAULT_OPENAI_MODEL
         response = client.chat.completions.create(
-            model=model or DEFAULT_OPENAI_MODEL,
+            model=used_model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -358,16 +366,19 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
             temperature=TEMPERATURE,  # Low temp for consistent analysis
             max_tokens=MAX_TOKENS,
         )
+        _record_usage(usage, "critic", provider, used_model, response, client_type)
         return response.choices[0].message.content
     else:
         # Anthropic Claude
+        used_model = model or DEFAULT_ANTHROPIC_MODEL
         message = client.messages.create(
-            model=model or DEFAULT_ANTHROPIC_MODEL,
+            model=used_model,
             max_tokens=MAX_TOKENS,
             temperature=TEMPERATURE,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
+        _record_usage(usage, "critic", provider, used_model, message, client_type)
         return message.content[0].text
 
 
@@ -376,65 +387,21 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
 # ============================================================
 
 
-def _repair_json(candidate: str) -> str:
-    """Fix the two most common LLM JSON faults before parsing."""
-    candidate = candidate.replace("\u201c", '"').replace("\u201d", '"')  # smart double quotes
-    candidate = candidate.replace("\u2018", "'").replace("\u2019", "'")  # smart single quotes
-    candidate = re.sub(r",\s*([}\]])", r"\1", candidate)                  # trailing commas
-    return candidate
-
-
 def _parse_json_response(text: str) -> dict:
     """
     Extract JSON from LLM response.
     Handles responses wrapped in ```json blocks, ``` blocks, or raw JSON.
+    Delegates the actual extraction to app.utils.json_extract, shared with
+    writer_agent so both agents get identical, battle-tested JSON recovery.
     """
     if not text:
         print("  ⚠️ Empty response from LLM")
         return _empty_result("Empty LLM response")
 
-    text = text.strip()
+    obj = extract_json_object(text)
+    if obj is not None:
+        return obj
 
-    # Try direct JSON parse first
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # Try to extract from ```json blocks (most common LLM pattern)
-    json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
-    if json_match:
-        try:
-            return json.loads(json_match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # Try to extract from ``` blocks (no language specifier)
-    code_match = re.search(r'```\s*(\{.*?\})\s*```', text, re.DOTALL)
-    if code_match:
-        try:
-            return json.loads(code_match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # Try to find ANY JSON object in the text
-    # Look for the first { and matching }
-    start = text.find('{')
-    if start >= 0:
-        # Find matching closing brace
-        brace_count = 0
-        for i in range(start, len(text)):
-            if text[i] == '{':
-                brace_count += 1
-            elif text[i] == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    try:
-                        return json.loads(text[start:i+1])
-                    except json.JSONDecodeError:
-                        break
-
-    # Also try the prompt-level fix: tell the LLM to NOT use code fences
     print(f"  ⚠️ Could not parse JSON from response: {text[:200]}...")
     return _empty_result("Could not parse JSON from LLM response")
 

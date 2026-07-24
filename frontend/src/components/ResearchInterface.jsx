@@ -1111,8 +1111,192 @@ function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, li
 }
 
 // ─── Neural Synthesis Report ──────────────────────────────────────────────────
-function NeuralSynthesisReport({ query, answer, sources, confidence, confThreshold = 70, onCopy, onNew }) {
-  const { summary, findings, limitations, parsedConf, parsedSources, sections } = parseAnswer(answer);
+// Structured report (Phase 3 JSON contract) -> the same shape parseAnswer
+// produces from text, so the render tree below never needs to know which
+// path it came from. Only used when report is present AND parsing succeeded
+// — a parse_failed or missing/legacy report falls through to the regex
+// parser untouched.
+function sectionsFromReport(report) {
+  return {
+    sourceIntel: report.source_intelligence || "",
+    consensus: report.consensus_map || "",
+    divergence: report.divergence_map || "",
+    unique: report.unique_insights || "",
+    quality: report.source_quality || "",
+    coverage: report.coverage_audit || "",
+    contradiction: report.contradiction_resolution || "",
+    trajectory: report.research_trajectory || "",
+    bibliography: report.bibliography || "",
+  };
+}
+
+// Confidence Analysis — Computed, rendered from the structured factors[]
+// the backend computes from real source data (never from LLM mono text).
+function StructuredConfidenceCard({ analysis, delay = 0 }) {
+  if (!analysis) return null;
+  const accent = C.green;
+  const bandColor = analysis.band === "HIGH" ? C.green : analysis.band === "MODERATE" ? C.amber : C.crimson;
+  return (
+    <div style={{
+      background:"rgba(5,20,36,0.7)", backdropFilter:"blur(20px)",
+      border:"1px solid rgba(255,255,255,0.08)", borderLeft:`4px solid ${accent}`,
+      borderRadius:14, padding:"26px 30px", position:"relative",
+      animation:`sectionIn 0.5s ${delay}s ease both`,
+    }}>
+      <div style={{ marginBottom:18 }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9.5, color:accent, textTransform:"uppercase", letterSpacing:"0.24em", fontWeight:700, marginBottom:7, opacity:0.85 }}>
+          Measured, not guessed
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <Icon name="analytics" style={{ fontSize:19, color:accent }} />
+          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0 }}>Confidence Analysis — Computed</h3>
+        </div>
+        <div style={{ height:2, width:44, background:`linear-gradient(90deg, ${accent}, transparent)`, borderRadius:2, marginTop:11 }} />
+      </div>
+
+      {!analysis.available ? (
+        <p style={{ fontFamily:"'Inter',sans-serif", fontSize:14, color:C.textSecondary }}>
+          {analysis.explanation || "Confidence could not be computed for this run."}
+        </p>
+      ) : (
+        <>
+          <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:18 }}>
+            <span style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:28, color:"#fff" }}>{analysis.overall}%</span>
+            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700, color:bandColor, textTransform:"uppercase", letterSpacing:"0.1em" }}>{analysis.band}</span>
+          </div>
+
+          {analysis.factors.length > 0 && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom: analysis.explanation ? 14 : 0 }}>
+              {analysis.factors.map((f) => (
+                <div key={f.key}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+                    <span style={{ fontFamily:"'Inter',sans-serif", fontSize:13, color:C.onSurface }}>{f.label} <span style={{ color:C.textSecondary, fontSize:11 }}>(weight {f.weight}%)</span></span>
+                    <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:accent, fontWeight:700 }}>{f.value.toFixed(2)}</span>
+                  </div>
+                  <div style={{ height:6, borderRadius:4, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+                    <div style={{ height:"100%", width:`${Math.round(f.value*100)}%`, background:accent, borderRadius:4, transition:"width 0.6s ease" }} />
+                  </div>
+                  {f.note && <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:C.textSecondary, marginTop:4 }}>{f.note}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {analysis.explanation && (
+            <p style={{ fontFamily:"'Inter',sans-serif", fontSize:13, lineHeight:1.7, color:C.onSurface, marginBottom: analysis.critic_consensus ? 12 : 0 }}>{analysis.explanation}</p>
+          )}
+
+          {analysis.critic_consensus ? (
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11.5, color:C.textSecondary, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+              CRITIC CONSENSUS SCORE: <span style={{ color:accent, fontWeight:700 }}>{analysis.critic_consensus.score}%</span> — {analysis.critic_consensus.explanation}
+            </div>
+          ) : (
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11.5, color:C.textSecondary, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+              CRITIC CONSENSUS SCORE: unavailable (critique analysis failed this run).
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Run telemetry (Phase 6): REAL token counts + estimated cost + per-stage
+// latency, all straight from the pipeline. "—" wherever a provider's SDK
+// didn't report usage — never a fabricated number.
+function RunTelemetryCard({ telemetry, accent = C.cyan }) {
+  if (!telemetry) return null;
+  const t = telemetry;
+  const cost = t.estimated_cost || {};
+  const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : "—");
+  const fmtCost = (usd) => (typeof usd === "number" ? `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : "—");
+  const stages = Object.entries(t.by_stage || {});
+  const missing = t.missing_usage;
+  const STAGE_LABEL = { search: "Search", summarise: "Summarise", critic: "Critic",
+    deepen: "Deepen", writer: "Writer", reformulate: "Reformulate",
+    for_opening: "FOR opening", against_opening: "AGAINST opening",
+    for_rebuttal: "FOR rebuttal", against_rebuttal: "AGAINST rebuttal", judge: "Judge" };
+
+  const tiles = [
+    { label: "LLM calls", value: t.calls ?? "—" },
+    { label: "Total tokens", value: fmtTok(t.total_tokens) },
+    { label: "Est. cost", value: fmtCost(cost.usd), sub: "estimate" },
+    { label: "Scrape cache", value: t.scrape_cache_hits ? `${t.scrape_cache_hits} hit${t.scrape_cache_hits !== 1 ? "s" : ""}` : "0" },
+  ];
+
+  return (
+    <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${accent}`,borderRadius:14,padding:"22px 26px",position:"relative",animation:"sectionIn 0.5s 0.14s ease both" }}>
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:accent,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,marginBottom:7,opacity:0.85 }}>Real usage · your key</div>
+        <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+          <Icon name="monitoring" style={{ fontSize:19,color:accent }} />
+          <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Run Telemetry</h3>
+        </div>
+        <div style={{ height:2,width:44,background:`linear-gradient(90deg, ${accent}, transparent)`,borderRadius:2,marginTop:11 }} />
+      </div>
+
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom: stages.length ? 18 : 0 }}>
+        {tiles.map((tile) => (
+          <div key={tile.label} style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"12px 14px" }}>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:C.textSecondary,marginBottom:5 }}>{tile.label}</div>
+            <div style={{ fontFamily:"'Sora',sans-serif",fontSize:19,fontWeight:800,color:"#fff" }}>{tile.value}</div>
+            {tile.sub && <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:C.textSecondary,marginTop:2 }}>{tile.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {stages.length > 0 && (
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%",borderCollapse:"collapse",fontFamily:"'JetBrains Mono',monospace",fontSize:11 }}>
+            <thead>
+              <tr style={{ color:C.textSecondary,textAlign:"left" }}>
+                <th style={{ padding:"6px 8px",fontWeight:600 }}>Stage</th>
+                <th style={{ padding:"6px 8px",fontWeight:600,textAlign:"right" }}>Calls</th>
+                <th style={{ padding:"6px 8px",fontWeight:600,textAlign:"right" }}>Tokens (in/out)</th>
+                <th style={{ padding:"6px 8px",fontWeight:600,textAlign:"right" }}>Latency</th>
+                <th style={{ padding:"6px 8px",fontWeight:600,textAlign:"right" }}>Est. cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stages.map(([stage, s]) => (
+                <tr key={stage} style={{ borderTop:"1px solid rgba(255,255,255,0.06)",color:"#cfe" }}>
+                  <td style={{ padding:"6px 8px",color:"#fff" }}>{STAGE_LABEL[stage] || stage}</td>
+                  <td style={{ padding:"6px 8px",textAlign:"right" }}>{s.calls ?? "—"}</td>
+                  <td style={{ padding:"6px 8px",textAlign:"right" }}>
+                    {(s.input_tokens || s.output_tokens) ? `${fmtTok(s.input_tokens)} / ${fmtTok(s.output_tokens)}` : "—"}
+                  </td>
+                  <td style={{ padding:"6px 8px",textAlign:"right" }}>{typeof s.latency_s === "number" ? `${s.latency_s.toFixed(1)}s` : "—"}</td>
+                  <td style={{ padding:"6px 8px",textAlign:"right",color:accent }}>{fmtCost((cost.by_stage || {})[stage])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div style={{ marginTop:12,fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:C.textSecondary,lineHeight:1.6 }}>
+        Costs are estimates from public list prices{cost.priced_all === false ? " (partial — some models have no price entry, shown as —)" : ""}.
+        {missing ? " Some calls' providers did not report token usage (shown as —)." : ""}
+      </div>
+    </div>
+  );
+}
+
+function NeuralSynthesisReport({ query, answer, report, sources, confidence, confThreshold = 70, telemetry, cacheInfo, onRerun, onCopy, onNew }) {
+  const structured = !!report && !report.parse_failed;
+  const legacy = parseAnswer(answer);
+
+  const summary = structured ? clean(report.executive_summary || "") : legacy.summary;
+  const findings = structured ? (report.key_findings || []) : legacy.findings;
+  const limitations = structured ? (report.limitations || "") : legacy.limitations;
+  const sections = structured ? sectionsFromReport(report) : legacy.sections;
+  const parsedSources = legacy.parsedSources; // source constellation always prefers real citation objects below
+
+  const confAnalysis = structured ? report.confidence_analysis : null;
+  const parsedConf = structured
+    ? (confAnalysis?.available ? confAnalysis.overall : 0)
+    : legacy.parsedConf;
+
   const confValue  = parsedConf || confidence;
   const confColor  = confValue>=80 ? C.green : confValue>=60 ? C.amber : C.crimson;
   const allSources = parsedSources.length>0 ? parsedSources : sources.map(s=>typeof s==="string"?s:s.title||"Source");
@@ -1149,6 +1333,26 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, confThresho
           </div>
         </div>
       </div>
+
+      {/* Cached-result chip + rerun-fresh (Phase 6) */}
+      {cacheInfo && (
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,background:"rgba(0,204,255,0.06)",border:"1px solid rgba(0,204,255,0.28)",borderRadius:12,padding:"12px 16px",animation:"sectionIn 0.4s ease both" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+            <Icon name="bolt" style={{ fontSize:18,color:C.cyan }} />
+            <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13.5,color:"#bfe9ff" }}>
+              Cached result{cacheInfo.age ? ` · ${cacheInfo.age}` : ""} — served instantly, no tokens spent.
+            </span>
+          </div>
+          {onRerun && (
+            <button onClick={onRerun} style={{ display:"flex",alignItems:"center",gap:6,background:"transparent",border:`1px solid ${C.cyan}`,color:C.cyan,borderRadius:9999,padding:"7px 16px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>
+              <Icon name="refresh" style={{ fontSize:14 }} /> Rerun fresh
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Run telemetry (Phase 6) — real token counts + estimated cost */}
+      <RunTelemetryCard telemetry={telemetry} accent={C.cyan} />
 
       {/* Confidence-threshold guard — honours the user's Settings preference */}
       {confValue > 0 && confValue < confThreshold && (
@@ -1244,8 +1448,10 @@ function NeuralSynthesisReport({ query, answer, sources, confidence, confThresho
         body={sections.coverage} delay={0.18} />
       <PremiumSection icon="balance" title="Contradiction Resolution" accent={C.crimson}
         body={sections.contradiction} delay={0.2} />
-      <PremiumSection icon="analytics" title="Confidence Analysis — Computed" accent={C.green}
-        body={sections.confidence} delay={0.2} mono />
+      {structured
+        ? <StructuredConfidenceCard analysis={confAnalysis} delay={0.2} />
+        : <PremiumSection icon="analytics" title="Confidence Analysis — Computed" accent={C.green}
+            body={sections.confidence} delay={0.2} mono />}
       <PremiumSection icon="explore" title="Research Trajectory" accent={C.green}
         body={sections.trajectory} delay={0.2} />
 
@@ -1461,6 +1667,11 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const [activeQuery,    setActiveQuery]    = useState("");
   const [sources,        setSources]        = useState([]);
   const [confidence,     setConfidence]     = useState(0);
+  const [report,         setReport]         = useState(null);
+  const [telemetry,      setTelemetry]      = useState(null);
+  const [cacheInfo,      setCacheInfo]      = useState(null);
+  const [forceFresh,     setForceFresh]     = useState(false);
+  const [runNonce,       setRunNonce]       = useState(0);
   const [agentStatus,    setAgentStatus]    = useState("");
   const [agentProgress,  setAgentProgress]  = useState([]);
   const [history,        setHistory]        = useState([]);
@@ -1537,7 +1748,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   // ONE research run. The report is fed from its final patch (final_answer +
   // citations), so what you watch being written IS the published report —
   // no duplicate /ask-stream run, half the cost and latency.
-  const startResearch = (q) => {
+  const startResearch = (q, opts = {}) => {
     const qText = typeof q === "string" ? q : query;
     if (!qText.trim() || loading) return;
 
@@ -1545,6 +1756,11 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     setAnswer("");
     setSources([]);
     setConfidence(0);
+    setReport(null);
+    setTelemetry(null);
+    setCacheInfo(null);
+    setForceFresh(!!opts.forceFresh);
+    setRunNonce((n) => n + 1);   // guarantees a fresh engine run even for same query
     setAgentProgress([]);
     setAgentStatus("Neural engine engaged");
     setEngineCollapsed(false);
@@ -1553,6 +1769,9 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     // in the search bar afterwards can never re-trigger the pipeline.
     setActiveQuery(qText);
   };
+
+  // Rerun the CURRENT query bypassing the research cache (chip button).
+  const rerunFresh = () => startResearch(activeQuery || query, { forceFresh: true });
 
   const handleNew  = () => { setAnswer(""); setQuery(""); setActiveQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); setEngineDone(false); };
   const handleCopy = () => { navigator.clipboard.writeText(answer); };
@@ -1644,17 +1863,27 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
               {/* The engine's stream IS the pipeline — its final patch feeds
                   the report below (single run, single source of truth). */}
               <NeuralResearchEngine
+                key={runNonce}
                 apiUrl={`${API_BASE_URL}/ask-visual`}
                 query={activeQuery}
                 responseStyle={userStyle}
                 streaming={streamingOn}
+                forceFresh={forceFresh}
                 onComplete={(data) => {
                   const finalAnswer = data?.final_answer || "";
+                  // Prefer the structured computed confidence (also present on
+                  // cached results); fall back to the live metrics string.
+                  const structuredConf = data?.report?.confidence_analysis?.overall;
                   const confMatch = String(data?.metrics?.confidence ?? "").match(/\d+/);
-                  const confScore = confMatch ? Math.min(100, parseInt(confMatch[0], 10)) : 0;
+                  const confScore = (typeof structuredConf === "number" && structuredConf)
+                    ? Math.min(100, Math.round(structuredConf))
+                    : (confMatch ? Math.min(100, parseInt(confMatch[0], 10)) : 0);
                   setAnswer(finalAnswer);
                   setSources(data?.citations || []);
                   setConfidence(confScore);
+                  setReport(data?.report || null);
+                  setTelemetry(data?.telemetry || null);
+                  setCacheInfo(data?.cached ? { age: data?.cache_age_label || "" } : null);
                   setLoading(false);
                   setAgentStatus("");
                   setEngineDone(true);
@@ -1702,7 +1931,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
 
             {/* Report */}
             <div style={{ maxWidth:860,margin:"0 auto" }}>
-              <NeuralSynthesisReport query={query} answer={answer} sources={sources} confidence={confidence} confThreshold={confThreshold} onCopy={handleCopy} onNew={handleNew} />
+              <NeuralSynthesisReport query={query} answer={answer} report={report} sources={sources} confidence={confidence} confThreshold={confThreshold} telemetry={telemetry} cacheInfo={cacheInfo} onRerun={rerunFresh} onCopy={handleCopy} onNew={handleNew} />
             </div>
 
             {/* History */}

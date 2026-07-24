@@ -1,0 +1,5 @@
+# Eval result files are generated artefacts — keep the directory, ignore contents.
+*.json
+*.md
+!.gitkeep
+!.gitignore

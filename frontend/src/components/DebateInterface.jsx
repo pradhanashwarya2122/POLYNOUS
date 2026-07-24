@@ -853,6 +853,73 @@ function PreVerdictStrips({ verdict, debate }) {
   );
 }
 
+// Run telemetry (Phase 6) — REAL token counts + estimated cost + per-stage
+// latency for a debate run. "—" wherever the SDK didn't report usage.
+function DebateTelemetryCard({ telemetry }) {
+  if (!telemetry) return null;
+  const t = telemetry;
+  const cost = t.estimated_cost || {};
+  const accent = C.crimson;
+  const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : "—");
+  const fmtCost = (usd) => (typeof usd === "number" ? `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : "—");
+  const stages = Object.entries(t.by_stage || {});
+  const STAGE_LABEL = { search: "Search", for_opening: "FOR opening", against_opening: "AGAINST opening",
+    for_rebuttal: "FOR rebuttal", against_rebuttal: "AGAINST rebuttal", judge: "Judge" };
+  const tiles = [
+    { label: "LLM calls", value: t.calls ?? "—" },
+    { label: "Total tokens", value: fmtTok(t.total_tokens) },
+    { label: "Est. cost", value: fmtCost(cost.usd), sub: "estimate" },
+    { label: "Scrape cache", value: t.scrape_cache_hits ? `${t.scrape_cache_hits} hit${t.scrape_cache_hits !== 1 ? "s" : ""}` : "0" },
+  ];
+  return (
+    <div style={{ background: "rgba(20,8,12,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${accent}`, borderRadius: 14, padding: "20px 24px", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: accent, textTransform: "uppercase", letterSpacing: "0.22em", fontWeight: 700 }}>Real usage · your key</span>
+      </div>
+      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 800, color: "#fff", margin: "0 0 14px" }}>Run Telemetry</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: stages.length ? 16 : 0 }}>
+        {tiles.map((tile) => (
+          <div key={tile.label} style={{ background: C.white5, border: `1px solid ${C.white10}`, borderRadius: 12, padding: "12px 14px" }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary, marginBottom: 5 }}>{tile.label}</div>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 19, fontWeight: 800, color: "#fff" }}>{tile.value}</div>
+            {tile.sub && <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: C.textSecondary, marginTop: 2 }}>{tile.sub}</div>}
+          </div>
+        ))}
+      </div>
+      {stages.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+            <thead>
+              <tr style={{ color: C.textSecondary, textAlign: "left" }}>
+                <th style={{ padding: "6px 8px", fontWeight: 600 }}>Stage</th>
+                <th style={{ padding: "6px 8px", fontWeight: 600, textAlign: "right" }}>Calls</th>
+                <th style={{ padding: "6px 8px", fontWeight: 600, textAlign: "right" }}>Tokens (in/out)</th>
+                <th style={{ padding: "6px 8px", fontWeight: 600, textAlign: "right" }}>Latency</th>
+                <th style={{ padding: "6px 8px", fontWeight: 600, textAlign: "right" }}>Est. cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stages.map(([stage, s]) => (
+                <tr key={stage} style={{ borderTop: `1px solid ${C.white10}`, color: "#e6c9cf" }}>
+                  <td style={{ padding: "6px 8px", color: "#fff" }}>{STAGE_LABEL[stage] || stage}</td>
+                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{s.calls ?? "—"}</td>
+                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{(s.input_tokens || s.output_tokens) ? `${fmtTok(s.input_tokens)} / ${fmtTok(s.output_tokens)}` : "—"}</td>
+                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{typeof s.latency_s === "number" ? `${s.latency_s.toFixed(1)}s` : "—"}</td>
+                  <td style={{ padding: "6px 8px", textAlign: "right", color: accent }}>{fmtCost((cost.by_stage || {})[stage])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ marginTop: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary, lineHeight: 1.6 }}>
+        Costs are estimates from public list prices{cost.priced_all === false ? " (partial — some models have no price entry)" : ""}.
+        {t.missing_usage ? " Some calls' providers did not report token usage (shown as —)." : ""}
+      </div>
+    </div>
+  );
+}
+
 // Shown after the verdict panel
 function DebateExtras({ result, activeTopic, onNewDebate }) {
   const verdict = result?.verdict || {};
@@ -937,6 +1004,8 @@ ${sources.map(s => `  [${s.id}] ${s.title} — ${s.domain} · trust ${s.trust_sc
 
   return (
     <div style={{ marginTop: 22 }}>
+      {/* Run telemetry (Phase 6) — real tokens/cost for the debate run */}
+      <DebateTelemetryCard telemetry={result?.telemetry} />
       {/* Minority report */}
       {minority && !unscored && (
         <TribunalCard icon="balance" iconColor="#e0a458" title="Minority Report" accent="rgba(224,164,88,0.25)" delay={0.05}>
@@ -1100,6 +1169,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
       citations: data?.citations || [],
       debate: data?.debate || {},               // steelman, analytics, sources
       trackRecord: data?.judge_track_record || null,
+      telemetry: data?.telemetry || null,        // Phase 6 run telemetry
     });
     setLoading(false);
     setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100);

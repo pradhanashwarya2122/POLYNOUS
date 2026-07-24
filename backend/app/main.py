@@ -7,7 +7,7 @@ from app.utils.encryption import decrypt_api_key
 from app.utils.startup_checks import run_startup_checks
 from app.middleware.auth_middleware import extract_user_middleware
 from app.middleware.input_sanitizer import input_sanitizer_middleware
-from app.utils.fix_users import add_missing_encryption_keys, add_missing_columns
+from app.utils.fix_users import add_missing_encryption_keys
 from app.middleware.security_headers import security_headers_middleware
 from app.utils.sanitizer import sanitize_query, is_safe_input
 from app.routes.api_keys import router as api_keys_router
@@ -162,9 +162,12 @@ async def startup():
     check_critical_dependencies()
     
     try:
+        # init_db() now runs Alembic migrations (ALEMBIC_AUTO_UPGRADE, default
+        # on) instead of create_all + hand-ALTERed columns. The old
+        # add_missing_columns() shim is retired — schema changes go through
+        # migrations. add_missing_encryption_keys() stays as a data backfill.
         init_db()
         print("✅ Database initialized!")
-        add_missing_columns()
         add_missing_encryption_keys()
         run_startup_checks()
     except Exception as e:
@@ -381,9 +384,10 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
         else:
             print("🔬 RESEARCH MODE ACTIVATED")
             result = orchestrator.invoke(state)
+            from app.graph.orchestrator import headline_confidence as _hc
             save_chat(session_id=session_id, query=request.query,
                       answer=result.get('final_answer', ''),
-                      confidence=result.get('critique', {}).get('overall_confidence', 0))
+                      confidence=_hc(result))
         print("✅ ORCHESTRATOR COMPLETED")
     except Exception as e:
         print(f"❌ ORCHESTRATOR FAILED: {type(e).__name__}: {e}")
@@ -397,8 +401,9 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
     verdict = result.get('judge_verdict', {})
     
     sources = [{"number": i+1, "title": c.get('title','')[:150], "url": c.get('url','')} for i, c in enumerate(citations)]
+    from app.graph.orchestrator import headline_confidence
     return QueryResponse(answer=final_answer, sources=sources,
-                         confidence=critique.get('overall_confidence', 0),
+                         confidence=headline_confidence(result),
                          contradictions=critique.get('contradictions', []),
                          debate_verdict=verdict if verdict else {})
 
@@ -533,6 +538,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
     body = await request.json()
     query = body.get("query", "")
     response_style = body.get("response_style", "")
+    force_fresh = bool(body.get("force_fresh", False))   # rerun bypassing cache
 
     # ── Sanitize (same policy as /ask and /ask-stream) ──
     if not query or not is_safe_input(query):
@@ -581,10 +587,36 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             yield f"data: {json.dumps({'error': key_error})}\n\n"
         return StreamingResponse(error_stream(), media_type="text/event-stream")
 
+    cache_user_id = getattr(user, "public_id", None) or "guest"
+
     async def event_stream():
         start_time = time.time()
         visual = init_visual_state(query)
         yield f"data: {json.dumps(visual)}\n\n"
+
+        # ── Research cache (Phase 6): a fresh per-user hit skips the whole
+        #    pipeline and streams the stored report back honestly. ──
+        if not force_fresh:
+            from app.services import research_cache as _rc
+            cached = _rc.get_cached(db, cache_user_id, query, provider)
+            if cached:
+                cache_log = {"logs": [{"id": 1, "agentName": "Search",
+                    "msg": f"Retrieved from research cache ({cached['age_label']}) — no tokens spent",
+                    "timeStr": "00:00"}]}
+                yield f"data: {json.dumps(cache_log)}\n\n"
+                cached_patch = {
+                    "progress": 100,
+                    "elapsedSeconds": round(time.time() - start_time, 2),
+                    "final_answer": cached["final_answer"],
+                    "citations": cached["citations"],
+                    "report": cached["report"],
+                    "telemetry": cached.get("telemetry"),
+                    "cached": True,
+                    "cache_age_label": cached["age_label"],
+                    "cache_age_seconds": cached["age_seconds"],
+                }
+                yield f"data: {json.dumps(cached_patch)}\n\n"
+                return
 
         state = {
             "query": query,
@@ -655,7 +687,31 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         # Ship the answer + citations so the digest can render from this stream
         final_patch["final_answer"] = state.get("final_answer", "")
         final_patch["citations"] = state.get("citations", [])
+        # Structured writer JSON (Phase 3) — the frontend prefers this over
+        # regex-parsing final_answer; parse_failed=True (or a missing/old
+        # payload) falls back to the legacy text parser automatically.
+        final_patch["report"] = state.get("report")
+        # Run telemetry (Phase 6): real token counts + estimated cost + scrape
+        # cache hits. All values honest — "—" in the UI where usage is missing.
+        from app.utils.usage import summarize_usage
+        telemetry = summarize_usage(state.get("usage"))
+        final_patch["telemetry"] = telemetry
         yield f"data: {json.dumps(final_patch)}\n\n"
+
+        from app.graph.orchestrator import headline_confidence as _hc
+        run_confidence = _hc(state)
+
+        # ── Store in research cache for 24h (Phase 6) — per user, best-effort ──
+        try:
+            from app.services import research_cache as _rc
+            _rc.store(db, cache_user_id, query, provider,
+                      final_answer=state.get("final_answer", ""),
+                      report=state.get("report"),
+                      citations=state.get("citations", []),
+                      confidence=run_confidence,
+                      telemetry=telemetry)
+        except Exception as e:
+            print(f"⚠️ research_cache store failed: {e}")
 
         # Persist chat history — honours the user's Auto-save preference.
         auto_save = True
@@ -667,7 +723,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
                     session_id=state["session_id"],
                     query=query,
                     answer=state.get("final_answer", ""),
-                    confidence=(state.get("critique") or {}).get("overall_confidence", 0) or 0,
+                    confidence=run_confidence,
                 )
             except Exception as e:
                 print(f"⚠️ save_chat failed for visual stream: {e}")
@@ -687,7 +743,7 @@ async def debate_vote(request: Request, db: Session = Depends(get_db)):
     Record whether the user agrees with the judge's verdict. This is REAL
     telemetry — it feeds the Judge Track Record strip in the debate report.
     """
-    from app.database import DebateVote
+    from app.models import DebateVote
     body = await request.json()
     topic = sanitize_query(body.get("topic", ""))[:500]
     judge_winner = str(body.get("judge_winner", ""))[:20]
@@ -709,7 +765,7 @@ async def debate_vote(request: Request, db: Session = Depends(get_db)):
 def _judge_track_record(db) -> dict:
     """Real historical agreement rate between judge verdicts and user votes.
     Honest empty state — null rate until votes actually exist."""
-    from app.database import DebateVote
+    from app.models import DebateVote
     try:
         total = db.query(DebateVote).count()
         if total == 0:
@@ -845,6 +901,8 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
         # save again here; the old /ask-stream path double-saved).
         final_patch = build_debate_patch(state, 'Final', time.time() - start_time)
         final_patch["judge_track_record"] = track_record
+        from app.utils.usage import summarize_usage
+        final_patch["telemetry"] = summarize_usage(state.get("usage"))
         yield f"data: {json.dumps(final_patch)}\n\n"
 
     return StreamingResponse(
@@ -890,6 +948,60 @@ async def vector_count():
         return {"count": total, "memory_count": memory_count, "pinecone_count": pinecone_count}
     except Exception as e:
         return {"count": 0, "error": str(e)}
+
+
+@app.get("/evals/summary")
+async def evals_summary(user=Depends(get_current_user)):
+    """
+    Latest evaluation-harness results for the analytics dashboard's Evaluation
+    card. Auth-gated. Returns an explicit empty state when no runs exist —
+    never fabricated numbers.
+
+    Shape:
+      { "available": false, "message": "No evaluation runs yet" }
+      OR
+      { "available": true, "timestamp", "provider", "model", "n_questions",
+        "n_pipeline_errors", "baseline_enabled", "by_category", "totals" }
+    """
+    from pathlib import Path
+    import json as _json
+
+    results_dir = Path(__file__).resolve().parent.parent / "evals" / "results"
+    files = sorted(results_dir.glob("*.json")) if results_dir.exists() else []
+    if not files:
+        return {"available": False, "message": "No evaluation runs yet"}
+
+    try:
+        latest = files[-1]
+        data = _json.loads(latest.read_text(encoding="utf-8"))
+    except Exception as e:
+        return {"available": False, "message": f"Could not read latest results: {e}"}
+
+    # Compute honest cross-category totals from real per-run metrics.
+    runs = data.get("runs", [])
+    def _avg(key):
+        vals = [r["pipeline"].get(key) for r in runs
+                if isinstance(r.get("pipeline", {}).get(key), (int, float))]
+        return round(sum(vals) / len(vals), 3) if vals else None
+
+    total_halluc = sum(r["pipeline"].get("hallucinated_citations", 0) or 0 for r in runs)
+    return {
+        "available": True,
+        "timestamp": data.get("timestamp"),
+        "provider": data.get("provider"),
+        "model": data.get("model"),
+        "n_questions": data.get("n_questions", len(runs)),
+        "n_pipeline_errors": data.get("n_pipeline_errors", 0),
+        "baseline_enabled": data.get("baseline_enabled", False),
+        "by_category": data.get("by_category", {}),
+        "totals": {
+            "avg_grounded_ratio": _avg("grounded_ratio"),
+            "avg_computed_confidence": _avg("computed_confidence"),
+            "avg_citation_density": _avg("citation_density_per_100w"),
+            "avg_distinct_domains": _avg("distinct_domains"),
+            "total_hallucinated_citations": total_halluc,
+        },
+    }
 
 # ============================================================
 # EXCEPTION HANDLERS

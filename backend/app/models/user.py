@@ -1,9 +1,16 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 import uuid
 
+# ============================================================
+# THE single declarative Base for the whole app.
+# database.py re-points its Base to this one — there is exactly ONE
+# metadata registry, which Alembic's env.py targets for autogenerate.
+# Every model (User, Conversation, Message, DebateVote, FreeKeyClaim,
+# UserPreferences) MUST bind to this Base so migrations see them all.
+# ============================================================
 Base = declarative_base()
 
 def generate_uuid():
@@ -23,24 +30,38 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     username = Column(String(100), unique=False, index=True, nullable=True)
     hashed_password = Column(String(255), nullable=False)
-    
+
+    # OAuth (merged from the old database.py User — used by routes/oauth.py)
+    google_id = Column(String, nullable=True)
+    github_id = Column(String, nullable=True)
+
     # Security
     failed_login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
     password_changed_at = Column(DateTime, default=datetime.utcnow)
     encryption_key = Column(String(255), nullable=True)  # Encrypted personal encryption key
-    
-    # BYO API Keys (encrypted with user's personal key)
-    anthropic_api_key = Column(String(500), nullable=True)
-    openai_api_key = Column(String(500), nullable=True)
-    tavily_api_key = Column(String(500), nullable=True)
-    voyage_api_key = Column(String(500), nullable=True)
-    google_api_key = Column(String(500), nullable=True)
-    mistral_api_key = Column(String(500), nullable=True)
-    groq_api_key = Column(String(500), nullable=True)
-    nvidia_api_key = Column(String(500), nullable=True)
-    deepseek_api_key = Column(String(500), nullable=True)
+
+    # BYO API Keys (encrypted with user's personal key).
+    # Text (not String(500)) so long/rotated encrypted blobs never truncate —
+    # matches the live schema and the production Postgres intent.
+    anthropic_api_key = Column(Text, nullable=True)
+    openai_api_key = Column(Text, nullable=True)
+    tavily_api_key = Column(Text, nullable=True)
+    voyage_api_key = Column(Text, nullable=True)
+    google_api_key = Column(Text, nullable=True)
+    mistral_api_key = Column(Text, nullable=True)
+    groq_api_key = Column(Text, nullable=True)
+    nvidia_api_key = Column(Text, nullable=True)
+    deepseek_api_key = Column(Text, nullable=True)
     preferred_provider = Column(String(50), default="anthropic")
+
+    # BYO Pinecone / Neo4j (merged from the old database.py User)
+    pinecone_api_key_enc = Column(Text, nullable=True)
+    pinecone_environment = Column(String, nullable=True)
+    pinecone_index_name = Column(String, nullable=True)
+    neo4j_uri = Column(String, nullable=True)
+    neo4j_user = Column(String, nullable=True)
+    neo4j_password_enc = Column(Text, nullable=True)
     
     # Profile
     tier = Column(String(20), default="free")

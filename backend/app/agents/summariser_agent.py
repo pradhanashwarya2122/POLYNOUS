@@ -85,6 +85,8 @@ class SummaryResult:
     model_used: str = ""
     provider: str = ""
     error: Optional[str] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
  
     @property
     def succeeded(self) -> bool:
@@ -247,7 +249,8 @@ def _summarise_one(
                 )
             response = _call_with_retry(_call)
             result.summary = response.choices[0].message.content.strip()
- 
+            result.input_tokens, result.output_tokens = _tokens_from(response, "openai")
+
         else:  # anthropic
             def _call():
                 return client.messages.create(
@@ -259,6 +262,7 @@ def _summarise_one(
                 )
             response = _call_with_retry(_call)
             result.summary = response.content[0].text.strip()
+            result.input_tokens, result.output_tokens = _tokens_from(response, "anthropic")
  
     except Exception as e:
         result.error = str(e)[:200]
@@ -271,6 +275,12 @@ def _summarise_one(
 # PUBLIC API
 # ============================================================
  
+def _tokens_from(response, client_type: str):
+    """Best-effort token extraction — delegates to the shared usage helper."""
+    from app.utils.usage import extract_tokens
+    return extract_tokens(response, client_type)
+
+
 def summariser_agent(
     documents: list[dict],
     query: str = "",
@@ -279,6 +289,7 @@ def summariser_agent(
     model: Optional[str] = None,
     base_url: Optional[str] = None,
     progress_cb=None,
+    usage_sink: Optional[dict] = None,
 ) -> list[str]:
     """
     Summarise each document — extract what the source ACTUALLY says.
@@ -339,7 +350,19 @@ def summariser_agent(
     succeeded = sum(1 for r in results if r and r.succeeded)
     failed    = len(results) - succeeded
     logger.info("Done: %d succeeded, %d failed", succeeded, failed)
- 
+
+    # ── Fold real per-document token usage into the request accumulator ──
+    if usage_sink is not None:
+        from app.utils.usage import record_aggregate
+        calls = sum(1 for r in results if r and r.succeeded)
+        in_tok = sum(r.input_tokens or 0 for r in results if r and r.succeeded)
+        out_tok = sum(r.output_tokens or 0 for r in results if r and r.succeeded)
+        any_missing = any(r and r.succeeded and r.input_tokens is None for r in results)
+        used_model = next((r.model_used for r in results if r and r.model_used),
+                          model or "")
+        record_aggregate(usage_sink, "summarise", provider, used_model,
+                         calls, in_tok, out_tok, any_missing=any_missing)
+
     return [r.to_prompt_string() for r in results if r]
  
  

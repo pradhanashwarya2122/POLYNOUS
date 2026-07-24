@@ -66,33 +66,41 @@ def _get_client(provider: str, api_key: Optional[str]):
 
 
 def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
-              max_tokens: int, temperature: float, model: Optional[str] = None) -> str:
+              max_tokens: int, temperature: float, model: Optional[str] = None,
+              usage=None, stage: str = "debate", provider: str = "anthropic") -> str:
+    from app.utils.usage import record as _record_usage
     if client_type == "openai":
+        used_model = model or DEFAULT_OPENAI_MODEL
         response = client.chat.completions.create(
-            model=model or DEFAULT_OPENAI_MODEL,
+            model=used_model,
             messages=[{"role": "system", "content": system_prompt},
                       {"role": "user", "content": user_prompt}],
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        _record_usage(usage, stage, provider, used_model, response, client_type)
         return response.choices[0].message.content
+    used_model = model or DEFAULT_ANTHROPIC_MODEL
     response = client.messages.create(
-        model=model or DEFAULT_ANTHROPIC_MODEL,
+        model=used_model,
         max_tokens=max_tokens,
         temperature=temperature,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
     )
+    _record_usage(usage, stage, provider, used_model, response, client_type)
     return response.content[0].text
 
 
 def _call_with_retry(client, client_type, system_prompt, user_prompt,
-                     max_tokens, temperature, model=None) -> str:
+                     max_tokens, temperature, model=None,
+                     usage=None, stage: str = "debate", provider: str = "anthropic") -> str:
     last_error = None
     for attempt in range(MAX_RETRIES + 1):
         try:
             return _call_llm(client, client_type, system_prompt, user_prompt,
-                             max_tokens, temperature, model=model)
+                             max_tokens, temperature, model=model,
+                             usage=usage, stage=stage, provider=provider)
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES:
@@ -191,6 +199,7 @@ def argue_position(
     api_key: Optional[str] = None,
     provider: str = "anthropic",
     model: Optional[str] = None,
+    usage_sink: Optional[dict] = None,
 ) -> dict:
     """
     One debate turn. Returns a structured dict:
@@ -218,6 +227,7 @@ def argue_position(
         result["text"] = _call_with_retry(
             client, client_type, system_prompt, user_prompt,
             MAX_TOKENS_ARGUMENT, TEMPERATURE_ARGUMENT, model=model,
+            usage=usage_sink, stage=f"{side.lower()}_{phase}", provider=provider,
         )
         # Extract the steelman line (opening turns only) so the UI can show it
         if phase == "opening":
@@ -288,6 +298,7 @@ def judge_debate(
     against_rebuttal: str = "",
     total_sources: int = 0,
     model: Optional[str] = None,
+    usage_sink: Optional[dict] = None,
 ) -> dict:
     """
     Judge the debate. Final score per side =
@@ -324,7 +335,8 @@ Judge and return JSON:"""
     try:
         client, client_type = _get_client(provider, api_key)
         raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, user_prompt,
-                               MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model)
+                               MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model,
+                               usage=usage_sink, stage="judge", provider=provider)
         if "```" in raw:
             raw = raw.split("```json")[-1].split("```")[1] if "```json" in raw else raw.split("```")[1]
         llm = json.loads(raw.strip())

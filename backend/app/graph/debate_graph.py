@@ -10,6 +10,28 @@ from app.services.embedding_pipeline import pipeline
 from app.visual.events import make_emitter
 
 
+def _debate_usage_sink(state: AgentState) -> dict:
+    """Lazily ensure the per-request token/cost accumulator exists on state."""
+    from app.utils.usage import new_usage
+    u = state.get("usage")
+    if not isinstance(u, dict):
+        u = new_usage()
+        state["usage"] = u
+    return u
+
+
+def _debate_count_scrape_cache(results: list, state: AgentState, emit=None) -> None:
+    """Surface the search_agent's scrape TTL cache into the usage accumulator."""
+    if not results:
+        return
+    hits = sum(1 for d in results if isinstance(d, dict) and d.get("from_scrape_cache"))
+    if hits:
+        u = _debate_usage_sink(state)
+        u["scrape_cache_hits"] = u.get("scrape_cache_hits", 0) + hits
+        if emit:
+            emit(f"{hits} page{'s' if hits != 1 else ''} served from scrape cache")
+
+
 def debate_search_node(state: AgentState) -> AgentState:
     """Search for debate sources"""
     print("\n" + "=" * 60)
@@ -23,6 +45,7 @@ def debate_search_node(state: AgentState) -> AgentState:
     emit("Searching the web for debate evidence…")
     results = search_web(state['query'], progress_cb=emit)
     state['retrieved_docs'] = results
+    _debate_count_scrape_cache(results, state, emit)
     emit(f"{len(results)} sources gathered for both advocates")
 
     context = [
@@ -71,6 +94,7 @@ def _debate_turn(state: AgentState, side: str, opponent_phase_key: str = None) -
         api_key=api_key,
         provider=provider,
         model=state.get('model'),
+        usage_sink=_debate_usage_sink(state),
     )
     state['debate_history'].append({
         "side": side,
@@ -156,6 +180,7 @@ def judge_node(state: AgentState) -> AgentState:
         against_rebuttal=against_rebuttal,
         total_sources=total_sources,
         model=state.get('model'),
+        usage_sink=_debate_usage_sink(state),
     )
     state['judge_verdict'] = verdict
     if verdict.get('parse_failed'):

@@ -58,3 +58,4 @@ bcrypt>=4.0.0
 psycopg2-binary
 sqlalchemy
 cryptography
+alembic==1.18.5

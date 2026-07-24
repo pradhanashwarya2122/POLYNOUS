@@ -1,0 +1,156 @@
+{
+  "description": "POLYNOUS evaluation set — 25 questions across 5 categories. expected_properties encode what a HONEST pipeline should exhibit for each category; run_eval.py checks pipeline outputs against them. These are behavioural expectations, not ground-truth answers (the pipeline is a source organiser, not an oracle).",
+  "version": 1,
+  "questions": [
+    {
+      "id": "factual-01",
+      "category": "factual",
+      "question": "What is the boiling point of water at standard atmospheric pressure?",
+      "expected_properties": { "should_find_disagreement": false, "should_ground": true, "min_sources": 3, "expect_high_confidence": true }
+    },
+    {
+      "id": "factual-02",
+      "category": "factual",
+      "question": "How many chromosomes are in a typical human somatic cell?",
+      "expected_properties": { "should_find_disagreement": false, "should_ground": true, "min_sources": 3, "expect_high_confidence": true }
+    },
+    {
+      "id": "factual-03",
+      "category": "factual",
+      "question": "What is the speed of light in a vacuum?",
+      "expected_properties": { "should_find_disagreement": false, "should_ground": true, "min_sources": 3, "expect_high_confidence": true }
+    },
+    {
+      "id": "factual-04",
+      "category": "factual",
+      "question": "In what year did the Apollo 11 mission land humans on the Moon?",
+      "expected_properties": { "should_find_disagreement": false, "should_ground": true, "min_sources": 3, "expect_high_confidence": true }
+    },
+    {
+      "id": "factual-05",
+      "category": "factual",
+      "question": "What are the primary components of Earth's atmosphere by volume?",
+      "expected_properties": { "should_find_disagreement": false, "should_ground": true, "min_sources": 3, "expect_high_confidence": true }
+    },
+    {
+      "id": "contested-01",
+      "category": "contested",
+      "question": "Should artificial intelligence development be paused for safety reasons?",
+      "expected_properties": { "should_find_disagreement": true, "should_ground": true, "min_sources": 4 }
+    },
+    {
+      "id": "contested-02",
+      "category": "contested",
+      "question": "Is nuclear power the best path to decarbonising the electricity grid?",
+      "expected_properties": { "should_find_disagreement": true, "should_ground": true, "min_sources": 4 }
+    },
+    {
+      "id": "contested-03",
+      "category": "contested",
+      "question": "Do standardised tests fairly measure student ability?",
+      "expected_properties": { "should_find_disagreement": true, "should_ground": true, "min_sources": 4 }
+    },
+    {
+      "id": "contested-04",
+      "category": "contested",
+      "question": "Is a four-day work week better for productivity than a five-day week?",
+      "expected_properties": { "should_find_disagreement": true, "should_ground": true, "min_sources": 4 }
+    },
+    {
+      "id": "contested-05",
+      "category": "contested",
+      "question": "Should social media platforms be legally responsible for user-generated content?",
+      "expected_properties": { "should_find_disagreement": true, "should_ground": true, "min_sources": 4 }
+    },
+    {
+      "id": "recent-01",
+      "category": "recent-events",
+      "question": "What were the major outcomes of the most recent UN climate conference?",
+      "expected_properties": { "should_ground": true, "expect_recent_sources": true, "min_sources": 3 }
+    },
+    {
+      "id": "recent-02",
+      "category": "recent-events",
+      "question": "What are the latest developments in large language model capabilities this year?",
+      "expected_properties": { "should_ground": true, "expect_recent_sources": true, "min_sources": 3 }
+    },
+    {
+      "id": "recent-03",
+      "category": "recent-events",
+      "question": "What recent regulatory changes affect cryptocurrency exchanges?",
+      "expected_properties": { "should_ground": true, "expect_recent_sources": true, "min_sources": 3 }
+    },
+    {
+      "id": "recent-04",
+      "category": "recent-events",
+      "question": "What are the most recent findings from the James Webb Space Telescope?",
+      "expected_properties": { "should_ground": true, "expect_recent_sources": true, "min_sources": 3 }
+    },
+    {
+      "id": "recent-05",
+      "category": "recent-events",
+      "question": "What are the current trends in global renewable energy adoption?",
+      "expected_properties": { "should_ground": true, "expect_recent_sources": true, "min_sources": 3 }
+    },
+    {
+      "id": "technical-01",
+      "category": "technical",
+      "question": "How does the Raft consensus algorithm achieve agreement in a distributed system?",
+      "expected_properties": { "should_ground": true, "min_sources": 3, "expect_technical_depth": true }
+    },
+    {
+      "id": "technical-02",
+      "category": "technical",
+      "question": "What is the difference between symmetric and asymmetric encryption?",
+      "expected_properties": { "should_ground": true, "min_sources": 3, "expect_technical_depth": true }
+    },
+    {
+      "id": "technical-03",
+      "category": "technical",
+      "question": "How does backpropagation compute gradients in a neural network?",
+      "expected_properties": { "should_ground": true, "min_sources": 3, "expect_technical_depth": true }
+    },
+    {
+      "id": "technical-04",
+      "category": "technical",
+      "question": "What causes database deadlocks and how can they be prevented?",
+      "expected_properties": { "should_ground": true, "min_sources": 3, "expect_technical_depth": true }
+    },
+    {
+      "id": "technical-05",
+      "category": "technical",
+      "question": "How does the TCP three-way handshake establish a connection?",
+      "expected_properties": { "should_ground": true, "min_sources": 3, "expect_technical_depth": true }
+    },
+    {
+      "id": "ambiguous-01",
+      "category": "ambiguous",
+      "question": "Is it better?",
+      "expected_properties": { "expect_low_confidence": true, "expect_coverage_gaps": true }
+    },
+    {
+      "id": "ambiguous-02",
+      "category": "ambiguous",
+      "question": "What should I do about the situation?",
+      "expected_properties": { "expect_low_confidence": true, "expect_coverage_gaps": true }
+    },
+    {
+      "id": "ambiguous-03",
+      "category": "ambiguous",
+      "question": "Tell me about the thing everyone is talking about.",
+      "expected_properties": { "expect_low_confidence": true, "expect_coverage_gaps": true }
+    },
+    {
+      "id": "ambiguous-04",
+      "category": "ambiguous",
+      "question": "How does it work?",
+      "expected_properties": { "expect_low_confidence": true, "expect_coverage_gaps": true }
+    },
+    {
+      "id": "ambiguous-05",
+      "category": "ambiguous",
+      "question": "Why is this happening now?",
+      "expected_properties": { "expect_low_confidence": true, "expect_coverage_gaps": true }
+    }
+  ]
+}

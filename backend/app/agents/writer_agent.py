@@ -14,6 +14,8 @@ from anthropic import Anthropic
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from app.utils.json_extract import extract_json_object
+
 load_dotenv()
 
 logger = logging.getLogger("polynous.writer_agent")
@@ -77,99 +79,95 @@ given, and the SOURCE INDEX maps each number to its title/URL/type. Always
 cite sources using those exact numbers so they match the index.
 
 ────────────────────────────────────────────────────────────
-OUTPUT FORMAT — 13-SECTION RESEARCH BRIEFING (use these EXACT headers)
+OUTPUT FORMAT — RAW JSON OBJECT, ONE KEY PER BRIEFING SECTION
 ────────────────────────────────────────────────────────────
-Target length: 1200-1800 words. The report should read like a briefing
+Respond with ONLY a raw JSON object — first character { and last
+character }. No markdown fences, no prose before or after it. All
+section content combined should read like a 1200-1800 word briefing
 document from a research team, never like a chatbot answer.
 
-📋 EXECUTIVE SUMMARY
-3-4 sentences (80-120 words): restate the topic, state how many sources
-were analysed, characterise the landscape numerically ("6 of 8 sources
-agree on X, but split 3-3 on Y"), and give the key takeaway WITHOUT
-taking sides. Never open with a generic statement.
+The JSON object has EXACTLY these keys, every value a STRING except
+key_findings (an array of strings):
 
-📚 SOURCE INTELLIGENCE
-One line per source, exactly in this shape:
+"executive_summary" — 3-4 sentences (80-120 words): restate the topic,
+state how many sources were analysed, characterise the landscape
+numerically ("6 of 8 sources agree on X, but split 3-3 on Y"), and give
+the key takeaway WITHOUT taking sides. Never open with a generic statement.
+
+"source_intelligence" — one line per source, newline-separated, exactly:
 [1] "Title (≤80 chars)" — domain.com (year if known) — FULL ARTICLE/SNIPPET/ACADEMIC/NEWS/OPINION
 
-🔑 KEY FINDINGS
-5-8 bullets, each 30-60 words. Every bullet is a SPECIFIC claim with
-data/numbers where the sources provide them, ending in its citation [n].
-Never write a generic bullet like "experts agree regulation is needed".
+"key_findings" — a JSON ARRAY of 5-8 strings. Each string is a SPECIFIC
+claim, 30-60 words, with data/numbers where the sources provide them,
+ending in its citation [n]. Never a generic string like "experts agree
+regulation is needed".
 
-🤝 CONSENSUS MAP
-2-4 agreement groups, each formatted:
+"consensus_map" — 2-4 agreement groups, each formatted (blank line between):
 TOPIC: [what they agree on]
 SOURCES: [1, 3, 5] — N of M sources
 FINDING: 2-3 sentences of specific detail on the shared claim.
 
-⚡ DIVERGENCE MAP
-2-4 disagreements, each with BOTH sides given equal space:
+"divergence_map" — 2-4 disagreements, each with BOTH sides given equal space:
 TOPIC: [what they disagree on]
 POSITION A (Sources [X, Y]): what they argue, with specifics.
 POSITION B (Sources [A, B]): what they argue, with specifics.
 NATURE: factual_dispute / different_interpretation / different_scope / conflicting_data
-If the critique found zero disagreements, state that explicitly as a finding.
+If the critique found zero disagreements, state that explicitly as the value.
 
-💡 UNIQUE INSIGHTS
-1-3 insights found in ONLY ONE source and not contradicted by others:
+"unique_insights" — 1-3 insights found in ONLY ONE source and not
+contradicted by others, one per line:
 • Source [4] uniquely provides…
 
-⚠️ SOURCE QUALITY ASSESSMENT
-One line per source: its TYPE and a factual credibility note
-(peer-reviewed / major publication / government document / personal
+"source_quality" — one line per source: its TYPE and a factual credibility
+note (peer-reviewed / major publication / government document / personal
 blog — verify independently). Never "good" or "bad".
 
-🔍 COVERAGE AUDIT
-2-4 gaps: aspects of the query no source addressed, missing
-perspectives (geographic, economic, temporal), and data gaps.
+"coverage_audit" — 2-4 gaps: aspects of the query no source addressed,
+missing perspectives (geographic, economic, temporal), and data gaps.
 
-⚠️ LIMITATIONS & CAVEATS
-3-5 honest points: source biases, missing data, methodological limits,
-temporal constraints ("snapshot as of [date]").
+"limitations" — 3-5 honest points: source biases, missing data,
+methodological limits, temporal constraints ("snapshot as of [date]").
 
-⚖️ CONTRADICTION RESOLUTION
-For the 1-2 sharpest conflicts:
+"contradiction_resolution" — for the 1-2 sharpest conflicts:
 CLAIM A: Source [X] states…
 CLAIM B: Source [Y] states…
 ANALYSIS: why they disagree (factual? interpretive? scope?)
 RESOLUTION: how to reconcile them or which context each applies to —
 WITHOUT declaring a winner on contested values.
-(Skip this section entirely if there are no disagreements.)
+If there are no disagreements, use an empty string "".
 
-🔮 RESEARCH TRAJECTORY
-3-5 specific, actionable follow-up questions derived from the coverage
-gaps and disagreements — never generic ("learn more about X").
+"research_trajectory" — 3-5 specific, actionable follow-up questions
+derived from the coverage gaps and disagreements — never generic
+("learn more about X").
 
-📖 SOURCE BIBLIOGRAPHY
-Full citation per source:
+"bibliography" — full citation per source, newline-separated:
 [1] "Full Title" — Publisher/Domain (year)
     full URL
 
-DO NOT write a CONFIDENCE ANALYSIS section — the platform computes it
-from the source data and appends it automatically. Never invent
-confidence numbers.
+DO NOT include a confidence_analysis or CONFIDENCE key — the platform
+computes it from the source data. Never invent confidence numbers.
 
 ────────────────────────────────────────────────────────────
-OUTPUT FORMAT RULES — the frontend renders your text directly
+STRING VALUE FORMAT RULES — the frontend renders these directly
 ────────────────────────────────────────────────────────────
-Your text is displayed as-is inside styled components. The section header
-lines above (📋 EXECUTIVE SUMMARY etc.) are STRUCTURAL DELIMITERS the
-platform parses out and replaces with its own styled headings — write them
-exactly as given, once each, and NOTHING else may look like formatting:
+Each string value above is displayed as-is inside a styled component.
+Nothing inside a value may look like markdown or repeat structure the
+platform already provides:
 
-1. NO markdown syntax anywhere in the body text: no ##, no ###, no
-   **bold**, no _italics_, no --- divider lines, no ``` fences, no
-   markdown "- " or "* " list dashes. For lists use the "•" character.
+1. NO markdown syntax anywhere in a value: no ##, no ###, no **bold**,
+   no _italics_, no --- divider lines, no ``` fences, no markdown "- "
+   or "* " list dashes. For lists use the "•" character or newlines.
 2. NO icon or symbol names in the text (no "key", "handshake", "bolt",
    "lightbulb", "analytics" etc.) — the frontend chooses icons itself.
 3. Citations are bare bracketed numbers only: [1] or [2, 4, 6]. Never
-   footnote dashes, never restate the source list inline outside the
-   SOURCE INTELLIGENCE and SOURCE BIBLIOGRAPHY sections.
-4. Do not repeat a section's heading inside its own body, and do not
+   footnote dashes.
+4. Do not repeat the section's own name inside its value, and do not
    invent extra headings, sub-headings, or divider rows.
 5. Write flowing prose and "•" bullets — the platform's typography
    carries all hierarchy.
+6. Ensure the JSON itself is valid: escape any internal double quotes
+   and newlines properly — this is a machine-parsed JSON object, not
+   display text.
 
 ────────────────────────────────────────────────────────────
 CRITICAL RULES
@@ -232,7 +230,8 @@ def writer_agent(
     api_key: Optional[str] = None,
     response_style: Optional[str] = None,
     model: Optional[str] = None,
-) -> str:
+    usage_sink: Optional[dict] = None,
+) -> dict:
     """
     Organize source content into a neutral research digest.
 
@@ -245,14 +244,14 @@ def writer_agent(
         api_key: User's personal API key
 
     Returns:
-        Formatted research digest string
+        dict: {"sections": {...12 keys...}, "parse_failed": bool, "raw_text": str}
     """
     print("✍️ Writer: Organizing research landscape...")
 
     # ── Validate & clean input ────────────────────────
     cleaned_summaries = _clean_summaries(summaries)
     if not cleaned_summaries:
-        return _fallback_answer(query, "No source summaries available.")
+        return _fallback_result(query, "No source summaries available.")
 
     if citations and len(citations) != len(cleaned_summaries):
         logger.warning(
@@ -285,14 +284,14 @@ CRITIQUE FINDINGS:
 
 CONFIDENCE: {confidence}%
 
-Organize this into a research digest. Present what the sources say — do NOT answer the query yourself. Attribute every claim to specific sources, matching the [SOURCE N] numbers above. Be neutral and balanced."""
+Organize this into a research digest. Present what the sources say — do NOT answer the query yourself. Attribute every claim to specific sources, matching the [SOURCE N] numbers above. Be neutral and balanced. Respond with ONLY the raw JSON object — first character {{ and last character }}."""
 
     # ── Call LLM (with retry on transient failures) ───
     try:
         client, client_type = _get_client(provider, api_key)
     except ValueError as e:
         print(f"  ❌ {e}")
-        return _fallback_answer(query, str(e))
+        return _fallback_result(query, str(e))
 
     system_prompt = WRITER_SYSTEM_PROMPT
     style_note = RESPONSE_STYLES.get((response_style or "").lower())
@@ -300,13 +299,37 @@ Organize this into a research digest. Present what the sources say — do NOT an
         system_prompt += f"\n\n────────────────────────────\nVOICE & STYLE (user preference)\n────────────────────────────\n{style_note}\nStyle changes the voice ONLY — every neutrality and citation rule above still applies."
 
     try:
-        answer = _call_llm_with_retry(client, client_type, system_prompt, user_prompt, model=model)
+        text = _call_llm_with_retry(client, client_type, system_prompt, user_prompt, model=model,
+                                    usage=usage_sink, provider=provider)
+        sections = _parse_sections(text)
+
+        # Self-repair: if the response wasn't valid JSON, retry ONCE with a
+        # corrective instruction that shows the model its malformed output —
+        # ported from critic_agent's self-repair pattern.
+        if sections is None:
+            print("  🔁 Writer output was not valid JSON — retrying with corrective prompt…")
+            corrective = (
+                f"{user_prompt}\n\n"
+                "IMPORTANT: Your previous response could not be parsed as JSON. "
+                "It began with:\n"
+                f"{(text or '')[:300]}\n\n"
+                "Respond again with ONLY the raw JSON object — no prose, no code "
+                "fences, first character '{' and last character '}'."
+            )
+            text = _call_llm_with_retry(client, client_type, system_prompt, corrective, model=model,
+                                        usage=usage_sink, provider=provider)
+            sections = _parse_sections(text)
+
+        if sections is None:
+            print(f"  ⚠️ Could not parse writer JSON after retry: {(text or '')[:200]}...")
+            return {"sections": _empty_sections(), "parse_failed": True, "raw_text": text or ""}
+
         print("  ✅ Research digest created!")
-        return answer
+        return {"sections": sections, "parse_failed": False, "raw_text": text}
     except Exception as e:
         logger.exception("Writer LLM call failed")
         print(f"  ❌ Writer error: {e}")
-        return _fallback_answer(query, str(e))
+        return _fallback_result(query, str(e))
 
 
 # ============================================================
@@ -426,12 +449,13 @@ def _build_critique_summary(critique: dict) -> str:
 
 
 def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prompt: str,
-                         model: Optional[str] = None) -> str:
+                         model: Optional[str] = None, usage=None, provider: str = "anthropic") -> str:
     """Call the LLM, retrying a couple of times on transient errors."""
     last_error = None
     for attempt in range(MAX_RETRIES + 1):
         try:
-            return _call_llm(client, client_type, system_prompt, user_prompt, model=model)
+            return _call_llm(client, client_type, system_prompt, user_prompt, model=model,
+                             usage=usage, provider=provider)
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES:
@@ -443,11 +467,13 @@ def _call_llm_with_retry(client, client_type: str, system_prompt: str, user_prom
 
 
 def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
-              model: Optional[str] = None) -> str:
+              model: Optional[str] = None, usage=None, provider: str = "anthropic") -> str:
     """Call the appropriate LLM (user's chosen model wins over the default)"""
+    from app.utils.usage import record as _record_usage
     if client_type == "openai":
+        used_model = model or DEFAULT_OPENAI_MODEL
         response = client.chat.completions.create(
-            model=model or DEFAULT_OPENAI_MODEL,
+            model=used_model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -455,21 +481,82 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
             temperature=TEMPERATURE,
             max_tokens=MAX_TOKENS
         )
+        _record_usage(usage, "writer", provider, used_model, response, client_type)
         return response.choices[0].message.content
     else:
+        used_model = model or DEFAULT_ANTHROPIC_MODEL
         message = client.messages.create(
-            model=model or DEFAULT_ANTHROPIC_MODEL,
+            model=used_model,
             max_tokens=MAX_TOKENS,
             temperature=TEMPERATURE,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}]
         )
+        _record_usage(usage, "writer", provider, used_model, message, client_type)
         return message.content[0].text
 
 
-def _fallback_answer(query: str, error: str) -> str:
-    """Return a graceful fallback when the writer fails"""
-    return f"""📊 RESEARCH LANDSCAPE: {query}
+# ============================================================
+# STRUCTURED SECTIONS — JSON contract
+# ============================================================
+
+SECTION_KEYS = (
+    "executive_summary",
+    "source_intelligence",
+    "key_findings",       # array of strings — every other key is a string
+    "consensus_map",
+    "divergence_map",
+    "unique_insights",
+    "source_quality",
+    "coverage_audit",
+    "limitations",
+    "contradiction_resolution",
+    "research_trajectory",
+    "bibliography",
+)
+
+
+def _empty_sections() -> dict:
+    """All-blank section shape so downstream code can rely on every key
+    existing, even on total parse failure."""
+    sections = {k: "" for k in SECTION_KEYS}
+    sections["key_findings"] = []
+    return sections
+
+
+def _parse_sections(text: str) -> Optional[dict]:
+    """
+    Extract the writer's JSON object from LLM text and normalize its shape.
+    Returns None (not a fallback dict) when nothing could be parsed, so the
+    caller can decide whether to retry.
+    """
+    obj = extract_json_object(text)
+    if not isinstance(obj, dict):
+        return None
+
+    sections = _empty_sections()
+    for key in SECTION_KEYS:
+        value = obj.get(key)
+        if key == "key_findings":
+            if isinstance(value, list):
+                sections["key_findings"] = [str(v).strip() for v in value if str(v).strip()]
+            elif isinstance(value, str) and value.strip():
+                # tolerate a model that returns key_findings as a single
+                # newline/bullet-separated string instead of an array
+                sections["key_findings"] = [
+                    line.strip(" •-\t") for line in value.split("\n") if line.strip(" •-\t")
+                ]
+        else:
+            sections[key] = str(value).strip() if value is not None else ""
+
+    return sections
+
+
+def _fallback_result(query: str, error: str) -> dict:
+    """Return a graceful fallback dict when the writer fails outright
+    (no API key, no summaries, or an unrecoverable LLM error) — parse_failed
+    stays True so the caller renders the degraded state honestly."""
+    raw_text = f"""📊 RESEARCH LANDSCAPE: {query}
 
 ⚠️ Research Digest Unavailable
 
@@ -482,3 +569,4 @@ Please try your query again. If the problem persists, try:
 
 📊 CONFIDENCE: 0%
 """
+    return {"sections": _empty_sections(), "parse_failed": True, "raw_text": raw_text}

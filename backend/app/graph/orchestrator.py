@@ -89,45 +89,136 @@ _SIGNAL_NOTES = {
 }
 
 
-def _build_confidence_section(computed: dict, critique: dict) -> str:
+def headline_confidence(result: dict) -> int:
+    """The single confidence number to surface for a completed run — the same
+    headline the report uses: the mechanical computed score when available,
+    else the critic's consensus score, else 0. Fixes the old /ask path that
+    returned only critique.overall_confidence (0 whenever the critic's
+    citations were all dropped), contradicting the report body."""
+    comp = (result.get("computed_confidence") or {}).get("score")
+    if isinstance(comp, (int, float)) and comp:
+        return int(round(comp))
+    crit = (result.get("critique") or {}).get("overall_confidence")
+    return int(round(crit)) if isinstance(crit, (int, float)) else 0
+
+
+def _build_confidence_analysis(computed: dict, critique: dict) -> dict:
     """
-    Section 9 of the premium report — GENERATED FROM MEASURED DATA, never
-    written by the LLM, so the numbers cannot be hallucinated.
+    Confidence Analysis — GENERATED FROM MEASURED DATA, never written by
+    the LLM, so the numbers cannot be hallucinated. Structured form used
+    for report["confidence_analysis"]; _render_confidence_text() below
+    renders the same data as legacy prose for backward compatibility.
+
+    Returns: {overall, band, factors: [{key, label, weight, value, note}],
+              explanation, critic_consensus: {score, explanation} | None,
+              available: bool}
     """
     from app.utils.computed_confidence import WEIGHTS
 
-    lines = ["🎯 CONFIDENCE ANALYSIS"]
     critic_conf = (critique or {}).get("overall_confidence")
     comp_score = (computed or {}).get("score")
-
     headline = comp_score if comp_score is not None else critic_conf
+
     if headline is None:
-        return "🎯 CONFIDENCE ANALYSIS\nConfidence could not be computed for this run."
+        return {"available": False, "overall": None, "band": None, "factors": [],
+                "explanation": "Confidence could not be computed for this run.",
+                "critic_consensus": None}
+
     band = "HIGH" if headline >= 75 else ("MODERATE" if headline >= 50 else "LOW")
-    lines.append(f"OVERALL CONFIDENCE: {headline}% — {band}")
+
+    factors = []
+    breakdown = (computed or {}).get("breakdown") or {}
+    for key, value in breakdown.items():
+        factors.append({
+            "key": key,
+            "label": key.replace("_", " ").title(),
+            "weight": int(WEIGHTS.get(key, 0) * 100),
+            "value": round(value, 2),
+            "note": _SIGNAL_NOTES.get(key, ""),
+        })
+
+    critic_consensus = None
+    if critic_conf is not None and not (critique or {}).get("parse_failed"):
+        critic_consensus = {
+            "score": critic_conf,
+            "explanation": (critique or {}).get(
+                "confidence_explanation", "largest agreeing source group / total sources"
+            ),
+        }
+
+    return {
+        "available": True,
+        "overall": headline,
+        "band": band,
+        "factors": factors,
+        "explanation": (computed or {}).get("explanation") or "",
+        "critic_consensus": critic_consensus,
+    }
+
+
+def _render_confidence_text(analysis: dict) -> str:
+    """Render the structured confidence analysis as legacy emoji-headed
+    prose, so save_chat/KG/exports/old consumers keep working unchanged."""
+    lines = ["🎯 CONFIDENCE ANALYSIS"]
+    if not analysis.get("available"):
+        lines.append(analysis.get("explanation") or "Confidence could not be computed for this run.")
+        return "\n".join(lines)
+
+    lines.append(f"OVERALL CONFIDENCE: {analysis['overall']}% — {analysis['band']}")
     lines.append("")
 
-    breakdown = (computed or {}).get("breakdown") or {}
-    if breakdown:
+    if analysis["factors"]:
         lines.append("SIGNAL BREAKDOWN (computed from the retrieved sources):")
-        for key, value in breakdown.items():
-            weight = int(WEIGHTS.get(key, 0) * 100)
-            note = _SIGNAL_NOTES.get(key, "")
-            lines.append(f"• {key.replace('_', ' ').title()} (weight {weight}%): {value:.2f}/1.00 — {note}")
-        explanation = (computed or {}).get("explanation")
-        if explanation:
+        for f in analysis["factors"]:
+            lines.append(f"• {f['label']} (weight {f['weight']}%): {f['value']:.2f}/1.00 — {f['note']}")
+        if analysis.get("explanation"):
             lines.append("")
-            lines.append(explanation)
+            lines.append(analysis["explanation"])
 
-    if critic_conf is not None and not (critique or {}).get("parse_failed"):
+    consensus = analysis.get("critic_consensus")
+    if consensus:
         lines.append("")
-        lines.append(f"CRITIC CONSENSUS SCORE: {critic_conf}% — "
-                     f"{(critique or {}).get('confidence_explanation', 'largest agreeing source group / total sources')}")
-    elif (critique or {}).get("parse_failed"):
+        lines.append(f"CRITIC CONSENSUS SCORE: {consensus['score']}% — {consensus['explanation']}")
+    else:
         lines.append("")
         lines.append("CRITIC CONSENSUS SCORE: unavailable (critique analysis failed this run).")
 
     return "\n".join(lines)
+
+
+# ── Legacy text rendering — assembles the same emoji-headed briefing from
+#    the structured JSON sections, so save_chat/KG/exports/any consumer
+#    that only understands text (and the frontend's regex-parse fallback)
+#    keep working exactly as before, unchanged by the JSON contract switch.
+_SECTION_TEXT_HEADERS = (
+    ("executive_summary",       "📋 EXECUTIVE SUMMARY"),
+    ("source_intelligence",     "📚 SOURCE INTELLIGENCE"),
+    ("key_findings",            "🔑 KEY FINDINGS"),
+    ("consensus_map",           "🤝 CONSENSUS MAP"),
+    ("divergence_map",          "⚡ DIVERGENCE MAP"),
+    ("unique_insights",         "💡 UNIQUE INSIGHTS"),
+    ("source_quality",          "⚠️ SOURCE QUALITY ASSESSMENT"),
+    ("coverage_audit",          "🔍 COVERAGE AUDIT"),
+    ("limitations",             "⚠️ LIMITATIONS & CAVEATS"),
+    ("contradiction_resolution", "⚖️ CONTRADICTION RESOLUTION"),
+    ("research_trajectory",     "🔮 RESEARCH TRAJECTORY"),
+    ("bibliography",            "📖 SOURCE BIBLIOGRAPHY"),
+)
+
+
+def _render_report_text(sections: dict) -> str:
+    """Assemble the legacy emoji-headed text blob from structured sections."""
+    blocks = []
+    for key, header in _SECTION_TEXT_HEADERS:
+        value = sections.get(key)
+        if key == "key_findings":
+            body = "\n".join(f"• {item}" for item in (value or []))
+        else:
+            body = (value or "").strip()
+        if not body:
+            continue
+        blocks.append(f"{header}\n{body}")
+    return "\n\n".join(blocks)
 
 
 MIN_USABLE_CONTENT = 300     # chars — below this a scraped doc is "thin"
@@ -151,7 +242,31 @@ def _substantive_gaps(critique: dict) -> list:
             and not any(m in g.lower() for m in _GAP_ERROR_MARKERS)]
 
 
-def _reformulate_query(query: str, provider: str, api_key: str, model) -> Optional[str]:
+def _count_scrape_cache_hits(results: list, usage: dict, emit=None) -> None:
+    """Surface the search_agent's 15-min scrape TTL cache: count docs served
+    from cache into the usage accumulator and log it once."""
+    if not results or usage is None:
+        return
+    hits = sum(1 for d in results if isinstance(d, dict) and d.get("from_scrape_cache"))
+    if hits:
+        usage["scrape_cache_hits"] = usage.get("scrape_cache_hits", 0) + hits
+        if emit:
+            emit(f"{hits} page{'s' if hits != 1 else ''} served from scrape cache")
+
+
+def _usage_sink(state: AgentState) -> dict:
+    """Lazily ensure the per-request token/cost accumulator exists on state,
+    and return it so agent calls can record into it."""
+    from app.utils.usage import new_usage
+    u = state.get("usage")
+    if not isinstance(u, dict):
+        u = new_usage()
+        state["usage"] = u
+    return u
+
+
+def _reformulate_query(query: str, provider: str, api_key: str, model,
+                       usage_sink: Optional[dict] = None) -> Optional[str]:
     """One cheap LLM call to broaden/clarify a query that found too little.
     Uses the user's own key ONLY — returns None on any failure (heuristic-free
     fallback: caller just keeps the original results)."""
@@ -159,23 +274,26 @@ def _reformulate_query(query: str, provider: str, api_key: str, model) -> Option
         return None
     try:
         from app.llm_providers import resolve_provider, default_model
+        from app.utils.usage import record as _record_usage
         client_type, base_url = resolve_provider(provider)
+        used_model = model or default_model(provider)
         prompt = (f'A web search for this query returned too few usable sources:\n"{query}"\n'
                   "Rewrite it as ONE broader or clearer web-search query likely to find more "
                   "sources. Return only the rewritten query — no quotes, no explanation.")
         if client_type == "openai":
             from openai import OpenAI
             c = OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {}))
-            r = c.chat.completions.create(model=model or default_model(provider),
+            r = c.chat.completions.create(model=used_model,
                                           messages=[{"role": "user", "content": prompt}],
                                           max_tokens=60, temperature=0.3)
             out = r.choices[0].message.content
         else:
             from anthropic import Anthropic
             c = Anthropic(api_key=api_key)
-            r = c.messages.create(model=model or default_model(provider), max_tokens=60,
+            r = c.messages.create(model=used_model, max_tokens=60,
                                   temperature=0.3, messages=[{"role": "user", "content": prompt}])
             out = r.content[0].text
+        _record_usage(usage_sink, "reformulate", provider, used_model, r, client_type)
         out = (out or "").strip().strip('"').split("\n")[0][:200]
         return out if out and out.lower() != (query or "").lower() else None
     except Exception as e:
@@ -229,12 +347,15 @@ def search_node(state: AgentState) -> AgentState:
     user_id = _get_user_id(state)
     emit = make_emitter(state, "Search")
 
+    usage = _usage_sink(state)
     results = search_web(state['query'], progress_cb=emit)
+    _count_scrape_cache_hits(results, usage, emit)
 
     # ── AUTONOMY: thin results → the agent reformulates ONCE and re-searches ──
     if len(_usable_docs(results)) < MIN_USABLE_DOCS:
         alt = _reformulate_query(state['query'], _get_provider(state),
-                                 state.get('user_api_key'), state.get('model'))
+                                 state.get('user_api_key'), state.get('model'),
+                                 usage_sink=usage)
         if alt:
             emit(f"Search agent: thin results — reformulating query → \"{alt[:60]}\"")
             more = search_web(alt, progress_cb=emit)
@@ -279,6 +400,8 @@ def search_node(state: AgentState) -> AgentState:
     ]
 
     elapsed = time.perf_counter() - start
+    from app.utils.usage import record_latency
+    record_latency(usage, "search", elapsed)
     print(f"✅ Found {len(results)} web sources + {graph_count} graph connections "
           f"for user: {user_id} ({elapsed:.1f}s)")
     return state
@@ -315,10 +438,13 @@ def summarise_node(state: AgentState) -> AgentState:
         model=state.get('model'),
         base_url=base_url,
         progress_cb=emit,
+        usage_sink=_usage_sink(state),
     )
     state['summaries'] = summaries
 
     elapsed = time.perf_counter() - start
+    from app.utils.usage import record_latency
+    record_latency(_usage_sink(state), "summarise", elapsed)
     print(f"✅ Summarized {len(summaries)} documents ({elapsed:.1f}s)")
     return state
 
@@ -330,6 +456,7 @@ def critic_node(state: AgentState) -> AgentState:
     print("="*60)
 
     state['current_agent'] = 'critic'
+    _critic_start = time.perf_counter()
 
     # Get user's preferred provider (default to anthropic)
     provider = state.get('provider', 'anthropic')
@@ -343,6 +470,7 @@ def critic_node(state: AgentState) -> AgentState:
         provider=provider,
         api_key=state.get('user_api_key'),
         model=state.get('model'),
+        usage_sink=_usage_sink(state),
     )
     state['critique'] = critique
     if critique.get('parse_failed'):
@@ -358,6 +486,8 @@ def critic_node(state: AgentState) -> AgentState:
     else:
         emit(f"Critique parsed: {agreements} agreement groups, {disagreements} disagreements, confidence {confidence}%")
 
+    from app.utils.usage import record_latency
+    record_latency(_usage_sink(state), "critic", time.perf_counter() - _critic_start)
     print(f"✅ Analysis complete: {agreements} agreements, {disagreements} disagreements")
     print(f"📊 Confidence: {confidence}% (source agreement ratio)")
 
@@ -384,6 +514,7 @@ def deepen_node(state: AgentState) -> AgentState:
          f"{'s' if len(gaps) != 1 else ''} — dispatching targeted re-search",
          {"progress": 72})
 
+    usage = _usage_sink(state)
     existing = state.get('retrieved_docs', [])
     new_docs = []
     for i, gap in enumerate(gaps, 1):
@@ -391,6 +522,7 @@ def deepen_node(state: AgentState) -> AgentState:
         emit(f"Deepen {i}/{len(gaps)}: searching \"{gap[:60]}\"…")
         try:
             found = search_web(gap_q, max_results=4, progress_cb=emit)
+            _count_scrape_cache_hits(found, usage, emit)
             new_docs = _merge_docs(new_docs, found)
         except Exception as e:
             logger.warning("Deepen search failed for gap '%s': %s", gap[:40], e)
@@ -421,6 +553,7 @@ def deepen_node(state: AgentState) -> AgentState:
             model=state.get('model'),
             base_url=base_url,
             progress_cb=emit,
+            usage_sink=usage,
         )
         state['summaries'] = (state.get('summaries') or []) + new_summaries
 
@@ -452,7 +585,7 @@ def writer_node(state: AgentState) -> AgentState:
     emit(f"Drafting research digest from {len(enhanced_summaries)} summaries…",
          {"agents": {"Writer": {"progress": 35, "phase": {"label": "Writing", "sub": "LLM drafting digest…"}}}})
 
-    answer = writer_agent(
+    writer_result = writer_agent(
         query=state['query'],
         summaries=enhanced_summaries,
         critique=state['critique'],
@@ -461,7 +594,15 @@ def writer_node(state: AgentState) -> AgentState:
         api_key=state.get('user_api_key'),
         response_style=state.get('response_style'),
         model=state.get('model'),
+        usage_sink=_usage_sink(state),
     )
+    parse_failed = writer_result.get('parse_failed', False)
+    sections = writer_result.get('sections') or {}
+
+    # Text rendering (for compute_confidence, save_chat/KG/exports, and the
+    # frontend's legacy regex parser) — assembled from the structured JSON
+    # on success, or the preserved raw/fallback text on total failure.
+    answer = writer_result.get('raw_text') or '' if parse_failed else _render_report_text(sections)
     state['final_answer'] = answer
 
     # ── COMPUTED CONFIDENCE (from retrieved sources) ──────────────
@@ -477,12 +618,21 @@ def writer_node(state: AgentState) -> AgentState:
         except Exception as e:
             logger.warning("Computed confidence failed: %s", e)
 
-    # Append the measured confidence section (section 9 of the premium
-    # report) — computed from data, never written by the LLM.
-    answer = answer.rstrip() + "\n\n" + _build_confidence_section(
+    # Structured confidence analysis — computed from data, never written by
+    # the LLM. Attached to report["confidence_analysis"] for the frontend's
+    # structured path, and appended as legacy prose for text consumers.
+    confidence_analysis = _build_confidence_analysis(
         state.get('computed_confidence') or {}, state.get('critique') or {}
     )
+    answer = answer.rstrip() + "\n\n" + _render_confidence_text(confidence_analysis)
     state['final_answer'] = answer
+
+    state['report'] = {
+        **sections,
+        "confidence_analysis": confidence_analysis,
+        "parse_failed": parse_failed,
+        "raw_text": writer_result.get('raw_text', '') if parse_failed else None,
+    }
 
     emit(f"Draft complete ({len(answer.split())} words) — storing to knowledge graph…")
 
@@ -547,6 +697,8 @@ def writer_node(state: AgentState) -> AgentState:
     )
 
     elapsed = time.perf_counter() - start
+    from app.utils.usage import record_latency
+    record_latency(_usage_sink(state), "writer", elapsed)
     print(f"✅ Final answer ready with graph insights! ({elapsed:.1f}s)")
     print("=" * 60 + "\n")
     return state
