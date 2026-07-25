@@ -7,7 +7,7 @@ needs a model should import it from here (or from app.database, which re-exports
 these for backward compatibility).
 """
 from app.models.user import Base, User, Conversation, Message, generate_uuid
-from app.models.misc import DebateVote, FreeKeyClaim, UserPreferences, ResearchCache
+from app.models.misc import DebateVote, FreeKeyClaim, UserPreferences, ResearchCache, UsageLog
 
 __all__ = [
     "Base",
@@ -18,5 +18,6 @@ __all__ = [
     "FreeKeyClaim",
     "UserPreferences",
     "ResearchCache",
+    "UsageLog",
     "generate_uuid",
 ]

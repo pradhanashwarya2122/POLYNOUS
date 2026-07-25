@@ -13,6 +13,19 @@ from app.routes.auth import get_current_user
 
 router = APIRouter(prefix="/settings", tags=["settings-extended"])
 
+
+# ============================================================
+# USAGE & CREDITS (real token/cost usage, split research vs debate)
+# ============================================================
+@router.get("/usage")
+async def get_usage(user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    """Per-user token/cost usage for the Settings 'Usage & Credits' section.
+    All numbers are real (from Phase-6 telemetry); cost is an estimate."""
+    from app.services import usage_log as _ul
+    return _ul.summarize(db, getattr(user, "public_id", None) or "guest")
+
+
 # ============================================================
 # PREFERENCES
 # ============================================================
