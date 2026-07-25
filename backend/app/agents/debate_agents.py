@@ -337,9 +337,15 @@ Judge and return JSON:"""
         raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, user_prompt,
                                MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model,
                                usage=usage_sink, stage="judge", provider=provider)
-        if "```" in raw:
-            raw = raw.split("```json")[-1].split("```")[1] if "```json" in raw else raw.split("```")[1]
-        llm = json.loads(raw.strip())
+        # Robust extraction (same brace-matching machinery critic/writer use) —
+        # tolerates ```json fences, prose around the JSON, smart quotes, etc.
+        from app.utils.json_extract import extract_json_object
+        llm = extract_json_object(raw)
+        if not isinstance(llm, dict):
+            raise ValueError(
+                "judge returned no parseable JSON"
+                + (" (empty response — check the provider/API key)" if not (raw or "").strip() else "")
+            )
 
         for_quality = float(llm.get("for_quality", 0))
         against_quality = float(llm.get("against_quality", 0))
