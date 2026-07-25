@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import ProfileSetup from './ProfileSetup'
 import { API_BASE_URL } from '../config'
+import OnboardingOverlay from './OnboardingOverlay'
 
 // ─── Design Tokens ────────────────────────────────────────────
 const C = {
@@ -377,6 +378,9 @@ function LoginCard({ onLogin, oauthError }) {
   const [error, setError]       = useState("");
   const [success, setSuccess]   = useState("");
   const [isLogin, setIsLogin]   = useState(true);
+  // Onboarding overlay: null | 'demo' (from CTA) | 'signup' (after register)
+  const [onboarding, setOnboarding] = useState(null);
+  const [pendingLogin, setPendingLogin] = useState(null);
 
   const handleSubmit = async () => {
     setError(""); setSuccess("");
@@ -425,7 +429,13 @@ function LoginCard({ onLogin, oauthError }) {
       localStorage.setItem('polynous_user_id', data.user_id);
       localStorage.setItem('polynous_username', data.username || email.split('@')[0]);
       
-      // ✅ Always call onLogin — let App.jsx decide what to do
+      // New users get the onboarding demo BEFORE entering the app; logins go
+      // straight in. The overlay's continue/skip resumes the normal flow.
+      if (!isLogin) {
+        setPendingLogin(data || {});
+        setOnboarding('signup');
+        return;
+      }
       if (onLogin) {
         onLogin(data)
       } else {
@@ -436,6 +446,17 @@ function LoginCard({ onLogin, oauthError }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const finishOnboarding = () => {
+    const mode = onboarding;
+    setOnboarding(null);
+    if (mode === 'signup') {
+      // proceed into the app now that the new user has seen the demo
+      if (onLogin) onLogin(pendingLogin || {});
+      else window.location.href = '/research';
+    }
+    // demo mode: just close back to the sign-in screen
   };
 
   const handleOAuth = (provider) => {
@@ -548,10 +569,14 @@ function LoginCard({ onLogin, oauthError }) {
           </button>
         </div>
 
-        <button onClick={handleGuest} style={{ width: '100%', padding: '12px', background: 'transparent', border: `1px solid ${C.white10}`, borderRadius: 14, color: '#888', cursor: 'pointer', fontSize: 13, fontFamily: "'JetBrains Mono', monospace", transition: 'all 0.3s' }} onMouseEnter={e => { e.target.style.borderColor = '#00ccff'; e.target.style.color = '#00ccff' }} onMouseLeave={e => { e.target.style.borderColor = C.white10; e.target.style.color = '#888' }}>
-          Skip for now → Continue as guest
+        {/* Recruiter-friendly: a 60-second demo instead of a guest session
+            (guests can't run research anyway — BYO-key only). */}
+        <button onClick={() => setOnboarding('demo')} style={{ width: '100%', padding: '13px', background: 'rgba(0,204,255,0.06)', border: `1px solid rgba(0,204,255,0.3)`, borderRadius: 14, color: '#00ccff', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,204,255,0.12)'; e.currentTarget.style.borderColor = '#00ccff' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,204,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,204,255,0.3)' }}>
+          <Icon name="play_circle" style={{ fontSize: 18, color: '#00ccff' }} /> Watch a 60-second demo
         </button>
       </div>
+
+      {onboarding && <OnboardingOverlay mode={onboarding} onClose={finishOnboarding} />}
     </div>
   );
 }

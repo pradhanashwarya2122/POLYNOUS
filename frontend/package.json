@@ -14,7 +14,8 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
-    "three": "^0.184.0"
+    "three": "^0.184.0",
+    "vanta": "^0.5.24"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
