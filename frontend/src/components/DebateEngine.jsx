@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { deepMerge } from "./shared/deepMerge";
+import { useTypewriter } from "./shared/useTypewriter";
+import { useLiveStream } from "./shared/useLiveStream";
+import { DEBATE_C } from "../design/tokens";
 
 // ============================================================================
 // ADVERSARIAL DEBATE ENGINE — crimson-themed live visualization of the
@@ -6,17 +10,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 // Every number shown is real: rubric metrics, source stats, judge scores.
 // ============================================================================
 
-const C = {
-  crimson: "#ff2040",
-  green:   "#00e64d",
-  purple:  "#a855f7",
-  gold:    "#ffd700",
-  void:    "#0a0a1e",
-  onSurface: "#e2e0fc",
-  variant:   "#b9ccb0",
-  secondary: "#8899aa",
-  dim:       "#525c6e",
-};
+// Palette sourced from the shared design tokens (identical values).
+const C = DEBATE_C;
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap');
@@ -237,111 +232,6 @@ const DEFAULT_DATA = {
   verdict: null,
 };
 
-function deepMerge(base, override) {
-  if (!override) return base;
-  const out = Array.isArray(base) ? [...base] : { ...base };
-  Object.keys(override).forEach((k) => {
-    if (override[k] !== null && typeof override[k] === "object" && !Array.isArray(override[k])
-        && base != null && typeof base[k] === "object" && !Array.isArray(base[k])) {
-      out[k] = deepMerge(base[k], override[k]);
-    } else {
-      out[k] = override[k];
-    }
-  });
-  return out;
-}
-
-function useLiveDebate(apiUrl, query, responseStyle) {
-  const [liveData, setLiveData] = useState(null);
-  const [liveError, setLiveError] = useState(null);
-  const stateRef = useRef(null);
-  const startedRef = useRef(false);
-
-  useEffect(() => {
-    if (!apiUrl || !query) return;
-    startedRef.current = false;
-    stateRef.current = null;
-    setLiveData(null);
-    setLiveError(null);
-    const controller = new AbortController();
-
-    async function connect() {
-      if (startedRef.current) return;
-      startedRef.current = true;
-      try {
-        const token =
-          (typeof localStorage !== "undefined" && localStorage.getItem("polynous_token")) ||
-          (typeof window !== "undefined" && window.__POLYNOUS_ACCESS_TOKEN__) || "";
-        const res = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ query, response_style: responseStyle || "" }),
-          signal: controller.signal,
-        });
-        if (!res.ok) { setLiveError(`Server returned ${res.status}`); return; }
-        if (!res.body) { setLiveError("No stream body"); return; }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop();
-          for (const part of parts) {
-            const dataLine = part.split("\n").find((l) => l.startsWith("data:"));
-            if (!dataLine) continue;
-            let event;
-            try { event = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
-            if (event && typeof event.error === "string") { setLiveError(event.error); continue; }
-            const next = deepMerge(stateRef.current || DEFAULT_DATA, event);
-            stateRef.current = next;
-            setLiveData({ ...next });
-          }
-        }
-      } catch (err) {
-        if (err.name === "AbortError") return;
-        setLiveError(err.message || "Stream connection failed.");
-      }
-    }
-    connect();
-    return () => controller.abort();
-  }, [apiUrl, query, responseStyle]);
-
-  return { liveData, liveError };
-}
-
-function useTypewriter(fullText, cps = 120) {
-  const [revealed, setRevealed] = useState(0);
-  const revealedRef = useRef(0);
-  const textRef = useRef("");
-  useEffect(() => {
-    const text = fullText || "";
-    if (!text.startsWith(textRef.current.slice(0, revealedRef.current))) {
-      revealedRef.current = 0;
-      setRevealed(0);
-    }
-    textRef.current = text;
-    if (revealedRef.current >= text.length) return undefined;
-    let raf;
-    let last = performance.now();
-    const step = (now) => {
-      const chars = ((now - last) / 1000) * cps;
-      if (chars >= 1) {
-        last = now;
-        revealedRef.current = Math.min(text.length, revealedRef.current + Math.floor(chars));
-        setRevealed(revealedRef.current);
-      }
-      if (revealedRef.current < text.length) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [fullText, cps]);
-  const text = fullText || "";
-  return { visibleText: text.slice(0, revealed), typing: revealed < text.length };
-}
 
 // ── Small building blocks ────────────────────────────────────────────────────
 // Per-bar hover tooltips explain WHAT each bar is, not just its value.
@@ -438,7 +328,7 @@ function AdvocatePanel({ side, panel, accent, topClass, delayClass, onInfo, regi
 
 // ── Main component ───────────────────────────────────────────────────────────
 export default function DebateEngine({ apiUrl, query, responseStyle, onComplete, onError }) {
-  const { liveData, liveError } = useLiveDebate(apiUrl, query, responseStyle);
+  const { liveData, liveError } = useLiveStream(apiUrl, query, { responseStyle, defaultData: DEFAULT_DATA });
   const [infoOpen, setInfoOpen] = useState(null);
 
   const data = useMemo(() => deepMerge(DEFAULT_DATA, liveData || {}), [liveData]);
