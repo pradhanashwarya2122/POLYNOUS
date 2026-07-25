@@ -1,0 +1,25 @@
+// Research surface palette (Phase 7 — extracted verbatim from
+// ResearchInterface; identical hex values, shared with the report module).
+export const C = {
+  green:              "#00ff47",
+  greenDim:           "rgba(0,255,71,0.15)",
+  greenGlow:          "rgba(0,255,71,0.3)",
+  greenGlow10:        "rgba(0,255,71,0.1)",
+  greenGlow08:        "rgba(0,255,71,0.08)",
+  cyan:               "#00ccff",
+  crimson:            "#ff2040",
+  amber:              "#ffaa00",
+  gold:               "#ffd700",
+  purple:             "#a855f7",
+  void:               "#0a0a1e",
+  sidebar:            "#010f1f",
+  panel:              "#0d1c2d",
+  card:               "#122131",
+  surface:            "#111125",
+  surfaceContainer:   "#1e1e32",
+  onSurface:          "#d4e4fa",
+  onSurfaceVariant:   "#84967f",
+  textSecondary:      "#8899aa",
+  white10:            "rgba(255,255,255,0.1)",
+  white5:             "rgba(255,255,255,0.05)",
+};
