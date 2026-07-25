@@ -339,6 +339,13 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass  # user stays None → guest policy below
 
+    # ── ENFORCE the user's saved Research Preferences server-side: if the
+    #    request didn't specify a response style, fall back to the account's
+    #    saved default so the preference actually takes effect regardless of
+    #    what the client sends.
+    if not response_style and user is not None:
+        response_style = (getattr(user, "preferences", None) or {}).get("response_style", "") or ""
+
     # ── SECURITY GUARD: authed users MUST use their own key; guests get an
     #    explicit rate-limited allowance — never a silent system-key charge.
     provider, user_api_key, key_error = _resolve_stream_key(
@@ -590,6 +597,10 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
                             break
         except Exception:
             pass  # user stays None → guest policy below
+
+    # Enforce the account's saved response-style preference when unspecified.
+    if not response_style and user is not None:
+        response_style = (getattr(user, "preferences", None) or {}).get("response_style", "") or ""
 
     # ── SECURITY GUARD: same policy as /ask-visual.
     provider, user_api_key, key_error = _resolve_stream_key(
