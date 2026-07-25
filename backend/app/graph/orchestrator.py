@@ -458,8 +458,13 @@ def critic_node(state: AgentState) -> AgentState:
     state['current_agent'] = 'critic'
     _critic_start = time.perf_counter()
 
-    # Get user's preferred provider (default to anthropic)
-    provider = state.get('provider', 'anthropic')
+    # Resolve provider the SAME way every other node does. 'provider' is NOT a
+    # declared AgentState key, so LangGraph strips it between nodes — reading
+    # state['provider'] here silently fell back to 'anthropic', making the
+    # critic call Anthropic with a non-Anthropic key and fail every run
+    # ("invalid key" on the research page). _get_provider reads the declared
+    # 'preferred_provider' key, which survives.
+    provider = _get_provider(state)
     emit = make_emitter(state, "Critic")
     emit(f"Comparing claims across {len(state.get('summaries') or [])} summaries…",
          {"agents": {"Critic": {"progress": 40, "phase": {"label": "Critiquing", "sub": "LLM analysing claims…"}}}})
