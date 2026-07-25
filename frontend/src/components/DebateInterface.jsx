@@ -814,7 +814,6 @@ function TribunalCard({ icon, iconColor, title, right, children, delay = 0, acce
 // Shown between the topic banner and the podiums
 function PreVerdictStrips({ verdict, debate }) {
   const [framingOpen, setFramingOpen] = useState(true);
-  const [steelOpen, setSteelOpen] = useState(false);
   const framing = verdict?.framing_check;
   const steel = debate?.steelman;
   const hasSteel = steel && (steel.for_restates_against || steel.against_restates_for);
@@ -831,12 +830,11 @@ function PreVerdictStrips({ verdict, debate }) {
         </TribunalCard>
       )}
       {hasSteel && (
-        <TribunalCard icon="handshake" iconColor="#10e0a0" title="Steelman Check" accent="rgba(16,224,160,0.2)"
-          right={<button onClick={() => setSteelOpen(o => !o)} style={{ background: "none", border: "none", color: "#10e0a0", cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>{steelOpen ? "▲ collapse" : "▶ view restatements"}</button>}>
+        <TribunalCard icon="handshake" iconColor="#10e0a0" title="Steelman Check" accent="rgba(16,224,160,0.2)">
           <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
             Before arguing, each side was required to restate the opponent's strongest point fairly.
           </p>
-          {steelOpen && (
+          {(
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
               {[["FOR restates AGAINST", steel.for_restates_against, C.green],
                 ["AGAINST restates FOR", steel.against_restates_for, C.crimson]].map(([label, text, col]) => (
