@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { deepMerge } from "./shared/deepMerge";
+import { useTypewriter } from "./shared/useTypewriter";
+import { useLiveStream } from "./shared/useLiveStream";
 import * as THREE from 'three';
 
 // ============================================================================
@@ -401,175 +404,6 @@ const DEFAULT_DATA = {
   suggestions: [],
 };
 
-function deepMerge(base, override) {
-  if (!override) return base;
-  const out = Array.isArray(base) ? [...base] : { ...base };
-  Object.keys(override).forEach((k) => {
-    if (
-      override[k] !== null &&
-      typeof override[k] === "object" &&
-      !Array.isArray(override[k]) &&
-      base != null &&
-      typeof base[k] === "object" &&
-      !Array.isArray(base[k])
-    ) {
-      out[k] = deepMerge(base[k], override[k]);
-    } else {
-      out[k] = override[k];
-    }
-  });
-  return out;
-}
-
-function useLiveResearch(apiUrl, query, responseStyle, forceFresh = false) {
-  const [liveData,  setLiveData]  = useState(null);
-  const [liveError, setLiveError] = useState(null);
-
-  const stateRef   = useRef(null);
-  const cancelRef  = useRef(false);
-  const startedRef = useRef(false);
-
-  useEffect(() => {
-    if (!apiUrl || !query) return;
-
-    cancelRef.current  = false;
-    startedRef.current = false;
-    stateRef.current   = null;
-    setLiveData(null);
-    setLiveError(null);
-
-    const controller = new AbortController();
-
-    async function connect() {
-      if (startedRef.current) return;
-      startedRef.current = true;
-
-      try {
-        const token =
-          (typeof localStorage !== "undefined" && localStorage.getItem("polynous_token")) ||
-          (typeof window !== "undefined" && window.__POLYNOUS_ACCESS_TOKEN__) ||
-          "";
-
-        const res = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ query, response_style: responseStyle || "", force_fresh: !!forceFresh }),
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          setLiveError(`Server returned ${res.status}: ${res.statusText}`);
-          return;
-        }
-        if (!res.body) {
-          setLiveError("Response body is empty — the server may not support streaming.");
-          return;
-        }
-
-        const reader  = res.body.getReader();
-        const decoder = new TextDecoder();
-        let   buffer  = "";
-
-        while (!cancelRef.current) {
-          let chunk;
-          try {
-            chunk = await reader.read();
-          } catch (readErr) {
-            break;
-          }
-
-          const { value, done } = chunk;
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop();
-
-          for (const part of parts) {
-            const dataLine = part
-              .split("\n")
-              .find((l) => l.startsWith("data:"));
-            if (!dataLine) continue;
-
-            const jsonStr = dataLine.slice(5).trim();
-            if (!jsonStr) continue;
-
-            let event;
-            try {
-              event = JSON.parse(jsonStr);
-            } catch {
-              continue;
-            }
-
-            if (event && typeof event.error === "string") {
-              setLiveError(`Agent error: ${event.error}`);
-              continue;
-            }
-
-            const next = deepMerge(stateRef.current || DEFAULT_DATA, event);
-            stateRef.current = next;
-            setLiveData({ ...next });
-          }
-        }
-      } catch (err) {
-        if (err.name === "AbortError") return;
-        console.error("Live research stream error:", err);
-        setLiveError(err.message || "Stream connection failed.");
-      }
-    }
-
-    connect();
-
-    return () => {
-      cancelRef.current = false;
-      startedRef.current = false;
-      controller.abort();
-    };
-  }, [apiUrl, query, responseStyle, forceFresh]);
-
-  return { liveData, liveError };
-}
-
-// ── Smooth character-by-character typewriter (rAF-driven) ────────────────────
-// Reveals ~`cps` characters per second; keeps the revealed count when the
-// text grows so re-renders/patches never restart the animation.
-function useTypewriter(fullText, cps = 110) {
-  const [revealed, setRevealed] = useState(0);
-  const revealedRef = useRef(0);
-  const textRef = useRef("");
-
-  useEffect(() => {
-    const text = fullText || "";
-    // Brand-new text (not an extension of the old one) restarts the reveal.
-    if (!text.startsWith(textRef.current.slice(0, revealedRef.current))) {
-      revealedRef.current = 0;
-      setRevealed(0);
-    }
-    textRef.current = text;
-    if (revealedRef.current >= text.length) return undefined;
-
-    let raf;
-    let last = performance.now();
-    const step = (now) => {
-      const chars = ((now - last) / 1000) * cps;
-      if (chars >= 1) {
-        last = now;
-        revealedRef.current = Math.min(text.length, revealedRef.current + Math.floor(chars));
-        setRevealed(revealedRef.current);
-      }
-      if (revealedRef.current < text.length) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [fullText, cps]);
-
-  const text = fullText || "";
-  return { visibleText: text.slice(0, revealed), typing: revealed < text.length };
-}
 
 // What each real-data graph actually plots, shown under the bars.
 const SIGNAL_MEANING = {
@@ -685,7 +519,7 @@ const RING_R = 20;
 const RING_C = 2 * Math.PI * RING_R;
 
 export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, responseStyle, streaming = true, forceFresh = false, onComplete, onError }) {
-  const { liveData, liveError } = useLiveResearch(apiUrl, query, responseStyle, forceFresh);
+  const { liveData, liveError } = useLiveStream(apiUrl, query, { responseStyle, defaultData: DEFAULT_DATA, extraBody: { force_fresh: !!forceFresh }, deps: [forceFresh] });
   const [errorDismissed, setErrorDismissed] = useState(false);
   const [infoOpen, setInfoOpen] = useState(null);
 
