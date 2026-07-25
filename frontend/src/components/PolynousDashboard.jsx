@@ -1137,38 +1137,22 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
       if (activityData[date] !== undefined) activityData[date]++;
     }
   });
-  const hasRealActivity = history.some(h => h.timestamp);
-  if (!hasRealActivity && window.location.hostname === 'localhost') {
-    for (let i = 89; i >= 0; i--) {
-      const d = new Date(now); d.setDate(d.getDate() - i);
-      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      activityData[label] = Math.max(0, Math.floor(Math.sin(i * 0.4) * 3 + Math.random() * 4));
-    }
-  }
-
+  // Honest data only — no fabricated activity/topics. Empty history → empty
+  // charts (the components show their own "no data yet" state).
   const topicFreq = {};
   history.forEach(h => {
     (h.query || '').toLowerCase().replace(/[?.,!]/g, '').split(' ')
       .filter(w => w.length > 4 && !['what', 'how', 'does', 'work', 'that', 'this', 'they', 'with', 'from', 'about', 'which', 'their'].includes(w))
       .forEach(w => { topicFreq[w] = (topicFreq[w] || 0) + 1; });
   });
-  if (Object.keys(topicFreq).length === 0 && window.location.hostname === 'localhost') {
-    topicFreq['Quantum'] = 5; topicFreq['Computing'] = 4; topicFreq['Climate'] = 3;
-    topicFreq['Fermi'] = 3; topicFreq['Neural'] = 2; topicFreq['Cosmos'] = 2;
-    topicFreq['Entropy'] = 2; topicFreq['Biology'] = 1; topicFreq['Relativity'] = 1;
-    topicFreq['Topology'] = 1;
-  }
 
   const highCount = history.filter(h => (h.confidence || 0) >= 80).length;
   const mediumCount = history.filter(h => (h.confidence || 0) >= 60 && (h.confidence || 0) < 80).length;
   const lowCount = history.filter(h => (h.confidence || 0) < 60).length;
   const confDist = useMemo(() => ({ high: highCount || 0, medium: mediumCount || 0, low: lowCount || 0 }), [highCount, mediumCount, lowCount]);
 
-  const hourlyData = history.length > 0 ? {} : {
-    'Mon': { '9': 1, '10': 2, '14': 1 }, 'Tue': { '11': 1, '15': 2 },
-    'Wed': { '9': 1, '13': 1, '16': 3 }, 'Thu': { '10': 2, '14': 1 },
-    'Fri': { '9': 1, '11': 2, '15': 1 }, 'Sat': { '12': 1 }, 'Sun': { '16': 1 }
-  };
+  // Real per-day-hour activity from history only — never hardcoded.
+  const hourlyData = {};
   history.forEach(h => {
     if (h.timestamp) {
       const d = new Date(h.timestamp);

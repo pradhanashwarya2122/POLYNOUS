@@ -334,16 +334,32 @@ Judge and return JSON:"""
 
     try:
         client, client_type = _get_client(provider, api_key)
+        from app.utils.json_extract import extract_json_object
         raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, user_prompt,
                                MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model,
                                usage=usage_sink, stage="judge", provider=provider)
         # Robust extraction (same brace-matching machinery critic/writer use) —
         # tolerates ```json fences, prose around the JSON, smart quotes, etc.
-        from app.utils.json_extract import extract_json_object
         llm = extract_json_object(raw)
+
+        # Self-repair: one corrective retry if the model wrapped/omitted JSON or
+        # returned nothing — mirrors critic/writer so a single bad completion
+        # doesn't collapse the whole verdict to UNSCORED.
+        if not isinstance(llm, dict):
+            corrective = (
+                f"{user_prompt}\n\nIMPORTANT: your previous reply could not be parsed as JSON"
+                + (" (it was empty)." if not (raw or "").strip() else ".")
+                + " Respond again with ONLY the raw JSON object — first character '{', "
+                "last character '}', no prose, no code fences."
+            )
+            raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, corrective,
+                                   MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model,
+                                   usage=usage_sink, stage="judge", provider=provider)
+            llm = extract_json_object(raw)
+
         if not isinstance(llm, dict):
             raise ValueError(
-                "judge returned no parseable JSON"
+                "judge returned no parseable JSON after retry"
                 + (" (empty response — check the provider/API key)" if not (raw or "").strip() else "")
             )
 
@@ -360,12 +376,16 @@ Judge and return JSON:"""
         # margin label computed from the real score gap, never LLM-invented
         margin = "split" if gap < 0.5 else ("close" if gap < 1.0 else ("clear" if gap < 2.0 else "decisive"))
 
+        follow_ups = [q for q in (llm.get("follow_up_questions") or []) if isinstance(q, str) and q.strip()][:4]
+        if not follow_ups:
+            follow_ups = _fallback_follow_ups(query)
+
         verdict.update({
             "margin": margin,
             "judge_certainty": max(0, min(100, int(llm.get("certainty", 0) or 0))),
             "framing_check": llm.get("framing_check") or None,
             "minority_report": llm.get("minority_report") or None,
-            "follow_up_questions": [q for q in (llm.get("follow_up_questions") or []) if isinstance(q, str)][:4],
+            "follow_up_questions": follow_ups,
             "winner": winner,
             "for_score": for_score,
             "against_score": against_score,
@@ -392,5 +412,19 @@ Judge and return JSON:"""
             "strongest_point": "N/A",
             "best_rebuttal": "N/A",
             "scoring": "computed evidence rubric only (judge LLM failed)",
+            # Even when the judge can't score, give the reader somewhere to go.
+            "follow_up_questions": _fallback_follow_ups(query),
         })
         return verdict
+
+
+def _fallback_follow_ups(query: str) -> list:
+    """Deterministic, on-topic follow-up questions when the judge doesn't
+    supply its own — derived from the proposition, never fabricated verdict
+    content. Keeps the report's 'next questions' section useful."""
+    q = (query or "this proposition").strip().rstrip("?.")
+    return [
+        f"What real-world evidence would most change your view on whether {q.lower()}?",
+        f"Which stakeholders are most affected by {q.lower()}, and how does that shift the trade-offs?",
+        f"Under what conditions or timeframe would the stronger side of '{q}' flip?",
+    ]
