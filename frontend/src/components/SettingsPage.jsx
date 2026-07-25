@@ -81,7 +81,7 @@ const api = {
 
   getProfile:    ()     => safeFetch('/auth/me'),
   updateProfile: (data) => safeFetch('/auth/me', { method: "PUT", body: JSON.stringify(data) }),
-  changePassword: (data) => safeFetch('/auth/change-password', { method: "POST", body: JSON.stringify(data) }),
+  changePassword: (data) => safeFetch('/auth/change-password', { method: "PUT", body: JSON.stringify(data) }),
   revokeAllSessions: () => safeFetch('/auth/revoke-sessions', { method: "POST" }),
   deleteAccount: ()     => safeFetch('/auth/me', { method: "DELETE" }),
 
@@ -2000,6 +2000,23 @@ function SecuritySection({ push }) {
           </div>
         ))}
       </div>
+      {/* What each control does + how your data is protected */}
+      <div style={{ background: C.silverFaint, border: `1px solid ${C.silverBorder}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", flexDirection: "column", gap: 9 }}>
+        {[
+          ["key", "Change Password", "Update the password you sign in with. It's checked against your current password, must meet strength rules, and every device is signed out afterward — you'll log in again with the new one."],
+          ["logout", "Revoke All Sessions", "Instantly sign out everywhere by invalidating all existing access tokens. Use this if a device is lost or you suspect someone else has access."],
+          ["lock", "Your keys & password", "API keys are encrypted per-account with a key only you unlock — they're shown masked and never in full, not even to POLYNOUS staff. Your password is stored only as a salted one-way hash and can't be viewed by anyone."],
+        ].map(([icon, title, body]) => (
+          <div key={title} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
+            <Icon name={icon} style={{ fontSize: 16, color: C.cyan, marginTop: 2, flexShrink: 0 }} />
+            <div>
+              <span style={{ fontFamily: C.fontHead, fontSize: 13, fontWeight: 700, color: C.onSurface }}>{title}</span>
+              <span style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55 }}> — {body}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={() => setShowPwModal(true)} style={{ padding: "9px 20px", borderRadius: 9999, border: `1px solid ${C.white10}`, background: "transparent", color: C.onSurface, cursor: "pointer", fontFamily: C.fontHead, fontSize: 14, fontWeight: 500, transition: "all 0.18s" }}
           onMouseEnter={e => { e.currentTarget.style.background = C.silverFaint; e.currentTarget.style.borderColor = C.silverBorder; }}
