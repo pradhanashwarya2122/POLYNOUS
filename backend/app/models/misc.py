@@ -66,3 +66,27 @@ class ResearchCache(Base):
     __table_args__ = (
         Index("ix_research_cache_lookup", "user_id", "query_hash", "provider"),
     )
+
+
+class UsageLog(Base):
+    """Append-only per-run token/cost record so the Settings page can show a
+    user their real credit usage broken down by mode (research vs debate).
+    One row per completed, non-cached run. All numbers come straight from the
+    Phase-6 telemetry — never fabricated; cost is an estimate."""
+    __tablename__ = "usage_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)   # public_id or 'guest'
+    mode = Column(String(20), nullable=False)              # "research" | "debate"
+    provider = Column(String(30), nullable=True)
+    model = Column(String(80), nullable=True)
+    query = Column(Text, nullable=True)                    # topic/query for the run
+    calls = Column(Integer, default=0)
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+    estimated_cost_usd = Column(JSON, nullable=True)       # float | null (null = unpriced)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        Index("ix_usage_logs_user_mode", "user_id", "mode"),
+    )
