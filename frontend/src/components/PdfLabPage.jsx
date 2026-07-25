@@ -71,6 +71,11 @@ button{cursor:pointer;font-family:'Inter',sans-serif}
 .cta-primary:hover{filter:brightness(1.12);transform:translateY(-3px);box-shadow:0 10px 36px rgba(255,214,10,0.38)!important}
 .cta-secondary{transition:background 0.2s,border-color 0.2s,transform 0.2s,color 0.2s}
 .cta-secondary:hover{background:rgba(255,214,10,0.09)!important;border-color:rgba(255,214,10,0.4)!important;color:${T.gold}!important;transform:translateY(-3px)}
+/* "How PDF RAG works" — stack on narrow screens so the live-preview viz never squishes to nothing */
+@media (max-width: 760px){
+  .rag-steps-grid{grid-template-columns:repeat(2,1fr)!important}
+  .rag-viz-grid{grid-template-columns:1fr!important}
+}
 `;
 
 // ─── Security constants (from PdfUpload) ──────────────────────────────────────
@@ -584,7 +589,7 @@ function HowItWorks() {
         }}>{playing ? "⏸ Pause" : "▶ Play"}</button>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:22 }}>
+      <div className="rag-steps-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:22 }}>
         {PIPELINE.map((s, i) => (
           <div key={s.id} className="rag-step" onClick={() => handleStepClick(i)} style={{
             background: active===i ? s.colBg : "rgba(255,255,255,0.02)",
@@ -604,7 +609,7 @@ function HowItWorks() {
         ))}
       </div>
 
-      <div key={`${active}-${vizKey}`} style={{
+      <div key={`${active}-${vizKey}`} className="rag-viz-grid" style={{
         display:"grid", gridTemplateColumns:"1fr 1fr", gap:20,
         background: step.colBg, border:`1px solid ${step.colBorder}`,
         borderRadius:16, padding:"22px 24px",
