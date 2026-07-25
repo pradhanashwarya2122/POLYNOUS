@@ -27,7 +27,7 @@ from app.utils.encryption import decrypt_api_key
 from app.utils.sanitizer import sanitize_query, is_safe_input
 from app.state import AgentState
 from app.chat_history import save_chat, save_debate
-from app.llm_providers import resolve_model
+from app.llm_providers import resolve_model, LLM_PROVIDERS
 from app.routes.auth import decode_token
 from app.graph.orchestrator import orchestrator, RESEARCH_NODE_TO_PANEL, RESEARCH_NODE_PHASE
 from app.graph.debate_graph import (
@@ -476,6 +476,13 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         except Exception as e:
             print(f"⚠️ research_cache store failed: {e}")
 
+        # ── Log real token/cost usage for the Settings credits view ──
+        try:
+            from app.services import usage_log as _ul
+            _ul.record_run(db, cache_user_id, "research", telemetry, query=query)
+        except Exception as e:
+            print(f"⚠️ usage_log record failed: {e}")
+
         # Persist chat history — honours the user's Auto-save preference.
         auto_save = True
         if user is not None:
@@ -665,8 +672,17 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
         final_patch = build_debate_patch(state, 'Final', time.time() - start_time)
         final_patch["judge_track_record"] = track_record
         from app.utils.usage import summarize_usage
-        final_patch["telemetry"] = summarize_usage(state.get("usage"))
+        telemetry = summarize_usage(state.get("usage"))
+        final_patch["telemetry"] = telemetry
         yield f"data: {json.dumps(final_patch)}\n\n"
+
+        # ── Log real token/cost usage for the Settings credits view ──
+        try:
+            from app.services import usage_log as _ul
+            _dbg_uid = getattr(user, "public_id", None) or "guest"
+            _ul.record_run(db, _dbg_uid, "debate", telemetry, query=query)
+        except Exception as e:
+            print(f"⚠️ usage_log record failed (debate): {e}")
 
     return StreamingResponse(
         event_stream(),

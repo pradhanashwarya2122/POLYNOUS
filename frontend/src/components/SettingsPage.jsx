@@ -77,6 +77,8 @@ const api = {
   getPreferences:  ()      => safeFetch('/settings/preferences'),
   savePreferences: (prefs) => safeFetch('/settings/preferences', { method: "PUT", body: JSON.stringify(prefs) }),
 
+  getUsage:        ()      => safeFetch('/settings/usage'),
+
   getProfile:    ()     => safeFetch('/auth/me'),
   updateProfile: (data) => safeFetch('/auth/me', { method: "PUT", body: JSON.stringify(data) }),
   changePassword: (data) => safeFetch('/auth/change-password', { method: "POST", body: JSON.stringify(data) }),
@@ -2089,6 +2091,115 @@ function DangerZone({ push }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────────────────────────
+// ── Usage & Credits — real per-run token/cost usage, research vs debate ──────
+function UsageSection({ push }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true); setLoadErr(null);
+    api.getUsage()
+      .then(setData)
+      .catch((e) => setLoadErr(e.message || "Could not load usage"))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : "0");
+  const fmtCost = (usd, partial) =>
+    typeof usd === "number" ? `${partial ? "~" : ""}$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : "—";
+  const timeAgo = (iso) => {
+    if (!iso) return "";
+    // Backend stores naive UTC; append 'Z' so the browser doesn't read it as local.
+    const norm = /[Z+]/.test(iso.slice(10)) ? iso : iso + "Z";
+    const s = Math.max(0, (Date.now() - new Date(norm).getTime()) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  };
+
+  if (loading) return <Card><SectionHead icon="monitoring" title="Usage & Credits" subtitle="Real token spend on your own keys" /><Spinner /></Card>;
+  if (loadErr) return <Card><SectionHead icon="monitoring" title="Usage & Credits" subtitle="Real token spend on your own keys" /><ErrorBanner msg={loadErr} onRetry={load} /></Card>;
+
+  const bm = data?.by_mode || { research: {}, debate: {} };
+  const totals = data?.totals || {};
+  const recent = data?.recent || [];
+
+  const ModeCard = ({ label, icon, accent, m }) => (
+    <div style={{ flex: 1, minWidth: 200, background: C.silverFaint, border: `1px solid ${C.silverBorder}`, borderRadius: 14, padding: "18px 20px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <Icon name={icon} style={{ fontSize: 17, color: accent }} />
+        <span style={{ fontFamily: C.fontHead, fontSize: 14, fontWeight: 700, color: C.onSurface }}>{label}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 10px" }}>
+        {[
+          ["Runs", m.runs || 0],
+          ["LLM calls", m.calls || 0],
+          ["Tokens", fmtTok(m.total_tokens)],
+          ["Est. cost", fmtCost(m.estimated_cost_usd, m.cost_is_partial)],
+        ].map(([k, v]) => (
+          <div key={k}>
+            <div style={{ fontFamily: C.fontMono, fontSize: 9.5, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3 }}>{k}</div>
+            <div style={{ fontFamily: C.fontHead, fontSize: 18, fontWeight: 700, color: k === "Est. cost" ? accent : C.onSurface }}>{v}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <Card>
+      <SectionHead icon="monitoring" title="Usage & Credits" subtitle="Real token spend on your own keys · research vs debate" />
+
+      {!data?.available ? (
+        <div style={{ textAlign: "center", padding: "24px 12px", color: C.onSurfaceVariant, fontFamily: C.fontBody, fontSize: 14 }}>
+          No runs recorded yet. Your token and estimated-cost usage will appear here after your first research or debate.
+        </div>
+      ) : (
+        <>
+          {/* research vs debate side by side */}
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+            <ModeCard label="Research" icon="psychology" accent={C.green} m={bm.research || {}} />
+            <ModeCard label="Debate" icon="forum" accent={C.crimson} m={bm.debate || {}} />
+          </div>
+
+          {/* combined total */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, padding: "14px 18px", background: C.silverFaint, border: `1px solid ${C.silverBorder}`, borderRadius: 12, marginBottom: recent.length ? 18 : 0 }}>
+            <span style={{ fontFamily: C.fontMono, fontSize: 11, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "0.14em" }}>
+              Total · {totals.runs || 0} runs · {fmtTok(totals.total_tokens)} tokens
+            </span>
+            <span style={{ fontFamily: C.fontHead, fontSize: 20, fontWeight: 700, color: C.cyan }}>
+              {fmtCost(totals.estimated_cost_usd, totals.cost_is_partial)} <span style={{ fontFamily: C.fontMono, fontSize: 10, color: C.textSecondary }}>est.</span>
+            </span>
+          </div>
+
+          {recent.length > 0 && (
+            <div>
+              <div style={{ fontFamily: C.fontMono, fontSize: 10, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>Recent runs</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {recent.map((r, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: C.silverFaint, borderRadius: 10, fontFamily: C.fontMono, fontSize: 11.5 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: r.mode === "debate" ? C.crimson : C.green, flexShrink: 0 }} />
+                    <span style={{ flex: 1, color: C.onSurface, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.query || r.mode}</span>
+                    <span style={{ color: C.textSecondary, flexShrink: 0 }}>{fmtTok(r.total_tokens)} tok</span>
+                    <span style={{ color: C.cyan, flexShrink: 0, width: 64, textAlign: "right" }}>{fmtCost(r.estimated_cost_usd)}</span>
+                    <span style={{ color: C.textSecondary, flexShrink: 0, width: 60, textAlign: "right" }}>{timeAgo(r.created_at)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <p style={{ fontFamily: C.fontMono, fontSize: 9.5, color: C.textSecondary, marginTop: 14, lineHeight: 1.6 }}>
+            Costs are estimates from public list prices and may differ from your provider bill. Tokens are the real counts your provider reported.
+          </p>
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function SettingsPage({ user, onNavigate, onLogout }) {
   const [collapsed, setCollapsed] = useState(false);
   const { toasts, push } = useToast();
@@ -2143,6 +2254,7 @@ export default function SettingsPage({ user, onNavigate, onLogout }) {
           onPersonaChange={handlePersonaChange}
         />
         <ApiKeysSection                   push={push} />
+        <UsageSection                     push={push} />
         <PreferencesSection               push={push} />
         <IntegrationsSection              push={push} />
         <SecuritySection                  push={push} />
