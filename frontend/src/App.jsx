@@ -2,6 +2,7 @@ import SettingsPage from './components/SettingsPage'
 import ProfileSetup from './components/ProfileSetup'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import SmoothCursor from './components/SmoothCursor';
 
 // Page imports
 import GraphFeatureShowcase from './components/GraphFeatureShowcase'
@@ -230,6 +231,7 @@ export default function App() {
   // ═══════════════════════════════════════════════════════════
   return (
     <Router>
+      <SmoothCursor />
       <Routes>
         {/* ── PUBLIC ROUTES ─────────────────────────────── */}
         <Route 
