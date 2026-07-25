@@ -78,6 +78,7 @@ const api = {
   savePreferences: (prefs) => safeFetch('/settings/preferences', { method: "PUT", body: JSON.stringify(prefs) }),
 
   getUsage:        ()      => safeFetch('/settings/usage'),
+  getAdminUsers:   ()      => safeFetch('/admin/users'),
 
   getProfile:    ()     => safeFetch('/auth/me'),
   updateProfile: (data) => safeFetch('/auth/me', { method: "PUT", body: JSON.stringify(data) }),
@@ -2217,6 +2218,82 @@ function UsageSection({ push }) {
   );
 }
 
+// ── Admin — owner-only user-base overview. Self-hides for non-admins (the
+//    backend returns 403 unless the account's email is in ADMIN_EMAILS).
+//    Never shows passwords or API keys — only presence + security guarantees.
+function AdminSection({ push }) {
+  const [data, setData] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(null);   // null = unknown, false = hide
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getAdminUsers()
+      .then((d) => { setData(d); setIsAdmin(true); })
+      .catch((e) => { setIsAdmin(e.status === 403 ? false : false); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return null;
+  if (!isAdmin || !data) return null;   // non-admins never see this section
+
+  const t = data.totals || {};
+  const users = data.users || [];
+  const fmtDate = (iso) => (iso ? new Date(/[Z+]/.test(iso.slice(10)) ? iso : iso + "Z").toLocaleDateString() : "—");
+
+  return (
+    <Card>
+      <SectionHead icon="admin_panel_settings" title="Admin · User Base" subtitle="Owner-only · passwords & keys never exposed" />
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        {[["Total users", t.users], ["Active", t.active], ["Active (7d)", t.recently_active_7d]].map(([k, v]) => (
+          <div key={k} style={{ flex: 1, minWidth: 130, background: C.silverFaint, border: `1px solid ${C.silverBorder}`, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ fontFamily: C.fontMono, fontSize: 9.5, color: C.textSecondary, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>{k}</div>
+            <div style={{ fontFamily: C.fontHead, fontSize: 24, fontWeight: 800, color: C.cyan }}>{v ?? 0}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 9, background: "rgba(94,201,126,0.06)", border: "1px solid rgba(94,201,126,0.22)", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
+        <Icon name="verified_user" style={{ fontSize: 16, color: C.green, marginTop: 1, flexShrink: 0 }} />
+        <span style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55 }}>
+          Passwords are salted one-way hashes — unreadable by anyone, including you. API keys are encrypted per-account and never returned here; only which providers each user configured is shown.
+        </span>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: C.fontMono, fontSize: 11.5 }}>
+          <thead>
+            <tr style={{ color: C.textSecondary, textAlign: "left" }}>
+              {["User", "Tier", "Keys", "Joined", "Last login"].map((h, i) => (
+                <th key={h} style={{ padding: "7px 10px", fontWeight: 600, textAlign: i >= 2 ? "right" : "left" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.public_id} style={{ borderTop: `1px solid ${C.white10}`, color: "#cfe" }}>
+                <td style={{ padding: "8px 10px", color: "#fff", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {u.email}{!u.is_active && <span style={{ color: C.crimson, marginLeft: 6 }}>(inactive)</span>}
+                </td>
+                <td style={{ padding: "8px 10px", color: C.textSecondary }}>{u.tier}</td>
+                <td style={{ padding: "8px 10px", textAlign: "right", color: u.key_count ? C.green : C.textSecondary }}
+                    title={(u.providers_configured || []).join(", ") || "no keys configured"}>
+                  {u.key_count}{u.key_count ? " 🔒" : ""}
+                </td>
+                <td style={{ padding: "8px 10px", textAlign: "right", color: C.textSecondary }}>{fmtDate(u.created_at)}</td>
+                <td style={{ padding: "8px 10px", textAlign: "right", color: C.textSecondary }}>{fmtDate(u.last_login)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p style={{ fontFamily: C.fontMono, fontSize: 9.5, color: C.textSecondary, marginTop: 12, lineHeight: 1.6 }}>
+        {data.logged_in_note}
+      </p>
+    </Card>
+  );
+}
+
 export default function SettingsPage({ user, onNavigate, onLogout }) {
   const [collapsed, setCollapsed] = useState(false);
   const { toasts, push } = useToast();
@@ -2275,6 +2352,7 @@ export default function SettingsPage({ user, onNavigate, onLogout }) {
         <PreferencesSection               push={push} />
         <IntegrationsSection              push={push} />
         <SecuritySection                  push={push} />
+        <AdminSection                     push={push} />
         <DangerZone                       push={push} />
       </main>
 

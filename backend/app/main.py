@@ -33,6 +33,7 @@ from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversations_router
 from app.routes.research_stream import router as research_stream_router
 from app.routes.system import router as system_router
+from app.routes.admin import router as admin_router
 
 load_dotenv()
 
@@ -147,6 +148,7 @@ app.include_router(memory_router)
 app.include_router(pdfs_router)
 app.include_router(research_stream_router)
 app.include_router(system_router)
+app.include_router(admin_router)
 register_exception_handlers(app)
 
 
