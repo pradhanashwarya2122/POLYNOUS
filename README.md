@@ -108,6 +108,7 @@ Fully multi-user. Cryptographic data isolation. Bring-your-own API keys. Live kn
 - [Testing](#testing)
 - [Deployment](#deployment)
 - [Roadmap](#roadmap)
+- [The Compounding Loop](#the-compounding-loop)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -161,6 +162,9 @@ POLYNOUS doesn't look like a SaaS dashboard. It looks like a neural interface.
 | **Knowledge as constellation** | Semantic search renders results as a star map — brighter stars mean higher similarity scores |
 | **Glassmorphic cards** | Research reports and debate verdicts use translucent blurred containers with synapse-dot corner accents |
 | **Typography** | JetBrains Mono for data and code; Sora for display — deliberately technical, not rounded SaaS |
+| **Route skeletons** | Full-page navigations paint a per-route skeleton that mirrors the destination layout (sidebar + content), theme-tinted per page — on the app's own dark background, never a white flash |
+| **Smooth cursor** | A spring-following arrow pointer that rotates toward motion and replaces the native cursor on fine-pointer devices; auto-disabled for touch and reduced-motion |
+| **Living suggestions** | Research and Debate topic decks auto-shuffle through a large pool with a staggered crossfade, each suggestion carrying its own topical icon |
 
 ---
 
@@ -253,6 +257,26 @@ Drag-and-drop upload with a multi-stage security validation pipeline: file signa
 ### Settings & Key Vault
 
 Bring-your-own API keys for Anthropic, OpenAI, and Tavily — POLYNOUS uses them instead of system keys. Keys encrypted at rest with Fernet (AES-128-CBC), live-validated before saving, displayed as masked previews (`sk-ant-****-abcd`). Full data export, password change, session revocation, and account reset.
+
+### Run Telemetry & Cost Awareness
+
+Every research and debate run reports **honest, real usage** — never fabricated. When a provider's SDK returns token counts, POLYNOUS folds them into a per-run telemetry card:
+
+- **Real token spend** (input / output) and **LLM call count** for the run
+- **Estimated cost** in USD from a per-model price table — always labelled an estimate, `—` when a model has no price entry
+- **Per-stage breakdown** — tokens, latency, and cost for each agent (search, summarise, critic, writer / FOR, AGAINST, judge)
+- **Provider · model badge** — names the exact key that was billed (e.g. `OpenAI · gpt-4o-mini`), so the cost is attributed to *whatever provider you actually used*
+- **Scrape-cache hits** — how many source fetches were served from cache
+
+Because keys are BYO, this is *your* spend on *your* key — surfaced transparently rather than hidden.
+
+### Research Caching
+
+Identical research within a freshness window is served from a per-user **research cache** instead of re-running the full agent pipeline — cutting latency and token cost to near zero on repeats, with the cache status surfaced in the report.
+
+### Owner Admin View
+
+An `ADMIN_EMAILS`-gated overview of the user base — user counts, tiers, join / last-active timestamps, and which providers each account has configured. **Never** exposes passwords (one-way hashed) or API-key values (encrypted). Self-hides for non-admin accounts.
 
 ---
 
@@ -768,30 +792,101 @@ docker-compose up --build
 ```
 SHIPPED
   ✓  7-agent research pipeline with SSE streaming
-  ✓  Debate mode: FOR / AGAINST / Judge with scoring
+  ✓  Debate mode: FOR / AGAINST / Judge with rubric scoring + corrective-retry judge
   ✓  Per-user Neo4j knowledge graph with pathfinder
   ✓  Pinecone semantic memory with constellation UI
   ✓  Neural analytics dashboard: heatmaps, confidence trends, topic patterns
   ✓  PDF Lab with security validation and RAG
   ✓  BYO API keys with Fernet encryption and live validation
-  ✓  Google + GitHub OAuth 2.0
-  ✓  Brute force protection and account lockout
-  ✓  Full data export and account reset
+  ✓  Run telemetry — real token spend + estimated cost, per-stage + per-provider·model
+  ✓  Research caching — repeats served from a per-user freshness-windowed cache
+  ✓  Owner admin view — user-base overview, gated, no secrets exposed
+  ✓  Single unified User model + Alembic migrations (auto-adopt on boot)
+  ✓  Route skeletons, spring smooth-cursor, auto-shuffling topic decks
+  ✓  Google + GitHub OAuth 2.0 · brute-force lockout · export + reset
   ✓  Railway + Cloudflare Pages production deployment
 
 IN PROGRESS
   ⬡  Multi-PDF cross-referencing in PDF Lab
   ⬡  Knowledge graph timeline playback animation
 
-PLANNED
+NEXT — THE COMPOUNDING LOOP  (see section below)
+  ◇  Phase A · Typed, LLM-extracted graph relationships (kills regex co-occurrence)
+  ◇  Phase B · Belief model + memory that feeds future answers
+  ◇  Phase C · Contradiction Sentinel (signature feature)
+  ◇  Phase D · Graph-grounded answering + temporal knowledge scrubber
+
+LATER
   ○  Team workspaces — shared knowledge graphs across accounts
   ○  Scheduled research — recurring queries on a cron schedule
   ○  Citation verification — auto-check if source URLs are still live
-  ○  Browser extension — research any webpage with one click
-  ○  Self-hosted LLM via Ollama
-  ○  Webhook integrations — push results to Slack / Notion
-  ○  Mobile app (React Native)
+  ○  Browser extension · Self-hosted LLM via Ollama · Slack/Notion webhooks
 ```
+
+---
+
+## The Compounding Loop
+
+> The next chapter of POLYNOUS turns six capable-but-independent components into **one loop that gets smarter the more you use it.** Today every component is a *viewer*; the work below makes them *reason* and *feed each other*. No new pages — every addition lands inside an existing screen.
+
+### 1 · Knowledge Graph — from co-occurrence toy → reasoning graph
+
+Today, entities are extracted with a capitalized-word regex and linked by `MENTIONED_WITH` / `CO_OCCURS_WITH` — a word co-occurrence graph with a Neo4j skin. Three upgrades make it defensible:
+
+- **(a) Typed, LLM-extracted relationships.** Replace `extract_and_link_entities`'s regex with one structured LLM extraction call at the end of each research run — `{subject, relation, object, confidence}` where `relation ∈ CAUSES · REFUTES · SUPPORTS · PART_OF · ENABLES · PRECEDED_BY · CONTRADICTS`. Same Neo4j, same viewer, 100× more credible: an edge now reads *"mRNA vaccines — ENABLES → rapid pandemic response (conf 0.82)"* instead of `MENTIONED_WITH`.
+- **(b) GraphRAG — "Ask your own graph."** A mode toggle on the existing graph page / search bar: traverse the user's Neo4j subgraph, pull connected typed claims plus their `Evidence` nodes (already stored with `source_url`), and **answer from the graph — with the traversal path as the citation.** `find_connections` already returns paths; this is ~60% there.
+- **(c) Contradiction edges.** When new extraction opposes an existing claim (same subject, opposing relation, or an LLM "do these conflict?" check), write a `CONTRADICTS` edge and surface it — the substrate for the Sentinel below.
+
+### 2 · Memory Bank — from log → active belief model
+
+- **(a) Beliefs, not entries.** A `Belief` = a claim + current confidence + reinforced/challenged counts + a confidence **timeline**. Reinforcing research raises confidence; contradiction lowers it. The page becomes *"What you believe, and how sure you are"* — with confidence sparklines. A Bayesian-flavored personal knowledge model.
+- **(b) Memory that changes answers.** Before each run, retrieve the user's top relevant beliefs and inject them into the writer's context: *"You previously concluded X (conf 0.7). New sources say…"*. The vector store + per-user isolation already support this retrieval — this is what makes the system feel alive.
+- **(c) Knowledge diff.** *"Since you last researched climate policy: 2 beliefs strengthened, 1 overturned."* A literal changelog of your own understanding.
+
+### 3 · Semantic Search — from retrieval → synthesis across your past
+
+`hybrid_search.py` already blends Pinecone vectors with KG paths. Push it to:
+
+- **Connect the dots** — pick two past sessions; it finds the bridging concepts via the graph and explains the link.
+- **Search that cites *you*** — results distinguish *"from the web"* vs *"from your own prior research,"* making your accumulated corpus a first-class source.
+
+### The three flagship features — the *"no one has this"* list
+
+Ranked by wow-per-effort, all on infrastructure that already exists, all inside existing pages:
+
+| | Feature | Why it wins |
+|:--|:--|:--|
+| 🥇 | **Contradiction Sentinel** *(signature)* | When a new finding or debate verdict contradicts something in your graph / memory, it raises a flagged alert with **both evidence trails and timestamps** — *"Today's sources claim X; on July 2 you concluded ¬X, cited from [source]."* Cross-temporal, cross-session self-contradiction detection is genuinely hard and almost nobody ships it. Every piece already exists: claims with confidence, evidence nodes, per-user graph, an LLM to judge conflict. |
+| 🥈 | **Graph-Grounded Answering** *(Personal GraphRAG)* | Answer from the user's own accumulated typed graph, with the traversal path as citation. "GraphRAG" is a term recruiters recognize; doing it over a *personal, self-built* graph is rarer than over a static corpus. Reuses `find_connections` / `get_related_topics`. |
+| 🥉 | **Temporal Knowledge Evolution** | A scrubber on the graph page that replays how the graph *grew* — nodes/edges appearing, beliefs shifting color as confidence changed. Pure polish on data already timestamped (`created_at = datetime()`): massive visual payoff for near-zero backend cost. |
+
+### Delivery plan
+
+```
+PHASE A — Make the graph real  (the credibility fix · ~1–2 focused sessions)
+  1. Structured relationship extractor  →  one LLM JSON call post-research  →  typed edges
+  2. Graph viewer: legend + colors for relation types; confidence on edges
+  3. Backfill: "re-extract my graph" over existing sessions
+  ▸ Outcome: the KG stops being a word-cloud and becomes defensible
+
+PHASE B — Close the loop  (the "it compounds" fix)
+  4. Belief model + confidence timeline in the Memory Bank
+  5. Inject relevant beliefs into the writer context before each run
+  ▸ Outcome: answers visibly build on your history; the system gets smarter
+
+PHASE C — The flagship
+  6. Contradiction Sentinel: conflict detection, CONTRADICTS edges,
+     a flagged panel on Memory + an inline banner on Research reports
+  ▸ Outcome: the one feature you lead the demo with
+
+PHASE D — The polish that photographs well
+  7. Graph-grounded "Ask your graph" mode
+  8. Temporal scrubber on the graph page
+```
+
+**Explicitly *not* doing:** more pages, more providers, more chart types. The entire win is turning six silos into one compounding loop.
+
+> **Non-negotiable:** Phase A first. The regex entity extraction undercuts everything else the moment the graph is shown to anyone technical — fix that even if nothing else ships.
 
 ---
 
