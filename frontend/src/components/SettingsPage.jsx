@@ -2119,7 +2119,11 @@ function UsageSection({ push }) {
     setLoading(true); setLoadErr(null);
     api.getUsage()
       .then(setData)
-      .catch((e) => setLoadErr(e.message || "Could not load usage"))
+      .catch(() => {
+        // Endpoint unavailable (e.g. an older backend deploy) shouldn't render a
+        // scary "Not Found" — fall back to the honest empty state instead.
+        setData({ available: false, message: "No runs recorded yet." });
+      })
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
