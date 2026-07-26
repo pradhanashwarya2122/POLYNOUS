@@ -27,6 +27,9 @@ const GLOBAL_STYLES = `
   @keyframes orbPulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.4)}50%{box-shadow:0 0 40px rgba(255,215,0,0.8)}}
   @keyframes winnerGlow{0%,100%{text-shadow:0 0 20px currentColor}50%{text-shadow:0 0 48px currentColor}}
   @keyframes dropIn{0%{opacity:0;transform:translateY(-18px) scale(0.96)}70%{transform:translateY(3px) scale(1.01)}100%{opacity:1;transform:translateY(0) scale(1)}}
+  /* Flipping from the report back up to the live engine — glides in from below */
+  @keyframes debateViewEnter{0%{opacity:0;transform:translateY(40px) scale(0.985)}100%{opacity:1;transform:translateY(0) scale(1)}}
+  .debate-view-enter{animation:debateViewEnter 0.55s cubic-bezier(0.16,1,0.3,1) both}
   .point-card{transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
   .point-card:hover{transform:translateY(-2px)}
   .explore-line{position:relative}
@@ -1132,6 +1135,10 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
   const [error, setError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTopic, setActiveTopic] = useState("");
+  // After a debate completes both the live Engine and the Report stay
+  // available; `view` toggles which one is shown. The DebateEngine is kept
+  // mounted (never re-keyed) so switching back never re-runs the pipeline.
+  const [view, setView] = useState("report");
   const globeRef = useRef(null);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -1153,9 +1160,21 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
     setLoading(true);
     setResult(null);
     setError("");
+    setView("report");
     setActiveTopic(q.trim());
     setAgentStatus("");
   }, [loading]);
+
+  // Toggle between the finished live Engine and the Report, with a smooth
+  // scroll to the top so the transition reads as "sliding up to the engine".
+  const showEngineView = useCallback(() => {
+    setView("engine");
+    setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 40);
+  }, []);
+  const showReportView = useCallback(() => {
+    setView("report");
+    setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 40);
+  }, []);
 
   const handleEngineComplete = useCallback((data) => {
     setResult({
@@ -1273,11 +1292,31 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
               </Reveal>
             )}
 
-            {/* ─── LIVE DEBATE ENGINE (real pipeline, no fake progress) ── */}
-            {loading && (
+            {/* ─── LIVE DEBATE ENGINE (real pipeline, no fake progress) ──
+                Kept mounted after completion so the user can flip back to it
+                from the report WITHOUT re-running the pipeline. Hidden (not
+                unmounted) in report view. */}
+            {(loading || result) && (
               // Full-bleed: escape the scroll container's 52px side padding so
               // the engine (and its hero band) runs edge to edge.
-              <div style={{ margin: "0 -52px", animation: "fadeUp 0.4s ease both" }}>
+              <div
+                className={(!loading && view === "engine") ? "debate-view-enter" : undefined}
+                style={{
+                  margin: "0 -52px",
+                  display: (loading || view === "engine") ? "block" : "none",
+                  animation: loading ? "fadeUp 0.4s ease both" : undefined,
+                }}
+              >
+                {/* When revisiting the finished engine, offer a way back. */}
+                {!loading && result && view === "engine" && (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "0 52px 18px" }}>
+                    <button onClick={showReportView} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 22px", borderRadius: 30, border: "1px solid rgba(168,85,247,0.32)", background: "rgba(168,85,247,0.08)", color: C.purple, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", backdropFilter: "blur(8px)" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(168,85,247,0.16)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(168,85,247,0.08)"; }}>
+                      <Icon name="description" style={{ fontSize: 15 }} /> Back to Report
+                    </button>
+                  </div>
+                )}
                 <DebateEngine
                   apiUrl={`${API_BASE_URL}/debate-visual`}
                   query={activeTopic}
@@ -1303,7 +1342,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
             )}
 
             {/* ─── DEBATE RESULTS ────────────────────────────────────── */}
-            {result && verdict && !loading && (() => {
+            {result && verdict && !loading && view === "report" && (() => {
               const forScore = verdict.for_score || 0;
               const againstScore = verdict.against_score || 0;
               const forPts = result.for_points || [];
@@ -1318,13 +1357,23 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: C.purple, marginBottom: 5 }}>Proposition Under Review</div>
                       <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 600, color: "#e2e0fc", lineHeight: 1.4 }}>{activeTopic}</div>
                     </div>
-                    <button onClick={handleNewDebate} style={{ padding: "8px 18px", borderRadius: 30, border: `1px solid rgba(255,32,64,0.28)`, background: "rgba(255,32,64,0.06)", color: C.crimson, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", whiteSpace: "nowrap", flexShrink: 0, marginLeft: 16, transition: "all 0.2s" }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,32,64,0.12)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,32,64,0.06)"; }}
-                    >
-                      <Icon name="refresh" style={{ fontSize: 13, verticalAlign: "-2px", marginRight: 5 }} />
-                      New Debate
-                    </button>
+                    <div style={{ display: "flex", gap: 10, marginLeft: 16, flexShrink: 0 }}>
+                      {/* Flip up to the finished live engine (no re-run) */}
+                      <button onClick={showEngineView} style={{ padding: "8px 18px", borderRadius: 30, border: "1px solid rgba(168,85,247,0.3)", background: "rgba(168,85,247,0.07)", color: C.purple, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", whiteSpace: "nowrap", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5 }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(168,85,247,0.14)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(168,85,247,0.07)"; }}
+                      >
+                        <Icon name="expand_less" style={{ fontSize: 15 }} />
+                        View Live Engine
+                      </button>
+                      <button onClick={handleNewDebate} style={{ padding: "8px 18px", borderRadius: 30, border: `1px solid rgba(255,32,64,0.28)`, background: "rgba(255,32,64,0.06)", color: C.crimson, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", whiteSpace: "nowrap", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5 }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,32,64,0.12)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,32,64,0.06)"; }}
+                      >
+                        <Icon name="refresh" style={{ fontSize: 13 }} />
+                        New Debate
+                      </button>
+                    </div>
                   </div>
 
                   {/* Framing + Steelman checks (tribunal integrity strip) */}
