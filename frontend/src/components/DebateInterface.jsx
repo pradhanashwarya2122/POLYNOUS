@@ -675,11 +675,29 @@ function shuffle(arr) {
 
 // ─── TopicCards ───────────────────────────────────────────────────────────────
 
-function TopicCards({ onSelect }) {
-  const [cards, setCards] = useState(() => shuffle(ALL_TOPICS).slice(0, 6));
-  const [flipping, setFlipping] = useState(false);
+const TOPIC_VISIBLE = 6;
 
-  // Auto-shuffle retired (design restraint): cards shuffle once on mount only.
+function TopicCards({ onSelect }) {
+  const [cards, setCards] = useState(() => shuffle(ALL_TOPICS).slice(0, TOPIC_VISIBLE));
+  const [phase, setPhase] = useState("in"); // in | out — drives the staggered crossfade
+
+  const reshuffle = useCallback(() => {
+    setPhase("out");
+    setTimeout(() => {
+      setCards(prev => {
+        const shown = new Set(prev.map(c => c.label));
+        const pool  = shuffle(ALL_TOPICS.filter(c => !shown.has(c.label)));
+        return (pool.length >= TOPIC_VISIBLE ? pool : shuffle(ALL_TOPICS)).slice(0, TOPIC_VISIBLE);
+      });
+      setPhase("in");
+    }, 480);
+  }, []);
+
+  // Auto-shuffle the deck so the six visible debates keep rotating through the pool.
+  useEffect(() => {
+    const id = setInterval(reshuffle, 6000);
+    return () => clearInterval(id);
+  }, [reshuffle]);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
@@ -687,8 +705,10 @@ function TopicCards({ onSelect }) {
         <button key={label} onClick={() => onSelect(label)} style={{
           background: "rgba(14,14,28,0.7)", border: "1px solid rgba(255,32,64,0.12)", borderRadius: 16,
           padding: "18px 16px", display: "flex", alignItems: "center", textAlign: "left", cursor: "pointer",
-          backdropFilter: "blur(8px)", transition: "border-color 0.25s,background 0.25s,transform 0.25s,box-shadow 0.25s",
-          animation: flipping ? `cardFlip 0.84s ${i * 40}ms ease both` : `fadeUp 0.5s ${i * 70}ms ease both`,
+          backdropFilter: "blur(8px)",
+          opacity: phase === "out" ? 0 : 1,
+          transform: phase === "out" ? "translateY(12px) scale(0.97)" : "translateY(0) scale(1)",
+          transition: `opacity 0.46s cubic-bezier(0.22,1,0.36,1) ${i * 55}ms, transform 0.46s cubic-bezier(0.22,1,0.36,1) ${i * 55}ms, border-color 0.25s, background 0.25s, box-shadow 0.25s`,
         }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,32,64,0.4)"; e.currentTarget.style.background = "rgba(255,32,64,0.06)"; e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(255,32,64,0.1)"; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,32,64,0.12)"; e.currentTarget.style.background = "rgba(14,14,28,0.7)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
@@ -856,6 +876,8 @@ function PreVerdictStrips({ verdict, debate }) {
 
 // Run telemetry (Phase 6) — REAL token counts + estimated cost + per-stage
 // latency for a debate run. "—" wherever the SDK didn't report usage.
+const PROVIDER_LABEL = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", groq: "Groq", mistral: "Mistral", cohere: "Cohere", together: "Together" };
+
 function DebateTelemetryCard({ telemetry }) {
   if (!telemetry) return null;
   const t = telemetry;
@@ -874,8 +896,13 @@ function DebateTelemetryCard({ telemetry }) {
   ];
   return (
     <div style={{ background: "rgba(20,8,12,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${accent}`, borderRadius: 14, padding: "20px 24px", marginBottom: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: accent, textTransform: "uppercase", letterSpacing: "0.22em", fontWeight: 700 }}>Real usage · your key</span>
+        {(t.providers || []).map((p) => (
+          <span key={`${p.provider}-${p.model}`} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "#e6c9cf", background: "rgba(255,32,64,0.08)", border: `1px solid ${C.white10}`, borderRadius: 20, padding: "3px 10px", textTransform: "none" }}>
+            {PROVIDER_LABEL[p.provider] || p.provider}{p.model ? ` · ${p.model}` : ""}
+          </span>
+        ))}
       </div>
       <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 800, color: "#fff", margin: "0 0 14px" }}>Run Telemetry</h3>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: stages.length ? 16 : 0 }}>

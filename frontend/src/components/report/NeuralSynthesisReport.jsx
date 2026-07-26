@@ -338,6 +338,8 @@ function StructuredConfidenceCard({ analysis, delay = 0 }) {
 // Run telemetry (Phase 6): REAL token counts + estimated cost + per-stage
 // latency, all straight from the pipeline. "—" wherever a provider's SDK
 // didn't report usage — never a fabricated number.
+const PROVIDER_LABEL = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", groq: "Groq", mistral: "Mistral", cohere: "Cohere", together: "Together" };
+
 function RunTelemetryCard({ telemetry, accent = C.cyan }) {
   if (!telemetry) return null;
   const t = telemetry;
@@ -361,7 +363,14 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
   return (
     <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${accent}`,borderRadius:14,padding:"22px 26px",position:"relative",animation:"sectionIn 0.5s 0.14s ease both" }}>
       <div style={{ marginBottom:16 }}>
-        <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:accent,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,marginBottom:7,opacity:0.85 }}>Real usage · your key</div>
+        <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:7 }}>
+          <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:accent,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,opacity:0.85 }}>Real usage · your key</span>
+          {(t.providers || []).map((p) => (
+            <span key={`${p.provider}-${p.model}`} style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:"#cfe6ff",background:"rgba(0,204,255,0.08)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:"3px 10px" }}>
+              {PROVIDER_LABEL[p.provider] || p.provider}{p.model ? ` · ${p.model}` : ""}
+            </span>
+          ))}
+        </div>
         <div style={{ display:"flex",alignItems:"center",gap:10 }}>
           <Icon name="monitoring" style={{ fontSize:19,color:accent }} />
           <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Run Telemetry</h3>

@@ -814,22 +814,73 @@ function ShufflingPills({ onSelect }) {
   );
 }
 
-// ─── Suggestion Cards (Code 1 style) ─────────────────────────────────────────
+// ─── Suggestion Cards — premium auto-shuffling deck ──────────────────────────
+// A large pool where every question carries its own topical icon. Six cards are
+// shown at a time and auto-shuffle every 5.5s with a staggered crossfade+lift.
 const SUGG_CARDS = [
-  { icon:"public",       text:"What is the multiverse theory?" },
-  { icon:"biotech",      text:"How do mRNA vaccines work?" },
-  { icon:"eco",          text:"Molecular mechanism of photosynthesis?" },
-  { icon:"psychology",   text:"Consciousness in neuroscience?" },
-  { icon:"coronavirus",  text:"Psychedelics and brain effects?" },
-  { icon:"cyclone",      text:"Physics of black hole formation?" },
+  { icon:"public",         text:"What is the multiverse theory?" },
+  { icon:"vaccines",       text:"How do mRNA vaccines work?" },
+  { icon:"eco",            text:"Molecular mechanism of photosynthesis?" },
+  { icon:"psychology",     text:"Consciousness in neuroscience?" },
+  { icon:"medication",     text:"What do psychedelics do to the brain?" },
+  { icon:"cyclone",        text:"Physics of black hole formation?" },
+  { icon:"memory",         text:"How does the brain store memories?" },
+  { icon:"dark_mode",      text:"What is dark matter and dark energy?" },
+  { icon:"rocket_launch",  text:"What is the Fermi Paradox?" },
+  { icon:"hub",            text:"How do neural networks learn?" },
+  { icon:"bolt",           text:"How does general relativity work?" },
+  { icon:"smart_toy",      text:"What are the risks of AGI?" },
+  { icon:"science",        text:"Is there a theory of everything?" },
+  { icon:"coronavirus",    text:"Gut microbiome and mental health?" },
+  { icon:"account_balance",text:"What caused the 2008 financial crisis?" },
+  { icon:"genetics",       text:"How does CRISPR gene editing work?" },
+  { icon:"blur_on",        text:"How does quantum computing work?" },
+  { icon:"thermostat",     text:"What actually causes climate change?" },
+  { icon:"bubble_chart",   text:"How does the Large Hadron Collider work?" },
+  { icon:"water_drop",     text:"What is epigenetics?" },
+  { icon:"solar_power",    text:"Is nuclear energy safe?" },
+  { icon:"currency_bitcoin",text:"How does blockchain actually work?" },
+  { icon:"waves",          text:"What are gravitational waves?" },
+  { icon:"travel_explore", text:"What is artificial intelligence?" },
+  { icon:"forest",         text:"Can rewilding reverse biodiversity loss?" },
+  { icon:"biotech",        text:"How close are we to lab-grown organs?" },
+  { icon:"local_fire_department", text:"How do stars forge heavy elements?" },
+  { icon:"satellite_alt",  text:"How does GPS correct for relativity?" },
 ];
 
+const SUGG_VISIBLE = 6;
+
 function SuggestionCards({ onSelect }) {
+  const [cards, setCards]   = useState(() => shuffle(SUGG_CARDS).slice(0, SUGG_VISIBLE));
+  const [phase, setPhase]   = useState("in"); // in | out
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPhase("out");
+      setTimeout(() => {
+        setCards(prev => {
+          // Prefer questions not currently on screen for genuine variety.
+          const shown = new Set(prev.map(c => c.text));
+          const pool  = shuffle(SUGG_CARDS.filter(c => !shown.has(c.text)));
+          return (pool.length >= SUGG_VISIBLE ? pool : shuffle(SUGG_CARDS)).slice(0, SUGG_VISIBLE);
+        });
+        setPhase("in");
+      }, 460);
+    }, 5500);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:14, width:"100%", maxWidth:760 }}>
-      {SUGG_CARDS.map(({ icon, text }) => (
+      {cards.map(({ icon, text }, i) => (
         <div key={text} className="sugg-card" onClick={() => onSelect(text)}
-          style={{ background:"rgba(18,33,49,0.4)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:12, padding:"18px 20px", display:"flex", alignItems:"center", gap:14, cursor:"pointer" }}>
+          style={{
+            background:"rgba(18,33,49,0.4)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:12,
+            padding:"18px 20px", display:"flex", alignItems:"center", gap:14, cursor:"pointer",
+            opacity: phase==="out" ? 0 : 1,
+            transform: phase==="out" ? "translateY(10px) scale(0.98)" : "translateY(0) scale(1)",
+            transition: `opacity 0.44s cubic-bezier(0.22,1,0.36,1) ${i*55}ms, transform 0.44s cubic-bezier(0.22,1,0.36,1) ${i*55}ms, border-color 0.2s, background 0.2s`,
+          }}>
           <Icon name={icon} style={{ color:C.green, fontSize:22, opacity:0.6, flexShrink:0 }} className="sugg-icon" />
           <span style={{ flex:1, fontSize:12, color:"#c8d8ea", fontFamily:"'Inter',sans-serif", fontWeight:500, lineHeight:1.5 }}>{text}</span>
           <Icon name="arrow_forward" style={{ color:C.green, fontSize:14, opacity:0, transition:"all 0.2s" }} className="sugg-arrow" />

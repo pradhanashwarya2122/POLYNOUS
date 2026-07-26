@@ -160,6 +160,24 @@ def estimate_cost(usage: dict) -> dict:
     }
 
 
+def _providers_used(usage: dict) -> list:
+    """Distinct provider·model pairs that actually spent tokens on this run, with
+    their per-pair token totals — so the UI can name the exact key/model billed
+    (e.g. "OpenAI · gpt-4o-mini"). Order = first appearance across stages."""
+    seen: dict = {}
+    for st in (usage.get("by_stage") or {}).values():
+        prov, model = st.get("provider", ""), st.get("model", "")
+        if not prov and not model:
+            continue
+        key = (prov, model)
+        agg = seen.setdefault(key, {"provider": prov, "model": model,
+                                    "input_tokens": 0, "output_tokens": 0, "calls": 0})
+        agg["input_tokens"] += st.get("input_tokens", 0)
+        agg["output_tokens"] += st.get("output_tokens", 0)
+        agg["calls"] += st.get("calls", 0)
+    return list(seen.values())
+
+
 def summarize_usage(usage: Optional[dict]) -> dict:
     """Public, render-ready telemetry payload for the Final SSE patch."""
     u = usage or new_usage()
@@ -172,5 +190,6 @@ def summarize_usage(usage: Optional[dict]) -> dict:
         "missing_usage": u.get("missing_usage", False),
         "scrape_cache_hits": u.get("scrape_cache_hits", 0),
         "by_stage": u.get("by_stage", {}),
+        "providers": _providers_used(u),
         "estimated_cost": cost,
     }
