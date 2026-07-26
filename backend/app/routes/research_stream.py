@@ -461,18 +461,27 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         # regex-parsing final_answer; parse_failed=True (or a missing/old
         # payload) falls back to the legacy text parser automatically.
         final_patch["report"] = state.get("report")
-        # Ship the per-source summaries so "Chat with your report" can answer
-        # follow-ups grounded ONLY in what was already fetched — no new web
-        # search, no new token spend on scraping. Trimmed to keep the frame lean.
-        def _summ_field(s, k):
-            return (s.get(k) if isinstance(s, dict) else getattr(s, k, None)) or ""
-        final_patch["source_summaries"] = [
-            {"title": _summ_field(s, "title")[:180],
-             "url": _summ_field(s, "url"),
-             "summary": _summ_field(s, "summary")[:1200]}
-            for s in (state.get("summaries") or [])
-            if _summ_field(s, "summary")
-        ][:12]
+        # Ship each source's fetched text so "Chat with your report" and the
+        # [n] grounding tooltips can work from ONLY what was already retrieved —
+        # no new web search, no new scrape spend. The real per-source content
+        # lives in retrieved_docs (summaries[] is an unlabeled list of strings);
+        # pair the LLM condensation in by index where available, else use the
+        # scraped content. Trimmed to keep the frame lean.
+        _summaries_list = state.get("summaries") or []
+        _src = []
+        for i, doc in enumerate(state.get("retrieved_docs") or []):
+            if not isinstance(doc, dict):
+                continue
+            condensed = _summaries_list[i] if i < len(_summaries_list) and isinstance(_summaries_list[i], str) else ""
+            text = (condensed or doc.get("content") or "").strip()
+            if not text:
+                continue
+            _src.append({
+                "title": (doc.get("title") or "Untitled")[:180],
+                "url": doc.get("url") or "",
+                "summary": text[:1200],
+            })
+        final_patch["source_summaries"] = _src[:12]
         # Run telemetry (Phase 6): real token counts + estimated cost + scrape
         # cache hits. All values honest — "—" in the UI where usage is missing.
         from app.utils.usage import summarize_usage

@@ -4,10 +4,18 @@
 // verbatim from ResearchInterface.jsx (Phase 7, pure refactor — zero visual
 // or behavioral change). Prefers the structured `report` payload (Phase 3),
 // falling back to the legacy emoji-text regex parser.
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, createContext, useContext } from "react";
 import { C } from "../../design/researchColors";
 import { Icon } from "../shared/Icon";
 import { API_BASE_URL } from "../../config";
+
+// Maps a citation index [n] → { title, url, summary } so a [n] chip can prove
+// its grounding on hover. Populated by NeuralSynthesisReport, read by CitationText.
+const SourceMapContext = createContext({});
+
+function domainOf(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
+}
 
 
 function clean(text) {
@@ -182,19 +190,61 @@ function Linkify({ text }) {
   );
 }
 
-// Cyan [n] citation chips inside body text
+// A single [n] citation chip that reveals the EXACT source it's grounded in on
+// hover — the "it's genuinely not hallucinating" proof. Clicking still scrolls
+// to the full source card.
+function CitationChip({ label, num }) {
+  const sourceMap = useContext(SourceMapContext);
+  const src = sourceMap[num];
+  const [open, setOpen] = useState(false);
+  const closeT = useRef(null);
+
+  const show = () => { clearTimeout(closeT.current); setOpen(true); };
+  const hide = () => { closeT.current = setTimeout(() => setOpen(false), 90); };
+
+  return (
+    <span style={{ position: "relative", display: "inline-block" }}
+      onMouseEnter={show} onMouseLeave={hide}>
+      <button type="button" aria-label={`Source ${num}`}
+        onClick={() => document.getElementById(`source-ref-${num}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+        style={{ color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.9em", fontWeight: 700, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+        {label}
+      </button>
+      {open && src && (
+        <span onMouseEnter={show} onMouseLeave={hide} style={{
+          position: "absolute", bottom: "calc(100% + 9px)", left: "50%", transform: "translateX(-50%)",
+          width: "min(360px, 78vw)", zIndex: 50, textAlign: "left",
+          background: "rgba(6,17,30,0.98)", backdropFilter: "blur(14px)",
+          border: `1px solid ${C.cyan}44`, borderLeft: `3px solid ${C.cyan}`, borderRadius: 12,
+          padding: "13px 15px", boxShadow: "0 14px 44px rgba(0,0,0,0.55)",
+          animation: "sectionIn 0.16s ease both",
+        }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, color: "#001018", background: C.cyan, borderRadius: 5, padding: "1px 6px" }}>{num}</span>
+            <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, fontWeight: 700, color: "#fff", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{src.title || "Source"}</span>
+          </span>
+          {src.url && <span style={{ display: "block", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.cyan, marginBottom: 8, opacity: 0.85 }}>{domainOf(src.url)}</span>}
+          <span style={{ display: "block", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12, lineHeight: 1.6, color: "#c2d4e6", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {src.summary ? `“${src.summary.slice(0, 320)}${src.summary.length > 320 ? "…" : ""}”` : "This source was cited here — open it for the full text."}
+          </span>
+          <span style={{ display: "block", marginTop: 9, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: C.textSecondary }}>
+            {src.summary ? "Grounded in this source" : "Cited source"} · click to open
+          </span>
+          {/* pointer */}
+          <span style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "7px solid transparent", borderRight: "7px solid transparent", borderTop: `7px solid rgba(6,17,30,0.98)` }} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+// Cyan [n] citation chips inside body text — each proves its source on hover.
 function CitationText({ text }) {
   const parts = String(text).split(/(\[\d{1,2}(?:,\s*\d{1,2})*\])/g);
   return parts.map((p, i) => {
     if (!/^\[\d/.test(p)) return <span key={i}>{p}</span>;
-    const first = (p.match(/\d{1,2}/) || [])[0];
-    return (
-      <button key={i} type="button" aria-label={`Jump to source ${first}`}
-        onClick={() => document.getElementById(`source-ref-${first}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
-        style={{ color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.9em", fontWeight: 700, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-        {p}
-      </button>
-    );
+    const first = parseInt((p.match(/\d{1,2}/) || [])[0], 10);
+    return <CitationChip key={i} label={p} num={first} />;
   });
 }
 
@@ -549,7 +599,101 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
   );
 }
 
-export function NeuralSynthesisReport({ query, answer, report, sources, confidence, confThreshold = 70, telemetry, sourceSummaries = [], cacheInfo, onRerun, onCopy, onNew }) {
+// ── Confidence provenance modal ──────────────────────────────────────────────
+// Turns the score from a vanity number into a defensible artifact: the exact
+// measured factors (with weights + values), the critic's consensus, and the
+// plain-language explanation — all computed server-side, never LLM-written.
+function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [onClose]);
+
+  const factors = analysis.factors || [];
+  const band = analysis.band || "";
+  const bandColor = band === "HIGH" ? C.green : band === "MODERATE" ? C.amber : C.crimson;
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 4000, background: "rgba(2,8,16,0.72)", backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20, animation: "sectionIn 0.2s ease both",
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "min(560px, 96vw)", maxHeight: "88vh", overflowY: "auto",
+        background: "rgba(6,18,32,0.98)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: `4px solid ${confColor}`,
+        borderRadius: 18, padding: "26px 28px", boxShadow: "0 30px 90px rgba(0,0,0,0.6)", animation: "fadeSlideUp 0.28s ease both",
+      }}>
+        {/* header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 6 }}>
+          <div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: "0.22em", textTransform: "uppercase", color: confColor, fontWeight: 700, marginBottom: 8 }}>Confidence provenance</div>
+            <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 21, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.02em" }}>How this {confValue}% was computed</h3>
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9, width: 34, height: 34, color: "#fff", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="close" style={{ fontSize: 18 }} />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 20px" }}>
+          <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 34, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{confValue}%</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: bandColor, border: `1px solid ${bandColor}66`, background: `${bandColor}14`, borderRadius: 9999, padding: "4px 12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{band} confidence</span>
+        </div>
+
+        {analysis.explanation && (
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.7, color: "#c8d8ea", margin: "0 0 22px" }}>{analysis.explanation}</p>
+        )}
+
+        {/* factor bars */}
+        {factors.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textSecondary, marginBottom: 14 }}>Measured factors</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {factors.map((f) => {
+                const pct = Math.max(0, Math.min(100, Math.round((f.value <= 1 ? f.value * 100 : f.value))));
+                return (
+                  <div key={f.key}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                      <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, fontWeight: 600, color: "#fff" }}>
+                        {f.label}
+                        {f.weight ? <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary, marginLeft: 8 }}>weight {f.weight}%</span> : null}
+                      </span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, color: confColor }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: 7, borderRadius: 9999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, borderRadius: 9999, background: `linear-gradient(90deg, ${confColor}88, ${confColor})`, transition: "width 0.6s ease" }} />
+                    </div>
+                    {f.note && <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11.5, color: C.textSecondary, margin: "6px 0 0", lineHeight: 1.5 }}>{f.note}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* critic consensus */}
+        {analysis.critic_consensus && (
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Icon name="rule" style={{ fontSize: 16, color: C.cyan }} />
+              <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 13.5, fontWeight: 700, color: "#fff" }}>Critic consensus</span>
+              <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: C.cyan }}>{analysis.critic_consensus.score}%</span>
+            </div>
+            <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12, color: C.textSecondary, margin: 0, lineHeight: 1.6 }}>{analysis.critic_consensus.explanation}</p>
+          </div>
+        )}
+
+        <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, margin: 0, lineHeight: 1.6, display: "flex", gap: 7, alignItems: "flex-start" }}>
+          <Icon name="verified" style={{ fontSize: 13, color: C.green, flexShrink: 0, marginTop: 1 }} />
+          Every number here is measured from the sources — never written by the model, so it can't be inflated.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function NeuralSynthesisReport({ query, answer, report, sources, confidence, confThreshold = 70, telemetry, sourceSummaries = [], cacheInfo, onRerun, onCopy, onNew, onDeepen }) {
   const structured = !!report && !report.parse_failed;
   const legacy = parseAnswer(answer);
 
@@ -570,8 +714,34 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
   const filled = Math.round(confValue/10);
   const limitationPoints = parseLimitationPoints(limitations);
 
+  // Build the [n] → source map: title/url from the citation list, enriched with
+  // the fetched summary (matched by URL, index fallback) so hovering a citation
+  // reveals the exact passage it was grounded in.
+  const sourceMap = {};
+  (sources || []).forEach((s, i) => {
+    const o = typeof s === "string" ? { title: s } : (s || {});
+    sourceMap[i + 1] = { title: o.title || "", url: o.url || "" };
+  });
+  (sourceSummaries || []).forEach((ss, idx) => {
+    let key = Object.keys(sourceMap).find(k => sourceMap[k].url && ss.url && sourceMap[k].url === ss.url);
+    if (!key) key = String(idx + 1);
+    sourceMap[key] = {
+      title: (sourceMap[key] && sourceMap[key].title) || ss.title || "",
+      url: (sourceMap[key] && sourceMap[key].url) || ss.url || "",
+      summary: ss.summary || "",
+    };
+  });
+
+  const [showConf, setShowConf] = useState(false);
+  const canExplainConf = !!(confAnalysis && confAnalysis.available);
+
   return (
+   <SourceMapContext.Provider value={sourceMap}>
     <div style={{ display:"flex",flexDirection:"column",gap:24,animation:"fadeSlideUp 0.5s ease" }}>
+
+      {showConf && canExplainConf && (
+        <ConfidenceProvenanceModal analysis={confAnalysis} confValue={confValue} confColor={confColor} onClose={() => setShowConf(false)} />
+      )}
 
       {/* Header */}
       <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:28,display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative",overflow:"hidden",animation:"sectionIn 0.4s ease" }}>
@@ -586,8 +756,10 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
             <p style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.textSecondary }}>Generated: {new Date().toLocaleDateString()} · Sources: {allSources.length} found</p>
           </div>
         </div>
-        {/* Donut */}
-        <div style={{ position:"relative",width:100,height:100,flexShrink:0 }}>
+        {/* Donut — click to see how the score was computed (provenance) */}
+        <button type="button" onClick={() => canExplainConf && setShowConf(true)} title={canExplainConf ? "See how this score was computed" : ""}
+          className={canExplainConf ? "conf-donut" : ""}
+          style={{ position:"relative",width:100,height:100,flexShrink:0,background:"none",border:"none",padding:0,cursor:canExplainConf?"pointer":"default" }}>
           <svg style={{ width:"100%",height:"100%",transform:"rotate(-90deg)" }}>
             <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(255,255,255,0.07)" strokeWidth="6" />
             <circle cx="50" cy="50" r="40" fill="transparent" stroke={confColor} strokeWidth="6"
@@ -598,7 +770,12 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
             <span style={{ fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:20,color:"#fff",lineHeight:1 }}>{confValue}%</span>
             <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.cyan,textTransform:"uppercase",marginTop:2,letterSpacing:"0.05em" }}>Score</span>
           </div>
-        </div>
+          {canExplainConf && (
+            <span style={{ position:"absolute",bottom:-6,left:"50%",transform:"translateX(-50%)",whiteSpace:"nowrap",fontFamily:"'JetBrains Mono',monospace",fontSize:8,letterSpacing:"0.08em",textTransform:"uppercase",color:C.cyan,opacity:0.85,display:"flex",alignItems:"center",gap:3 }}>
+              <Icon name="info" style={{ fontSize:9 }} /> why?
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Cached-result chip + rerun-fresh (Phase 6) */}
@@ -664,7 +841,17 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
                 <span style={{ position:"absolute",top:-2,left:-2,width:4,height:4,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}` }} />
                 <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
                   <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(0,255,71,0.1)",border:`1px solid ${C.green}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.green,marginTop:2 }}>{i+1}</span>
-                  <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface }}><CitationText text={clean(f)} /></p>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:C.onSurface,margin:0 }}><CitationText text={clean(f)} /></p>
+                    {onDeepen && (
+                      <button className="deepen-btn" onClick={()=>onDeepen(clean(f))} title="Run a focused research pass on this finding"
+                        style={{ marginTop:12,display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",background:"rgba(0,255,71,0.06)",border:`1px solid ${C.green}40`,borderRadius:9999,color:C.green,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",fontSize:10.5,fontWeight:700,letterSpacing:"0.04em",transition:"all 0.2s" }}
+                        onMouseEnter={(e)=>{ e.currentTarget.style.background="rgba(0,255,71,0.14)"; }}
+                        onMouseLeave={(e)=>{ e.currentTarget.style.background="rgba(0,255,71,0.06)"; }}>
+                        <Icon name="travel_explore" style={{ fontSize:13 }} /> Deepen this
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -849,6 +1036,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         </div>
       </div>
     </div>
+   </SourceMapContext.Provider>
   );
 }
 

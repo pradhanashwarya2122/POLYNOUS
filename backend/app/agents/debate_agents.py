@@ -288,6 +288,41 @@ Return ONLY a raw JSON object (no code fences):
  "follow_up_questions": ["3 specific, researchable follow-up questions raised by this debate"]}"""
 
 
+# The judge's "lens" — same evidence, different value frame. Demonstrates that
+# "who wins" depends on what you optimise for. Empty/"impartial" = neutral judge.
+JUDGE_PERSONAS = {
+    "impartial": "",
+    "economist": (
+        "Adopt the lens of an ECONOMIST. Weigh arguments by cost-benefit tradeoffs, "
+        "incentives, efficiency, opportunity cost, and measurable outcomes. Reward the "
+        "side that better reasons about consequences at scale; discount appeals that "
+        "ignore tradeoffs or second-order effects."
+    ),
+    "ethicist": (
+        "Adopt the lens of an ETHICIST. Weigh arguments by rights, duties, fairness, "
+        "human dignity, and harm to the vulnerable. Reward the side that better honours "
+        "moral principle; discount purely instrumental arguments that treat people as means."
+    ),
+    "pragmatist": (
+        "Adopt the lens of a PRAGMATIST. Weigh arguments by real-world feasibility, "
+        "implementation, precedent, and what actually works in practice. Reward the side "
+        "grounded in workable reality; discount elegant theory that cannot be executed."
+    ),
+}
+
+
+def _judge_system(persona: str) -> str:
+    lens = JUDGE_PERSONAS.get((persona or "impartial").lower(), "")
+    if not lens:
+        return _JUDGE_SYSTEM
+    return (
+        _JUDGE_SYSTEM
+        + "\n\nJUDGING LENS: "
+        + lens
+        + " Your quality scores must reflect THIS lens, and say so in your reasoning."
+    )
+
+
 def judge_debate(
     for_arg: str,
     against_arg: str,
@@ -299,6 +334,7 @@ def judge_debate(
     total_sources: int = 0,
     model: Optional[str] = None,
     usage_sink: Optional[dict] = None,
+    persona: str = "impartial",
 ) -> dict:
     """
     Judge the debate. Final score per side =
@@ -332,10 +368,11 @@ Judge and return JSON:"""
         "parse_failed": False,
     }
 
+    judge_system = _judge_system(persona)
     try:
         client, client_type = _get_client(provider, api_key)
         from app.utils.json_extract import extract_json_object
-        raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, user_prompt,
+        raw = _call_with_retry(client, client_type, judge_system, user_prompt,
                                MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model,
                                usage=usage_sink, stage="judge", provider=provider)
         # Robust extraction (same brace-matching machinery critic/writer use) —
@@ -352,7 +389,7 @@ Judge and return JSON:"""
                 + " Respond again with ONLY the raw JSON object — first character '{', "
                 "last character '}', no prose, no code fences."
             )
-            raw = _call_with_retry(client, client_type, _JUDGE_SYSTEM, corrective,
+            raw = _call_with_retry(client, client_type, judge_system, corrective,
                                    MAX_TOKENS_JUDGE, TEMPERATURE_JUDGE, model=model,
                                    usage=usage_sink, stage="judge", provider=provider)
             llm = extract_json_object(raw)
@@ -395,6 +432,7 @@ Judge and return JSON:"""
             "strongest_point": llm.get("strongest_point", ""),
             "best_rebuttal": llm.get("best_rebuttal", ""),
             "scoring": "50% computed evidence rubric + 50% judge quality score",
+            "persona": (persona or "impartial").lower(),
         })
         print(f"  ✅ Winner: {winner} (FOR {for_score} / AGAINST {against_score})")
         return verdict

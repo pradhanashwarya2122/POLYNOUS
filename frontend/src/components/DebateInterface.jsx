@@ -948,6 +948,258 @@ function DebateTelemetryCard({ telemetry }) {
   );
 }
 
+// ── Interactive follow-ups: Judge's Lens (#5) + Join the Debate (#6) ──────────
+const JUDGE_LENSES = [
+  { key: "impartial",  label: "Impartial",  icon: "balance",       blurb: "Neutral judge — logic and evidence only" },
+  { key: "economist",  label: "Economist",  icon: "trending_up",   blurb: "Cost-benefit, incentives, efficiency, tradeoffs" },
+  { key: "ethicist",   label: "Ethicist",   icon: "diversity_3",   blurb: "Rights, duties, fairness, harm to the vulnerable" },
+  { key: "pragmatist", label: "Pragmatist", icon: "construction",  blurb: "Feasibility, implementation, what works in practice" },
+];
+
+function DebateFollowups({ query, result, onVerdict }) {
+  const d = result?.debate || {};
+  const args = {
+    query,
+    for_opening: d.for_opening || "",
+    against_opening: d.against_opening || "",
+    for_rebuttal: result?.for_rebuttal || d.for_rebuttal || "",
+    against_rebuttal: result?.against_rebuttal || d.against_rebuttal || "",
+    total_sources: (result?.citations || []).length || 0,
+  };
+  const ready = args.for_opening && args.against_opening;
+
+  const [lens, setLens] = useState(result?.verdict?.persona || "impartial");
+  const [lensBusy, setLensBusy] = useState("");
+  const [lensErr, setLensErr] = useState("");
+
+  const [side, setSide] = useState("for");
+  const [arg, setArg] = useState("");
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinErr, setJoinErr] = useState("");
+  const [exchange, setExchange] = useState(null); // {argument, side, opponent_response, opponent_side}
+
+  // #7 cross-examination
+  const [crossEx, setCrossEx] = useState(null);   // {for_asks:{question,answer}, against_asks:{...}}
+  const [crossBusy, setCrossBusy] = useState(false);
+  const [crossErr, setCrossErr] = useState("");
+
+  // #8 "what flips this" — pure client-side recompute from the verdict's own
+  // evidence-rubric vs judge-quality components.
+  const v = result?.verdict || {};
+  const forRub = v?.rubric_for?.computed_score, againstRub = v?.rubric_against?.computed_score;
+  const forQ = v?.for_quality, againstQ = v?.against_quality;
+  const canFlip = [forRub, againstRub, forQ, againstQ].every((x) => typeof x === "number");
+  const [wEv, setWEv] = useState(0.5); // weight on evidence (0.5 = the real verdict)
+
+  const authHeaders = () => {
+    const t = localStorage.getItem("polynous_token") || "";
+    return { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+  };
+
+  const pickLens = async (key) => {
+    if (key === lens || lensBusy) return;
+    setLensErr(""); setLensBusy(key);
+    try {
+      const res = await fetch(`${API_BASE_URL}/debate/rejudge`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ ...args, persona: key }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || "Re-judge failed");
+      setLens(key);
+      onVerdict?.(data.verdict, { keepExchange: true });
+    } catch (e) { setLensErr(String(e.message || e)); }
+    finally { setLensBusy(""); }
+  };
+
+  const submitArg = async () => {
+    const text = arg.trim();
+    if (!text || joinBusy || !ready) return;
+    setJoinErr(""); setJoinBusy(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/debate/respond`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ ...args, side, persona: lens, user_argument: text }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || "Response failed");
+      setExchange({ argument: text, side, opponent_response: data.opponent_response, opponent_side: data.opponent_side });
+      setArg("");
+      onVerdict?.(data.verdict, { keepExchange: true });
+    } catch (e) { setJoinErr(String(e.message || e)); }
+    finally { setJoinBusy(false); }
+  };
+
+  const runCrossExam = async () => {
+    if (crossBusy) return;
+    setCrossErr(""); setCrossBusy(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/debate/cross-exam`, { method: "POST", headers: authHeaders(), body: JSON.stringify(args) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || "Cross-examination failed");
+      setCrossEx({ for_asks: data.for_asks, against_asks: data.against_asks });
+    } catch (e) { setCrossErr(String(e.message || e)); }
+    finally { setCrossBusy(false); }
+  };
+
+  if (!ready) return null;
+  const sideColor = (s) => (s === "for" ? C.green : C.crimson);
+
+  // #8 live recompute
+  const flipFor = canFlip ? (wEv * forRub + (1 - wEv) * forQ) : 0;
+  const flipAgainst = canFlip ? (wEv * againstRub + (1 - wEv) * againstQ) : 0;
+  const flipGap = flipFor - flipAgainst;
+  const flipWinner = Math.abs(flipGap) < 0.5 ? "TIE" : (flipGap > 0 ? "FOR" : "AGAINST");
+  const flipWinColor = flipWinner === "FOR" ? C.green : flipWinner === "AGAINST" ? C.crimson : C.purple;
+  const realWinner = v?.winner;
+  const flipped = canFlip && flipWinner !== realWinner && Math.abs(wEv - 0.5) > 0.001;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Judge's Lens */}
+      <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.gold}`, borderRadius: 16, padding: "22px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <Icon name="gavel" style={{ fontSize: 19, color: C.gold }} />
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Judge's Lens</h3>
+        </div>
+        <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
+          Same debate, same evidence — re-scored through a different value frame. Watch who wins change.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+          {JUDGE_LENSES.map((L) => {
+            const active = lens === L.key;
+            return (
+              <button key={L.key} onClick={() => pickLens(L.key)} disabled={!!lensBusy}
+                style={{ textAlign: "left", cursor: lensBusy ? "wait" : "pointer", borderRadius: 12, padding: "13px 14px",
+                  background: active ? "rgba(255,215,0,0.1)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${active ? C.gold : "rgba(255,255,255,0.08)"}`, transition: "all 0.2s" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <Icon name={L.icon} style={{ fontSize: 17, color: active ? C.gold : C.textSecondary }} />
+                  <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 13.5, fontWeight: 700, color: active ? "#fff" : "#c9cfe0" }}>{L.label}</span>
+                  {lensBusy === L.key && <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.gold }}>re-judging…</span>}
+                </div>
+                <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11, color: C.textSecondary, lineHeight: 1.45 }}>{L.blurb}</span>
+              </button>
+            );
+          })}
+        </div>
+        {lensErr && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, margin: "10px 0 0" }}>{lensErr}</p>}
+      </div>
+
+      {/* #8 What flips this — interactive verdict sensitivity */}
+      {canFlip && (
+        <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${flipWinColor}`, borderRadius: 16, padding: "22px 24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <Icon name="tune" style={{ fontSize: 19, color: flipWinColor }} />
+            <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>What flips this?</h3>
+          </div>
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.6 }}>
+            The verdict is 50% measured evidence + 50% judged argument quality. Drag to re-weight and watch the scores move — the verdict is reasoned, not decreed.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div>
+              <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 800, color: C.green }}>{flipFor.toFixed(1)}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary }}> FOR</span>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 800, color: flipWinColor }}>{flipWinner === "TIE" ? "TIE" : `${flipWinner} leads`}</div>
+              {flipped && <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.gold, marginTop: 3, letterSpacing: "0.05em" }}>⚠ FLIPPED from {realWinner}</div>}
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary }}>AGAINST </span>
+              <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 800, color: C.crimson }}>{flipAgainst.toFixed(1)}</span>
+            </div>
+          </div>
+          <input type="range" min={0} max={100} value={Math.round(wEv * 100)} onChange={(e) => setWEv(Number(e.target.value) / 100)}
+            style={{ width: "100%", accentColor: flipWinColor, cursor: "pointer" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, marginTop: 6 }}>
+            <span>← all argument quality</span>
+            <button onClick={() => setWEv(0.5)} style={{ background: "none", border: "none", color: Math.abs(wEv - 0.5) < 0.001 ? C.textSecondary : C.gold, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+              evidence weight {Math.round(wEv * 100)}%{Math.abs(wEv - 0.5) < 0.001 ? " (actual)" : " · reset"}
+            </button>
+            <span>all evidence →</span>
+          </div>
+        </div>
+      )}
+
+      {/* #7 Cross-examination round */}
+      <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.crimson}`, borderRadius: 16, padding: "22px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <Icon name="contactless" style={{ fontSize: 19, color: C.crimson }} />
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Cross-examination</h3>
+        </div>
+        <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
+          Each side puts its sharpest question to the other — and must answer. This is where weak arguments break.
+        </p>
+        {!crossEx && (
+          <button onClick={runCrossExam} disabled={crossBusy}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: crossBusy ? "rgba(255,32,64,0.1)" : "rgba(255,32,64,0.12)", border: `1px solid ${C.crimson}`, borderRadius: 9999, color: crossBusy ? C.textSecondary : "#fff", cursor: crossBusy ? "wait" : "pointer", fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
+            <Icon name={crossBusy ? "hourglass_empty" : "swords"} style={{ fontSize: 15 }} /> {crossBusy ? "Cross-examining…" : "Run cross-examination"}
+          </button>
+        )}
+        {crossErr && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, margin: "10px 0 0" }}>{crossErr}</p>}
+        {crossEx && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {[["for", "against", crossEx.for_asks], ["against", "for", crossEx.against_asks]].map(([asker, answerer, qa], idx) => qa && (qa.question || qa.answer) && (
+              <div key={idx} style={{ border: `1px solid ${sideColor(asker)}30`, borderRadius: 12, overflow: "hidden" }}>
+                <div style={{ background: `${sideColor(asker)}12`, padding: "11px 15px" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: sideColor(asker), marginBottom: 5 }}>{asker === "for" ? "Supporting" : "Counter"} asks</div>
+                  <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, fontWeight: 600, color: "#fff", lineHeight: 1.55 }}>{qa.question}</div>
+                </div>
+                <div style={{ padding: "11px 15px" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: sideColor(answerer), marginBottom: 5 }}>{answerer === "for" ? "Supporting" : "Counter"} answers</div>
+                  <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, color: "#d7dced", lineHeight: 1.65 }}>{qa.answer}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Join the debate */}
+      <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.purple}`, borderRadius: 16, padding: "22px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <Icon name="record_voice_over" style={{ fontSize: 19, color: C.purple }} />
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Join the debate</h3>
+        </div>
+        <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
+          Add your own argument. The opposing advocate will respond, and the judge re-scores with your point in play.
+        </p>
+
+        {exchange && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+            <div style={{ alignSelf: "flex-end", maxWidth: "88%", background: `${sideColor(exchange.side)}14`, border: `1px solid ${sideColor(exchange.side)}44`, borderRadius: 14, padding: "11px 15px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: sideColor(exchange.side), marginBottom: 5 }}>You · {exchange.side === "for" ? "Supporting" : "Counter"}</div>
+              <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, color: "#e4e9f5", lineHeight: 1.6 }}>{exchange.argument}</div>
+            </div>
+            <div style={{ alignSelf: "flex-start", maxWidth: "88%", background: `${sideColor(exchange.opponent_side)}10`, border: `1px solid ${sideColor(exchange.opponent_side)}40`, borderRadius: 14, padding: "11px 15px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: sideColor(exchange.opponent_side), marginBottom: 5 }}>{exchange.opponent_side === "for" ? "Supporting" : "Counter"} advocate responds</div>
+              <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, color: "#e4e9f5", lineHeight: 1.65 }}>{exchange.opponent_response}</div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          {[["for", "Argue Supporting"], ["against", "Argue Counter"]].map(([k, lbl]) => (
+            <button key={k} onClick={() => setSide(k)} disabled={joinBusy}
+              style={{ flex: 1, cursor: "pointer", borderRadius: 10, padding: "9px 12px", fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700,
+                background: side === k ? `${sideColor(k)}18` : "rgba(255,255,255,0.03)",
+                border: `1px solid ${side === k ? sideColor(k) : "rgba(255,255,255,0.08)"}`, color: side === k ? "#fff" : "#aeb6c9" }}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+        <textarea value={arg} onChange={(e) => setArg(e.target.value)} disabled={joinBusy}
+          placeholder={`Make your case ${side === "for" ? "for" : "against"} — the ${side === "for" ? "counter" : "supporting"} advocate will reply…`}
+          rows={3}
+          style={{ width: "100%", boxSizing: "border-box", background: "rgba(6,6,16,0.7)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, resize: "vertical", outline: "none" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, marginTop: 10 }}>
+          {joinErr && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, marginRight: "auto" }}>{joinErr}</span>}
+          <button onClick={submitArg} disabled={joinBusy || !arg.trim()}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: C.purple, color: "#fff", fontWeight: 700, borderRadius: 9999, border: "none",
+              cursor: joinBusy || !arg.trim() ? "default" : "pointer", opacity: joinBusy || !arg.trim() ? 0.55 : 1, fontFamily: "'Sora',sans-serif", fontSize: 12.5 }}>
+            <Icon name={joinBusy ? "hourglass_empty" : "send"} style={{ fontSize: 15 }} /> {joinBusy ? "Advocate responding…" : "Submit argument"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Shown after the verdict panel
 function DebateExtras({ result, activeTopic, onNewDebate }) {
   const verdict = result?.verdict || {};
@@ -1507,6 +1759,8 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
 
                   {/* Tribunal report sections: minority report, track record +
                       vote, analytics, sources cited, follow-ups, case file */}
+                  <DebateFollowups query={activeTopic} result={result}
+                    onVerdict={(v) => setResult((r) => ({ ...r, verdict: { ...(r?.verdict || {}), ...v } }))} />
                   <DebateExtras result={result} activeTopic={activeTopic} onNewDebate={(q) => { setTopic(q); fireDebate(q); }} />
 
                   {/* Action row */}
