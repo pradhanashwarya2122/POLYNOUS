@@ -4,8 +4,10 @@
 // verbatim from ResearchInterface.jsx (Phase 7, pure refactor — zero visual
 // or behavioral change). Prefers the structured `report` payload (Phase 3),
 // falling back to the legacy emoji-text regex parser.
+import { useState, useRef, useEffect } from "react";
 import { C } from "../../design/researchColors";
 import { Icon } from "../shared/Icon";
+import { API_BASE_URL } from "../../config";
 
 
 function clean(text) {
@@ -425,7 +427,129 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
   );
 }
 
-export function NeuralSynthesisReport({ query, answer, report, sources, confidence, confThreshold = 70, telemetry, cacheInfo, onRerun, onCopy, onNew }) {
+// ── Chat with your report ────────────────────────────────────────────────────
+// A grounded follow-up Q&A: answers come ONLY from the report + the source
+// summaries already fetched for this run (POST /report/chat) — no new web
+// search, no new scrape spend. The "not hallucinating" proof: it will say the
+// report doesn't cover something rather than invent an answer.
+const CHAT_SUGGESTIONS = [
+  "Explain the key finding like I'm five",
+  "What did the sources disagree on?",
+  "What's the strongest evidence here?",
+  "What's missing or uncertain?",
+];
+
+function ReportChat({ query, answer, sources, sourceSummaries }) {
+  const [messages, setMessages] = useState([]); // {role:'user'|'assistant', text}
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const scrollRef = useRef(null);
+
+  const grounded = (sourceSummaries && sourceSummaries.length) || (sources && sources.length);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, busy]);
+
+  const send = async (q) => {
+    const question = (q ?? input).trim();
+    if (!question || busy) return;
+    setErr("");
+    setInput("");
+    setMessages((m) => [...m, { role: "user", text: question }]);
+    setBusy(true);
+    try {
+      const token = localStorage.getItem("polynous_token") || "";
+      const res = await fetch(`${API_BASE_URL}/report/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          question,
+          report_answer: answer || "",
+          source_summaries: sourceSummaries || [],
+          citations: (sources || []).map((s) => (typeof s === "string" ? { title: s } : { title: s.title, url: s.url })),
+          response_style: localStorage.getItem("polynous_response_style") || "",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || data?.message || "Chat failed");
+      setMessages((m) => [...m, { role: "assistant", text: data.answer || "(no answer)" }]);
+    } catch (e) {
+      setErr(String(e.message || e));
+      setMessages((m) => [...m, { role: "assistant", text: "", error: true }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ background: "rgba(5,20,36,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: `4px solid ${C.green}`, borderRadius: 14, padding: "22px 26px", animation: "sectionIn 0.5s ease both" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <Icon name="forum" style={{ fontSize: 19, color: C.green }} />
+        <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff", margin: 0 }}>Chat with this report</h3>
+      </div>
+      <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
+        Answered only from the {sourceSummaries?.length || sources?.length || 0} sources already fetched — no new web search. It will say if the report doesn't cover something.
+      </p>
+
+      {messages.length > 0 && (
+        <div ref={scrollRef} style={{ maxHeight: 340, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, marginBottom: 16, paddingRight: 4 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "86%" }}>
+              <div style={{
+                fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.65, whiteSpace: "pre-wrap",
+                padding: "11px 15px", borderRadius: 14,
+                background: m.role === "user" ? "rgba(0,255,71,0.1)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${m.role === "user" ? "rgba(0,255,71,0.25)" : "rgba(255,255,255,0.08)"}`,
+                color: m.error ? C.crimson : "#d7e6f5",
+              }}>
+                {m.error ? "Something went wrong answering that. Try again." : m.text}
+              </div>
+            </div>
+          ))}
+          {busy && (
+            <div style={{ alignSelf: "flex-start", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.green, opacity: 0.8, padding: "4px 6px" }}>
+              reading the sources…
+            </div>
+          )}
+        </div>
+      )}
+
+      {messages.length === 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {CHAT_SUGGESTIONS.map((s) => (
+            <button key={s} onClick={() => send(s)} disabled={busy || !grounded} style={{
+              fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12, color: "#bfe9ff", cursor: grounded ? "pointer" : "not-allowed",
+              background: "rgba(0,204,255,0.06)", border: "1px solid rgba(0,204,255,0.22)", borderRadius: 9999, padding: "7px 14px",
+            }}>{s}</button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          placeholder={grounded ? "Ask a follow-up about this report…" : "No sources available to ground a chat"}
+          disabled={busy || !grounded}
+          style={{ flex: 1, background: "rgba(1,15,31,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9999, padding: "12px 18px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, outline: "none" }}
+        />
+        <button onClick={() => send()} disabled={busy || !grounded || !input.trim()} style={{
+          display: "flex", alignItems: "center", gap: 7, padding: "11px 20px", background: C.green, color: "#000", fontWeight: 700,
+          borderRadius: 9999, border: "none", cursor: busy || !input.trim() ? "default" : "pointer", opacity: busy || !input.trim() ? 0.55 : 1,
+          fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12.5, whiteSpace: "nowrap",
+        }}>
+          <Icon name="send" style={{ fontSize: 15, color: "#000" }} /> Ask
+        </button>
+      </div>
+      {err && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, margin: "10px 0 0" }}>{err}</p>}
+    </div>
+  );
+}
+
+export function NeuralSynthesisReport({ query, answer, report, sources, confidence, confThreshold = 70, telemetry, sourceSummaries = [], cacheInfo, onRerun, onCopy, onNew }) {
   const structured = !!report && !report.parse_failed;
   const legacy = parseAnswer(answer);
 
@@ -695,6 +819,9 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
           </div>
         );
       })()}
+
+      {/* Chat with your report — grounded follow-up Q&A over the fetched sources */}
+      <ReportChat query={query} answer={answer} sources={sources} sourceSummaries={sourceSummaries} />
 
       {/* Footer actions */}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:22,animation:"sectionIn 0.5s 0.48s ease both" }}>

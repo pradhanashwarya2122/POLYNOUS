@@ -34,6 +34,7 @@ from app.routes.conversations import router as conversations_router
 from app.routes.research_stream import router as research_stream_router
 from app.routes.system import router as system_router
 from app.routes.admin import router as admin_router
+from app.routes.report_chat import router as report_chat_router
 
 load_dotenv()
 
@@ -149,6 +150,7 @@ app.include_router(pdfs_router)
 app.include_router(research_stream_router)
 app.include_router(system_router)
 app.include_router(admin_router)
+app.include_router(report_chat_router)
 register_exception_handlers(app)
 
 

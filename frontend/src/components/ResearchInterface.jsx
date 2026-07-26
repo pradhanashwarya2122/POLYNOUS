@@ -982,6 +982,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const [report,         setReport]         = useState(null);
   const [telemetry,      setTelemetry]      = useState(null);
   const [cacheInfo,      setCacheInfo]      = useState(null);
+  const [sourceSummaries, setSourceSummaries] = useState([]);
   const [forceFresh,     setForceFresh]     = useState(false);
   const [runNonce,       setRunNonce]       = useState(0);
   const [agentStatus,    setAgentStatus]    = useState("");
@@ -1195,6 +1196,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
                   setConfidence(confScore);
                   setReport(data?.report || null);
                   setTelemetry(data?.telemetry || null);
+                  setSourceSummaries(data?.source_summaries || []);
                   setCacheInfo(data?.cached ? { age: data?.cache_age_label || "" } : null);
                   setLoading(false);
                   setAgentStatus("");
@@ -1243,7 +1245,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
 
             {/* Report */}
             <div style={{ maxWidth:860,margin:"0 auto" }}>
-              <NeuralSynthesisReport query={query} answer={answer} report={report} sources={sources} confidence={confidence} confThreshold={confThreshold} telemetry={telemetry} cacheInfo={cacheInfo} onRerun={rerunFresh} onCopy={handleCopy} onNew={handleNew} />
+              <NeuralSynthesisReport query={query} answer={answer} report={report} sources={sources} confidence={confidence} confThreshold={confThreshold} telemetry={telemetry} sourceSummaries={sourceSummaries} cacheInfo={cacheInfo} onRerun={rerunFresh} onCopy={handleCopy} onNew={handleNew} />
             </div>
 
             {/* History */}

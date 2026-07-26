@@ -461,6 +461,18 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         # regex-parsing final_answer; parse_failed=True (or a missing/old
         # payload) falls back to the legacy text parser automatically.
         final_patch["report"] = state.get("report")
+        # Ship the per-source summaries so "Chat with your report" can answer
+        # follow-ups grounded ONLY in what was already fetched — no new web
+        # search, no new token spend on scraping. Trimmed to keep the frame lean.
+        def _summ_field(s, k):
+            return (s.get(k) if isinstance(s, dict) else getattr(s, k, None)) or ""
+        final_patch["source_summaries"] = [
+            {"title": _summ_field(s, "title")[:180],
+             "url": _summ_field(s, "url"),
+             "summary": _summ_field(s, "summary")[:1200]}
+            for s in (state.get("summaries") or [])
+            if _summ_field(s, "summary")
+        ][:12]
         # Run telemetry (Phase 6): real token counts + estimated cost + scrape
         # cache hits. All values honest — "—" in the UI where usage is missing.
         from app.utils.usage import summarize_usage
