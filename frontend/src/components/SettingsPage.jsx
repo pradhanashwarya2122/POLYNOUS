@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL, apiFetch } from '../config';
+import ScrapeCountControl from './ScrapeCountControl';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DESIGN TOKENS
@@ -1717,6 +1718,10 @@ function PreferencesSection({ push }) {
         if (data.streaming_enabled !== undefined)   setStreaming(data.streaming_enabled);
         if (data.auto_save !== undefined)           setAutoSave(data.auto_save);
         if (data.confidence_threshold !== undefined) setConf(data.confidence_threshold);
+        // Sync the saved scrape-count default into localStorage so the chambers
+        // pick it up as the remembered default on this device.
+        if (data.scrape_count) localStorage.setItem("polynous_scrape_count", String(data.scrape_count));
+        else localStorage.removeItem("polynous_scrape_count");
       })
       .catch(err => setLoadErr(err.message))
       .finally(() => setLoading(false));
@@ -1805,6 +1810,13 @@ function PreferencesSection({ push }) {
         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.fontMono, fontSize: 10, color: C.textSecondary, marginTop: 6 }}>
           <span>0%</span><span>50%</span><span>100%</span>
         </div>
+      </div>
+      <div style={{ paddingTop: 18 }}>
+        <div style={{ fontFamily: C.fontHead, fontSize: 15, fontWeight: 500, color: C.onSurface, marginBottom: 4 }}>Sources to Scrape</div>
+        <div style={{ fontFamily: C.fontMono, fontSize: 11, color: C.textSecondary, marginBottom: 12 }}>
+          How many web sources each research or debate run gathers. Saved as your default across devices. "Auto" lets the system decide.
+        </div>
+        <ScrapeCountControl accent={C.silver} persist />
       </div>
       {saving && <div style={{ marginTop: 8, textAlign: "right", fontFamily: C.fontMono, fontSize: 11, color: C.cyan, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}><InlineSpinner />Saving…</div>}
     </Card>

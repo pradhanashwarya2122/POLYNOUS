@@ -43,7 +43,12 @@ logger = logging.getLogger("polynous.critic_agent")
 DEFAULT_ANTHROPIC_MODEL = os.getenv("POLYNOUS_CRITIC_MODEL", "claude-haiku-4-5-20251001")
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
-MAX_TOKENS = 1200
+# The critic emits a structured JSON object covering agreement groups,
+# disagreement groups, unique insights, per-source typing and coverage gaps.
+# At 1200 tokens this truncated on source-heavy runs → unparseable JSON → the
+# whole analysis fell back to a "Degraded" state and lost its disagreement
+# groups (so contradictions vanished). Give it real headroom.
+MAX_TOKENS = 3200
 TEMPERATURE = 0.2
 
 MAX_CHARS_PER_SUMMARY = 3000

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { useState, useEffect, useRef, useCallback } from "react";
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, apiFetch } from '../config';
+import ScrapeCountControl from './ScrapeCountControl';
 import DebateEngine from './DebateEngine';
 
 const C = {
@@ -1000,7 +1001,7 @@ function DebateFollowups({ query, result, onVerdict }) {
     if (key === lens || lensBusy) return;
     setLensErr(""); setLensBusy(key);
     try {
-      const res = await fetch(`${API_BASE_URL}/debate/rejudge`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ ...args, persona: key }) });
+      const res = await apiFetch(`/debate/rejudge`, { method: "POST", body: JSON.stringify({ ...args, persona: key }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.detail || "Re-judge failed");
       setLens(key);
@@ -1014,7 +1015,7 @@ function DebateFollowups({ query, result, onVerdict }) {
     if (!text || joinBusy || !ready) return;
     setJoinErr(""); setJoinBusy(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/debate/respond`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ ...args, side, persona: lens, user_argument: text }) });
+      const res = await apiFetch(`/debate/respond`, { method: "POST", body: JSON.stringify({ ...args, side, persona: lens, user_argument: text }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.detail || "Response failed");
       setExchange({ argument: text, side, opponent_response: data.opponent_response, opponent_side: data.opponent_side });
@@ -1028,7 +1029,7 @@ function DebateFollowups({ query, result, onVerdict }) {
     if (crossBusy) return;
     setCrossErr(""); setCrossBusy(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/debate/cross-exam`, { method: "POST", headers: authHeaders(), body: JSON.stringify(args) });
+      const res = await apiFetch(`/debate/cross-exam`, { method: "POST", body: JSON.stringify(args) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.detail || "Cross-examination failed");
       setCrossEx({ for_asks: data.for_asks, against_asks: data.against_asks });
@@ -1565,6 +1566,9 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                         </>
                       ) : <>BEGIN DEBATE <span style={{ opacity: 0.7 }}>›</span></>}
                     </button>
+                  </div>
+                  <div style={{ marginTop: 16 }}>
+                    <ScrapeCountControl accent={C.crimson} />
                   </div>
                   {error && <p style={{ marginTop: 10, color: C.crimson, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{error}</p>}
                 </div>

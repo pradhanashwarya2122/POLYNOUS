@@ -519,7 +519,8 @@ const RING_R = 20;
 const RING_C = 2 * Math.PI * RING_R;
 
 export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, responseStyle, streaming = true, forceFresh = false, onComplete, onError }) {
-  const { liveData, liveError } = useLiveStream(apiUrl, query, { responseStyle, defaultData: DEFAULT_DATA, extraBody: { force_fresh: !!forceFresh }, deps: [forceFresh] });
+  const _scrape = Number(localStorage.getItem("polynous_scrape_count")) || 0;
+  const { liveData, liveError } = useLiveStream(apiUrl, query, { responseStyle, defaultData: DEFAULT_DATA, extraBody: { force_fresh: !!forceFresh, ...(_scrape ? { max_results: _scrape } : {}) }, deps: [forceFresh] });
   const [errorDismissed, setErrorDismissed] = useState(false);
   const [infoOpen, setInfoOpen] = useState(null);
 

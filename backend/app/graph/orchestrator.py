@@ -348,7 +348,11 @@ def search_node(state: AgentState) -> AgentState:
     emit = make_emitter(state, "Search")
 
     usage = _usage_sink(state)
-    results = search_web(state['query'], progress_cb=emit)
+    # Honour the user's chosen source count (Settings / chamber control); the
+    # search agent clamps to its own sane bounds if this is out of range.
+    _mr = state.get('max_results')
+    results = (search_web(state['query'], max_results=_mr, progress_cb=emit)
+               if _mr else search_web(state['query'], progress_cb=emit))
     _count_scrape_cache_hits(results, usage, emit)
 
     # ── AUTONOMY: thin results → the agent reformulates ONCE and re-searches ──
@@ -366,6 +370,9 @@ def search_node(state: AgentState) -> AgentState:
         else:
             emit(f"Search agent: {len(results)} sources found (reformulation skipped)")
 
+    # Honour an explicit user cap as a HARD limit on sources actually used.
+    if _mr:
+        results = results[:_mr]
     state['retrieved_docs'] = results
 
     # Hybrid search for enhanced context
@@ -729,6 +736,10 @@ def _route_after_critic(state: AgentState) -> str:
     critique = state.get('critique') or {}
     if critique.get('parse_failed') and state.get('critic_retries', 0) <= 1:
         return "critic"
+    # When the user explicitly chose how many sources to scrape, honour it — do
+    # NOT auto-expand via the gap-driven deepen loop.
+    if state.get('max_results'):
+        return "write"
     if state.get('research_cycles', 0) < 1 and _substantive_gaps(critique):
         return "deepen"
     return "write"

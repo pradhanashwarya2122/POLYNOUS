@@ -328,7 +328,8 @@ function AdvocatePanel({ side, panel, accent, topClass, delayClass, onInfo, regi
 
 // ── Main component ───────────────────────────────────────────────────────────
 export default function DebateEngine({ apiUrl, query, responseStyle, onComplete, onError }) {
-  const { liveData, liveError } = useLiveStream(apiUrl, query, { responseStyle, defaultData: DEFAULT_DATA });
+  const _scrape = Number(localStorage.getItem("polynous_scrape_count")) || 0;
+  const { liveData, liveError } = useLiveStream(apiUrl, query, { responseStyle, defaultData: DEFAULT_DATA, extraBody: (_scrape ? { max_results: _scrape } : {}) });
   const [infoOpen, setInfoOpen] = useState(null);
 
   const data = useMemo(() => deepMerge(DEFAULT_DATA, liveData || {}), [liveData]);

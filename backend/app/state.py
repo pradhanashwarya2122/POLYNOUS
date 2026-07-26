@@ -11,6 +11,7 @@ class AgentState(TypedDict):
     # ── User preferences ──────────────────────────────────
     response_style: str                   # "academic", "casual", "eli5", "technical"
     preferred_provider: Optional[str]     # "anthropic" or "openai"
+    max_results: Optional[int]            # user-chosen number of sources to scrape
 
     # ── BYO API Key (decrypted) ───────────────────────────
     user_api_key: Optional[str]           # user's personal API key (or None)

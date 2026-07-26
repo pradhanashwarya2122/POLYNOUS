@@ -7,7 +7,7 @@
 import { useState, useRef, useEffect, createContext, useContext } from "react";
 import { C } from "../../design/researchColors";
 import { Icon } from "../shared/Icon";
-import { API_BASE_URL } from "../../config";
+import { API_BASE_URL, apiFetch } from "../../config";
 
 // Maps a citation index [n] → { title, url, summary } so a [n] chip can prove
 // its grounding on hover. Populated by NeuralSynthesisReport, read by CitationText.
@@ -510,10 +510,10 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
     setMessages((m) => [...m, { role: "user", text: question }]);
     setBusy(true);
     try {
-      const token = localStorage.getItem("polynous_token") || "";
-      const res = await fetch(`${API_BASE_URL}/report/chat`, {
+      // apiFetch auto-refreshes the access token on 401, so a long-open report
+      // can still be chatted with after the 15-min access-token TTL expires.
+      const res = await apiFetch(`/report/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           question,
           report_answer: answer || "",
@@ -523,11 +523,12 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || data?.message || "Chat failed");
+      if (!res.ok) throw new Error(data?.detail || data?.message || `Chat failed (${res.status})`);
       setMessages((m) => [...m, { role: "assistant", text: data.answer || "(no answer)" }]);
     } catch (e) {
-      setErr(String(e.message || e));
-      setMessages((m) => [...m, { role: "assistant", text: "", error: true }]);
+      const msg = String(e.message || e);
+      setErr(msg);
+      setMessages((m) => [...m, { role: "assistant", text: msg, error: true }]);
     } finally {
       setBusy(false);
     }
@@ -554,7 +555,7 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
                 border: `1px solid ${m.role === "user" ? "rgba(0,255,71,0.25)" : "rgba(255,255,255,0.08)"}`,
                 color: m.error ? C.crimson : "#d7e6f5",
               }}>
-                {m.error ? "Something went wrong answering that. Try again." : m.text}
+                {m.error ? (m.text || "Something went wrong answering that. Try again.") : m.text}
               </div>
             </div>
           ))}
@@ -733,6 +734,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
   });
 
   const [showConf, setShowConf] = useState(false);
+  const [shared, setShared] = useState(false);
   const canExplainConf = !!(confAnalysis && confAnalysis.available);
 
   return (
@@ -1025,8 +1027,18 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
             <Icon name="content_copy" style={{ fontSize:15 }} /> Copy
           </button>
         </div>
-        <div style={{ display:"flex",gap:10 }}>
-          <button onClick={()=>{if(navigator.share)navigator.share({title:"POLYNOUS Research",text:answer});else navigator.clipboard.writeText(window.location.href);}}
+        <div style={{ display:"flex",gap:10,alignItems:"center" }}>
+          {shared && (
+            <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10.5,color:C.green,display:"flex",alignItems:"center",gap:5 }}>
+              <Icon name="check_circle" style={{ fontSize:14 }} /> Copied — {allSources.length} clickable source link{allSources.length!==1?"s":""} included
+            </span>
+          )}
+          <button onClick={()=>{
+              const srcLines = (sources||[]).map((s,i)=>{ const o = typeof s==="string"?{title:s}:s; return `[${i+1}] ${o.title||"Source"}${o.url?`\n    ${o.url}`:""}`; }).join("\n");
+              const block = `POLYNOUS — Neural Synthesis Report\nQuery: ${query}\nConfidence: ${confValue}%\n\n${answer}\n\nSources:\n${srcLines}\n\nvia ${window.location.origin}`;
+              navigator.clipboard.writeText(block).then(()=>{ setShared(true); setTimeout(()=>setShared(false),3000); });
+              if(navigator.share){ navigator.share({title:"POLYNOUS Research",text:block}).catch(()=>{}); }
+            }}
             style={{ display:"flex",alignItems:"center",gap:7,padding:"9px 24px",background:C.green,color:"#000",fontWeight:700,borderRadius:9999,border:"none",cursor:"pointer",fontFamily:"'IBM Plex Sans',sans-serif",fontSize:12,boxShadow:"0 0 20px rgba(0,255,71,0.3)",transition:"all 0.2s" }}>
             <Icon name="share" style={{ fontSize:15,color:"#000" }} /> Share Research
           </button>

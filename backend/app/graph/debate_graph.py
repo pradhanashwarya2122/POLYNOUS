@@ -43,7 +43,9 @@ def debate_search_node(state: AgentState) -> AgentState:
 
     emit = make_emitter(state, "Evidence")
     emit("Searching the web for debate evidence…")
-    results = search_web(state['query'], progress_cb=emit)
+    _mr = state.get('max_results')
+    results = (search_web(state['query'], max_results=_mr, progress_cb=emit)
+               if _mr else search_web(state['query'], progress_cb=emit))
     state['retrieved_docs'] = results
     _debate_count_scrape_cache(results, state, emit)
     emit(f"{len(results)} sources gathered for both advocates")

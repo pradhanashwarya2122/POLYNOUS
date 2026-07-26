@@ -40,6 +40,22 @@ from app.visual.events import ProgressBus
 router = APIRouter()
 
 
+# User-selectable number of sources to scrape. Bounded so a user can't ask for
+# 0 (nothing to research) or an unbounded flood that blows latency/cost.
+SCRAPE_MIN, SCRAPE_MAX = 3, 20
+
+
+def _clamp_scrape(value):
+    """Return an int in [SCRAPE_MIN, SCRAPE_MAX], or None if not specified."""
+    try:
+        if value in (None, "", 0, "0"):
+            return None
+        n = int(value)
+    except (TypeError, ValueError):
+        return None
+    return max(SCRAPE_MIN, min(SCRAPE_MAX, n))
+
+
 # ── Strict BYO-key policy ────────────────────────────────────────────────────
 # LLM calls NEVER fall back to environment/system keys. Every request must
 # carry the authenticated user's own decrypted key; anything else gets a
@@ -346,6 +362,12 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
     if not response_style and user is not None:
         response_style = (getattr(user, "preferences", None) or {}).get("response_style", "") or ""
 
+    # ── User-chosen number of sources to scrape. Request value wins; else the
+    #    account's saved default; clamped to a sane range either way. ──
+    max_results = _clamp_scrape(body.get("max_results"))
+    if max_results is None and user is not None:
+        max_results = _clamp_scrape((getattr(user, "preferences", None) or {}).get("scrape_count"))
+
     # ── SECURITY GUARD: authed users MUST use their own key; guests get an
     #    explicit rate-limited allowance — never a silent system-key charge.
     provider, user_api_key, key_error = _resolve_stream_key(
@@ -408,6 +430,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
             "user_api_key": user_api_key,
             "model": resolve_model(user, provider) if user else None,
             "response_style": response_style,
+            "max_results": max_results,
             "session_id": (getattr(user, "public_id", None) or "guest"),
             "user": user,
         }
@@ -623,6 +646,11 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
     if not response_style and user is not None:
         response_style = (getattr(user, "preferences", None) or {}).get("response_style", "") or ""
 
+    # User-chosen sources to scrape (request → account default → clamp).
+    max_results = _clamp_scrape(body.get("max_results"))
+    if max_results is None and user is not None:
+        max_results = _clamp_scrape((getattr(user, "preferences", None) or {}).get("scrape_count"))
+
     # ── SECURITY GUARD: same policy as /ask-visual.
     provider, user_api_key, key_error = _resolve_stream_key(
         user, user_api_key, provider,
@@ -658,6 +686,7 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
             "user_api_key": user_api_key,
             "model": resolve_model(user, provider) if user else None,
             "response_style": response_style,
+            "max_results": max_results,
             "session_id": (getattr(user, "public_id", None) or "guest"),
             "user": user,
         }

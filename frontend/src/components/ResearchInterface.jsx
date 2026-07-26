@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { C } from "../design/researchColors";
 import { Icon } from "./shared/Icon";
 import { NeuralSynthesisReport } from "./report/NeuralSynthesisReport";
+import ScrapeCountControl from "./ScrapeCountControl";
 import { API_BASE_URL } from '../config'
 import NeuralResearchEngine from './NeuralResearchEngine'   // ← NEW
 
@@ -953,6 +954,11 @@ function LandingHero({ query, setQuery, onSearch, loading }) {
               {loading ? "THINKING…" : <>RESEARCH <Icon name="arrow_forward" style={{ fontSize:12,color:"#000" }} /></>}
             </button>
           </div>
+        </div>
+
+        {/* Sources-to-scrape control — applies to this run */}
+        <div style={{ marginBottom:26 }}>
+          <ScrapeCountControl accent={C.green} />
         </div>
 
         {/* Suggestion section label */}
