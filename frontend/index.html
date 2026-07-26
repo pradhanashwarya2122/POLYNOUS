@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Critical: keep the reload/boot flash on the POLYNOUS dark background,
+         never white, so full-page navigations transition cleanly. -->
+    <style>
+      html, body, #root { background: #0a0a1e; color: #d4e4fa; }
+      html { color-scheme: dark; }
+    </style>
+
     <!-- ============================================= -->
     <!-- FONT PRELOADS (improves icon rendering speed)  -->
     <!-- ============================================= -->
