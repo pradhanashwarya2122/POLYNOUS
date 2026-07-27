@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { API_BASE_URL } from "../config";
 
 // Served from /frontend/public — anything dropped there is available at the site root.
 const PHOTO_SRC = "/profilepic.jpg";
@@ -175,13 +176,15 @@ const FEATURES = [
   {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"Search → Summariser → Critic → Writer — a live 4-agent pipeline with per-claim confidence scoring and contradiction flags, streamed token-by-token.", tag:"RESEARCH"},
   {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST build evidence-backed cases; a rubric-scored Judge delivers a 1–10 verdict, generates follow-up questions, and supports post-verdict cross-examination.", tag:"DEBATE"},
   {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered graph. Pathfinder traces the shortest link between any two entities; centrality analysis surfaces your most-connected ideas.", tag:"GRAPH"},
-  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"Pinecone vector search + Voyage AI embeddings find past research by meaning, not keywords — rendered as a similarity-ranked constellation.", tag:"SEARCH"},
+  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"Pinecone vector search + OpenAI embeddings find past research by meaning, not keywords — rendered as a similarity-ranked constellation.", tag:"SEARCH"},
   {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Every upload runs through signature verification, embedded-JS detection, and malware scanning before RAG — with cross-referencing across multiple PDFs at once.", tag:"PDF LAB"},
   {icon:"bolt",          title:"Streaming Pipeline",  color:C.amber,   cls:"feat-card-amber",    dot:C.amber,   route:"/research", desc:"Server-Sent Events deliver real-time token streaming with live agent progress visualization.", tag:"STREAMING"},
   {icon:"verified_user", title:"API Key Vault",       color:C.teal,    cls:"feat-card-teal",     dot:C.teal,    route:"/settings", desc:"Bring your own Anthropic, OpenAI, or Tavily keys. Fernet-encrypted. Zero-knowledge architecture.", tag:"VAULT"},
   {icon:"receipt_long",  title:"Run Telemetry",       color:C.coral,   cls:"feat-card-coral",    dot:C.coral,   route:"/research", desc:"Real token spend, real LLM call counts, and an estimated USD cost per run — broken down per agent and labelled an estimate, never fabricated.", tag:"TELEMETRY"},
   {icon:"cached",        title:"Research Caching",    color:C.indigo,  cls:"feat-card-indigo",   dot:C.indigo,  route:"/research", desc:"Repeat a query inside its freshness window and it's served from your own cache — near-zero latency and token cost.", tag:"CACHE"},
-  {icon:"query_stats",   title:"Neural Analytics",    color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics — extracted automatically from your research history via /analytics/dashboard.", tag:"ANALYTICS"},
+  {icon:"query_stats",   title:"Neural Analytics",    color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics — extracted automatically from your research history and memory stats.", tag:"ANALYTICS"},
+  {icon:"redeem",        title:"Free-Key Onboarding", color:C.green,   cls:"feat-card-green",    dot:C.green,   route:"/settings", desc:"Start with zero setup — claim a pooled starter key, run real research immediately, then swap in your own key whenever you're ready.", tag:"FREE KEY"},
+  {icon:"fact_check",    title:"Evaluation Harness",  color:C.purple,  cls:"feat-card-purple",   dot:C.purple,  route:"/analytics",desc:"A built-in eval suite scores pipeline quality — run it on demand and read the summary right inside the analytics dashboard.", tag:"EVALS"},
 ];
 
 const TECH = [
@@ -639,7 +642,7 @@ function BYOKBadge() {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(192,210,220,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2L11 12m0 0l2 4m-2-4l4 2"/>
         </svg>
-        Bring Your Own Key – Anthropic · OpenAI
+        Bring Your Own Key · 7 LLM providers + Tavily
       </div>
       <div className="byok-tooltip"><span style={{fontFamily:"Material Symbols Outlined",fontSize:"12px",verticalAlign:"-2px",marginRight:"6px"}}>lock</span>Keys encrypted with Fernet · Never stored in plaintext</div>
     </div>
@@ -699,8 +702,18 @@ function PDFDropZone() {
 
 function UserProfileWidget() {
   const [user] = useState(()=>{
-    try{ const t=localStorage.getItem("token"); if(t) return JSON.parse(atob(t.split(".")[1]||"")).name||"User"; } catch(_){}
-    return localStorage.getItem("polynous_user") || null;
+    // The app stores the JWT under "polynous_token" (see config.js) — the old
+    // code read "token"/"polynous_user", so the widget never detected a session.
+    try{
+      const t=localStorage.getItem("polynous_token");
+      if(t){
+        const p=JSON.parse(atob((t.split(".")[1]||"").replace(/-/g,"+").replace(/_/g,"/")));
+        if(p) return p.name||p.username||p.email||"User";
+      }
+    } catch(_){}
+    const raw=localStorage.getItem("polynous_user");
+    if(raw){ try{ const u=JSON.parse(raw); return u.name||u.username||u.email||raw; }catch(_){ return raw; } }
+    return null;
   });
 
   if(!user) return null;
@@ -711,7 +724,7 @@ function UserProfileWidget() {
     {label:"Memory Bank", icon:"neurology",  route:"/memory"},
     {label:"Settings",    icon:"settings",   route:"/settings"},
     {label:"Help", icon:"help", route:"/info"},
-    {label:"Logout",      icon:"logout",     action:()=>{localStorage.removeItem("polynous_user");window.location.reload();}},
+    {label:"Logout",      icon:"logout",     action:()=>{localStorage.removeItem("polynous_token");localStorage.removeItem("polynous_user");window.location.href="/auth";}},
   ];
   return (
     <div className="user-wrap" style={{position:"relative",display:"inline-block"}}>
@@ -766,10 +779,38 @@ function ConfidenceRing() {
 }
 
 function QuickActionsRow() {
+  // Real backend endpoints (were previously demo stubs at /api/*).
+  const authHeaders = () => {
+    const t = localStorage.getItem("polynous_token") || "";
+    return { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+  };
   const actions = [
-    {label:"Export Data",    icon:"download", action:()=>{if(window.confirm("Export all research data?")) fetch("/api/export",{method:"POST"}).catch(()=>alert("Export initiated (demo)"));}},
-    {label:"Clear History",  icon:"delete",   action:()=>{if(window.confirm("Clear all research history? This cannot be undone.")) fetch("/api/history",{method:"DELETE"}).catch(()=>alert("History cleared (demo)"));}},
-    {label:"Reset Account",  icon:"restart_alt", action:()=>{if(window.confirm("Reset your entire account? All data will be deleted permanently.")) fetch("/api/account/reset",{method:"POST"}).catch(()=>alert("Account reset (demo)"));}},
+    {label:"Export Data", icon:"download", action:async()=>{
+      try {
+        const r = await fetch(`${API_BASE_URL}/settings/export`, { headers: authHeaders(), credentials: "include" });
+        if (r.status === 401) { alert("Sign in to export your data."); return; }
+        if (!r.ok) { alert("Export failed. Please try again."); return; }
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "polynous_export.json"; a.click();
+        URL.revokeObjectURL(url);
+      } catch { alert("Unable to reach server. Please check your connection."); }
+    }},
+    {label:"Clear History", icon:"delete", action:async()=>{
+      if (!window.confirm("Clear all research history? This cannot be undone.")) return;
+      try {
+        const r = await fetch(`${API_BASE_URL}/settings/memory/clear`, { method: "DELETE", headers: authHeaders(), credentials: "include" });
+        alert(r.status === 401 ? "Sign in to clear your history." : r.ok ? "Research history cleared." : "Clear failed. Please try again.");
+      } catch { alert("Unable to reach server. Please check your connection."); }
+    }},
+    {label:"Reset Account", icon:"restart_alt", action:async()=>{
+      if (!window.confirm("Reset your account? Preferences reset to defaults and all research data is deleted permanently.")) return;
+      try {
+        const r = await fetch(`${API_BASE_URL}/settings/reset`, { method: "POST", headers: authHeaders(), credentials: "include" });
+        alert(r.status === 401 ? "Sign in to reset your account." : r.ok ? "Account reset to defaults." : "Reset failed. Please try again.");
+      } catch { alert("Unable to reach server. Please check your connection."); }
+    }},
   ];
   return (
     <div style={{display:"flex",flexWrap:"wrap",gap:"6px 24px",justifyContent:"center",alignItems:"center",padding:"20px 0 0"}}>
@@ -1594,12 +1635,14 @@ function ApiSection(){
   const ref=useReveal(0.12);
   const [activeKey,setActiveKey]=useState("anthropic");
   const PROVIDERS=[
-    {id:"anthropic",label:"Anthropic (Claude)",color:C.green,  icon:"neurology",       hint:"Primary LLM for every agent"},
-    {id:"openai",   label:"OpenAI (GPT-4o)",   color:C.cyan,   icon:"psychology",      hint:"Selectable alternative LLM + embeddings"},
-    {id:"tavily",   label:"Tavily (Search)",    color:C.amber,  icon:"travel_explore",  hint:"Live web search for the Search agent"},
-    {id:"voyage",   label:"Voyage AI (Embed)",  color:C.purple, icon:"blur_on",         hint:"High-quality text embeddings"},
-    {id:"pinecone", label:"Pinecone (Vectors)", color:C.indigo, icon:"hub",             hint:"Namespace-scoped semantic memory"},
-    {id:"neo4j",    label:"Neo4j (Graph)",      color:C.coral,  icon:"scatter_plot",    hint:"Per-user knowledge graph store"},
+    {id:"anthropic",label:"Anthropic · Claude", color:C.green,   icon:"neurology",      hint:"claude-haiku-4-5 · sonnet-5 · opus-4-8"},
+    {id:"openai",   label:"OpenAI · GPT",       color:C.cyan,    icon:"psychology",     hint:"gpt-4o-mini · gpt-5.1 (+ embeddings)"},
+    {id:"google",   label:"Google · Gemini",    color:"#8ab4f8", icon:"auto_awesome",   hint:"gemini-2.5-flash · gemini-2.5-pro"},
+    {id:"mistral",  label:"Mistral AI",         color:C.amber,   icon:"air",            hint:"mistral-small · mistral-large"},
+    {id:"groq",     label:"Groq · LPU",         color:C.coral,   icon:"bolt",           hint:"llama-3.3-70b · mixtral-8x7b"},
+    {id:"nvidia",   label:"NVIDIA · NIM",       color:"#77ff62", icon:"memory",         hint:"llama-3.3 · nemotron · gpt-oss"},
+    {id:"deepseek", label:"DeepSeek",           color:C.indigo,  icon:"waves",          hint:"deepseek-chat · deepseek-reasoner"},
+    {id:"tavily",   label:"Tavily · Search",    color:C.purple,  icon:"travel_explore", hint:"Live web search for the Search agent"},
   ];
   return(
     <section style={{padding:"64px 0"}}>
@@ -1610,7 +1653,7 @@ function ApiSection(){
             <div>
               <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK — BRING YOUR OWN INTELLIGENCE</span>
               <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(1.8rem,3.4vw,2.7rem)",marginBottom:"16px",lineHeight:1.08,letterSpacing:"-0.04em",color:"#fff"}}>Total model<br/><span style={{color:C.green}}>sovereignty.</span></h2>
-              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Bring your own Anthropic, OpenAI, Tavily, Voyage, Pinecone, or Neo4j key — click a provider to see how POLYNOUS routes it.</p>
+              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Bring your own <strong style={{color:"rgba(210,222,235,0.92)"}}>Anthropic, OpenAI, Google Gemini, Mistral, Groq, NVIDIA NIM, DeepSeek</strong>, or Tavily key — plus any OpenAI-compatible endpoint. Click a provider to see how POLYNOUS routes it.</p>
               <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginBottom:"28px"}}>
                 {PROVIDERS.map(({id,label,color,icon,hint})=>{
                   const isActive=activeKey===id;
@@ -1639,11 +1682,11 @@ function ApiSection(){
               <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2.2}}>
                 <p style={{color:C.cyan}}>agents:</p>
                 {[
-                  {label:"search",    val:'"anthropic/claude-sonnet"',key:"anthropic"},
-                  {label:"summarise", val:'"anthropic/claude-sonnet"',key:"anthropic"},
-                  {label:"critic",    val:'"openai/gpt-4o"',key:"openai"},
-                  {label:"writer",    val:'"anthropic/claude-sonnet"',key:"anthropic"},
-                  {label:"judge",     val:'"openai/gpt-4o"',key:"openai"},
+                  {label:"search",    val:'"anthropic/claude-sonnet-5"',key:"anthropic"},
+                  {label:"summarise", val:'"anthropic/claude-sonnet-5"',key:"anthropic"},
+                  {label:"critic",    val:'"openai/gpt-5.1"',key:"openai"},
+                  {label:"writer",    val:'"anthropic/claude-sonnet-5"',key:"anthropic"},
+                  {label:"judge",     val:'"openai/gpt-5.1"',key:"openai"},
                 ].map(row=>{
                   const isRowActive=activeKey===row.key;
                   return(
@@ -1652,10 +1695,11 @@ function ApiSection(){
                     </p>
                   );
                 })}
-                <p style={{marginTop:"8px",paddingLeft:"14px",borderLeft:activeKey==="voyage"?`2px solid ${C.purple}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>embeddings: <ScrambleText text={'"voyage/voyage-3"'} style={{color:C.purple}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{paddingLeft:"14px",borderLeft:activeKey==="tavily"?`2px solid ${C.amber}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>search_provider: <ScrambleText text={'"tavily"'} style={{color:C.amber}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{paddingLeft:"14px",borderLeft:activeKey==="pinecone"?`2px solid ${C.indigo}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>vector_store: <ScrambleText text={'"pinecone/serverless"'} style={{color:C.indigo}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{paddingLeft:"14px",borderLeft:activeKey==="neo4j"?`2px solid ${C.coral}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>graph_store: <ScrambleText text={'"neo4j/auradb"'} style={{color:C.coral}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{marginTop:"8px",paddingLeft:"14px",borderLeft:activeKey==="openai"?`2px solid ${C.cyan}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>embeddings: <ScrambleText text={'"openai/text-embedding-3-small"'} style={{color:C.cyan}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{paddingLeft:"14px",borderLeft:activeKey==="tavily"?`2px solid ${C.purple}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>search_provider: <ScrambleText text={'"tavily"'} style={{color:C.purple}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{marginTop:"8px",paddingLeft:"14px",borderLeft:"2px solid transparent",color:"rgba(220,228,240,0.38)"}}><span style={{color:"rgba(120,140,175,0.55)"}}># managed infrastructure</span></p>
+                <p style={{paddingLeft:"14px",borderLeft:"2px solid transparent",color:"rgba(220,228,240,0.4)"}}>vector_store: <ScrambleText text={'"pinecone/serverless"'} style={{color:C.indigo}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{paddingLeft:"14px",borderLeft:"2px solid transparent",color:"rgba(220,228,240,0.4)"}}>graph_store: <ScrambleText text={'"neo4j/auradb"'} style={{color:C.coral}} loop loopMin={5000} loopMax={10000}/></p>
                 <p style={{color:"rgba(220,228,240,0.5)"}}>key_encryption: <ScrambleText text="fernet" style={{color:C.amber}} loop loopMin={5000} loopMax={10000}/></p>
                 <p style={{color:"rgba(220,228,240,0.5)"}}>stored_per_user: <ScrambleText text="true" style={{color:C.green}} loop loopMin={5000} loopMax={10000}/></p>
               </div>
@@ -1851,6 +1895,7 @@ function ResearchChamberSection(){
     {id:"search",    name:"Search",     icon:"search",       color:C.cyan,   desc:"Queries the live web via Tavily and pulls raw sources — URLs, titles, body text."},
     {id:"summarise", name:"Summarise",  icon:"summarize",    color:C.indigo, desc:"Condenses every source down to its 3–5 key insight points."},
     {id:"critic",    name:"Critic",     icon:"balance",      color:C.amber,  desc:"Cross-references claims across sources, flags contradictions, assigns a confidence score."},
+    {id:"deepen",    name:"Deepen",     icon:"repeat",       color:C.crimson,desc:"The genuinely agentic step: when the Critic finds coverage gaps, it auto-runs targeted follow-up searches, then re-critiques with the richer evidence."},
     {id:"writer",    name:"Writer",     icon:"edit_note",    color:C.green,  desc:"Synthesizes everything into a cited Summary → Findings → Limitations → Confidence report."},
   ];
   return(
@@ -1909,7 +1954,7 @@ function ResearchChamberSection(){
                   ))}
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:"7px",marginTop:"22px"}}>
-                  {[{icon:"tune",label:"Style: Academic/Technical/ELI5/Casual"},{icon:"filter_9_plus",label:"Sources: Auto or 3–20"},{icon:"ios_share",label:"Share Research"},{icon:"cached",label:"Research Caching"}].map(c=>(
+                  {[{icon:"tune",label:"Style: Academic/Technical/ELI5/Casual"},{icon:"filter_9_plus",label:"Sources: Auto or 3–20"},{icon:"forum",label:"Chat with your report"},{icon:"ios_share",label:"Share Research"},{icon:"cached",label:"Research Caching"}].map(c=>(
                     <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.green}28`,background:"rgba(0,255,15,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.green,letterSpacing:"0.04em"}}>
                       <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
                     </span>
@@ -1924,7 +1969,7 @@ function ResearchChamberSection(){
 
             {/* Footer stat strip */}
             <div style={{padding:"18px 32px",borderTop:"1px solid rgba(255,255,255,0.04)",display:"flex",gap:"0",background:"rgba(2,2,11,0.65)"}}>
-              {[{label:"Agents in pipeline",val:"4",color:C.green},{label:"Delivery",val:"streamed",color:C.cyan},{label:"Report format",val:"structured",color:C.purple}].map((stat,i)=>(
+              {[{label:"Agents + deepen loop",val:"4+1",color:C.green},{label:"Delivery",val:"streamed",color:C.cyan},{label:"Report format",val:"structured",color:C.purple}].map((stat,i)=>(
                 <div key={stat.label} style={{display:"flex",alignItems:"baseline",gap:"10px",flex:1,paddingLeft:i===0?0:"32px",borderLeft:i===0?"none":"1px solid rgba(255,255,255,0.045)"}}>
                   <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
                   <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
@@ -1970,7 +2015,7 @@ function DebateChamberSection(){
                 </div>
                 <div>
                   <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Debate Chamber</p>
-                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>POST /ask-stream · debate_mode:true · FOR → AGAINST → JUDGE</p>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>POST /debate-visual · SSE · FOR → AGAINST → JUDGE</p>
                 </div>
               </div>
               <button onClick={()=>window.location.href="/debate"} style={{padding:"10px 22px",borderRadius:"9999px",border:`1px solid ${C.crimson}45`,background:"rgba(255,32,64,0.07)",color:C.crimson,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",display:"flex",alignItems:"center",gap:"7px",flexShrink:0,letterSpacing:"0.02em"}}
@@ -2096,34 +2141,43 @@ function KnowledgeGraphSection() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => window.location.href = "/graph"}
-                style={{
-                  padding:"10px 22px",borderRadius:"9999px",
-                  border:`1px solid ${C.cyan}45`,
-                  background:"rgba(0,204,255,0.07)",
-                  color:C.cyan,fontFamily:"Sora,sans-serif",
-                  fontSize:"12.5px",fontWeight:700,cursor:"pointer",
-                  transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",
-                  display:"flex",alignItems:"center",gap:"7px",flexShrink:0,
-                  letterSpacing:"0.02em",
-                }}
-                onMouseOver={e=>{
-                  e.currentTarget.style.background="rgba(0,204,255,0.18)";
-                  e.currentTarget.style.borderColor=`${C.cyan}90`;
-                  e.currentTarget.style.boxShadow=`0 0 24px rgba(0,204,255,0.18)`;
-                  e.currentTarget.style.transform="translateY(-2px)";
-                }}
-                onMouseOut={e=>{
-                  e.currentTarget.style.background="rgba(0,204,255,0.07)";
-                  e.currentTarget.style.borderColor=`${C.cyan}45`;
-                  e.currentTarget.style.boxShadow="none";
-                  e.currentTarget.style.transform="translateY(0)";
-                }}
-              >
-                Launch full graph
-                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
-              </button>
+              <div style={{display:"flex",alignItems:"center",gap:"8px",flexShrink:0,flexWrap:"wrap"}}>
+                {[{label:"3D View",route:"/graph3d"},{label:"Graph Lab",route:"/graph-lab"}].map(g=>(
+                  <button key={g.route} onClick={()=>window.location.href=g.route} style={{padding:"9px 16px",borderRadius:"9999px",border:`1px solid ${C.purple}35`,background:"rgba(168,85,247,0.06)",color:C.purple,fontFamily:"Sora,sans-serif",fontSize:"12px",fontWeight:700,cursor:"pointer",transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",letterSpacing:"0.02em"}}
+                    onMouseOver={e=>{e.currentTarget.style.background="rgba(168,85,247,0.16)";e.currentTarget.style.borderColor=`${C.purple}80`;e.currentTarget.style.transform="translateY(-2px)";}}
+                    onMouseOut={e=>{e.currentTarget.style.background="rgba(168,85,247,0.06)";e.currentTarget.style.borderColor=`${C.purple}35`;e.currentTarget.style.transform="translateY(0)";}}>
+                    {g.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => window.location.href = "/graph"}
+                  style={{
+                    padding:"10px 22px",borderRadius:"9999px",
+                    border:`1px solid ${C.cyan}45`,
+                    background:"rgba(0,204,255,0.07)",
+                    color:C.cyan,fontFamily:"Sora,sans-serif",
+                    fontSize:"12.5px",fontWeight:700,cursor:"pointer",
+                    transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",
+                    display:"flex",alignItems:"center",gap:"7px",flexShrink:0,
+                    letterSpacing:"0.02em",
+                  }}
+                  onMouseOver={e=>{
+                    e.currentTarget.style.background="rgba(0,204,255,0.18)";
+                    e.currentTarget.style.borderColor=`${C.cyan}90`;
+                    e.currentTarget.style.boxShadow=`0 0 24px rgba(0,204,255,0.18)`;
+                    e.currentTarget.style.transform="translateY(-2px)";
+                  }}
+                  onMouseOut={e=>{
+                    e.currentTarget.style.background="rgba(0,204,255,0.07)";
+                    e.currentTarget.style.borderColor=`${C.cyan}45`;
+                    e.currentTarget.style.boxShadow="none";
+                    e.currentTarget.style.transform="translateY(0)";
+                  }}
+                >
+                  Launch full graph
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
+                </button>
+              </div>
             </div>
 
             {/* Canvas area */}
@@ -2263,7 +2317,7 @@ function NeuralAnalyticsSection(){
                 <div>
                   <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Neural Analytics</p>
                   <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>
-                    7D · 30D · 90D WINDOWS · GET /analytics/dashboard
+                    7D · 30D · 90D WINDOWS · /memory/stats · /evals/summary
                   </p>
                 </div>
               </div>
@@ -2390,7 +2444,7 @@ function SettingsSection(){
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.teal,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Settings</p>
             <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your keys.<br/>Your spend.</h2>
           </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Bring your own Anthropic, OpenAI, or Tavily keys — encrypted at rest, live-validated, never used against you.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Bring your own Anthropic, OpenAI, Gemini, Mistral, Groq, NVIDIA, DeepSeek, or Tavily keys — encrypted at rest, live-validated, never used against you. Sign in with email, or Google / GitHub OAuth.</p>
         </div>
 
         <div className="chamber-card-premium" style={{borderRadius:"28px",padding:"2px",background:"linear-gradient(135deg,rgba(0,230,184,0.3),rgba(0,204,255,0.1),rgba(168,85,247,0.08),rgba(0,230,184,0.06))",boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)"}}>
@@ -2428,7 +2482,15 @@ function SettingsSection(){
                   <span style={{width:"8px",height:"8px",borderRadius:"50%",background:k.color,boxShadow:`0 0 8px ${k.color}`}}/>
                 </div>
               ))}
-              <div style={{gridColumn:"1 / -1"}}><BYOKBadge/></div>
+              <div style={{gridColumn:"1 / -1",display:"flex",flexWrap:"wrap",alignItems:"center",gap:"10px"}}>
+                <BYOKBadge/>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.4)"}}>·</span>
+                {[{label:"Google OAuth",icon:"g_translate",color:"#8ab4f8"},{label:"GitHub OAuth",icon:"code",color:"#c0c8e0"}].map(o=>(
+                  <span key={o.label} style={{display:"inline-flex",alignItems:"center",gap:"6px",padding:"5px 12px",borderRadius:"9999px",border:`1px solid ${o.color}30`,background:`${o.color}0d`,fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:o.color}}>
+                    <span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{o.icon}</span>{o.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div style={{padding:"18px 32px",borderTop:"1px solid rgba(255,255,255,0.04)",display:"flex",gap:"0",background:"rgba(2,2,11,0.65)"}}>
@@ -2601,7 +2663,7 @@ function Footer(){
       <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px",display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"18px"}}>
           <span style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"14px",color:C.green,letterSpacing:"0.1em"}}>POLYNOUS</span>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)"}}>7 Agents · Claude + GPT + Tavily</span>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)"}}>7 Agents · Claude · GPT · Gemini · Mistral · Groq · NVIDIA · DeepSeek</span>
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:"22px"}}>
           {[{label:"GitHub",href:"https://github.com/pradhanashwarya2122"},{label:"Docs",href:"#"},{label:"Privacy",href:"#"},{label:"Terms",href:"#"}].map(({label,href})=>(
