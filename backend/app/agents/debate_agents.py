@@ -196,6 +196,14 @@ _REBUTTAL_RULES = """- This is your REBUTTAL: your opponent's argument is shown 
 - Simply restating your opening scores poorly."""
 
 
+_LENGTH_RULE = {
+    "concise": "- LENGTH: be CONCISE — make your 2 sharpest points only, ~2-3 tight "
+               "sentences each. No filler.",
+    "detailed": "- LENGTH: be THOROUGH — make 3-4 well-developed points with fuller "
+                "reasoning and context.",
+}
+
+
 def argue_position(
     query: str,
     docs: list,
@@ -205,6 +213,7 @@ def argue_position(
     provider: str = "anthropic",
     model: Optional[str] = None,
     usage_sink: Optional[dict] = None,
+    response_style: str = "detailed",
 ) -> dict:
     """
     One debate turn. Returns a structured dict:
@@ -214,10 +223,12 @@ def argue_position(
     header = f"{'REBUTTAL' if opponent_argument else 'ARGUMENT'} {side}:"
     print(f"  {'🟢' if side == 'FOR' else '🔴'} {side} ({phase}): building…")
 
+    concise = (response_style or "detailed").lower() == "concise"
+    length_rule = _LENGTH_RULE["concise" if concise else "detailed"]
     sources_text = format_debate_sources(docs)
     system_prompt = _DEBATER_SYSTEM.format(
         side=side,
-        phase_rules=_REBUTTAL_RULES if opponent_argument else _OPENING_RULES,
+        phase_rules=(_REBUTTAL_RULES if opponent_argument else _OPENING_RULES) + "\n" + length_rule,
         header=header,
     )
 
@@ -231,7 +242,8 @@ def argue_position(
         client, client_type = _get_client(provider, api_key)
         result["text"] = _call_with_retry(
             client, client_type, system_prompt, user_prompt,
-            MAX_TOKENS_ARGUMENT, TEMPERATURE_ARGUMENT, model=model,
+            (min(MAX_TOKENS_ARGUMENT, 500) if concise else MAX_TOKENS_ARGUMENT),
+            TEMPERATURE_ARGUMENT, model=model,
             usage=usage_sink, stage=f"{side.lower()}_{phase}", provider=provider,
         )
         # Extract the steelman line (opening turns only) so the UI can show it

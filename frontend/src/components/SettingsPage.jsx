@@ -777,6 +777,23 @@ function ConfirmModal({ open, onClose, onConfirm, title, body, confirmLabel = "C
   );
 }
 
+// Small hover-info affordance: a circled "i" that reveals an explanatory
+// tooltip. Used to explain settings whose effect isn't self-evident.
+function InfoDot({ text }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <span style={{ width: 16, height: 16, borderRadius: "50%", border: `1px solid ${C.silverBorder}`, color: C.textSecondary, fontFamily: C.fontMono, fontSize: 10, fontStyle: "italic", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", cursor: "help", background: C.silverFaint }}>i</span>
+      {open && (
+        <span style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", width: "min(320px, 70vw)", zIndex: 60, background: "rgba(8,12,22,0.98)", border: `1px solid ${C.silverBorder}`, borderRadius: 10, padding: "11px 13px", fontFamily: C.fontBody, fontSize: 12, lineHeight: 1.6, color: "#cbd5e6", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", textAlign: "left", fontWeight: 400 }}>
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function SectionHead({ icon, title, subtitle }) {
   return (
     <div style={{ marginBottom: 22 }}>
@@ -1799,7 +1816,10 @@ function PreferencesSection({ push }) {
 
       <div style={{ paddingTop: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontFamily: C.fontHead, fontSize: 15, fontWeight: 500, color: C.onSurface }}>Confidence Threshold</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ fontFamily: C.fontHead, fontSize: 15, fontWeight: 500, color: C.onSurface }}>Confidence Threshold</span>
+            <InfoDot text={`Every research answer gets a computed confidence score (0–100%) from source agreement, diversity, recency and citation grounding. When an answer scores BELOW this threshold, the report shows a prominent "treat this as a lead, not a conclusion" warning so you never trust a weakly-supported answer. Raise it to be stricter; lower it to see more answers without the caution banner. Default 70%.`} />
+          </div>
           <span style={{ fontFamily: C.fontMono, fontSize: 12, color: C.silver, background: C.silverFaint, padding: "3px 10px", borderRadius: 9999, border: `1px solid ${C.silverBorder}` }}>{conf}%</span>
         </div>
         <input type="range" min={0} max={100} value={conf}

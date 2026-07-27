@@ -20,6 +20,7 @@ function routeFor(pathname) {
   if (pathname.startsWith("/settings")) return { key: "settings", accent: "200,205,214" };
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/analytics")) return { key: "analytics", accent: "0,204,255" };
   if (pathname.startsWith("/memory")) return { key: "memory", accent: "168,85,247" };
+  if (pathname.startsWith("/search")) return { key: "search", accent: "0,204,255" };
   if (pathname === "/" || pathname.startsWith("/auth")) return { key: "hero", accent: "0,255,71" };
   return { key: "research", accent: "0,255,71" };
 }
@@ -65,17 +66,58 @@ function SidebarSkel() {
 const Card = ({ h, mb = 16, o = 1 }) => <B w="100%" h={h} r={18} mb={mb} o={o} />;
 
 function ResearchSkel() {
-  // Centered hero + search + example pills (the landing state).
+  // LEFT-aligned hero matching LandingHero: eyebrow, 3-line display heading,
+  // subtitle, quote block, search pill, source-count chips, then the suggestion
+  // card grid — with a faint globe/mountain glow on the right.
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 52px", gap: 20 }}>
-      <B w={90} h={11} o={0.5} mb={6} />
-      <B w="min(560px,70%)" h={54} r={14} />
-      <B w="min(680px,82%)" h={54} r={14} mb={8} />
-      <B w="min(440px,60%)" h={15} o={0.5} mb={26} />
-      <B w="min(720px,88%)" h={58} r={16} mb={22} />
-      <Row style={{ gap: 10, flexWrap: "wrap", justifyContent: "center", maxWidth: 640 }}>
-        {[120, 160, 100, 180, 140, 110].map((w, i) => <B key={i} w={w} h={34} r={9999} o={0.7} />)}
-      </Row>
+    <div style={{ flex: 1, position: "relative", padding: "48px 56px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0, overflow: "hidden" }}>
+      <B w={460} h={460} r="50%" o={0.18} style={{ position: "absolute", right: -120, top: "50%", transform: "translateY(-50%)" }} />
+      <div style={{ position: "relative", maxWidth: 680 }}>
+        {/* eyebrow */}
+        <Row style={{ gap: 8, marginBottom: 26 }}>
+          {[1, 0.5, 0.2].map((o, i) => <B key={i} w={6} h={6} o={o} style={{ transform: "rotate(45deg)" }} />)}
+          <B w={230} h={10} o={0.5} />
+        </Row>
+        {/* big heading — 3 lines */}
+        <B w={280} h={62} r={10} mb={10} />
+        <B w={360} h={62} r={10} mb={10} />
+        <B w={230} h={62} r={10} mb={20} />
+        <B w={300} h={11} o={0.5} mb={16} />
+        {/* quote block */}
+        <div style={{ borderLeft: "2px solid rgba(0,255,71,0.35)", paddingLeft: 14, marginBottom: 34 }}>
+          <B w={240} h={13} o={0.55} mb={9} /><B w={200} h={13} o={0.45} />
+        </div>
+        {/* search bar */}
+        <B w="min(680px,100%)" h={58} r={9999} mb={18} />
+        {/* source-count chips */}
+        <Row style={{ gap: 6, marginBottom: 30, flexWrap: "wrap" }}>
+          {[54, 40, 40, 40, 40, 46, 46, 46].map((w, i) => <B key={i} w={w} h={30} r={8} o={0.7} />)}
+        </Row>
+        {/* suggestion divider + card grid */}
+        <B w={140} h={10} o={0.5} mb={16} style={{ margin: "0 auto 16px" }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+          {Array.from({ length: 6 }).map((_, i) => <Card key={i} h={62} mb={0} o={0.9 - i * 0.07} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchSkel() {
+  // Semantic search: centered search bar + a scattered "constellation" of
+  // result nodes below.
+  return (
+    <div style={{ flex: 1, padding: "44px 48px", minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <B w={170} h={11} o={0.5} mb={12} style={{ margin: "0 auto 12px" }} />
+      <B w="min(520px,70%)" h={46} r={12} mb={10} style={{ margin: "0 auto 10px" }} />
+      <B w="min(360px,52%)" h={14} o={0.5} mb={28} style={{ margin: "0 auto 28px" }} />
+      <B w="min(720px,92%)" h={56} r={9999} mb={40} style={{ margin: "0 auto 40px" }} />
+      {/* constellation field */}
+      <div style={{ position: "relative", flex: 1, minHeight: 260 }}>
+        {[[12, 18, 22], [70, 40, 16], [38, 62, 28], [82, 72, 18], [55, 25, 14], [25, 78, 20], [90, 30, 12], [48, 48, 30], [8, 60, 16], [65, 85, 14]].map(([l, t, s], i) => (
+          <B key={i} w={s} h={s} r="50%" o={0.8 - i * 0.05} style={{ position: "absolute", left: `${l}%`, top: `${t}%` }} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -174,7 +216,7 @@ function HeroSkel() {
   );
 }
 
-const CONTENT = { research: ResearchSkel, debate: DebateSkel, settings: SettingsSkel, analytics: AnalyticsSkel, memory: MemorySkel, hero: HeroSkel };
+const CONTENT = { research: ResearchSkel, debate: DebateSkel, settings: SettingsSkel, analytics: AnalyticsSkel, memory: MemorySkel, search: SearchSkel, hero: HeroSkel };
 
 export default function PageTransition() {
   const location = useLocation();

@@ -97,6 +97,7 @@ def _debate_turn(state: AgentState, side: str, opponent_phase_key: str = None) -
         provider=provider,
         model=state.get('model'),
         usage_sink=_debate_usage_sink(state),
+        response_style=state.get('response_style') or 'detailed',
     )
     state['debate_history'].append({
         "side": side,

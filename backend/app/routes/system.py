@@ -6,7 +6,7 @@ System / health / debug / history / evals endpoints, split out of main.py
 """
 import os
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -204,3 +204,49 @@ async def evals_summary(user=Depends(get_current_user)):
             "total_hallucinated_citations": total_halluc,
         },
     }
+
+
+def _resolve_eval_key(user):
+    """Matched (provider, key) on the user's own key — never a system key."""
+    from app.llm_providers import LLM_PROVIDERS
+    preferred = getattr(user, "preferred_provider", "anthropic") or "anthropic"
+    for p in [preferred] + [x for x in LLM_PROVIDERS if x != preferred]:
+        enc = getattr(user, f"{p}_api_key", None)
+        if enc:
+            dec = decrypt_api_key(enc, user.encryption_key)
+            if dec:
+                return p, dec
+    return preferred, None
+
+
+@router.post("/evals/run")
+async def evals_run(user=Depends(get_current_user)):
+    """Kick off a small evaluation (4 questions through the real pipeline) on the
+    user's own key, in a background thread. The dashboard polls /evals/status and
+    then re-reads /evals/summary when done. Runs one at a time."""
+    from evals.run_eval import run_and_store, RUN_STATUS
+    from app.llm_providers import resolve_model
+    import threading
+
+    if RUN_STATUS.get("running"):
+        return {"started": False, "message": "An evaluation is already running.", "status": RUN_STATUS}
+
+    provider, api_key = _resolve_eval_key(user)
+    if not api_key:
+        raise HTTPException(400, "Add your API key in Settings to run an evaluation.")
+    model = resolve_model(user, provider)
+
+    threading.Thread(
+        target=run_and_store,
+        kwargs={"provider": provider, "api_key": api_key, "model": model, "limit": 4},
+        daemon=True,
+    ).start()
+    return {"started": True, "n_questions": 4,
+            "message": "Evaluation started — 4 questions through the full pipeline (~3-6 min)."}
+
+
+@router.get("/evals/status")
+async def evals_status(user=Depends(get_current_user)):
+    """Live progress of a dashboard-triggered evaluation run."""
+    from evals.run_eval import RUN_STATUS
+    return RUN_STATUS

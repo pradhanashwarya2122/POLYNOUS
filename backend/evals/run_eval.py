@@ -45,6 +45,67 @@ _STAGE_LABEL = {
 }
 
 
+# In-process status for the dashboard-triggered run (POST /evals/run). Single
+# run at a time; the dashboard polls /evals/summary for the finished result.
+RUN_STATUS: dict = {"running": False, "done": 0, "total": 0, "error": None, "started_at": None}
+
+
+def run_and_store(provider: str, api_key: str, model: str | None = None,
+                  limit: int = 4, category: str | None = None) -> dict:
+    """Run a small eval subset through the REAL pipeline on the caller's key and
+    write a results file in the same shape as the CLI harness, so /evals/summary
+    picks it up. Designed to be called from a background thread."""
+    RUN_STATUS.update({"running": True, "done": 0, "total": 0,
+                       "error": None, "started_at": datetime.now(timezone.utc).isoformat()})
+    try:
+        questions = _load_questions(category, limit)
+        RUN_STATUS["total"] = len(questions)
+        runs, n_errors = [], 0
+        for q in questions:
+            res = _run_pipeline(q["question"], provider, api_key, model)
+            st = res["state"]
+            docs = st.get("retrieved_docs") or []
+            answer = st.get("final_answer") or ""
+            critique = st.get("critique") or {}
+            computed = st.get("computed_confidence") or {}
+            tm = M.answer_text_metrics(answer, docs)
+            if res["error"]:
+                n_errors += 1
+            runs.append({
+                "id": q["id"], "category": q["category"], "question": q["question"],
+                "expected_properties": q["expected_properties"],
+                "pipeline": {
+                    **tm,
+                    "computed_confidence": computed.get("score"),
+                    "confidence_breakdown": computed.get("breakdown"),
+                    "critique_parse_success": not critique.get("parse_failed", False) if critique else False,
+                    "disagreements_found": len(critique.get("disagreement_groups") or []),
+                    "coverage_gaps_found": len(critique.get("coverage_gaps") or []),
+                    "research_cycles": st.get("research_cycles", 0),
+                    "total_latency": res["total_latency"], "error": res["error"],
+                },
+                "expectations_met": _check_expectations(
+                    q["expected_properties"], critique, computed, docs, tm["grounded_ratio"]),
+            })
+            RUN_STATUS["done"] += 1
+
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+        payload = {
+            "timestamp": timestamp, "provider": provider, "model": model or "default",
+            "n_questions": len(runs), "n_pipeline_errors": n_errors,
+            "baseline_enabled": False, "runs": runs, "by_category": _aggregate(runs),
+        }
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        (RESULTS_DIR / f"{timestamp}.json").write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return payload
+    except Exception as e:
+        RUN_STATUS["error"] = str(e)[:200]
+        raise
+    finally:
+        RUN_STATUS["running"] = False
+
+
 def _load_questions(category: str | None, limit: int | None) -> list[dict]:
     data = json.loads(EVAL_SET_PATH.read_text(encoding="utf-8"))
     qs = data["questions"]

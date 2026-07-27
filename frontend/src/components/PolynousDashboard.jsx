@@ -796,12 +796,67 @@ function StatCard({ icon, color, label, value, trend }) {
 // Renders the latest eval-harness summary from GET /evals/summary. Honest
 // empty state when no runs exist; every number comes from the endpoint —
 // nothing is fabricated or interpolated here.
-function EvaluationCard({ summary }) {
+function EvaluationCard({ summary, onReloaded }) {
   const shell = {
     background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)",
     border: "1px solid " + C.white10, borderRadius: 20, padding: 22,
     minHeight: 200, display: "flex", flexDirection: "column",
   };
+
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(null); // {done,total}
+  const [runErr, setRunErr] = useState("");
+
+  const authHeaders = () => {
+    const token = localStorage.getItem("polynous_token") || "";
+    return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  };
+  const base = API_BASE_URL || "http://localhost:8000";
+
+  const runEval = async () => {
+    if (running) return;
+    setRunErr(""); setRunning(true); setProgress({ done: 0, total: 4 });
+    try {
+      const res = await fetch(`${base}/evals/run`, { method: "POST", headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || "Could not start evaluation");
+      if (data.started === false && !data.status?.running) throw new Error(data.message || "Evaluation busy");
+      // Poll status until the run finishes, then reload the summary.
+      const poll = setInterval(async () => {
+        try {
+          const sRes = await fetch(`${base}/evals/status`, { headers: authHeaders() });
+          const st = await sRes.json().catch(() => ({}));
+          if (st.total) setProgress({ done: st.done, total: st.total });
+          if (!st.running) {
+            clearInterval(poll);
+            setRunning(false);
+            if (st.error) setRunErr(st.error);
+            const eRes = await fetch(`${base}/evals/summary`, { headers: authHeaders() });
+            if (eRes.ok && onReloaded) onReloaded(await eRes.json());
+          }
+        } catch { /* keep polling */ }
+      }, 6000);
+    } catch (e) {
+      setRunErr(String(e.message || e)); setRunning(false); setProgress(null);
+    }
+  };
+
+  const RunButton = ({ label = "Run evaluation" }) => (
+    <div style={{ textAlign: "center" }}>
+      <button onClick={runEval} disabled={running} style={{
+        display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 20px", borderRadius: 9999,
+        border: `1px solid ${C.green}`, background: running ? "rgba(0,255,15,0.06)" : "rgba(0,255,15,0.12)",
+        color: running ? C.textSecondary : "#fff", cursor: running ? "wait" : "pointer",
+        fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{running ? "hourglass_empty" : "play_arrow"}</span>
+        {running ? `Running… ${progress ? `${progress.done}/${progress.total}` : ""}` : label}
+      </button>
+      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.textSecondary, marginTop: 7 }}>
+        {running ? "4 questions through the full pipeline · ~3-6 min" : "Runs on your own API key"}
+      </div>
+      {runErr && <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.crimson, marginTop: 6 }}>{runErr}</div>}
+    </div>
+  );
   const heading = (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
       <SvgTarget size={20} color={C.green} />
@@ -832,9 +887,10 @@ function EvaluationCard({ summary }) {
           <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: "#fff" }}>
             {summary.message || "No evaluation runs yet"}
           </div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.textSecondary, maxWidth: 300, lineHeight: 1.6 }}>
-            Run <span style={{ color: C.green }}>python -m evals.run_eval --api-key …</span> to measure pipeline grounding, citation honesty, and confidence calibration.
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.textSecondary, maxWidth: 300, lineHeight: 1.6, marginBottom: 6 }}>
+            Measures pipeline grounding, citation honesty, and confidence calibration against a fixed question set.
           </div>
+          <RunButton label="Run evaluation" />
         </div>
       </div>
     );
@@ -886,8 +942,9 @@ function EvaluationCard({ summary }) {
         </div>
       )}
 
-      <div style={{ marginTop: "auto", paddingTop: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.textSecondary }}>
-        Latest run · {summary.timestamp}
+      <div style={{ marginTop: "auto", paddingTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.textSecondary }}>Latest run · {summary.timestamp}</span>
+        <RunButton label="Re-run" />
       </div>
     </div>
   );
@@ -1307,7 +1364,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
 
             {/* Row 3 — Evaluation harness summary (real data or empty state) */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, paddingBottom: 40 }}>
-              <EvaluationCard summary={evalSummary} />
+              <EvaluationCard summary={evalSummary} onReloaded={setEvalSummary} />
             </div>
           </>
         )}
