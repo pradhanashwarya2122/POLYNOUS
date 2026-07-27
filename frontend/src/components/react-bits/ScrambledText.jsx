@@ -13,6 +13,9 @@ export default function ScrambledText({
   speed = 0.4,
   scrambleChars = "!@#$%^&*",
   className = "",
+  inline = false,
+  color,
+  style,
 }) {
   const original = typeof children === "string" ? children : String(children);
   const spanRef = useRef(null);
@@ -53,13 +56,15 @@ export default function ScrambledText({
     [radius, scrambleChar]
   );
 
+  const Tag = inline ? "span" : "p";
+
   return (
-    <p ref={spanRef} className={`scrambled-text ${className}`} onMouseMove={handleMove}>
+    <Tag ref={spanRef} className={`scrambled-text ${className}`} onMouseMove={handleMove} style={{ ...(color ? { color } : {}), ...style }}>
       {Array.from(original).map((c, i) => (
         <span key={i} className="scrambled-char" data-idx={i} data-final={c}>
           {c}
         </span>
       ))}
-    </p>
+    </Tag>
   );
 }
