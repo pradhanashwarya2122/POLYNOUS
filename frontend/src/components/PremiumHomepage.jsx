@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL } from "../config";
 
+// ── React Bits — animated text/scroll primitives (src/components/react-bits) ──
+import SplitText from "./react-bits/SplitText";
+import BlurText from "./react-bits/BlurText";
+import ScrollReveal from "./react-bits/ScrollReveal";
+import ScrollFloat from "./react-bits/ScrollFloat";
+import ScrollVelocity from "./react-bits/ScrollVelocity";
+import CurvedLoop from "./react-bits/CurvedLoop";
+import CursorGrid from "./react-bits/CursorGrid";
+import ScrambledText from "./react-bits/ScrambledText";
+import { GlobalSpotlight } from "./react-bits/MagicBento";
+
 // Served from /frontend/public — anything dropped there is available at the site root.
 const PHOTO_SRC = "/profilepic.jpg";
 
@@ -156,6 +167,23 @@ const GLOBAL_STYLES = `
   @media (max-width:1100px) { .features-grid { grid-template-columns:1fr 1fr !important; } }
   @media (max-width:900px) { .nav-center { display:none !important; } .features-grid { grid-template-columns:1fr 1fr !important; } .tech-3 { grid-template-columns:1fr 1fr !important; } .hiw-grid { grid-template-columns:1fr !important; } .api-grid { grid-template-columns:1fr !important; } }
   @media (max-width:600px) { .features-grid,.tech-3,.example-4 { grid-template-columns:1fr !important; } .search-bar { flex-direction:column;border-radius:20px !important;padding:12px !important; } .hero-title { font-size:clamp(3rem,14vw,5rem) !important; } }
+
+  /* ── React Bits integration overrides ─────────────────────────────────── */
+  /* SplitText hero — per-char gradient so the animated letters keep the brand fills */
+  .hero-split { display:inline-block; }
+  .hero-split-green .split-char { background:linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.85) 55%,rgba(0,204,255,0.7) 88%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 40px rgba(0,255,15,0.12)); }
+  .hero-split-dim .split-char { background:linear-gradient(180deg,rgba(255,255,255,0.55),rgba(255,255,255,0.16)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  /* BlurText — inherit color/size from a styled wrapper; just fix alignment */
+  .blur-center { justify-content:center; }
+  .blur-left { justify-content:flex-start; }
+  /* ScrollReveal manifesto — keep body-copy scale (component ships no font size) */
+  .story-manifesto { text-align:center; }
+  .story-manifesto .scroll-reveal-text { font-family:'Hanken Grotesk',sans-serif; font-size:16.5px; color:rgba(150,164,182,0.85); line-height:1.75; }
+  /* ScrollVelocity marquee — mono, spaced, faint, framed by hairlines */
+  .tech-velocity { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; letter-spacing:0.14em; color:rgba(150,170,200,0.34); text-transform:uppercase; padding-right:42px; }
+  /* CurvedLoop divider — the jacket fills its host; give it a fixed band + palette */
+  .curved-divider { height:150px; margin:8px 0; color:rgba(0,255,15,0.5); }
+  .curved-divider .curved-loop-text-el { fill:currentColor; font-family:'Sora',sans-serif; font-weight:800; font-size:30px; letter-spacing:0.08em; }
 `;
 
 const NAV_SECTIONS = [
@@ -952,7 +980,7 @@ function MemoryTimeline() {
               {/* Top shimmer line */}
               <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: "1px", background: `linear-gradient(90deg,transparent,${dotColor}${isActive ? "cc" : "30"},transparent)`, transition: "all 0.4s ease" }} />
               {/* Confidence badge — top right */}
-              <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9.5px", color: isActive ? dotColor : "rgba(255,255,255,0.18)", letterSpacing: "0.04em", transition: "color 0.3s ease" }}>{dot.conf}%</div>
+              <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9.5px", color: isActive ? dotColor : "rgba(255,255,255,0.18)", letterSpacing: "0.04em", transition: "color 0.3s ease" }}><ScrambledText inline radius={70} duration={0.9} speed={0.5} scrambleChars="0123456789%">{`${dot.conf}%`}</ScrambledText></div>
 
               {/* Sparkle burst on activation */}
               {isSparkling && [0,1,2,3].map(k=>(
@@ -1517,14 +1545,17 @@ function HeroSection(){
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.018) 1px,transparent 1px)",backgroundSize:"80px 80px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 80% 70% at 50% 50%,black 30%,transparent 100%)"}}/>
 
       <h1 className="reveal hero-title" ref={useReveal(0.05)} style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(4rem,10.5vw,10rem)",lineHeight:0.86,letterSpacing:"-0.065em",marginBottom:"24px"}}>
-        <span style={{background:"linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.8) 52%,rgba(0,204,255,0.65) 82%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 0 40px rgba(0,255,15,0.12))"}}>Research</span>
+        <SplitText text="Research" tag="span" className="hero-split hero-split-green" splitType="chars" delay={48} duration={0.95} from={{opacity:0,y:46,filter:"blur(8px)"}} to={{opacity:1,y:0,filter:"blur(0px)"}}/>
         <br/>
-        <span style={{background:"linear-gradient(165deg,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0.16) 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>beyond answers.</span>
+        <SplitText text="beyond answers." tag="span" className="hero-split hero-split-dim" splitType="chars" delay={22} duration={0.8} from={{opacity:0,y:30}} to={{opacity:1,y:0}}/>
       </h1>
 
-      <p className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"24px",fontWeight:400,transitionDelay:"0.14s"}}>
-        Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses.
-      </p>
+      <div className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"24px",fontWeight:400,transitionDelay:"0.14s"}}>
+        <BlurText
+          text="Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses."
+          animateBy="words" direction="top" delay={55} className="blur-center"
+        />
+      </div>
 
       <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"10px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
         <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:"rgba(255,255,255,0.18)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
@@ -1680,7 +1711,7 @@ function ApiSection(){
                 <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:"rgba(255,255,255,0.5)"}}>mesh_config.yaml</span>
               </div>
               <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2.2}}>
-                <p style={{color:C.cyan}}>agents:</p>
+                <p style={{color:C.cyan}}><ScrambledText inline radius={90} duration={1.1} speed={0.4} scrambleChars=".:*+=/" style={{color:C.cyan}}>agents:</ScrambledText></p>
                 {[
                   {label:"search",    val:'"anthropic/claude-sonnet-5"',key:"anthropic"},
                   {label:"summarise", val:'"anthropic/claude-sonnet-5"',key:"anthropic"},
@@ -1726,7 +1757,7 @@ function FeaturesSection(){
       </div>
       <div ref={gridRef} className="reveal-stagger features-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px"}}>
         {FEATURES.map(f=>(
-          <button key={f.title} className={`feat-card corner-brackets ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)",color:f.color}}>
+          <button key={f.title} className={`feat-card corner-brackets magic-bento-card--border-glow ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)",color:f.color,"--glow-color":"0,255,15"}}>
             <div className="feat-top-line" style={{position:"absolute",top:0,left:"15%",right:"15%",height:"2px",background:`linear-gradient(90deg,transparent,${f.color}80,transparent)`,borderRadius:"1px",opacity:0,transition:"opacity 0.4s ease"}}/>
             <div style={{position:"absolute",top:"18px",right:"18px",padding:"3px 9px",borderRadius:"9999px",background:`${f.color}10`,border:`1px solid ${f.color}25`}}>
               <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:f.color,letterSpacing:"0.12em",opacity:0.85}}>{f.tag}</span>
@@ -1741,6 +1772,8 @@ function FeaturesSection(){
           </button>
         ))}
       </div>
+      {/* Cursor-tracking spotlight + per-card border glow over the feature grid */}
+      <GlobalSpotlight gridRef={gridRef} spotlightRadius={340} glowColor="0,255,15"/>
 
       <div className="reveal-stagger" style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:"14px",marginTop:"14px"}}>
         <div style={{borderRadius:"20px",padding:"30px 32px",background:"rgba(10,10,22,0.85)",border:"1px solid rgba(255,255,255,0.055)",backdropFilter:"blur(16px)",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
@@ -1768,7 +1801,7 @@ function PipelineSection(){
       <SectionDivider tight/>
       <div ref={hRef} className="reveal" style={{textAlign:"center",marginBottom:"52px"}}>
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"14px",opacity:0.8}}>↓ Architecture</p>
-        <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",letterSpacing:"-0.05em",marginBottom:"12px",color:"#fff"}}>Neural Pipeline</h2>
+        <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",letterSpacing:"-0.05em",marginBottom:"12px",color:"#fff",display:"flex",justifyContent:"center"}}><ScrollFloat containerClassName="pipeline-float" stagger={0.04}>Neural Pipeline</ScrollFloat></h2>
         <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.78)",maxWidth:"420px",margin:"0 auto",lineHeight:1.7}}>Real-time multi-agent synthesis, visualized live.</p>
       </div>
       <div ref={bRef} className="reveal corner-brackets" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)",color:C.green}}>
@@ -1823,6 +1856,12 @@ function TechHighlights(){
           <span>Provider · model badge</span>
         </div>
       </div>
+      <div style={{margin:"6px 0 20px",padding:"14px 0",borderTop:"1px solid rgba(255,255,255,0.045)",borderBottom:"1px solid rgba(255,255,255,0.045)"}}>
+        <ScrollVelocity
+          texts={["FASTAPI · LANGGRAPH · NEO4J · PINECONE · DOCKER · ", "SSE STREAMING · FERNET ENCRYPTION · CORS · REST · "]}
+          velocity={38} numCopies={6} className="tech-velocity"
+        />
+      </div>
       <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
         {TECH.map((t,i)=>{
           const rgb=GLOW_RGB[t.color]||"0,255,15";
@@ -1858,7 +1897,7 @@ function ExampleSection(){
       <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"48px"}} className="hiw-grid">
         <div ref={hRef} className="reveal">
           <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Examples</p>
-          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Example research</h2>
+          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}><ScrollFloat containerClassName="example-float" stagger={0.03}>Example research</ScrollFloat></h2>
         </div>
         <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Four common paths through the platform, from quick synthesis to structured debate.</p>
       </div>
@@ -2555,7 +2594,7 @@ function AgentPlayground(){
             <div style={{padding:"20px 22px",background:"rgba(7,7,18,0.96)",borderBottom:"1px solid rgba(255,255,255,0.04)",minHeight:"90px"}}>
               {active?(
                 <div style={{animation:"fadeUp 0.3s ease"}} key={active.id}>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:"6px"}}><span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{active.icon}</span>{active.name} — ROLE BRIEFING</div>
+                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:"6px"}}><span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{active.icon}</span><SplitText key={active.id} text={active.name} tag="span" splitType="chars" delay={28} duration={0.5} from={{opacity:0,y:12,filter:"blur(3px)"}} to={{opacity:1,y:0,filter:"blur(0px)"}}/>&nbsp;— ROLE BRIEFING</div>
                   <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(185,200,175,0.75)",lineHeight:1.65,margin:0}}>{active.desc}</p>
                 </div>
               ):(
@@ -2598,6 +2637,7 @@ function FinalCTA(){
   const ref=useReveal(0.15);
   return(
     <section style={{padding:"128px 32px",textAlign:"center",borderTop:"1px solid rgba(255,255,255,0.04)",position:"relative",overflow:"hidden"}}>
+      <CursorGrid cellSize={46} color="#00ff0f" maxOpacity={0.42} radius={180} fillOpacity={0.04} gridOpacity={0.025} clickPulse pulseSpeed={520}/>
       <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"700px",height:"700px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,255,15,0.035) 0%,transparent 68%)",pointerEvents:"none"}}/>
       <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"500px",height:"500px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,204,255,0.02) 0%,transparent 68%)",pointerEvents:"none"}}/>
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.012) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 70% 60% at 50% 50%,black 20%,transparent 100%)"}}/>
@@ -2760,7 +2800,7 @@ function StorySection(){
       <div ref={ref} className="reveal" style={{marginBottom:"56px",textAlign:"center",maxWidth:"760px",marginLeft:"auto",marginRight:"auto"}}>
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.crimson,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Why POLYNOUS exists</p>
         <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.6rem)",lineHeight:1.02,letterSpacing:"-0.05em",color:"#fff",margin:"0 0 20px"}}>A single model will always<br/>tell you it's right.</h2>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16.5px",color:"rgba(150,164,182,0.85)",lineHeight:1.75,margin:0}}>That's the quiet problem with most AI answers — not that they're wrong, but that they never say how sure they are, or show their work. POLYNOUS was built on a simple bet: research gets more honest when it's argued out loud, not generated in one breath.</p>
+        <ScrollReveal tag="p" baseOpacity={0.15} baseRotation={2} blurStrength={6} containerClassName="story-manifesto">That's the quiet problem with most AI answers — not that they're wrong, but that they never say how sure they are, or show their work. POLYNOUS was built on a simple bet: research gets more honest when it's argued out loud, not generated in one breath.</ScrollReveal>
       </div>
 
       <div style={{display:"flex",flexDirection:"column",gap:"1px",background:"rgba(255,255,255,0.04)",borderRadius:"20px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.05)"}}>
@@ -2773,7 +2813,9 @@ function StorySection(){
               </div>
               <div>
                 <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"clamp(1.1rem,1.8vw,1.4rem)",color:"#fff",letterSpacing:"-0.02em",margin:"0 0 8px"}}>{b.title}</h3>
-                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"15px",color:"rgba(150,164,182,0.8)",lineHeight:1.7,margin:0}}>{b.body}</p>
+                <div style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"15px",color:"rgba(150,164,182,0.8)",lineHeight:1.7,margin:0}}>
+                  <BlurText text={b.body} animateBy="words" direction="top" delay={35} className="blur-left"/>
+                </div>
               </div>
             </div>
           );
@@ -2811,10 +2853,12 @@ export default function LandingPage(){
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
           <HeroSection/>
           <StorySection/>
+          <CurvedLoop marqueeText="ASK ✦ GATHER ✦ CHALLENGE ✦ SYNTHESIZE ✦ " speed={2} curveAmount={180} interactive className="curved-divider"/>
           <HowItWorksSection/>
           <ApiSection/>
           <FeaturesSection/>
           <PipelineSection/>
+          <CurvedLoop marqueeText="MANY MINDS ✦ ONE ANSWER ✦ " speed={2} curveAmount={160} direction="right" interactive className="curved-divider"/>
           <TechHighlights/>
           <AgentPlayground/>
           <ResearchChamberSection/>
