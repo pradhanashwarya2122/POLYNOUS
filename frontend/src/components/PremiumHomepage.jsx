@@ -11,6 +11,9 @@ import CurvedLoop from "./react-bits/CurvedLoop";
 import CursorGrid from "./react-bits/CursorGrid";
 import ScrambledText from "./react-bits/ScrambledText";
 import { GlobalSpotlight } from "./react-bits/MagicBento";
+import KineticText from "./react-bits/KineticText";
+import { MaskContainer } from "./react-bits/MaskContainer";
+import Lenis from "lenis";
 
 // Served from /frontend/public — anything dropped there is available at the site root.
 const PHOTO_SRC = "/profilepic.jpg";
@@ -1689,7 +1692,7 @@ function ApiSection(){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"56px",alignItems:"center"}} className="api-grid">
             <div>
               <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK — BRING YOUR OWN INTELLIGENCE</span>
-              <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(1.8rem,3.4vw,2.7rem)",marginBottom:"16px",lineHeight:1.08,letterSpacing:"-0.04em",color:"#fff"}}>Total model<br/><span style={{color:C.green}}>sovereignty.</span></h2>
+              <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(1.8rem,3.4vw,2.7rem)",marginBottom:"16px",lineHeight:1.08,letterSpacing:"-0.04em",color:"#fff"}}><KineticText text="Total model" style={{fontWeight:400}}/><br/><span style={{background:`linear-gradient(90deg,${C.green},${C.cyan},${C.purple},${C.gold},${C.green})`,backgroundSize:"240% auto",WebkitBackgroundClip:"text",backgroundClip:"text",WebkitTextFillColor:"transparent",color:"transparent",animation:"borderFlow 6s linear infinite",filter:`drop-shadow(0 0 22px ${C.green}22)`}}>sovereignty.</span></h2>
               <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Bring your own <strong style={{color:"rgba(210,222,235,0.92)"}}>Anthropic, OpenAI, Google Gemini, Mistral, Groq, NVIDIA NIM, DeepSeek</strong>, or Tavily key — plus any OpenAI-compatible endpoint. Click a provider to see how POLYNOUS routes it.</p>
               <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginBottom:"28px"}}>
                 {PROVIDERS.map(({id,label,color,icon,hint})=>{
@@ -1865,7 +1868,7 @@ function TechHighlights(){
       <div style={{margin:"10px 0 26px",padding:"28px 0",position:"relative",borderTop:"1px solid rgba(255,255,255,0.05)",borderBottom:"1px solid rgba(255,255,255,0.05)",background:"linear-gradient(90deg,transparent,rgba(0,255,15,0.02),rgba(0,204,255,0.02),rgba(168,85,247,0.02),transparent)",overflow:"hidden"}}>
         <ScrollVelocity
           texts={["FASTAPI · LANGGRAPH · NEO4J · PINECONE · DOCKER · ", "SSE STREAMING · FERNET ENCRYPTION · CORS · REST · "]}
-          velocity={14} numCopies={6} className="tech-velocity"
+          velocity={2} numCopies={6} className="tech-velocity"
         />
       </div>
       <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
@@ -1950,7 +1953,7 @@ function ResearchChamberSection(){
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Research Chamber</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Ask once.<br/>Get a report, not a guess.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Ask once." style={{fontWeight:400}}/><br/><KineticText text="Get a report, not a guess." style={{fontWeight:400}}/></h2>
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>A live 4-agent pipeline streams your answer token-by-token, with per-claim confidence and contradiction flags built in.</p>
         </div>
@@ -2040,7 +2043,7 @@ function DebateChamberSection(){
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.crimson,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Debate Chamber</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Two sides.<br/>One rubric-scored verdict.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Two sides." style={{fontWeight:400}}/><br/><KineticText text="One rubric-scored verdict." style={{fontWeight:400}}/></h2>
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>FOR and AGAINST build evidence-backed cases; a Judge scores each 1–10 and delivers a ruling with reasoning.</p>
         </div>
@@ -2138,7 +2141,7 @@ function KnowledgeGraphSection() {
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.cyan,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Knowledge Graph</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Knowledge that<br/>connects itself.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Knowledge that" style={{fontWeight:400}}/><br/><KineticText text="connects itself." style={{fontWeight:400}}/></h2>
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every session feeds a living Neo4j graph. Entities link automatically — try it below.</p>
         </div>
@@ -2273,7 +2276,7 @@ function MemoryBankSection(){
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"12px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.purple,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Memory Bank</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Memory that<br/>compounds.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Memory that" style={{fontWeight:400}}/><br/><KineticText text="compounds." style={{fontWeight:400}}/></h2>
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Stats, an interest graph, debate history, and AI-generated topic suggestions pulled from your own patterns.</p>
         </div>
@@ -2318,7 +2321,7 @@ function NeuralAnalyticsSection(){
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.amber,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Neural Analytics</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your research,<br/>decoded.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Your research," style={{fontWeight:400}}/><br/><KineticText text="decoded." style={{fontWeight:400}}/></h2>
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Activity, topics, and confidence — turned into patterns you can actually see. No chart library, pure Canvas.</p>
         </div>
@@ -2399,6 +2402,24 @@ function NeuralAnalyticsSection(){
             {/* Body — confidence distribution + activity heatmap */}
             <div style={{padding:"32px",display:"grid",gridTemplateColumns:"0.85fr 1.15fr",gap:"36px"}} className="hiw-grid">
               <div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"20px"}}>
+                  {[{k:"Total queries",v:"142",c:C.amber},{k:"Avg confidence",v:"87%",c:C.green}].map(t=>(
+                    <div key={t.k} style={{padding:"14px 16px",borderRadius:"14px",background:"rgba(255,255,255,0.02)",border:`1px solid ${t.c}22`,transition:"all 0.3s cubic-bezier(0.23,1,0.32,1)"}}
+                      onMouseOver={e=>{e.currentTarget.style.borderColor=`${t.c}66`;e.currentTarget.style.background=`${t.c}0c`;e.currentTarget.style.transform="translateY(-2px)";}}
+                      onMouseOut={e=>{e.currentTarget.style.borderColor=`${t.c}22`;e.currentTarget.style.background="rgba(255,255,255,0.02)";e.currentTarget.style.transform="translateY(0)";}}>
+                      <p style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:"24px",color:"#fff",margin:0,lineHeight:1}}><ScrambledText inline radius={80} scrambleChars="0123456789%">{t.v}</ScrambledText></p>
+                      <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:t.c,letterSpacing:"0.08em",margin:"7px 0 0",textTransform:"uppercase"}}>{t.k}</p>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginBottom:"22px"}}>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.cyan,letterSpacing:"0.1em",marginBottom:"8px",opacity:0.85}}>CONFIDENCE TREND · 10 WEEKS</p>
+                  <svg width="100%" height="46" viewBox="0 0 150 46" preserveAspectRatio="none">
+                    <defs><linearGradient id="anCfFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green} stopOpacity="0.3"/><stop offset="100%" stopColor={C.green} stopOpacity="0"/></linearGradient></defs>
+                    <path d={`M ${SPARKLINE_CONF.map((v,i)=>`${(i/(SPARKLINE_CONF.length-1))*150},${46-(v/100)*46}`).join(" L ")} L 150,46 L 0,46 Z`} fill="url(#anCfFill)" style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.5s"}}/>
+                    <path d={`M ${SPARKLINE_CONF.map((v,i)=>`${(i/(SPARKLINE_CONF.length-1))*150},${46-(v/100)*46}`).join(" L ")}`} fill="none" stroke={C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="240" strokeDashoffset={visible?0:240} style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.2s",filter:`drop-shadow(0 0 4px ${C.green}80)`}}/>
+                  </svg>
+                </div>
                 <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.12em",marginBottom:"16px",opacity:0.85}}>CONFIDENCE DISTRIBUTION</p>
                 <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
                   {CONF_BANDS.map((b,i)=>(
@@ -2487,7 +2508,7 @@ function SettingsSection(){
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.teal,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Settings</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your keys.<br/>Your spend.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Your keys." style={{fontWeight:400}}/><br/><KineticText text="Your spend." style={{fontWeight:400}}/></h2>
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Bring your own Anthropic, OpenAI, Gemini, Mistral, Groq, NVIDIA, DeepSeek, or Tavily keys — encrypted at rest, live-validated, never used against you. Sign in with email, or Google / GitHub OAuth.</p>
         </div>
@@ -2517,6 +2538,9 @@ function SettingsSection(){
               {[
                 {provider:"Anthropic", masked:"sk-ant-****-a1b2", color:C.amber},
                 {provider:"OpenAI",    masked:"sk-****-c3d4",     color:C.cyan},
+                {provider:"Google",    masked:"AIza****-9f2c",    color:"#8ab4f8"},
+                {provider:"Groq",      masked:"gsk_****-7b1a",    color:C.coral},
+                {provider:"DeepSeek",  masked:"sk-****-4d8e",     color:C.indigo},
                 {provider:"Tavily",    masked:"tvly-****-e5f6",   color:C.green},
               ].map(k=>(
                 <div key={k.provider} style={{borderRadius:"14px",padding:"16px 18px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -2527,6 +2551,26 @@ function SettingsSection(){
                   <span style={{width:"8px",height:"8px",borderRadius:"50%",background:k.color,boxShadow:`0 0 8px ${k.color}`}}/>
                 </div>
               ))}
+              <div style={{gridColumn:"1 / -1",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"20px",flexWrap:"wrap",padding:"18px 22px",borderRadius:"16px",background:"linear-gradient(90deg,rgba(0,230,184,0.06),rgba(0,204,255,0.03),transparent)",border:`1px solid ${C.teal}22`}}>
+                <div style={{flexShrink:0}}>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.teal,letterSpacing:"0.1em",margin:0,textTransform:"uppercase"}}>Spend this month · your keys</p>
+                  <p style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:"30px",color:"#fff",margin:"5px 0 0",lineHeight:1}}><ScrambledText inline radius={90} scrambleChars="0123456789.$">$3.42</ScrambledText></p>
+                </div>
+                <div style={{flex:"1 1 220px",minWidth:"180px"}}>
+                  {[{k:"Research",v:72,c:C.green},{k:"Debate",v:28,c:C.crimson}].map(r=>(
+                    <div key={r.k} style={{display:"flex",alignItems:"center",gap:"9px",marginBottom:"8px"}}>
+                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(150,165,180,0.6)",minWidth:"56px"}}>{r.k}</span>
+                      <div style={{flex:1,height:"6px",borderRadius:"4px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}><div style={{width:`${r.v}%`,height:"100%",borderRadius:"4px",background:`linear-gradient(90deg,${r.c}aa,${r.c})`,boxShadow:`0 0 6px ${r.c}55`}}/></div>
+                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:r.c,minWidth:"30px",textAlign:"right"}}>{r.v}%</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>window.location.href="/settings"} style={{flexShrink:0,padding:"10px 18px",borderRadius:"9999px",border:`1px solid ${C.teal}45`,background:"rgba(0,230,184,0.08)",color:C.teal,fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:"12px",cursor:"pointer",transition:"all 0.25s"}}
+                  onMouseOver={e=>{e.currentTarget.style.background="rgba(0,230,184,0.18)";e.currentTarget.style.borderColor=`${C.teal}90`;}}
+                  onMouseOut={e=>{e.currentTarget.style.background="rgba(0,230,184,0.08)";e.currentTarget.style.borderColor=`${C.teal}45`;}}>
+                  View breakdown →
+                </button>
+              </div>
               <div style={{gridColumn:"1 / -1",display:"flex",flexWrap:"wrap",alignItems:"center",gap:"10px"}}>
                 <BYOKBadge/>
                 <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.4)"}}>·</span>
@@ -2747,7 +2791,7 @@ function PDFLabSection(){
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
           <div>
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.cyan,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ PDF Lab</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Documents,<br/>interrogated.</h2>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Documents," style={{fontWeight:400}}/><br/><KineticText text="interrogated." style={{fontWeight:400}}/></h2>
           </div>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Drag in a PDF and it's screened, indexed, and ready for Q&A — with multi-PDF cross-referencing.</p>
         </div>
@@ -2812,6 +2856,16 @@ function StorySection(){
         <ScrollReveal tag="p" baseOpacity={0.15} baseRotation={2} blurStrength={6} containerClassName="story-manifesto">That's the quiet problem with most AI answers — not that they're wrong, but that they never say how sure they are, or show their work. POLYNOUS was built on a simple bet: research gets more honest when it's argued out loud, not generated in one breath.</ScrollReveal>
       </div>
 
+      <div style={{maxWidth:"820px",margin:"0 auto 40px"}}>
+        <MaskContainer
+          revealText={<span style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:"clamp(1.05rem,2.3vw,1.7rem)",letterSpacing:"-0.02em",textAlign:"center",lineHeight:1.3}}>Confidence scores · inline citations · named limitations · the reasoning, shown.</span>}
+          revealBg="linear-gradient(135deg,#00ff0f,#00ccff,#a855f7)"
+          style={{height:"210px",borderRadius:"22px",border:"1px solid rgba(255,255,255,0.06)"}}
+        >
+          <span style={{fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:"clamp(1rem,2.1vw,1.55rem)",letterSpacing:"-0.02em",textAlign:"center",lineHeight:1.35}}>Most AI just hands you an answer.&nbsp;<span style={{color:"rgba(150,164,182,0.55)"}}>Move your cursor to reveal what it hides.</span></span>
+        </MaskContainer>
+      </div>
+
       <div style={{display:"flex",flexDirection:"column",gap:"1px",background:"rgba(255,255,255,0.04)",borderRadius:"20px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.05)"}}>
         {beats.map((b,i)=>{
           const bref=useReveal(0.15);
@@ -2845,6 +2899,22 @@ export default function LandingPage(){
     document.head.appendChild(el);
     return()=>{try{document.head.removeChild(el);}catch(_){}};
   },[]);
+  // Lenis smooth scroll — synced with the GSAP ScrollTrigger the React Bits use,
+  // so scroll-driven reveals stay in lockstep with the eased scroll position.
+  useEffect(()=>{
+    if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lenis=new Lenis({ autoRaf:true, anchors:true, lerp:0.09, wheelMultiplier:1 });
+    let stopSync=()=>{};
+    (async()=>{
+      try{
+        const { ScrollTrigger }=await import("gsap/ScrollTrigger");
+        const onScroll=()=>ScrollTrigger.update();
+        lenis.on("scroll", onScroll);
+        stopSync=()=>lenis.off("scroll", onScroll);
+      }catch(_){}
+    })();
+    return()=>{ try{stopSync();lenis.destroy();}catch(_){}};
+  },[]);
   useEffect(()=>{
     if(document.querySelector("link[data-ms]"))return;
     const l=document.createElement("link");
@@ -2867,7 +2937,6 @@ export default function LandingPage(){
           <ApiSection/>
           <FeaturesSection/>
           <PipelineSection/>
-          <CurvedLoop marqueeText="MANY MINDS ✦ ONE ANSWER ✦ " speed={0.6} curveAmount={140} direction="right" interactive className="curved-divider curved-divider-2"/>
           <TechHighlights/>
           <AgentPlayground/>
           <ResearchChamberSection/>
