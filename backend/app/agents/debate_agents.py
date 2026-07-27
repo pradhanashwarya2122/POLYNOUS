@@ -37,7 +37,12 @@ DEFAULT_ANTHROPIC_MODEL = os.getenv("DEBATE_ANTHROPIC_MODEL", "claude-haiku-4-5"
 DEFAULT_OPENAI_MODEL = os.getenv("DEBATE_OPENAI_MODEL", "gpt-4o-mini")
 
 MAX_TOKENS_ARGUMENT = 800    # opening includes the steelman restatement
-MAX_TOKENS_JUDGE = 900       # verdict JSON now carries framing/minority/follow-ups
+# The verdict JSON carries reasoning + strongest_point + best_rebuttal +
+# framing_check (frame + alternatives) + minority_report + 3-4 follow-up
+# questions. At 900 tokens this truncated on real (long-argument) debates →
+# unparseable JSON → verdict collapsed to UNSCORED with no follow-ups. Give it
+# the headroom a full verdict actually needs.
+MAX_TOKENS_JUDGE = 2400      # verdict JSON now carries framing/minority/follow-ups
 TEMPERATURE_ARGUMENT = 0.7
 TEMPERATURE_JUDGE = 0.2
 
@@ -307,6 +312,31 @@ JUDGE_PERSONAS = {
         "Adopt the lens of a PRAGMATIST. Weigh arguments by real-world feasibility, "
         "implementation, precedent, and what actually works in practice. Reward the side "
         "grounded in workable reality; discount elegant theory that cannot be executed."
+    ),
+    "scientist": (
+        "Adopt the lens of a SCIENTIST. Weigh arguments by empirical evidence, data "
+        "quality, mechanism, and falsifiability. Reward claims backed by strong methodology; "
+        "discount anecdote, correlation-as-causation, and untestable assertions."
+    ),
+    "skeptic": (
+        "Adopt the lens of a SKEPTIC. Demand proof for every claim and reward the side whose "
+        "assertions are best supported. Heavily discount confident claims that lack evidence, "
+        "hidden assumptions, and rhetorical sleight of hand."
+    ),
+    "futurist": (
+        "Adopt the lens of a FUTURIST. Weigh arguments by long-term and second-order "
+        "consequences, resilience, and how they age over decades. Reward foresight; discount "
+        "short-term thinking that ignores downstream effects."
+    ),
+    "humanist": (
+        "Adopt the lens of a HUMANIST. Weigh arguments by human wellbeing, lived experience, "
+        "dignity, and impact on ordinary people. Reward the side that best serves real people; "
+        "discount abstractions that lose sight of who is affected."
+    ),
+    "libertarian": (
+        "Adopt the lens of a LIBERTARIAN. Weigh arguments by individual liberty, consent, and "
+        "limits on coercive power. Reward the side that best preserves freedom of choice; "
+        "discount arguments that expand control without strong justification."
     ),
 }
 

@@ -951,10 +951,15 @@ function DebateTelemetryCard({ telemetry }) {
 
 // ── Interactive follow-ups: Judge's Lens (#5) + Join the Debate (#6) ──────────
 const JUDGE_LENSES = [
-  { key: "impartial",  label: "Impartial",  icon: "balance",       blurb: "Neutral judge — logic and evidence only" },
-  { key: "economist",  label: "Economist",  icon: "trending_up",   blurb: "Cost-benefit, incentives, efficiency, tradeoffs" },
-  { key: "ethicist",   label: "Ethicist",   icon: "diversity_3",   blurb: "Rights, duties, fairness, harm to the vulnerable" },
-  { key: "pragmatist", label: "Pragmatist", icon: "construction",  blurb: "Feasibility, implementation, what works in practice" },
+  { key: "impartial",   label: "Impartial",   icon: "balance",       blurb: "Neutral judge — logic and evidence only" },
+  { key: "economist",   label: "Economist",   icon: "trending_up",   blurb: "Cost-benefit, incentives, efficiency, tradeoffs" },
+  { key: "ethicist",    label: "Ethicist",    icon: "diversity_3",   blurb: "Rights, duties, fairness, harm to the vulnerable" },
+  { key: "pragmatist",  label: "Pragmatist",  icon: "construction",  blurb: "Feasibility, implementation, what works in practice" },
+  { key: "scientist",   label: "Scientist",   icon: "science",       blurb: "Empirical evidence, data quality, falsifiability" },
+  { key: "skeptic",     label: "Skeptic",     icon: "help",          blurb: "Demands proof — discounts unsupported claims" },
+  { key: "futurist",    label: "Futurist",    icon: "rocket_launch", blurb: "Long-term and second-order consequences" },
+  { key: "humanist",    label: "Humanist",    icon: "favorite",      blurb: "Human wellbeing, dignity, ordinary people" },
+  { key: "libertarian", label: "Libertarian", icon: "lock_open",     blurb: "Individual liberty, consent, limits on power" },
 ];
 
 function DebateFollowups({ query, result, onVerdict }) {
