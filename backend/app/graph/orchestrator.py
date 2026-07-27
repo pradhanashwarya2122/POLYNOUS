@@ -283,9 +283,10 @@ def _reformulate_query(query: str, provider: str, api_key: str, model,
         if client_type == "openai":
             from openai import OpenAI
             c = OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {}))
-            r = c.chat.completions.create(model=used_model,
-                                          messages=[{"role": "user", "content": prompt}],
-                                          max_tokens=60, temperature=0.3)
+            from app.utils.openai_compat import openai_chat
+            r = openai_chat(c, model=used_model,
+                            messages=[{"role": "user", "content": prompt}],
+                            max_tokens=60, temperature=0.3)
             out = r.choices[0].message.content
         else:
             from anthropic import Anthropic

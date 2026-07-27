@@ -238,7 +238,9 @@ def _summarise_one(
  
         if ptype in ("openai", "openai_compatible"):
             def _call():
-                return client.chat.completions.create(
+                from app.utils.openai_compat import openai_chat
+                return openai_chat(
+                    client,
                     model=chosen_model,
                     messages=[
                         {"role": "system", "content": _SYSTEM_PROMPT},

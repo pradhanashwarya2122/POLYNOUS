@@ -472,7 +472,9 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
     from app.utils.usage import record as _record_usage
     if client_type == "openai":
         used_model = model or DEFAULT_OPENAI_MODEL
-        response = client.chat.completions.create(
+        from app.utils.openai_compat import openai_chat
+        response = openai_chat(
+            client,
             model=used_model,
             messages=[
                 {"role": "system", "content": system_prompt},

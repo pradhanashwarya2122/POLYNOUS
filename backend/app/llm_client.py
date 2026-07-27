@@ -29,7 +29,9 @@ def ask_claude(user, system_prompt: str, messages: list, max_tokens=1024, temper
 
 def ask_openai(user, messages: list, max_tokens=1024, temperature=0.7):
     client = get_openai_client(user)
-    response = client.chat.completions.create(
+    from app.utils.openai_compat import openai_chat
+    response = openai_chat(
+        client,
         model="gpt-4o-mini",
         max_tokens=max_tokens,
         temperature=temperature,
