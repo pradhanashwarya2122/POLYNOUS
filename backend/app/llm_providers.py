@@ -23,7 +23,7 @@ OPENAI_COMPATIBLE_BASE_URLS = {
 # Selectable models per provider (kept in sync with the frontend registry)
 PROVIDER_MODELS = {
     "anthropic": ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-4-8"],
-    "openai":    ["gpt-4o-mini", "gpt-5.1-mini", "gpt-5.1"],
+    "openai":    ["gpt-4o-mini", "gpt-5.1"],
     "google":    ["gemini-2.5-flash", "gemini-2.5-pro"],
     "mistral":   ["mistral-small-latest", "mistral-large-latest"],
     "groq":      ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"],

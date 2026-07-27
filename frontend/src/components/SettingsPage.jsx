@@ -909,7 +909,7 @@ const PROVIDERS = {
   anthropic: { label: "Anthropic Claude", icon: "psychology",      color: C.silver,   placeholder: "sk-ant-api03-…",
                models: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-4-8"] },
   openai:    { label: "OpenAI GPT",        icon: "smart_toy",      color: C.cyan,     placeholder: "sk-…",
-               models: ["gpt-4o-mini", "gpt-5.1-mini", "gpt-5.1"] },
+               models: ["gpt-4o-mini", "gpt-5.1"] },
   google:    { label: "Google Gemini",     icon: "auto_awesome",   color: "#8ab4f8",  placeholder: "AIza…",
                models: ["gemini-2.5-flash", "gemini-2.5-pro"] },
   mistral:   { label: "Mistral AI",        icon: "air",            color: "#f4a261",  placeholder: "Mistral key…",
