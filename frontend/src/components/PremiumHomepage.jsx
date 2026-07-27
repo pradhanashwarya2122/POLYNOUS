@@ -13,10 +13,14 @@ import ScrambledText from "./react-bits/ScrambledText";
 import { GlobalSpotlight } from "./react-bits/MagicBento";
 // TargetCursor, CardNav, and FluidGlass are intentionally NOT wired in — each
 // conflicts with something POLYNOUS already has (see guide §8/§13/§14).
-// OptionWheel (§11) targets ProfileSetup.jsx/DebateInterface.jsx, which
-// aren't part of this file.
 
-// Served from /frontend/public — anything dropped there is available at the site root.
+// BUG FIX: this was a Windows filesystem path ("C:\Users\Hp\Downloads\...")
+// which is meaningless in a browser and will 404 the profile photo. Files in
+// frontend/public/ are served from the site root, so the correct src is just
+// "/profilepic.jpg" (this was almost certainly part of why things looked
+// broken — a failed image request combined with the react-bits imports
+// throwing at parse time when the target files didn't exist yet was enough
+// to blank the whole app, canvas background included).
 const PHOTO_SRC = "/profilepic.jpg";
 
 const C = {
@@ -28,22 +32,8 @@ const C = {
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800;900&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; font-size: 16px; scroll-padding-top: 24px; }
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
-  }
+  html { scroll-behavior: smooth; font-size: 16px; }
   body { background-color: #060610; color: #ffffff; overflow-x: hidden; font-family: 'Hanken Grotesk', sans-serif; }
-
-  /* ── Ultra-premium reveal: slower, blurred, physically eased ─────────── */
-  .reveal { opacity:0; transform:translateY(36px) scale(0.985); filter:blur(6px); transition:opacity 1.3s cubic-bezier(0.16,1,0.3,1),transform 1.3s cubic-bezier(0.16,1,0.3,1),filter 1.1s cubic-bezier(0.16,1,0.3,1); will-change:opacity,transform,filter; }
-  .reveal.visible { opacity:1; transform:translateY(0) scale(1); filter:blur(0px); }
-
-  /* ── Premium chamber card: idle sheen + lift-and-glow on hover ───────── */
-  .chamber-card-premium { position:relative; transition:transform 0.6s cubic-bezier(0.16,1,0.3,1), box-shadow 0.6s cubic-bezier(0.16,1,0.3,1), filter 0.6s ease; }
-  .chamber-card-premium::before { content:''; position:absolute; inset:-1px; border-radius:29px; padding:1px; background:inherit; opacity:0; filter:blur(18px); transition:opacity 0.6s ease; pointer-events:none; z-index:-1; }
-  .chamber-card-premium:hover { transform:translateY(-6px) scale(1.004); box-shadow:0 70px 130px rgba(0,0,0,0.65), 0 0 60px rgba(0,255,15,0.06), 0 0 0 1px rgba(255,255,255,0.04) !important; }
-  .chamber-card-premium:hover::before { opacity:0.55; }
   /* ── React Bits integration styles ────────────────────────────────────── */
   .hero-split-line .split-char, .hero-split-line .split-word {
     background: linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.8) 52%,rgba(0,204,255,0.65) 82%);
@@ -55,14 +45,13 @@ const GLOBAL_STYLES = `
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   }
   .hero-subhead { font-family:'Hanken Grotesk',sans-serif; font-size:clamp(16px,1.9vw,20px); color:rgba(130,148,168,0.88); max-width:580px; line-height:1.75; margin:0 0 24px; font-weight:400; }
-  .story-lede { margin: 0; }
-  .story-lede-text { font-family:'Hanken Grotesk',sans-serif; font-size:16.5px; color:rgba(150,164,182,0.85); line-height:1.75; font-weight:400; }
-  .story-beat-body { font-family:'Hanken Grotesk',sans-serif; font-size:15px; color:rgba(150,164,182,0.8); line-height:1.7; margin:0; }
-  .pipeline-scrollfloat .scroll-float-text, .capabilities-scrollfloat .scroll-float-text {
-    font-family: 'Sora', sans-serif; font-weight: 900; letter-spacing: -0.05em; color: #fff; line-height: 1;
+  .api-lede { margin: 0 0 28px; }
+  .api-lede-text { font-family:'Hanken Grotesk',sans-serif; font-size:16px; color:rgba(130,148,168,0.82); line-height:1.7; font-weight:400; }
+  .pipeline-scrollfloat .scroll-float-text, .tech-scrollfloat .scroll-float-text {
+    font-family: 'Sora', sans-serif; font-weight: 900; letter-spacing: -0.055em; color: #fff; line-height: 0.9;
   }
-  .pipeline-scrollfloat .scroll-float-text { font-size: clamp(2rem,4.5vw,3.6rem); }
-  .capabilities-scrollfloat .scroll-float-text { font-size: clamp(1.6rem,3.4vw,2.4rem); }
+  .pipeline-scrollfloat .scroll-float-text { font-size: clamp(2rem,4.5vw,3.6rem); letter-spacing:-0.05em; }
+  .tech-scrollfloat .scroll-float-text { font-size: clamp(2.4rem,5.5vw,4.6rem); }
   .tech-velocity-text {
     font-family: 'JetBrains Mono', monospace; font-weight: 600;
     font-size: 1.1rem; letter-spacing: 0.02em; color: rgba(0,255,15,0.35); padding: 0 24px;
@@ -123,26 +112,16 @@ const GLOBAL_STYLES = `
   @keyframes memSparkle   { 0%,100%{opacity:0;transform:scale(0.4) rotate(0deg)} 50%{opacity:1;transform:scale(1) rotate(180deg)} }
   @keyframes memOrbit     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
-  @keyframes termBlink   { 0%,100%{opacity:1} 50%{opacity:0} }
-  @keyframes pipelineSheen { 0%{left:-40%} 55%{left:110%} 100%{left:110%} }
-  .term-cursor { display:inline-block; width:7px; height:13px; background:currentColor; margin-left:2px; vertical-align:-2px; animation:termBlink 0.9s step-end infinite; }
-
-  .reveal { opacity:0; transform:translateY(28px) scale(0.995); transition:opacity 1.1s cubic-bezier(0.16,1,0.3,1),transform 1.1s cubic-bezier(0.16,1,0.3,1); will-change:opacity,transform; }
-  .reveal.visible { opacity:1; transform:translateY(0) scale(1); }
-  .reveal-stagger > * { opacity:0; transform:translateY(18px); transition:opacity 0.9s cubic-bezier(0.16,1,0.3,1),transform 0.9s cubic-bezier(0.16,1,0.3,1); }
-  .reveal-stagger.visible > *:nth-child(1)  { opacity:1;transform:translateY(0);transition-delay:0.03s }
-  .reveal-stagger.visible > *:nth-child(2)  { opacity:1;transform:translateY(0);transition-delay:0.08s }
-  .reveal-stagger.visible > *:nth-child(3)  { opacity:1;transform:translateY(0);transition-delay:0.13s }
-  .reveal-stagger.visible > *:nth-child(4)  { opacity:1;transform:translateY(0);transition-delay:0.18s }
-  .reveal-stagger.visible > *:nth-child(5)  { opacity:1;transform:translateY(0);transition-delay:0.23s }
-  .reveal-stagger.visible > *:nth-child(6)  { opacity:1;transform:translateY(0);transition-delay:0.28s }
-  .reveal-stagger.visible > *:nth-child(n+7){ opacity:1;transform:translateY(0);transition-delay:0.32s }
-  /* Premium corner-bracket accent — subtle, POLYNOUS palette only */
-  .corner-brackets { position:relative; }
-  .corner-brackets::before, .corner-brackets::after { content:''; position:absolute; width:16px; height:16px; opacity:0; transition:opacity 0.4s ease; pointer-events:none; }
-  .corner-brackets::before { top:10px; left:10px; border-left:1.5px solid currentColor; border-top:1.5px solid currentColor; }
-  .corner-brackets::after  { bottom:10px; right:10px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; }
-  .corner-brackets:hover::before, .corner-brackets:hover::after { opacity:0.55; }
+  .reveal { opacity:0; transform:translateY(52px); transition:opacity 1.4s cubic-bezier(0.16,1,0.3,1),transform 1.4s cubic-bezier(0.16,1,0.3,1); will-change:opacity,transform; }
+  .reveal.visible { opacity:1; transform:translateY(0); }
+  .reveal-stagger > * { opacity:0; transform:translateY(34px); transition:opacity 1.1s cubic-bezier(0.16,1,0.3,1),transform 1.1s cubic-bezier(0.16,1,0.3,1); }
+  .reveal-stagger.visible > *:nth-child(1)  { opacity:1;transform:translateY(0);transition-delay:0.06s }
+  .reveal-stagger.visible > *:nth-child(2)  { opacity:1;transform:translateY(0);transition-delay:0.17s }
+  .reveal-stagger.visible > *:nth-child(3)  { opacity:1;transform:translateY(0);transition-delay:0.28s }
+  .reveal-stagger.visible > *:nth-child(4)  { opacity:1;transform:translateY(0);transition-delay:0.39s }
+  .reveal-stagger.visible > *:nth-child(5)  { opacity:1;transform:translateY(0);transition-delay:0.50s }
+  .reveal-stagger.visible > *:nth-child(6)  { opacity:1;transform:translateY(0);transition-delay:0.61s }
+  .reveal-stagger.visible > *:nth-child(n+7){ opacity:1;transform:translateY(0);transition-delay:0.72s }
   .section-rule { width:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,15,0.35),rgba(0,204,255,0.2),transparent);margin:0 auto 88px;transition:width 1.2s cubic-bezier(0.22,1,0.36,1); }
   .section-rule.visible { width:50%; }
   .section-rule-tight.visible { margin:0 auto 32px; }
@@ -152,9 +131,9 @@ const GLOBAL_STYLES = `
   .nav-link { font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:500;color:rgba(100,116,145,0.85);text-decoration:none;transition:color .22s;cursor:pointer;letter-spacing:0.018em; }
   .nav-link:hover { color:#00ff0f; }
   .nav-link-active { color:#00ff0f; }
-  .feat-card { transition:transform 0.55s cubic-bezier(0.16,1,0.3,1),box-shadow 0.55s cubic-bezier(0.16,1,0.3,1),border-color 0.55s ease;position:relative;cursor:pointer;overflow:hidden; }
+  .feat-card { transition:all 0.5s cubic-bezier(0.23,1,0.32,1);position:relative;cursor:pointer;overflow:hidden; }
   .feat-card::before { content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.5s ease;z-index:0;border-radius:inherit; }
-  .feat-card:hover { transform:translateY(-8px) scale(1.012); box-shadow:0 30px 60px rgba(0,0,0,0.45); border-color:rgba(255,255,255,0.14) !important; }
+  .feat-card:hover { transform:translateY(-6px); }
   .feat-card-green::before  { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,255,15,0.1) 0%,transparent 70%); }
   .feat-card-crimson::before{ background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,32,64,0.1) 0%,transparent 70%); }
   .feat-card-cyan::before   { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,204,255,0.1) 0%,transparent 70%); }
@@ -163,8 +142,6 @@ const GLOBAL_STYLES = `
   .feat-card-gold::before   { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,215,0,0.09) 0%,transparent 70%); }
   .feat-card-amber::before  { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,170,0,0.1) 0%,transparent 70%); }
   .feat-card-teal::before   { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,230,184,0.09) 0%,transparent 70%); }
-  .feat-card-coral::before  { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,107,107,0.1) 0%,transparent 70%); }
-  .feat-card-indigo::before { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(88,120,212,0.1) 0%,transparent 70%); }
   .feat-card:hover::before  { opacity:1; }
   .feat-card:hover .feat-top-line { opacity:1 !important; }
   .feat-card:hover .feat-arrow { opacity:1 !important; transform:translate(3px,-3px) !important; }
@@ -201,13 +178,10 @@ const GLOBAL_STYLES = `
 `;
 
 const NAV_SECTIONS = [
-  {label:"How It Works",     id:"how-it-works"},
-  {label:"Features",         id:"features"},
-  {label:"Pipeline",         id:"pipeline"},
-  {label:"Research & Debate",id:"research-debate"},
-  {label:"Graph",            id:"graph"},
-  {label:"Memory",           id:"memory"},
-  {label:"Analytics",        id:"analytics"},
+  {label:"How It Works", id:"how-it-works"},
+  {label:"Features",     id:"features"},
+  {label:"Pipeline",     id:"pipeline"},
+  {label:"Agents",       id:"playground"},
 ];
 
 const STEPS = [
@@ -218,19 +192,14 @@ const STEPS = [
 ];
 
 const FEATURES = [
-  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"Search → Summariser → Critic → Writer — a live 4-agent pipeline with per-claim confidence scoring and contradiction flags, streamed token-by-token.", tag:"RESEARCH"},
-  {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST build evidence-backed cases; a rubric-scored Judge delivers a 1–10 verdict, generates follow-up questions, and supports post-verdict cross-examination.", tag:"DEBATE"},
-  {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered graph. Pathfinder traces the shortest link between any two entities; centrality analysis surfaces your most-connected ideas.", tag:"GRAPH"},
-  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"Pinecone vector search + Voyage AI embeddings find past research by meaning, not keywords — rendered as a similarity-ranked constellation.", tag:"SEARCH"},
-  {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Every upload runs through signature verification, embedded-JS detection, and malware scanning before RAG — with cross-referencing across multiple PDFs at once.", tag:"PDF LAB"},
+  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"7 specialized agents collaborate in a LangGraph pipeline — delivering cited, confidence-scored answers in real time.", tag:"RESEARCH"},
+  {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST agents argue opposing sides. An AI Judge evaluates evidence and declares a ruling.", tag:"DEBATE"},
+  {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered knowledge graph, connecting topics and entities visually.", tag:"GRAPH"},
+  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"OpenAI embeddings + Pinecone vector search find past research in milliseconds, by meaning.", tag:"SEARCH"},
+  {icon:"neurology",     title:"Neural Memory Bank",  color:C.purple,  cls:"feat-card-purple",   dot:C.purple,  route:"/memory",   desc:"Track interests, visualize patterns, and discover connections as an interactive living timeline.", tag:"MEMORY"},
+  {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Upload documents, embed with AI, and query with natural language for document-grounded answers.", tag:"PDF LAB"},
   {icon:"bolt",          title:"Streaming Pipeline",  color:C.amber,   cls:"feat-card-amber",    dot:C.amber,   route:"/research", desc:"Server-Sent Events deliver real-time token streaming with live agent progress visualization.", tag:"STREAMING"},
   {icon:"verified_user", title:"API Key Vault",       color:C.teal,    cls:"feat-card-teal",     dot:C.teal,    route:"/settings", desc:"Bring your own Anthropic, OpenAI, or Tavily keys. Fernet-encrypted. Zero-knowledge architecture.", tag:"VAULT"},
-  {icon:"query_stats",   title:"Neural Analytics",    color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics — extracted automatically from your research history via /analytics/dashboard.", tag:"ANALYTICS"},
-];
-
-const SECONDARY_FEATURES = [
-  {icon:"receipt_long",  title:"Run Telemetry",       color:C.coral,   route:"/research", desc:"Real token spend and estimated USD cost per run, per agent — labelled an estimate, never fabricated."},
-  {icon:"cached",        title:"Research Caching",    color:C.indigo,  route:"/research", desc:"Repeat a query inside its freshness window and it's served from your own cache — near-zero cost."},
 ];
 
 const TECH = [
@@ -250,48 +219,27 @@ const EXAMPLES = [
 ];
 
 const RESEARCH_NODES = [
-  {id:"search",    name:"SEARCH",    icon:"search",       color:C.cyan,  tag:"AG-01"},
-  {id:"summarise", name:"SUMMARISE", icon:"summarize",    color:C.indigo,tag:"AG-02"},
-  {id:"critic",    name:"CRITIC",    icon:"balance",      color:C.amber, tag:"AG-03"},
-  {id:"writer",    name:"WRITER",    icon:"edit_note",    color:C.purple,tag:"AG-04"},
+  {id:"search",    name:"SEARCH",    emoji:" ",color:C.cyan,  tag:"AG-01"},
+  {id:"summarise", name:"SUMMARISE", emoji:"📄",color:C.indigo,tag:"AG-02"},
+  {id:"critic",    name:"CRITIC",    emoji:"⚖️",color:C.amber, tag:"AG-03"},
+  {id:"writer",    name:"WRITER",    emoji:"✍️",color:C.purple,tag:"AG-04"},
 ];
 
 const DIALECTIC_NODES = [
-  {id:"d-search",name:"SEARCH", icon:"search",        color:C.cyan,   tag:"DX-01",x:75, y:240},
-  {id:"for",     name:"FOR",    icon:"check_circle",  color:C.green,  tag:"DX-02",x:270,y:100},
-  {id:"against", name:"AGAINST",icon:"cancel",        color:C.crimson,tag:"DX-03",x:270,y:380},
-  {id:"judge",   name:"JUDGE",  icon:"gavel",         color:C.gold,   tag:"DX-04",x:460,y:240,isJudge:true},
+  {id:"d-search",name:"SEARCH", emoji:" ",color:C.cyan,   tag:"DX-01",x:75, y:240},
+  {id:"for",     name:"FOR",    emoji:"✅",color:C.green,  tag:"DX-02",x:270,y:100},
+  {id:"against", name:"AGAINST",emoji:"❌",color:C.crimson,tag:"DX-03",x:270,y:380},
+  {id:"judge",   name:"JUDGE",  emoji:"👨‍⚖️",color:C.gold,   tag:"DX-04",x:460,y:240,isJudge:true},
 ];
 
 const PLAYGROUND_AGENTS = [
-  {id:"search",   name:"SEARCH",   icon:"search",       color:"#00ccff",desc:"I scan knowledge bases and the web to pull raw, unfiltered data on any topic."},
-  {id:"summarise",name:"SUMMARISE",icon:"summarize",    color:"#5878d4",desc:"I distill walls of text into crisp, structured summaries without losing nuance."},
-  {id:"for",      name:"FOR",      icon:"check_circle", color:"#00ff0f",desc:"My job is to build the strongest possible case in favour of the proposition."},
-  {id:"against",  name:"AGAINST",  icon:"cancel",       color:"#ff2040",desc:"I stress-test every argument and poke holes in assumptions. Nothing slips past me."},
-  {id:"critic",   name:"CRITIC",   icon:"balance",      color:"#ffaa00",desc:"I cross-examine both sides and flag logical fallacies or citation gaps."},
-  {id:"writer",   name:"WRITER",   icon:"edit_note",    color:"#a855f7",desc:"I synthesize everything into polished, publication-ready prose with citations."},
-  {id:"judge",    name:"JUDGE",    icon:"gavel",        color:"#ffd700",desc:"Final verdict. I weigh all evidence, assign confidence scores, and deliver the ruling."},
-];
-
-const HERO_BOOT_SEQUENCES = [
-  [
-    {text:"> Checking critical dependencies...", color:"rgba(130,148,170,0.6)"},
-    {text:"> Database initialized ✓", color:"rgba(130,148,170,0.6)"},
-    {text:"> Neo4j verified on startup ✓", color:"rgba(130,148,170,0.6)"},
-    {text:"> Uvicorn running on :8000", color:C.green},
-  ],
-  [
-    {text:"$ npm run dev", color:"rgba(100,118,170,0.55)"},
-    {text:"> VITE ready", color:"rgba(130,148,170,0.6)"},
-    {text:"> Local: http://localhost:5173", color:"rgba(130,148,170,0.6)"},
-    {text:"> Frontend ⇄ Backend linked.", color:C.cyan},
-  ],
-  [
-    {text:"> 10 routers mounted: /ask /ask-stream", color:"rgba(130,148,170,0.6)"},
-    {text:"> /ask-visual /memory /knowledge /pdfs...", color:"rgba(130,148,170,0.6)"},
-    {text:"> \"Many Minds, One Answer\"", color:C.purple},
-    {text:"> System nominal. Awaiting query.", color:C.cyan},
-  ],
+  {id:"search",   name:"SEARCH",   emoji:" ",color:"#00ccff",desc:"I scan knowledge bases and the web to pull raw, unfiltered data on any topic."},
+  {id:"summarise",name:"SUMMARISE",emoji:"📄",color:"#5878d4",desc:"I distill walls of text into crisp, structured summaries without losing nuance."},
+  {id:"for",      name:"FOR",      emoji:"✅",color:"#00ff0f",desc:"My job is to build the strongest possible case in favour of the proposition."},
+  {id:"against",  name:"AGAINST",  emoji:"❌",color:"#ff2040",desc:"I stress-test every argument and poke holes in assumptions. Nothing slips past me."},
+  {id:"critic",   name:"CRITIC",   emoji:"⚖️",color:"#ffaa00",desc:"I cross-examine both sides and flag logical fallacies or citation gaps."},
+  {id:"writer",   name:"WRITER",   emoji:"✍️",color:"#a855f7",desc:"I synthesize everything into polished, publication-ready prose with citations."},
+  {id:"judge",    name:"JUDGE",    emoji:"👨‍⚖️",color:"#ffd700",desc:"Final verdict. I weigh all evidence, assign confidence scores, and deliver the ruling."},
 ];
 
 const AGENT_QUIPS = {
@@ -305,18 +253,14 @@ const AGENT_QUIPS = {
 };
 
 const MEMORY_DOTS = [
-  {id:1,  query:"Quantum entanglement basics",    date:"Jun 18, 2025", tag:"Physics",      icon:"science",        conf:91},
-  {id:2,  query:"CRISPR gene editing ethics",     date:"Jun 15, 2025", tag:"Biology",      icon:"biotech",        conf:84},
-  {id:3,  query:"Mars colonization feasibility",  date:"Jun 12, 2025", tag:"Space",        icon:"rocket_launch",  conf:76},
-  {id:4,  query:"AI regulation global impact",    date:"Jun 9, 2025",  tag:"Policy",       icon:"policy",         conf:68},
-  {id:5,  query:"Fusion energy milestones",       date:"Jun 5, 2025",  tag:"Energy",       icon:"bolt",           conf:88},
-  {id:6,  query:"Neuroplasticity research",       date:"Jun 1, 2025",  tag:"Neuroscience", icon:"neurology",      conf:93},
-  {id:7,  query:"Blockchain & decentralization",  date:"May 28, 2025", tag:"Tech",         icon:"hub",            conf:71},
-  {id:8,  query:"Climate tipping points",         date:"May 24, 2025", tag:"Climate",      icon:"eco",            conf:82},
-  {id:9,  query:"Debate: universal basic income", date:"May 20, 2025", tag:"Debate",       icon:"forum",          conf:79},
-  {id:10, query:"Semantic search: prior sessions",date:"May 16, 2025", tag:"Search",       icon:"travel_explore", conf:95},
-  {id:11, query:"PDF Lab: clinical trial corpus", date:"May 12, 2025", tag:"PDF Lab",      icon:"picture_as_pdf", conf:87},
-  {id:12, query:"Knowledge graph: AI ⇄ policy",   date:"May 8, 2025",  tag:"Graph",        icon:"scatter_plot",   conf:90},
+  {id:1, query:"Quantum entanglement basics",    date:"Jun 18, 2025", tag:"Physics",    icon:"science"},
+  {id:2, query:"CRISPR gene editing ethics",     date:"Jun 15, 2025", tag:"Biology",    icon:"biotech"},
+  {id:3, query:"Mars colonization feasibility",  date:"Jun 12, 2025", tag:"Space",      icon:"rocket_launch"},
+  {id:4, query:"AI regulation global impact",    date:"Jun 9, 2025",  tag:"Policy",     icon:"policy"},
+  {id:5, query:"Fusion energy milestones",       date:"Jun 5, 2025",  tag:"Energy",     icon:"bolt"},
+  {id:6, query:"Neuroplasticity research",       date:"Jun 1, 2025",  tag:"Neuroscience",icon:"neurology"},
+  {id:7, query:"Blockchain & decentralization",  date:"May 28, 2025", tag:"Tech",       icon:"hub"},
+  {id:8, query:"Climate tipping points",         date:"May 24, 2025", tag:"Climate",    icon:"eco"},
 ];
 
 const MEMORY_COLORS = [C.purple, C.cyan, C.crimson, C.green, C.amber, C.teal, C.indigo, C.gold];
@@ -328,20 +272,6 @@ const TOP_TOPICS = [
   {label:"Biology", val:64, color:C.cyan},
   {label:"Space", val:55, color:C.purple},
   {label:"Energy", val:43, color:C.amber},
-];
-
-const CONF_BANDS = [
-  {label:"High",   range:"80–100%", val:58, color:C.green},
-  {label:"Medium", range:"50–79%",  val:34, color:C.amber},
-  {label:"Low",    range:"0–49%",   val:8,  color:C.crimson},
-];
-
-const HEATMAP_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const HEATMAP_DATA = [
-  [1,2,3,1,0,4,2],
-  [2,3,4,2,1,3,1],
-  [0,1,2,4,3,2,0],
-  [3,4,2,1,2,1,0],
 ];
 
 const GRAPH_NODES_DATA = [
@@ -366,125 +296,6 @@ function useReveal(threshold=0.13) {
   return ref;
 }
 
-/* ── Typing + deleting terminal loop ─────────────────────────────────────────
-   Types a sequence of lines char-by-char, holds, deletes bottom-up, then
-   advances to the next sequence and repeats. Used anywhere the copy is
-   framed as "live system output" so the effect reads as status, not decoration. */
-function useTypewriterLoop(sequences, {typeSpeed=20, lineGap=260, holdTime=2400, deleteSpeed=9, seqGap=450, active=true}={}) {
-  const [seqIdx,setSeqIdx]=useState(0);
-  const [lines,setLines]=useState([]);
-  const [typing,setTyping]=useState(true);
-  useEffect(()=>{
-    if(!active) return;
-    let cancelled=false;
-    const timers=[];
-    const wait=ms=>new Promise(res=>{const t=setTimeout(res,ms);timers.push(t);});
-    const seq=sequences[seqIdx];
-    (async()=>{
-      setTyping(true);
-      setLines([]);
-      for(let li=0;li<seq.length;li++){
-        const full=seq[li].text;
-        for(let ci=1;ci<=full.length;ci++){
-          if(cancelled)return;
-          await wait(typeSpeed);
-          setLines(prev=>{const c=prev.slice(0,li);c[li]={text:full.slice(0,ci),color:seq[li].color};return c;});
-        }
-        await wait(lineGap);
-      }
-      if(cancelled)return;
-      setTyping(false);
-      await wait(holdTime);
-      if(cancelled)return;
-      setTyping(true);
-      for(let li=seq.length-1;li>=0;li--){
-        const full=seq[li].text;
-        for(let ci=full.length;ci>=0;ci--){
-          if(cancelled)return;
-          await wait(deleteSpeed);
-          setLines(prev=>{const c=prev.slice(0,li+1);c[li]={text:full.slice(0,ci),color:seq[li].color};if(ci===0)c.length=li;return c;});
-        }
-      }
-      await wait(seqGap);
-      if(!cancelled)setSeqIdx(i=>(i+1)%sequences.length);
-    })();
-    return()=>{cancelled=true;timers.forEach(clearTimeout);};
-  },[seqIdx,active]);
-  return {lines};
-}
-
-function TerminalTypewriter({sequences,minLines=4,fontSize="12px"}){
-  const ref=useReveal(0.2);
-  const [inView,setInView]=useState(false);
-  useEffect(()=>{
-    const el=ref.current; if(!el)return;
-    const obs=new IntersectionObserver(([e])=>setInView(e.isIntersecting),{threshold:0.2});
-    obs.observe(el);
-    return()=>obs.disconnect();
-  },[]);
-  const {lines}=useTypewriterLoop(sequences,{active:inView});
-  return (
-    <div ref={ref} style={{fontFamily:"JetBrains Mono,monospace",fontSize,lineHeight:2,minHeight:`${minLines*2}em`}}>
-      {lines.length===0 && <div style={{color:"rgba(130,148,170,0.5)"}}><span className="term-cursor"/></div>}
-      {lines.map((l,i)=>(
-        <div key={i} style={{color:l.color}}>
-          {l.text}{i===lines.length-1 && <span className="term-cursor"/>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TypedLine({text,speed=20}){
-  const [n,setN]=useState(0);
-  useEffect(()=>{
-    if(n>=text.length)return;
-    const t=setTimeout(()=>setN(v=>v+1),speed);
-    return()=>clearTimeout(t);
-  },[n,text,speed]);
-  return <>{text.slice(0,n)}{n<text.length&&<span className="term-cursor"/>}</>;
-}
-
-
-const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-function ScrambleText({text,style,duration=650,loop=false,loopMin=5000,loopMax=10000}){
-  const ref=useRef(null);
-  const [display,setDisplay]=useState(text);
-  const [started,setStarted]=useState(false);
-  useEffect(()=>{
-    const el=ref.current; if(!el)return;
-    const obs=new IntersectionObserver(([e])=>{if(e.isIntersecting&&!started){setStarted(true);obs.disconnect();}},{threshold:0.5});
-    obs.observe(el);
-    return()=>obs.disconnect();
-  },[started]);
-  useEffect(()=>{
-    if(!started)return;
-    let cancelled=false, ivTimer=null, loopTimer=null;
-    function runOnce(onDone){
-      const chars=text.split("");
-      const frames=Math.max(10,Math.round(duration/40));
-      const lockAt=chars.map((_,i)=>Math.floor((i/Math.max(chars.length,1))*frames*0.65)+Math.floor(Math.random()*frames*0.35));
-      let frame=0;
-      ivTimer=setInterval(()=>{
-        frame++;
-        setDisplay(chars.map((ch,i)=>{
-          if(/[\s.,:/%\-"_]/.test(ch))return ch;
-          if(frame>=lockAt[i])return ch;
-          return SCRAMBLE_CHARS[Math.floor(Math.random()*SCRAMBLE_CHARS.length)];
-        }).join(""));
-        if(frame>=frames+4){clearInterval(ivTimer);setDisplay(text);onDone&&onDone();}
-      },40);
-    }
-    function scheduleNext(){
-      const wait=loopMin+Math.random()*(loopMax-loopMin);
-      loopTimer=setTimeout(()=>{if(!cancelled)runOnce(loop?scheduleNext:undefined);},wait);
-    }
-    runOnce(loop?scheduleNext:undefined);
-    return()=>{cancelled=true;clearInterval(ivTimer);clearTimeout(loopTimer);};
-  },[started]);
-  return <span ref={ref} style={style}>{display}</span>;
-}
-
 /* ── NeuralCanvas ─────────────────────────────────────────────────────────── */
 function NeuralCanvas() {
   const canvasRef=useRef(null);
@@ -492,24 +303,24 @@ function NeuralCanvas() {
   useEffect(()=>{
     const canvas=canvasRef.current,ctx=canvas.getContext("2d"),state=stateRef.current;
     const isSmall=window.innerWidth<768;
-    const COUNT=isSmall?60:180;
-    const LINK_DIST=isSmall?65:85;
+    const COUNT=isSmall?90:220;
+    const LINK_DIST=isSmall?70:95;
     class Particle {
       constructor(){this.reset();this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.baseX=this.x;this.baseY=this.y;}
-      reset(){this.baseX=Math.random()*canvas.width;this.baseY=Math.random()*canvas.height;this.x=this.baseX;this.y=this.baseY;this.size=Math.random()*1.6+0.3;const r=Math.random();this.color=r<0.5?C.green:r<0.8?C.cyan:C.purple;this.vx=0;this.vy=0;}
-      draw(){ctx.fillStyle=this.color;ctx.globalAlpha=0.55;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+      reset(){this.baseX=Math.random()*canvas.width;this.baseY=Math.random()*canvas.height;this.x=this.baseX;this.y=this.baseY;this.size=Math.random()*2.2+0.9;const r=Math.random();this.color=r<0.5?C.green:r<0.8?C.cyan:C.purple;this.vx=0;this.vy=0;}
+      draw(){ctx.shadowBlur=8;ctx.shadowColor=this.color;ctx.fillStyle=this.color;ctx.globalAlpha=0.85;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;}
       update(){const{x:mx,y:my}=state.mouse;if(mx!==null){const dx=mx-this.x,dy=my-this.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<150){const force=(150-dist)/150;this.vx-=(dx/dist)*force*1.4;this.vy-=(dy/dist)*force*1.4;}}this.vx+=(this.baseX-this.x)*0.008;this.vy+=(this.baseY-this.y)*0.008;this.vx*=0.93;this.vy*=0.93;this.x+=this.vx;this.y+=this.vy;}
     }
     // Only reinit on a genuine width change or a large height change — mobile
     // browsers fire `resize` on URL-bar show/hide during scroll, and re-seeding
-    // 180 particles mid-scroll every time was the source of the scroll jank/crash.
+    // particles mid-scroll every time was a source of jank.
     function init(w,h){canvas.width=w;canvas.height=h;state.particles=Array.from({length:COUNT},()=>new Particle());state.lastW=w;state.lastH=h;}
-    function drawConnections(){const ps=state.particles;for(let i=0;i<ps.length;i++){for(let j=i+1;j<ps.length;j++){const dx=ps[i].x-ps[j].x,dy=ps[i].y-ps[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<LINK_DIST){ctx.strokeStyle=ps[i].color;ctx.globalAlpha=(LINK_DIST-d)/LINK_DIST*0.055;ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(ps[i].x,ps[i].y);ctx.lineTo(ps[j].x,ps[j].y);ctx.stroke();ctx.globalAlpha=1;}}}}
+    function drawConnections(){const ps=state.particles;for(let i=0;i<ps.length;i++){for(let j=i+1;j<ps.length;j++){const dx=ps[i].x-ps[j].x,dy=ps[i].y-ps[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<LINK_DIST){ctx.strokeStyle=ps[i].color;ctx.globalAlpha=(LINK_DIST-d)/LINK_DIST*0.16;ctx.lineWidth=0.7;ctx.beginPath();ctx.moveTo(ps[i].x,ps[i].y);ctx.lineTo(ps[j].x,ps[j].y);ctx.stroke();ctx.globalAlpha=1;}}}}
     function loop(){if(state.paused){state.raf=requestAnimationFrame(loop);return;}ctx.clearRect(0,0,canvas.width,canvas.height);drawConnections();state.particles.forEach(p=>{p.draw();p.update();});state.raf=requestAnimationFrame(loop);}
     let resizeTimer=null;
     const onResize=()=>{
       const w=window.innerWidth,h=window.innerHeight;
-      if(Math.abs(w-state.lastW)<2&&Math.abs(h-state.lastH)<120)return; // ignore URL-bar jitter
+      if(Math.abs(w-state.lastW)<2&&Math.abs(h-state.lastH)<120)return; // ignore mobile URL-bar jitter
       clearTimeout(resizeTimer);
       resizeTimer=setTimeout(()=>init(w,h),160);
     };
@@ -528,7 +339,11 @@ function NeuralCanvas() {
       cancelAnimationFrame(state.raf);
     };
   },[]);
-  return <canvas ref={canvasRef} style={{position:"fixed",top:0,left:0,width:"100vw",height:"100vh",zIndex:-1,pointerEvents:"none"}}/>;
+  // NOTE: zIndex 0 (not -1). A negative z-index can get trapped behind an
+  // ancestor's own stacking context (e.g. anything with a transform/filter
+  // higher up the tree outside this file) and silently disappear. main is
+  // explicitly zIndex 10 below, so 0 still sits safely behind all content.
+  return <canvas ref={canvasRef} style={{position:"fixed",top:0,left:0,width:"100vw",height:"100vh",zIndex:0,pointerEvents:"none"}}/>;
 }
 
 /* ── Pipeline internals ───────────────────────────────────────────────────── */
@@ -563,9 +378,9 @@ function AgentNode({data,isActive,isCompleted}){
     <div style={{width:`${size}px`,height:`${size}px`,minWidth:`${size}px`,borderRadius:"22px",background:C.nodeBg,border:`${data.isJudge?"2.5px":"1.8px"} solid ${color}${isActive?"cc":isCompleted?"88":"38"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",position:"relative",transition:"all 0.5s cubic-bezier(0.4,0,0.2,1)",opacity:isActive?1:isCompleted?0.85:0.32,boxShadow:isActive?`0 0 14px ${color}44,0 0 36px ${color}55,0 0 80px ${color}1a`:isCompleted?`0 0 10px ${color}2a,0 0 24px ${color}33`:"none",animation:isActive?"heartbeatFast 1.1s ease-in-out infinite":isCompleted?"heartbeat 3s ease-in-out infinite":"none",overflow:"visible"}}>
       <div style={{position:"absolute",inset:0,borderRadius:"22px",background:`radial-gradient(circle at center,${color}14 0%,transparent 68%)`,pointerEvents:"none"}}/>
       {burst&&<div style={{position:"absolute",width:`${size}px`,height:`${size}px`,borderRadius:"22px",border:`2px solid ${color}`,animation:"ripple 0.7s ease-out forwards",pointerEvents:"none",top:0,left:0}}/>}
-      <span style={{fontFamily:"Material Symbols Outlined",fontSize:"26px",marginBottom:"6px",zIndex:1,color,filter:`drop-shadow(0 0 6px ${color}80)`}}>{data.icon}</span>
+      <span style={{fontSize:"27px",marginBottom:"6px",zIndex:1}}>{data.emoji}</span>
       <span style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"11px",color,letterSpacing:"0.07em",zIndex:1,textAlign:"center",padding:"0 6px"}}>{data.name}</span>
-      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(220,228,240,0.4)",marginTop:"3px",zIndex:1}}>#{data.tag}</span>
+      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.25,marginTop:"3px",zIndex:1}}>#{data.tag}</span>
       <div style={{position:"absolute",bottom:0,left:0,right:0,height:"4px",borderRadius:"0 0 20px 20px",background:`${color}18`,overflow:"hidden"}}>
         <div style={{height:"100%",background:color,borderRadius:"0 0 20px 20px",width:isCompleted?"100%":"0%",animation:isActive?"shimmerBar 2.5s linear forwards":"none",transition:"width 0.4s ease"}}/>
       </div>
@@ -585,19 +400,12 @@ function NeuralPipeline(){
   const NW=126,GAP=50,BX=60;
   const rP=[0,1,2].map(i=>({x0:BX+i*(NW+GAP)+NW,cx1:BX+i*(NW+GAP)+NW+28,cx2:BX+(i+1)*(NW+GAP)-28,x1:BX+(i+1)*(NW+GAP),y0:195,cy1:195,cy2:195,y1:195}));
   const dP=[{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:100,x1:270,y1:100},{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:380,x1:270,y1:380},{x0:270,y0:100,cx1:350,cy1:100,cx2:395,cy2:240,x1:455,y1:240},{x0:270,y0:380,cx1:350,cy1:380,cx2:395,cy2:240,x1:455,y1:240}];
-  const STEP_LABEL = ["Search agent gathering sources…","Summarise agent condensing findings…","Critic agent validating claims…","Writer agent drafting synthesis…","Forking into dialectic debate…","FOR & AGAINST arguing concurrently…","Judge rendering final verdict…","Cycle complete — resetting…"];
-  const STEP_COLOR = [C.green,C.green,C.amber,C.cyan,C.purple,C.crimson,C.gold,"rgba(180,195,210,0.5)"];
   return(
-    <div style={{width:"100%",minHeight:"620px",display:"flex",flexDirection:"column",position:"relative"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"9px",padding:"18px 0 0",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",letterSpacing:"0.06em"}}>
-        <span style={{width:"6px",height:"6px",borderRadius:"50%",background:STEP_COLOR[step],boxShadow:`0 0 8px ${STEP_COLOR[step]}`,animation:"termBlink 1.4s step-end infinite"}}/>
-        <span style={{color:STEP_COLOR[step]}}>{STEP_LABEL[step]}</span>
-      </div>
-      <div style={{flex:1,display:"flex",alignItems:"stretch",position:"relative"}}>
+    <div style={{width:"100%",minHeight:"620px",display:"flex",alignItems:"stretch",position:"relative"}}>
       <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
         <div style={{marginBottom:"32px",textAlign:"center"}}>
           <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.green,letterSpacing:"0.16em",margin:0}}>RESEARCH PIPELINE</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(210,220,235,0.55)",margin:"5px 0 0",letterSpacing:"0.1em"}}>SEQUENTIAL SYNTHESIS ARCHITECTURE</p>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>SEQUENTIAL SYNTHESIS ARCHITECTURE</p>
         </div>
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
           <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",overflow:"visible"}} viewBox="0 0 700 390" preserveAspectRatio="xMidYMid meet">
@@ -608,24 +416,13 @@ function NeuralPipeline(){
             {RESEARCH_NODES.map(n=><AgentNode key={n.id} data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/>)}
           </div>
         </div>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(210,220,235,0.55)",marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Linear multi-agent processing for structured<br/>data extraction and contextual summarization.</p>
-        <div style={{display:"flex",flexWrap:"wrap",gap:"7px",justifyContent:"center",marginTop:"16px",maxWidth:"320px"}}>
-          {[
-            {icon:"tune",label:"Style: Technical"},
-            {icon:"filter_9_plus",label:"Sources: Auto"},
-            {icon:"ios_share",label:"Share Research"},
-          ].map(c=>(
-            <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.green}28`,background:"rgba(0,255,15,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.green,letterSpacing:"0.04em"}}>
-              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
-            </span>
-          ))}
-        </div>
+        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"#fff",opacity:0.25,marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Linear multi-agent processing for structured<br/>data extraction and contextual summarization.</p>
       </div>
       <div style={{width:"1px",alignSelf:"stretch",background:"linear-gradient(to bottom,transparent,#00ff0f 30%,#ff2040 70%,transparent)",boxShadow:"0 0 20px #00ff0f44,0 0 20px #ff204044",flexShrink:0}}/>
       <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
         <div style={{marginBottom:"32px",textAlign:"center"}}>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.crimson,letterSpacing:"0.16em",margin:0,display:"flex",alignItems:"center",justifyContent:"center",gap:"6px"}}><span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px"}}>balance</span>DIALECTIC FORK</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(210,220,235,0.55)",margin:"5px 0 0",letterSpacing:"0.1em"}}>ADVERSARIAL REASONING TOPOLOGY</p>
+          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.crimson,letterSpacing:"0.16em",margin:0}}>⚖️ DIALECTIC FORK</p>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>ADVERSARIAL REASONING TOPOLOGY</p>
         </div>
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
           <svg width="540" height="480" viewBox="0 0 540 480" style={{overflow:"visible"}}>
@@ -638,41 +435,9 @@ function NeuralPipeline(){
             {DIALECTIC_NODES.map(n=>{const s=n.isJudge?148:126;return <foreignObject key={n.id} x={n.x-s/2} y={n.y-s/2} width={s} height={s} style={{overflow:"visible"}}><AgentNode data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/></foreignObject>;})}
           </svg>
         </div>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(210,220,235,0.55)",marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Adversarial evaluation where multiple perspectives<br/>are stress-tested for factual consistency.</p>
-        <div style={{display:"flex",flexWrap:"wrap",gap:"7px",justifyContent:"center",marginTop:"16px",maxWidth:"320px"}}>
-          {[
-            {icon:"speed",label:"Depth: Detailed"},
-            {icon:"gavel",label:"Judge's Lens"},
-            {icon:"forum",label:"Cross-Examine"},
-          ].map(c=>(
-            <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.crimson}28`,background:"rgba(255,32,64,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.crimson,letterSpacing:"0.04em"}}>
-              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
-            </span>
-          ))}
-        </div>
-      </div>
+        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"#fff",opacity:0.25,marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Adversarial evaluation where multiple perspectives<br/>are stress-tested for factual consistency.</p>
       </div>
       <div style={{position:"absolute",bottom:"12px",left:"50%",transform:"translateX(-50%)",fontFamily:"JetBrains Mono,monospace",fontSize:"8px",color:"#fff",opacity:0.12,letterSpacing:"0.2em",whiteSpace:"nowrap",pointerEvents:"none",zIndex:20}}>POLYNOUS NEURAL ENGINE • AUTONOMOUS MULTI-AGENT MESH</div>
-    </div>
-  );
-}
-
-function ScrollProgressBar(){
-  const [pct,setPct]=useState(0);
-  useEffect(()=>{
-    const onScroll=()=>{
-      const h=document.documentElement;
-      const scrolled=h.scrollTop;
-      const max=h.scrollHeight-h.clientHeight;
-      setPct(max>0?(scrolled/max)*100:0);
-    };
-    window.addEventListener("scroll",onScroll,{passive:true});
-    onScroll();
-    return()=>window.removeEventListener("scroll",onScroll);
-  },[]);
-  return(
-    <div style={{position:"fixed",top:0,left:0,right:0,height:"2px",zIndex:9999,background:"rgba(255,255,255,0.03)",pointerEvents:"none"}}>
-      <div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${C.green},${C.cyan},${C.purple})`,boxShadow:`0 0 12px ${C.green}80,0 0 4px ${C.cyan}`,transition:"width 0.12s linear"}}/>
     </div>
   );
 }
@@ -691,7 +456,7 @@ function BYOKBadge() {
         </svg>
         Bring Your Own Key – Anthropic · OpenAI
       </div>
-      <div className="byok-tooltip"><span style={{fontFamily:"Material Symbols Outlined",fontSize:"12px",verticalAlign:"-2px",marginRight:"6px"}}>lock</span>Keys encrypted with Fernet · Never stored in plaintext</div>
+      <div className="byok-tooltip">🔒 Keys encrypted with Fernet · Never stored in plaintext</div>
     </div>
   );
 }
@@ -760,7 +525,6 @@ function UserProfileWidget() {
     {label:"My Research", icon:"biotech",    route:"/research"},
     {label:"Memory Bank", icon:"neurology",  route:"/memory"},
     {label:"Settings",    icon:"settings",   route:"/settings"},
-    {label:"Help", icon:"help", route:"/info"},
     {label:"Logout",      icon:"logout",     action:()=>{localStorage.removeItem("polynous_user");window.location.reload();}},
   ];
   return (
@@ -807,7 +571,7 @@ function ConfidenceRing() {
           <circle cx="45" cy="45" r="35" fill="none" stroke="url(#confGrad)" strokeWidth="6" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} filter="url(#confGlow)" style={{animation:"progressRing 1.8s cubic-bezier(0.22,1,0.36,1) forwards",strokeDashoffset:circumference}}/>
         </svg>
         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <ScrambleText text="92%" style={{fontFamily:"JetBrains Mono,monospace",fontWeight:600,fontSize:"16px",color:"#fff",letterSpacing:"-0.03em"}}/>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontWeight:600,fontSize:"16px",color:"#fff",letterSpacing:"-0.03em"}}>92%</span>
         </div>
       </div>
       <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.6)",letterSpacing:"0.1em",textTransform:"uppercase"}}>Avg Confidence</span>
@@ -845,19 +609,9 @@ function MemoryTimeline() {
   const [sparkleAt, setSparkleAt] = useState(null);
   const scrollRef = useRef(null);
   const timerRef = useRef(null);
-  const wrapRef = useRef(null);
-  const inViewRef = useRef(true);
-
-  useEffect(() => {
-    const el = wrapRef.current; if (!el) return;
-    const obs = new IntersectionObserver(([entry]) => { inViewRef.current = entry.isIntersecting; }, { threshold: 0.1 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
-      if (!inViewRef.current) return; // don't animate/scroll a carousel the user isn't looking at
       setActiveId(prev => {
         const idx = MEMORY_DOTS.findIndex(d => d.id === prev);
         const next = MEMORY_DOTS[(idx + 1) % MEMORY_DOTS.length];
@@ -866,16 +620,9 @@ function MemoryTimeline() {
         setTimeout(() => setAnimating(null), 600);
         setTimeout(() => setSparkleAt(null), 750);
         if (scrollRef.current) {
-          // Scroll only this strip's own horizontal axis — never call
-          // scrollIntoView here, since it also nudges the page's vertical
-          // scroll position on every ancestor, fighting the user's own scroll.
-          const strip = scrollRef.current;
+          const cards = scrollRef.current.querySelectorAll("[data-mem-card]");
           const nextIdx = (idx + 1) % MEMORY_DOTS.length;
-          const card = strip.querySelectorAll("[data-mem-card]")[nextIdx];
-          if (card) {
-            const target = card.offsetLeft - (strip.clientWidth - card.clientWidth) / 2;
-            strip.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
-          }
+          cards[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
         }
         return next.id;
       });
@@ -893,7 +640,7 @@ function MemoryTimeline() {
   };
 
   return (
-    <div ref={wrapRef} style={{ padding: "36px 0 0" }}>
+    <div style={{ padding: "36px 0 0" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -939,19 +686,19 @@ function MemoryTimeline() {
               onClick={() => window.location.href = "/memory"}
               style={{
                 flex: "0 0 auto",
-                width: "236px",
+                width: "200px",
                 cursor: "pointer",
-                borderRadius: "20px",
-                padding: "22px 20px",
+                borderRadius: "18px",
+                padding: "20px 18px",
                 background: isActive
-                  ? `linear-gradient(145deg,${dotColor}20,rgba(8,8,22,0.96))`
+                  ? `linear-gradient(145deg,${dotColor}18,rgba(8,8,22,0.95))`
                   : "rgba(8,8,22,0.75)",
-                border: `1px solid ${isActive ? dotColor + "80" : "rgba(255,255,255,0.06)"}`,
+                border: `1px solid ${isActive ? dotColor + "70" : "rgba(255,255,255,0.06)"}`,
                 boxShadow: isActive
-                  ? `0 0 0 1px ${dotColor}25, 0 22px 48px rgba(0,0,0,0.5), 0 0 34px ${dotColor}22`
-                  : "0 4px 14px rgba(0,0,0,0.2)",
+                  ? `0 0 0 1px ${dotColor}20, 0 8px 32px rgba(0,0,0,0.4), 0 0 24px ${dotColor}18`
+                  : "none",
                 transition: "all 0.45s cubic-bezier(0.23,1,0.32,1)",
-                transform: isActive ? "translateY(-8px) scale(1.035)" : "translateY(0) scale(1)",
+                transform: isActive ? "translateY(-6px) scale(1.02)" : "translateY(0) scale(1)",
                 animation: isAnim ? "memorySlideIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" : "none",
                 backdropFilter: "blur(16px)",
                 position: "relative",
@@ -960,8 +707,6 @@ function MemoryTimeline() {
             >
               {/* Top shimmer line */}
               <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: "1px", background: `linear-gradient(90deg,transparent,${dotColor}${isActive ? "cc" : "30"},transparent)`, transition: "all 0.4s ease" }} />
-              {/* Confidence badge — top right */}
-              <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9.5px", color: isActive ? dotColor : "rgba(255,255,255,0.18)", letterSpacing: "0.04em", transition: "color 0.3s ease" }}>{dot.conf}%</div>
 
               {/* Sparkle burst on activation */}
               {isSparkling && [0,1,2,3].map(k=>(
@@ -993,7 +738,7 @@ function MemoryTimeline() {
               </div>
 
               {/* Session index */}
-              <div style={{ position: "absolute", bottom: "16px", right: "16px", fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: "rgba(255,255,255,0.12)", letterSpacing: "0.06em" }}>#{String(i + 1).padStart(2, "0")}</div>
+              <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: "rgba(255,255,255,0.12)", letterSpacing: "0.06em" }}>#{String(i + 1).padStart(2, "0")}</div>
             </div>
           );
         })}
@@ -1012,6 +757,84 @@ function MemoryTimeline() {
     </div>
   );
 }
+
+function AnalyticsMiniPreview() {
+  const wrapRef = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const maxR = Math.max(...SPARKLINE_RESEARCH);
+
+  useEffect(()=>{
+    const el = wrapRef.current; if(!el) return;
+    const obs = new IntersectionObserver(([e])=>{if(e.isIntersecting){setVisible(true);obs.unobserve(el);}},{threshold:0.25});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+
+  const sparklinePath = (data, max, w, h) => {
+    const pts = data.map((v,i)=>`${(i/(data.length-1))*w},${h-(v/max)*h}`);
+    return `M ${pts.join(" L ")}`;
+  };
+  const resPath = sparklinePath(SPARKLINE_RESEARCH,maxR,150,52);
+  const confPath = sparklinePath(SPARKLINE_CONF,100,150,52);
+
+  return (
+    <div ref={wrapRef} onClick={()=>window.location.href="/analytics"} style={{borderRadius:"22px",padding:"2px",cursor:"pointer",position:"relative",background:visible?"linear-gradient(135deg,rgba(255,170,0,0.22),rgba(0,204,255,0.08),rgba(168,85,247,0.1),transparent)":"rgba(255,255,255,0.04)",transition:"background 1s ease"}}>
+      <div style={{borderRadius:"21px",padding:"26px 28px",background:"rgba(7,7,18,0.95)",border:"1px solid rgba(255,255,255,0.04)",backdropFilter:"blur(20px)",transition:"transform 0.35s cubic-bezier(0.23,1,0.32,1)",overflow:"hidden",position:"relative"}} onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";}} onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";}}>
+        {visible && <div style={{position:"absolute",top:0,left:"-30%",width:"30%",height:"100%",background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent)",animation:"scanSweep 1.6s ease-out forwards",pointerEvents:"none"}}/>}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"22px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+            <div style={{width:"34px",height:"34px",borderRadius:"10px",background:"rgba(255,170,0,0.1)",border:"1px solid rgba(255,170,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"18px",color:C.amber}}>insights</span>
+            </div>
+            <div>
+              <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Analytics Dashboard</p>
+              <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.5)",margin:"2px 0 0",letterSpacing:"0.06em"}}>OPEN FULL DASHBOARD →</p>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:"4px"}}>
+            {[C.green,C.cyan,C.purple].map((c,i)=>(<div key={i} style={{width:"5px",height:"5px",borderRadius:"50%",background:c,animation:`pulse 1.8s ${i*0.25}s ease-in-out infinite`}}/>))}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1.1fr 0.9fr 1.1fr",gap:"22px"}}>
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.green,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>RESEARCH / WEEK</p>
+            <svg width="100%" height="52" viewBox="0 0 150 52" preserveAspectRatio="none">
+              <defs><linearGradient id="resGradFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green} stopOpacity="0.35"/><stop offset="100%" stopColor={C.green} stopOpacity="0"/></linearGradient></defs>
+              <path d={resPath+" L 150,52 L 0,52 Z"} fill="url(#resGradFill)" style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.6s"}}/>
+              <path d={resPath} fill="none" stroke={C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="240" strokeDashoffset={visible?0:240} style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.1s",filter:`drop-shadow(0 0 4px ${C.green}80)`}}/>
+              {SPARKLINE_RESEARCH.map((v,i)=>{const x=(i/(SPARKLINE_RESEARCH.length-1))*150,y=52-(v/maxR)*52;return i===SPARKLINE_RESEARCH.length-1?(<circle key={i} cx={x} cy={y} r="3" fill={C.green} style={{opacity:visible?1:0,transition:"opacity 0.4s ease 1.5s",filter:`drop-shadow(0 0 6px ${C.green})`}}/>):null;})}
+            </svg>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"15px",color:"#fff",fontWeight:600,margin:"6px 0 0",letterSpacing:"-0.02em"}}>+40<span style={{fontSize:"10px",color:C.green,marginLeft:"4px"}}>this week</span></p>
+          </div>
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.cyan,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>TOP TOPICS</p>
+            <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
+              {TOP_TOPICS.map((t,i)=>(
+                <div key={t.label} style={{display:"flex",alignItems:"center",gap:"7px"}}>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:"rgba(150,165,180,0.6)",minWidth:"40px"}}>{t.label}</span>
+                  <div style={{flex:1,height:"5px",borderRadius:"3px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+                    <div style={{width:visible?`${t.val}%`:"0%",height:"100%",borderRadius:"3px",background:`linear-gradient(90deg,${t.color}aa,${t.color})`,boxShadow:`0 0 6px ${t.color}60`,transition:`width 0.9s cubic-bezier(0.22,1,0.36,1) ${0.3+i*0.12}s`}}/>
+                  </div>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:t.color,minWidth:"20px",textAlign:"right",opacity:visible?1:0,transition:`opacity 0.4s ease ${0.8+i*0.12}s`}}>{t.val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:C.purple,letterSpacing:"0.1em",marginBottom:"10px",opacity:0.85}}>CONFIDENCE TREND</p>
+            <svg width="100%" height="52" viewBox="0 0 150 52" preserveAspectRatio="none">
+              <defs><linearGradient id="confGradFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.purple} stopOpacity="0.3"/><stop offset="100%" stopColor={C.purple} stopOpacity="0"/></linearGradient></defs>
+              <path d={confPath+" L 150,52 L 0,52 Z"} fill="url(#confGradFill)" style={{opacity:visible?1:0,transition:"opacity 0.8s ease 0.9s"}}/>
+              <path d={confPath} fill="none" stroke={C.purple} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="240" strokeDashoffset={visible?0:240} style={{transition:"stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1) 0.4s",filter:`drop-shadow(0 0 4px ${C.purple}80)`}}/>
+            </svg>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"15px",color:"#fff",fontWeight:600,margin:"6px 0 0",letterSpacing:"-0.02em"}}>94<span style={{fontSize:"10px",color:C.purple,marginLeft:"2px"}}>% avg</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    PREMIUM INTERACTIVE KNOWLEDGE GRAPH — smoothed drag, solid-color nodes
 ══════════════════════════════════════════════════════════════════════════ */
@@ -1036,8 +859,6 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     particles: [],
     ripples: [],
     nodeCount: GRAPH_NODES_DATA.length,
-    paused: false,
-    W: 700, H: 360,
   });
   const [nodeCount, setNodeCount] = useState(GRAPH_NODES_DATA.length);
   const [tooltip, setTooltip] = useState(null);
@@ -1052,28 +873,10 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
 
     s.nodes.forEach(n => { n.birthTs = -2000; });
 
-    // The canvas previously had a fixed 1100x460 pixel buffer stretched by CSS
-    // to fill its container, with no devicePixelRatio scaling — soft/blurry on
-    // any retina-class screen. fitCanvas sizes the backing buffer to match the
-    // element's actual CSS size × devicePixelRatio, then maps 1 drawing unit to
-    // 1 CSS pixel via setTransform, so everything below can keep working in
-    // simple logical coordinates while rendering crisply at native resolution.
-    function fitCanvas() {
-      const dpr = Math.max(window.devicePixelRatio || 1, 1);
-      const rect = canvas.getBoundingClientRect();
-      const w = Math.max(1, Math.round(rect.width));
-      const h = Math.max(1, Math.round(rect.height));
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      s.W = w; s.H = h;
-    }
-    fitCanvas();
-
     function lerp(a, b, t) { return a + (b - a) * t; }
 
     function applyPhysics(dt) {
-      const W = s.W, H = s.H;
+      const W = canvas.width, H = canvas.height;
       s.nodes.forEach((n, i) => {
         if (n.dragging) {
           // ease smoothly toward the pointer target — eliminates the old hard snap
@@ -1111,18 +914,17 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     }
 
     function draw(ts) {
-      if (s.paused) { s.raf = requestAnimationFrame(draw); return; }
       if (!s.lastTs) s.lastTs = ts;
       const dt = Math.min((ts - s.lastTs) / 16.67, 2.5);
       s.lastTs = ts;
 
-      ctx.clearRect(0, 0, s.W, s.H);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       applyPhysics(dt);
 
       // subtle dot grid
       ctx.fillStyle = "rgba(255,255,255,0.015)";
-      for (let gx = 38; gx < s.W; gx += 38) {
-        for (let gy = 38; gy < s.H; gy += 38) {
+      for (let gx = 38; gx < canvas.width; gx += 38) {
+        for (let gy = 38; gy < canvas.height; gy += 38) {
           ctx.beginPath(); ctx.arc(gx, gy, 0.7, 0, Math.PI*2); ctx.fill();
         }
       }
@@ -1229,15 +1031,13 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
 
         ctx.restore();
 
-        // Label — rendered below the node, not crammed inside it, so it stays
-        // legible regardless of node radius (small nodes were unreadable before).
+        // Label — dark solid text directly on the bright solid node = always legible
         ctx.save();
         ctx.globalAlpha = 1;
-        ctx.font = `${isHov ? "700" : "600"} ${isHov ? 13 : 12}px 'JetBrains Mono', monospace`;
-        ctx.textAlign = "center"; ctx.textBaseline = "top";
-        ctx.shadowColor = n.color; ctx.shadowBlur = isHov ? 10 : 5;
-        ctx.fillStyle = isHov ? "rgba(255,255,255,0.98)" : "rgba(235,240,248,0.88)";
-        ctx.fillText(n.label, n.x, n.y + r + 7);
+        ctx.font = `${isHov ? "700" : "600"} ${Math.round(8 + (n.r - 10) * 0.34)}px 'JetBrains Mono', monospace`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(5,5,18,0.92)";
+        ctx.fillText(n.label, n.x, n.y);
         ctx.restore();
       });
 
@@ -1248,8 +1048,8 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     function getXY(e) {
       const rect = canvas.getBoundingClientRect();
       return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height),
       };
     }
     function hitNode(x, y) {
@@ -1287,7 +1087,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
       if (s.hoveredIdx >= 0) {
         const n = s.nodes[s.hoveredIdx];
         const rect = canvas.getBoundingClientRect();
-        setTooltip({ x: n.x+rect.left, y: n.y+rect.top - n.r*n.scale - 12, label: n.label, color: n.color });
+        setTooltip({ x: n.x*(rect.width/canvas.width)+rect.left, y: n.y*(rect.height/canvas.height)+rect.top - n.r*n.scale*(rect.height/canvas.height) - 12, label: n.label, color: n.color });
         canvas.style.cursor = s.draggingIdx !== null ? "grabbing" : "grab";
       } else {
         setTooltip(null);
@@ -1334,21 +1134,11 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     canvas.addEventListener("mouseleave", () => { s.hoveredIdx = null; setTooltip(null); });
     window.addEventListener("mouseup", onMouseUp);
 
-    const visObserver = new IntersectionObserver(([entry]) => { s.paused = !entry.isIntersecting; }, { threshold: 0.05 });
-    visObserver.observe(canvas);
-
-    let resizeTimer = null;
-    const onWindowResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fitCanvas, 150); };
-    window.addEventListener("resize", onWindowResize, { passive: true });
-
     s.raf = requestAnimationFrame(drawWrapped);
 
     return () => {
       cancelAnimationFrame(s.raf);
       clearInterval(particleTimer);
-      clearTimeout(resizeTimer);
-      visObserver.disconnect();
-      window.removeEventListener("resize", onWindowResize);
       canvas.removeEventListener("mousedown", onMouseDown);
       canvas.removeEventListener("mousemove", onMouseMove);
       canvas.removeEventListener("mouseup", onMouseUp);
@@ -1407,7 +1197,7 @@ function Header(){
           </div>
           <span style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"16px",color:"#fff",letterSpacing:"0.06em"}}>POLYNOUS</span>
         </div>
-        <nav className="nav-center" style={{display:"flex",alignItems:"center",gap:"22px"}}>
+        <nav className="nav-center" style={{display:"flex",alignItems:"center",gap:"34px"}}>
           {NAV_SECTIONS.map(({label,id},i)=>(
             <span key={label} onClick={()=>go(id,i)} className={`nav-link${activeIdx===i?" nav-link-active":""}`}>{label}</span>
           ))}
@@ -1512,7 +1302,7 @@ function HeroSection(){
           onMouseOver={e=>{e.currentTarget.style.animation="none";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.28),rgba(255,32,64,0.14))`;e.currentTarget.style.boxShadow=`0 0 32px rgba(255,32,64,0.7), 0 0 70px rgba(255,32,64,0.35)`;e.currentTarget.style.transform="scale(1.06)";}}
           onMouseOut={e=>{e.currentTarget.style.animation="crimsonPulse 2.4s ease-in-out infinite";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`;e.currentTarget.style.boxShadow="";e.currentTarget.style.transform="scale(1)";}}
         >
-          <span style={{fontFamily:"Material Symbols Outlined",fontSize:"16px"}}>balance</span> Try a Debate
+          ⚖️ Try a Debate
         </button>
         <a href="#how-it-works" style={{padding:"12px 28px",border:"1px solid rgba(255,255,255,0.09)",color:"rgba(255,255,255,0.55)",fontWeight:600,borderRadius:"9999px",background:"transparent",fontFamily:"Sora,sans-serif",fontSize:"16px",textDecoration:"none",transition:"all 0.25s",display:"inline-flex",alignItems:"center"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
           See How It Works ↓
@@ -1528,9 +1318,9 @@ function HeroSection(){
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.green,opacity:0.7}}/>
           <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous — neural-mesh</span>
         </div>
-        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>uvicorn main:app --reload</div>
-        <div style={{marginTop:"10px"}}>
-          <TerminalTypewriter sequences={HERO_BOOT_SEQUENCES} minLines={4}/>
+        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>npm run polynous</div>
+        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:"rgba(130,148,170,0.5)",marginTop:"10px",lineHeight:2}}>
+          &gt; Initializing Neural Mesh...<br/>&gt; Connecting 7 Sub-Agents...<span style={{color:C.green,opacity:0.75}}> ✓</span><br/>&gt; Logic Lab: Online <span style={{color:C.green}}>[Ready]</span><br/>&gt; <span style={{color:C.cyan}}>Synaptic Bridge established.</span>
         </div>
         <div style={{marginTop:"14px"}}>
           <BYOKBadge/>
@@ -1561,7 +1351,7 @@ function HowItWorksSection(){
         {STEPS.map((s,idx)=>{
           const ref=useReveal(0.1);
           return(
-            <div key={s.n} ref={ref} className="reveal step-row" style={{transitionDelay:`${idx*0.09}s`,position:"relative",padding:"0"}}>
+            <div key={s.n} ref={ref} className="reveal step-row" style={{transitionDelay:`${idx*0.16}s`,position:"relative",padding:"0"}}>
               <div style={{height:"1px",background:"rgba(255,255,255,0.04)",marginBottom:"0"}}/>
               <div className="step-accent-line" style={{height:"1px",background:`linear-gradient(90deg,${s.accent}70,${s.accent}20,transparent)`,opacity:0,width:"0%",transition:"opacity 0.4s ease, width 0.6s cubic-bezier(0.22,1,0.36,1)",marginTop:"-1px"}}/>
               <div style={{display:"grid",gridTemplateColumns:"120px 1fr 1fr",gap:"40px",alignItems:"center",padding:"52px 0"}} className="step-inner">
@@ -1586,6 +1376,23 @@ function HowItWorksSection(){
         })}
         <div style={{height:"1px",background:"rgba(255,255,255,0.04)"}}/>
       </div>
+
+      {/* ENLARGED MEMORY BANK */}
+      <div className="reveal" ref={useReveal(0.1)} style={{
+        marginTop:"64px",
+        padding:"36px 36px 40px",
+        borderRadius:"28px",
+        background:"linear-gradient(145deg,rgba(168,85,247,0.06),rgba(8,8,22,0.9))",
+        border:"1px solid rgba(168,85,247,0.14)",
+        position:"relative",
+        overflow:"hidden",
+        boxShadow:"0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(168,85,247,0.08)",
+      }}>
+        {/* decorative corner glow */}
+        <div style={{position:"absolute",top:0,right:0,width:"280px",height:"280px",borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,0.1) 0%,transparent 70%)",pointerEvents:"none",transform:"translate(50%,-50%)"}}/>
+        <div style={{position:"absolute",bottom:0,left:0,width:"200px",height:"200px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,204,255,0.06) 0%,transparent 70%)",pointerEvents:"none",transform:"translate(-30%,30%)"}}/>
+        <MemoryTimeline/>
+      </div>
     </section>
   );
 }
@@ -1593,15 +1400,6 @@ function HowItWorksSection(){
 /* ── BYOK API Section ─────────────────────────────────────────────────────── */
 function ApiSection(){
   const ref=useReveal(0.12);
-  const [activeKey,setActiveKey]=useState("anthropic");
-  const PROVIDERS=[
-    {id:"anthropic",label:"Anthropic (Claude)",color:C.green,  icon:"neurology",       hint:"Primary LLM for every agent"},
-    {id:"openai",   label:"OpenAI (GPT-4o)",   color:C.cyan,   icon:"psychology",      hint:"Selectable alternative LLM + embeddings"},
-    {id:"tavily",   label:"Tavily (Search)",    color:C.amber,  icon:"travel_explore",  hint:"Live web search for the Search agent"},
-    {id:"voyage",   label:"Voyage AI (Embed)",  color:C.purple, icon:"blur_on",         hint:"High-quality text embeddings"},
-    {id:"pinecone", label:"Pinecone (Vectors)", color:C.indigo, icon:"hub",             hint:"Namespace-scoped semantic memory"},
-    {id:"neo4j",    label:"Neo4j (Graph)",      color:C.coral,  icon:"scatter_plot",    hint:"Per-user knowledge graph store"},
-  ];
   return(
     <section style={{padding:"64px 0"}}>
       <SectionDivider/>
@@ -1611,21 +1409,24 @@ function ApiSection(){
             <div>
               <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK — BRING YOUR OWN INTELLIGENCE</span>
               <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(1.8rem,3.4vw,2.7rem)",marginBottom:"16px",lineHeight:1.08,letterSpacing:"-0.04em",color:"#fff"}}>Total model<br/><span style={{color:C.green}}>sovereignty.</span></h2>
-              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Bring your own Anthropic, OpenAI, Tavily, Voyage, Pinecone, or Neo4j key — click a provider to see how POLYNOUS routes it.</p>
+              <ScrollReveal
+                tag="div"
+                baseOpacity={0.08}
+                enableBlur={true}
+                baseRotation={2}
+                blurStrength={5}
+                containerClassName="api-lede"
+                textClassName="api-lede-text"
+              >
+                Model-agnostic by design. Connect your preferred LLMs or run private local instances with zero lock-in.
+              </ScrollReveal>
               <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginBottom:"28px"}}>
-                {PROVIDERS.map(({id,label,color,icon,hint})=>{
-                  const isActive=activeKey===id;
-                  return(
-                    <button key={id} title={hint} onClick={()=>setActiveKey(id)} style={{padding:"6px 14px",borderRadius:"9999px",display:"flex",alignItems:"center",gap:"8px",background:isActive?`${color}18`:`${color}08`,border:`1px solid ${isActive?color+"70":color+"22"}`,cursor:"pointer",transition:"all 0.3s cubic-bezier(0.23,1,0.32,1)",boxShadow:isActive?`0 0 16px ${color}35`:"none",transform:isActive?"translateY(-1px)":"none"}}
-                      onMouseOver={e=>{if(!isActive){e.currentTarget.style.background=`${color}12`;e.currentTarget.style.borderColor=`${color}45`;}}}
-                      onMouseOut={e=>{if(!isActive){e.currentTarget.style.background=`${color}08`;e.currentTarget.style.borderColor=`${color}22`;}}}
-                    >
-                      <span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px",color}}>{icon}</span>
-                      <div className="animate-pulse-dot" style={{width:"5px",height:"5px",borderRadius:"50%",background:color}}/>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color}}>{label}</span>
-                    </button>
-                  );
-                })}
+                {[{label:"OpenAI (GPT-4o)",color:C.green},{label:"Anthropic (Claude)",color:C.cyan},{label:"Ollama (Llama 3)",color:C.crimson}].map(({label,color})=>(
+                  <div key={label} style={{padding:"6px 14px",borderRadius:"9999px",display:"flex",alignItems:"center",gap:"8px",background:`${color}08`,border:`1px solid ${color}22`}}>
+                    <div className="animate-pulse-dot" style={{width:"5px",height:"5px",borderRadius:"50%",background:color}}/>
+                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color}}>{label}</span>
+                  </div>
+                ))}
               </div>
               <button onClick={()=>window.location.href="/settings"} style={{padding:"13px 26px",background:"#fff",color:C.void,fontWeight:800,borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",display:"inline-flex",alignItems:"center",gap:"8px",transition:"all 0.25s",letterSpacing:"0.02em"}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.03)";e.currentTarget.style.boxShadow="0 0 32px rgba(255,255,255,0.18)";}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="none";}}>
                 <span style={{fontFamily:"Material Symbols Outlined",fontSize:"17px"}}>key</span> Configure API Mesh
@@ -1639,26 +1440,11 @@ function ApiSection(){
               </div>
               <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2.2}}>
                 <p style={{color:C.cyan}}>agents:</p>
-                {[
-                  {label:"search",    val:'"anthropic/claude-sonnet"',key:"anthropic"},
-                  {label:"summarise", val:'"anthropic/claude-sonnet"',key:"anthropic"},
-                  {label:"critic",    val:'"openai/gpt-4o"',key:"openai"},
-                  {label:"writer",    val:'"anthropic/claude-sonnet"',key:"anthropic"},
-                  {label:"judge",     val:'"openai/gpt-4o"',key:"openai"},
-                ].map(row=>{
-                  const isRowActive=activeKey===row.key;
-                  return(
-                    <p key={row.label} style={{paddingLeft:"14px",borderLeft:isRowActive?`2px solid ${row.key==="anthropic"?C.green:C.cyan}`:"2px solid transparent",color:"rgba(220,228,240,0.72)",transition:"all 0.3s ease",background:isRowActive?`${row.key==="anthropic"?C.green:C.cyan}0a`:"transparent"}}>
-                      {row.label}: <ScrambleText text={row.val} style={{color:C.green}} loop loopMin={5000} loopMax={10000}/>
-                    </p>
-                  );
-                })}
-                <p style={{marginTop:"8px",paddingLeft:"14px",borderLeft:activeKey==="voyage"?`2px solid ${C.purple}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>embeddings: <ScrambleText text={'"voyage/voyage-3"'} style={{color:C.purple}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{paddingLeft:"14px",borderLeft:activeKey==="tavily"?`2px solid ${C.amber}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>search_provider: <ScrambleText text={'"tavily"'} style={{color:C.amber}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{paddingLeft:"14px",borderLeft:activeKey==="pinecone"?`2px solid ${C.indigo}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>vector_store: <ScrambleText text={'"pinecone/serverless"'} style={{color:C.indigo}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{paddingLeft:"14px",borderLeft:activeKey==="neo4j"?`2px solid ${C.coral}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>graph_store: <ScrambleText text={'"neo4j/auradb"'} style={{color:C.coral}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{color:"rgba(220,228,240,0.5)"}}>key_encryption: <ScrambleText text="fernet" style={{color:C.amber}} loop loopMin={5000} loopMax={10000}/></p>
-                <p style={{color:"rgba(220,228,240,0.5)"}}>stored_per_user: <ScrambleText text="true" style={{color:C.green}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>research_lead: <span style={{color:C.green}}>"anthropic/claude-4-5-sonnet"</span></p>
+                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>dialectic_judge: <span style={{color:C.green}}>"openai/gpt-4o"</span></p>
+                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>local_summarizer: <span style={{color:C.green}}>"ollama/llama3"</span></p>
+                <p style={{marginTop:"8px",color:"rgba(255,255,255,0.28)"}}>encryption: <ScrambledText radius={70} duration={0.7} speed={0.4} scrambleChars="01#$%" className="vault-scramble-label" inline color={C.amber}>fernet</ScrambledText></p>
+                <p style={{color:"rgba(255,255,255,0.28)"}}>zero_knowledge: <span style={{color:C.green}}>true</span></p>
               </div>
             </div>
           </div>
@@ -1673,28 +1459,19 @@ function FeaturesSection(){
   const headRef=useReveal(0.1),gridRef=useReveal(0.07);
   const proximityContainerRef = useRef(null);
   return(
-    <section id="features" style={{padding:"80px 0 24px"}}>
+    <section id="features" style={{padding:"96px 0 24px"}}>
       <SectionDivider/>
       <div ref={proximityContainerRef} style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"60px",position:"relative"}} className="hiw-grid">
         <div ref={headRef} className="reveal">
           <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Capabilities</p>
-          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>
-            <VariableProximity
-              label="Seven agents. One surface."
-              fromFontVariationSettings="'wght' 900, 'opsz' 40"
-              toFontVariationSettings="'wght' 900, 'opsz' 144"
-              containerRef={proximityContainerRef}
-              radius={160}
-              falloff="gaussian"
-            />
-          </h2>
+          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Seven agents.<br/>One surface.</h2>
         </div>
         <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Every feature built for inquiry that needs to be inspected, traced, and revisited.</p>
       </div>
       <div ref={gridRef} className="reveal-stagger features-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px",position:"relative"}}>
         <GlobalSpotlight gridRef={gridRef} spotlightRadius={280} glowColor="0, 255, 15"/>
         {FEATURES.map(f=>(
-          <button key={f.title} className={`feat-card magic-bento-card magic-bento-card--border-glow corner-brackets ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)",color:f.color,"--glow-color":f.color.replace('#','').match(/.{2}/g)?.map(h=>parseInt(h,16)).join(', ') || "0, 255, 15"}}>
+          <button key={f.title} className={`feat-card magic-bento-card magic-bento-card--border-glow ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)","--glow-color":f.color.replace('#','').match(/.{2}/g)?.map(h=>parseInt(h,16)).join(', ') || "0, 255, 15"}}>
             <div className="feat-top-line" style={{position:"absolute",top:0,left:"15%",right:"15%",height:"2px",background:`linear-gradient(90deg,transparent,${f.color}80,transparent)`,borderRadius:"1px",opacity:0,transition:"opacity 0.4s ease"}}/>
             <div style={{position:"absolute",top:"18px",right:"18px",padding:"3px 9px",borderRadius:"9999px",background:`${f.color}10`,border:`1px solid ${f.color}25`}}>
               <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:f.color,letterSpacing:"0.12em",opacity:0.85}}>{f.tag}</span>
@@ -1710,20 +1487,19 @@ function FeaturesSection(){
         ))}
       </div>
 
-      <div className="reveal-stagger" style={{display:"flex",flexWrap:"wrap",gap:"10px",marginTop:"14px"}}>
-        {SECONDARY_FEATURES.map(f=>(
-          <button key={f.title} onClick={()=>window.location.href=f.route} style={{display:"flex",alignItems:"center",gap:"12px",padding:"14px 20px",borderRadius:"16px",border:`1px solid ${f.color}22`,background:"rgba(10,10,22,0.7)",cursor:"pointer",textAlign:"left",flex:"1 1 260px",transition:"all 0.3s cubic-bezier(0.23,1,0.32,1)"}}
-            onMouseOver={e=>{e.currentTarget.style.borderColor=`${f.color}55`;e.currentTarget.style.background="rgba(14,14,28,0.85)";}}
-            onMouseOut={e=>{e.currentTarget.style.borderColor=`${f.color}22`;e.currentTarget.style.background="rgba(10,10,22,0.7)";}}>
-            <div style={{width:"34px",height:"34px",borderRadius:"10px",background:`${f.color}12`,border:`1px solid ${f.color}28`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"17px",color:f.color}}>{f.icon}</span>
-            </div>
-            <div>
-              <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12.5px",color:"#fff",margin:0}}>{f.title}</p>
-              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"11.5px",color:"rgba(140,155,172,0.7)",margin:"3px 0 0",lineHeight:1.4}}>{f.desc}</p>
-            </div>
-          </button>
-        ))}
+      <div className="reveal-stagger" style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:"14px",marginTop:"14px"}}>
+        <div style={{borderRadius:"20px",padding:"30px 32px",background:"rgba(10,10,22,0.85)",border:"1px solid rgba(255,255,255,0.055)",backdropFilter:"blur(16px)",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+          <div style={{marginBottom:"18px"}}>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.gold,letterSpacing:"0.12em",opacity:0.85,marginBottom:"8px"}}>PDF LAB · LIVE DEMO</p>
+            <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"18px",color:"#fff",margin:0,letterSpacing:"-0.015em"}}>Try the document-grounded Q&A engine</h3>
+          </div>
+          <PDFDropZone/>
+        </div>
+        <div style={{borderRadius:"20px",padding:"30px 32px",background:"rgba(10,10,22,0.85)",border:"1px solid rgba(255,255,255,0.055)",backdropFilter:"blur(16px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"16px",textAlign:"center"}}>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.12em",opacity:0.85}}>SCORED OUTPUT</p>
+          <ConfidenceRing/>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(130,148,168,0.6)",lineHeight:1.6,margin:0,maxWidth:"200px"}}>Every answer ships with a calibrated confidence score, not just a citation.</p>
+        </div>
       </div>
     </section>
   );
@@ -1733,7 +1509,7 @@ function FeaturesSection(){
 function PipelineSection(){
   const hRef=useReveal(0.1),bRef=useReveal(0.07);
   return(
-    <section id="pipeline" style={{padding:"24px 0 80px",overflow:"hidden"}}>
+    <section id="pipeline" style={{padding:"24px 0 96px",overflow:"hidden"}}>
       <SectionDivider tight/>
       <div ref={hRef} className="reveal" style={{textAlign:"center",marginBottom:"52px"}}>
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"14px",opacity:0.8}}>↓ Architecture</p>
@@ -1749,12 +1525,9 @@ function PipelineSection(){
         </ScrollFloat>
         <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.78)",maxWidth:"420px",margin:"0 auto",lineHeight:1.7}}>Real-time multi-agent synthesis, visualized live.</p>
       </div>
-      <div ref={bRef} className="reveal corner-brackets" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)",color:C.green}}>
+      <div ref={bRef} className="reveal" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)"}}>
         <div style={{position:"absolute",inset:0,opacity:0.03,pointerEvents:"none",zIndex:1}}>
           <svg width="100%" height="100%"><defs><pattern id="hex2" width="30" height="52" patternUnits="userSpaceOnUse"><path d="M15 0l15 8.66v17.32L15 34.64 0 25.98V8.66L15 0z" fill="none" stroke="#00ff0f" strokeWidth="1" strokeOpacity="0.15"/></pattern></defs><rect width="100%" height="100%" fill="url(#hex2)"/></svg>
-        </div>
-        <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:2,overflow:"hidden"}}>
-          <div style={{position:"absolute",top:0,bottom:0,left:"-40%",width:"35%",background:"linear-gradient(100deg,transparent,rgba(255,255,255,0.035),transparent)",animation:"pipelineSheen 7s ease-in-out infinite"}}/>
         </div>
         <div style={{position:"relative",zIndex:10}}><NeuralPipeline/></div>
       </div>
@@ -1770,44 +1543,33 @@ function TechHighlights(){
     [C.crimson]:"255,32,64",[C.amber]:"255,170,0",[C.gold]:"255,215,0",
   };
   return(
-    <section style={{padding:"96px 0 40px"}}>
+    <section style={{padding:"96px 0"}}>
       <SectionDivider/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"56px"}} className="hiw-grid">
         <div ref={hRef} className="reveal">
           <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Engineering</p>
-          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Tech<br/>Highlights</h2>
+          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>
+            <ScrollFloat
+              containerClassName="tech-scrollfloat"
+              animationDuration={1}
+              ease="back.inOut(2)"
+              scrollStart="center bottom+=30%"
+              scrollEnd="bottom bottom-=30%"
+              stagger={0.02}
+            >
+              Tech Highlights
+            </ScrollFloat>
+          </h2>
         </div>
         <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Engineered for resilience, speed, and uncompromising precision.</p>
       </div>
       <div style={{margin:"8px 0 40px"}}>
         <ScrollVelocity
           texts={["FastAPI · LangGraph · Neo4j · Pinecone", "Claude · GPT-4o · Tavily · Voyage AI"]}
-          velocity={40}
+          velocity={12}
           numCopies={4}
           className="tech-velocity-text"
         />
-      </div>
-      <div className="reveal" style={{borderRadius:"20px",padding:"26px 30px",marginBottom:"14px",background:"rgba(10,10,22,0.85)",border:`1px solid rgba(0,255,15,0.14)`,backdropFilter:"blur(16px)",display:"flex",alignItems:"center",gap:"26px",flexWrap:"wrap"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"12px",flex:"1 1 220px"}}>
-          <div style={{width:"44px",height:"44px",borderRadius:"12px",background:"rgba(0,255,15,0.08)",border:`1px solid ${C.green}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.green}}>receipt_long</span>
-          </div>
-          <div>
-            <p style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"14.5px",color:"#fff",margin:0}}>Run Telemetry — never fabricated</p>
-            <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(130,148,168,0.7)",margin:"3px 0 0",lineHeight:1.5}}>Every run reports real usage, labelled honestly.</p>
-          </div>
-        </div>
-        <div style={{display:"flex",gap:"22px",flexWrap:"wrap",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(180,195,210,0.72)"}}>
-          <span>Real token spend</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Real LLM call counts</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Est. USD cost / run</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Per-stage breakdown</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Provider · model badge</span>
-        </div>
       </div>
       <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
         {TECH.map((t,i)=>{
@@ -1839,161 +1601,34 @@ function ExampleSection(){
   const hRef=useReveal(0.1),gRef=useReveal(0.07);
   const METAS_COLOR={Research:C.green,Debate:C.crimson,"Knowledge Graph":C.cyan,"Semantic Search":C.purple};
   return(
-    <section style={{padding:"24px 0 56px"}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"28px"}} className="hiw-grid">
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"48px"}} className="hiw-grid">
         <div ref={hRef} className="reveal">
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"12px",opacity:0.8}}>↓ Try it</p>
-          <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"clamp(1.5rem,2.8vw,2.1rem)",letterSpacing:"-0.03em",color:"#fff",margin:0}}>Four quick starting points</h3>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Examples</p>
+          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Example research</h2>
         </div>
-        <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14.5px",color:"rgba(130,148,168,0.75)",lineHeight:1.65,margin:0,paddingBottom:"2px",transitionDelay:"0.08s"}}>Common paths through the platform — click any card to launch it live.</p>
+        <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Four common paths through the platform, from quick synthesis to structured debate.</p>
       </div>
       <div ref={gRef} className="reveal-stagger example-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px"}}>
         {EXAMPLES.map((ex,i)=>{
           const type=ex.meta.split(" · ")[0];
           const col=METAS_COLOR[type]||C.cyan;
           return(
-            <button key={ex.title} onClick={()=>window.location.href=ex.route} style={{minHeight:"150px",display:"flex",flexDirection:"column",justifyContent:"space-between",alignItems:"flex-start",textAlign:"left",padding:"22px",borderRadius:"16px",border:`1px solid rgba(255,255,255,0.05)`,background:"rgba(12,12,26,0.8)",cursor:"pointer",position:"relative",overflow:"hidden",transition:"all 0.35s cubic-bezier(0.23,1,0.32,1)"}} onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor=`${col}35`;e.currentTarget.style.background="rgba(14,14,30,0.9)";}} onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(255,255,255,0.05)";e.currentTarget.style.background="rgba(12,12,26,0.8)";}}>
+            <button key={ex.title} onClick={()=>window.location.href=ex.route} style={{minHeight:"216px",display:"flex",flexDirection:"column",justifyContent:"space-between",alignItems:"flex-start",textAlign:"left",padding:"32px",borderRadius:"18px",border:`1px solid rgba(255,255,255,0.05)`,background:"rgba(12,12,26,0.8)",cursor:"pointer",position:"relative",overflow:"hidden",transition:"all 0.35s cubic-bezier(0.23,1,0.32,1)"}} onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor=`${col}35`;e.currentTarget.style.background="rgba(14,14,30,0.9)";}} onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(255,255,255,0.05)";e.currentTarget.style.background="rgba(12,12,26,0.8)";}}>
               <div style={{position:"absolute",top:0,left:0,right:0,height:"2px",background:`linear-gradient(90deg,${col}75,transparent)`}}/>
-              <div style={{width:"26px",height:"26px",borderRadius:"7px",background:`${col}10`,border:`1px solid ${col}22`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"12px",flexShrink:0}}>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:col,fontWeight:600}}>0{i+1}</span>
+              <div style={{width:"36px",height:"36px",borderRadius:"9px",background:`${col}10`,border:`1px solid ${col}22`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"18px",flexShrink:0}}>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:col,fontWeight:600}}>0{i+1}</span>
               </div>
-              <span style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",lineHeight:1.3,marginBottom:"auto"}}>{ex.title}</span>
-              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:col,lineHeight:1.5,marginTop:"12px",opacity:0.75}}>{ex.meta}</span>
+              <span style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"19px",color:"#fff",lineHeight:1.3,marginBottom:"auto"}}>{ex.title}</span>
+              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:col,lineHeight:1.5,marginTop:"18px",opacity:0.75}}>{ex.meta}</span>
             </button>
           );
         })}
       </div>
-    </section>
-  );
-}
 
-/* ══════════════════════════════════════════════════════════════════════════
-   RESEARCH + DEBATE — MERGED SPLIT-PANEL SECTION
-══════════════════════════════════════════════════════════════════════════ */
-function ResearchDebateSection(){
-  const ref = useReveal(0.08);
-  const R_STAGES = [
-    {name:"Search",     icon:"search",       color:C.cyan},
-    {name:"Summarise",  icon:"summarize",    color:C.indigo},
-    {name:"Critic",     icon:"balance",      color:C.amber},
-    {name:"Writer",     icon:"edit_note",    color:C.green},
-  ];
-  return(
-    <section id="research-debate" style={{padding:"80px 0"}}>
-      <SectionDivider/>
-      <div ref={ref} className="reveal">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
-          <div>
-            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Research &amp; Debate</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Ask once — or<br/>argue it out.</h2>
-          </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>One 4-agent pipeline synthesizes a cited report. For contested questions, a second 3-agent pipeline argues both sides and lets a Judge decide.</p>
-        </div>
-
-        <div className="chamber-card-premium" style={{
-          borderRadius:"28px",padding:"2px",
-          background:"linear-gradient(90deg,rgba(0,255,15,0.32),rgba(3,4,16,0.4) 48%,rgba(3,4,16,0.4) 52%,rgba(255,32,64,0.32))",
-          boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)",
-        }}>
-          <div style={{borderRadius:"27px",overflow:"hidden",background:"rgba(3,3,13,0.98)",backdropFilter:"blur(28px)",display:"grid",gridTemplateColumns:"1fr 1fr",position:"relative"}} className="hiw-grid">
-            {/* Center divider */}
-            <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:"1px",background:"linear-gradient(to bottom,transparent,rgba(255,255,255,0.08),transparent)",zIndex:2}} className="rd-divider"/>
-
-            {/* ── LEFT: RESEARCH ── */}
-            <div style={{padding:"32px",borderRight:"1px solid rgba(255,255,255,0.04)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"22px"}}>
-                <div style={{width:"38px",height:"38px",borderRadius:"12px",background:"linear-gradient(135deg,rgba(0,255,15,0.14),rgba(0,204,255,0.08))",border:"1px solid rgba(0,255,15,0.25)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:C.green}}>biotech</span>
-                </div>
-                <div>
-                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Neural Research</p>
-                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(130,148,168,0.4)",margin:"3px 0 0",letterSpacing:"0.06em"}}>SEARCH → SUMMARISE → CRITIC → WRITER</p>
-                </div>
-              </div>
-
-              <div style={{display:"flex",flexDirection:"column",gap:"3px",marginBottom:"20px"}}>
-                {R_STAGES.map((s,i)=>(
-                  <div key={s.name} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 10px",borderRadius:"9px"}}>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(130,148,168,0.4)",width:"12px"}}>{i+1}</span>
-                    <span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px",color:s.color}}>{s.icon}</span>
-                    <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(210,220,235,0.75)"}}>{s.name}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{display:"flex",alignItems:"center",gap:"16px",padding:"16px",borderRadius:"14px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.04)",marginBottom:"20px"}}>
-                <ConfidenceRing/>
-                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"11.5px",color:"rgba(130,148,168,0.6)",lineHeight:1.55,margin:0}}>Every report ships with an animated, calibrated confidence score.</p>
-              </div>
-
-              <button onClick={()=>window.location.href="/research"} style={{width:"100%",padding:"12px 20px",borderRadius:"9999px",border:`1px solid ${C.green}45`,background:"rgba(0,255,15,0.07)",color:C.green,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",display:"flex",alignItems:"center",justifyContent:"center",gap:"7px",letterSpacing:"0.02em"}}
-                onMouseOver={e=>{e.currentTarget.style.background="rgba(0,255,15,0.18)";e.currentTarget.style.borderColor=`${C.green}90`;e.currentTarget.style.boxShadow=`0 0 24px rgba(0,255,15,0.18)`;}}
-                onMouseOut={e=>{e.currentTarget.style.background="rgba(0,255,15,0.07)";e.currentTarget.style.borderColor=`${C.green}45`;e.currentTarget.style.boxShadow="none";}}>
-                Launch Research <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
-              </button>
-            </div>
-
-            {/* ── RIGHT: DEBATE ── */}
-            <div style={{padding:"32px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"22px"}}>
-                <div style={{width:"38px",height:"38px",borderRadius:"12px",background:"linear-gradient(135deg,rgba(255,32,64,0.14),rgba(255,215,0,0.08))",border:"1px solid rgba(255,32,64,0.25)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:C.crimson}}>forum</span>
-                </div>
-                <div>
-                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>Debate Chamber</p>
-                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(130,148,168,0.4)",margin:"3px 0 0",letterSpacing:"0.06em"}}>FOR → AGAINST → JUDGE</p>
-                </div>
-              </div>
-
-              <div style={{display:"flex",flexDirection:"column",gap:"12px",marginBottom:"20px"}}>
-                <div style={{borderRadius:"12px",padding:"14px 16px",background:"rgba(0,255,15,0.04)",border:`1px solid ${C.green}28`}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}}>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.1em"}}>FOR</span>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:C.green,fontWeight:600}}>7.5 / 10</span>
-                  </div>
-                  <div style={{height:"6px",borderRadius:"4px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
-                    <div className="rd-bar-for" style={{width:"75%",height:"100%",borderRadius:"4px",background:`linear-gradient(90deg,${C.green}aa,${C.green})`,boxShadow:`0 0 8px ${C.green}55`}}/>
-                  </div>
-                </div>
-                <div style={{borderRadius:"12px",padding:"14px 16px",background:"rgba(255,32,64,0.04)",border:`1px solid ${C.crimson}28`}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}}>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.crimson,letterSpacing:"0.1em"}}>AGAINST</span>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:C.crimson,fontWeight:600}}>5.5 / 10</span>
-                  </div>
-                  <div style={{height:"6px",borderRadius:"4px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
-                    <div className="rd-bar-against" style={{width:"55%",height:"100%",borderRadius:"4px",background:`linear-gradient(90deg,${C.crimson}aa,${C.crimson})`,boxShadow:`0 0 8px ${C.crimson}55`}}/>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{display:"flex",alignItems:"center",gap:"12px",padding:"14px 16px",borderRadius:"14px",background:"rgba(255,215,0,0.04)",border:`1px solid ${C.gold}28`,marginBottom:"20px"}}>
-                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"18px",color:C.gold}}>gavel</span>
-                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"11.5px",color:"rgba(210,220,235,0.75)",margin:0,lineHeight:1.5}}>Judge scores each side on a rubric, then generates follow-up cross-examination questions.</p>
-              </div>
-
-              <button onClick={()=>window.location.href="/debate"} style={{width:"100%",padding:"12px 20px",borderRadius:"9999px",border:`1px solid ${C.crimson}45`,background:"rgba(255,32,64,0.07)",color:C.crimson,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",display:"flex",alignItems:"center",justifyContent:"center",gap:"7px",letterSpacing:"0.02em"}}
-                onMouseOver={e=>{e.currentTarget.style.background="rgba(255,32,64,0.18)";e.currentTarget.style.borderColor=`${C.crimson}90`;e.currentTarget.style.boxShadow=`0 0 24px rgba(255,32,64,0.18)`;}}
-                onMouseOut={e=>{e.currentTarget.style.background="rgba(255,32,64,0.07)";e.currentTarget.style.borderColor=`${C.crimson}45`;e.currentTarget.style.boxShadow="none";}}>
-                Launch Debate <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Shared footer stat strip */}
-          <div style={{padding:"18px 32px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:"0",background:"rgba(2,2,11,0.65)",borderRadius:"0 0 27px 27px"}} className="hiw-grid-stats">
-            {[
-              {label:"Combined agents",val:"7",color:C.cyan},
-              {label:"Research delivery",val:"streamed",color:C.green},
-              {label:"Judge rubric",val:"1–10",color:C.gold},
-              {label:"Both feed",val:"graph + memory",color:C.purple},
-            ].map((stat,i)=>(
-              <div key={stat.label} style={{display:"flex",alignItems:"baseline",gap:"10px",flex:1,paddingLeft:i===0?0:"28px",borderLeft:i===0?"none":"1px solid rgba(255,255,255,0.045)"}}>
-                <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"15px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
-                <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"11.5px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div style={{marginTop:"28px"}}>
+        <AnalyticsMiniPreview/>
       </div>
     </section>
   );
@@ -2007,7 +1642,7 @@ function KnowledgeGraphSection() {
   const [liveNodeCount, setLiveNodeCount] = useState(GRAPH_NODES_DATA.length);
 
   return (
-    <section id="graph" style={{padding:"80px 0"}}>
+    <section style={{padding:"80px 0"}}>
       <SectionDivider/>
       <div ref={ref} className="reveal">
         <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
@@ -2019,7 +1654,7 @@ function KnowledgeGraphSection() {
         </div>
 
         {/* Premium card wrapper */}
-        <div className="chamber-card-premium" style={{
+        <div style={{
           borderRadius:"28px",
           padding:"2px",
           background:"linear-gradient(135deg,rgba(0,204,255,0.3),rgba(168,85,247,0.18),rgba(0,255,15,0.1),rgba(0,204,255,0.06))",
@@ -2115,8 +1750,8 @@ function KnowledgeGraphSection() {
                   paddingLeft: i === 0 ? 0 : "32px",
                   borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.045)",
                 }}>
-                  <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
-                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}>{stat.val}</span>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(130,148,168,0.4)"}}>{stat.label}</span>
                 </div>
               ))}
             </div>
@@ -2127,313 +1762,81 @@ function KnowledgeGraphSection() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   MEMORY BANK SECTION
-══════════════════════════════════════════════════════════════════════════ */
-function MemoryBankSection(){
-  const ref = useReveal(0.08);
+/* ── Agent Playground ─────────────────────────────────────────────────────── */
+function AgentPlayground(){
+  const ref=useReveal(0.08);
+  const[selected,setSelected]=useState(null);
+  const[log,setLog]=useState([]);
+  const[running,setRunning]=useState(false);
+  const[done,setDone]=useState(false);
+  const logRef=useRef(null);
+  useEffect(()=>{logRef.current?.scrollTo({top:logRef.current.scrollHeight,behavior:"smooth"});},[log]);
+  const run=agent=>{
+    if(running)return;
+    setSelected(agent.id);setDone(false);setLog([]);setRunning(true);
+    const quips=AGENT_QUIPS[agent.id]||["Processing…"];
+    quips.forEach((q,i)=>setTimeout(()=>{setLog(p=>[...p,{text:q,color:agent.color}]);if(i===quips.length-1){setRunning(false);setDone(true);}},520*(i+1)));
+  };
+  const reset=()=>{setSelected(null);setLog([]);setRunning(false);setDone(false);};
+  const active=PLAYGROUND_AGENTS.find(a=>a.id===selected);
   return(
-    <section id="memory" style={{padding:"80px 0"}}>
+    <section id="playground" style={{padding:"96px 0"}}>
       <SectionDivider/>
       <div ref={ref} className="reveal">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"12px"}} className="hiw-grid">
-          <div>
-            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.purple,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Memory Bank</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Memory that<br/>compounds.</h2>
-          </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Stats, an interest graph, debate history, and AI-generated topic suggestions pulled from your own patterns.</p>
+        <div style={{textAlign:"center",marginBottom:"52px"}}>
+          <span style={{display:"inline-block",padding:"4px 16px",borderRadius:"9999px",border:`1px solid ${C.purple}45`,color:C.purple,fontFamily:"JetBrains Mono,monospace",fontSize:"10px",letterSpacing:"0.14em",marginBottom:"14px"}}>✦ AGENT PLAYGROUND</span>
+          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.5rem)",letterSpacing:"-0.05em",marginBottom:"10px",color:"#fff"}}>Pick an <span style={{color:C.green}}>Agent.</span> Watch it <span style={{color:C.cyan}}>Think.</span></h2>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"460px",margin:"0 auto",lineHeight:1.7}}>Click any agent tile to simulate its inner monologue — no backend required.</p>
         </div>
-
-        <div className="chamber-card-premium" style={{borderRadius:"28px",padding:"2px",background:"linear-gradient(135deg,rgba(168,85,247,0.3),rgba(0,204,255,0.1),rgba(255,215,0,0.08),rgba(168,85,247,0.06))",boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)"}}>
-          <div style={{borderRadius:"27px",overflow:"hidden",background:"rgba(3,3,13,0.98)",backdropFilter:"blur(28px)",padding:"8px 32px 32px"}}>
-            <MemoryTimeline/>
-            <div style={{display:"flex",flexWrap:"wrap",gap:"7px",marginTop:"6px"}}>
-              {[{icon:"query_stats",label:"Total queries, debates, avg. confidence"},{icon:"scatter_plot",label:"Interactive interest graph"},{icon:"history",label:"Debate history w/ score bars"},{icon:"auto_awesome",label:"AI topic suggestions"}].map(c=>(
-                <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.purple}28`,background:"rgba(168,85,247,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.purple,letterSpacing:"0.04em"}}>
-                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   NEURAL ANALYTICS SECTION
-══════════════════════════════════════════════════════════════════════════ */
-function NeuralAnalyticsSection(){
-  const ref = useReveal(0.08);
-  const wrapRef = useRef(null);
-  const [visible, setVisible] = useState(false);
-  const maxHeat = Math.max(...HEATMAP_DATA.flat());
-
-  useEffect(()=>{
-    const el = wrapRef.current; if(!el) return;
-    const obs = new IntersectionObserver(([e])=>{if(e.isIntersecting){setVisible(true);obs.unobserve(el);}},{threshold:0.2});
-    obs.observe(el);
-    return()=>obs.disconnect();
-  },[]);
-
-  return(
-    <section id="analytics" style={{padding:"80px 0"}}>
-      <SectionDivider/>
-      <div ref={ref} className="reveal">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
-          <div>
-            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.amber,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Neural Analytics</p>
-            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your research,<br/>decoded.</h2>
-          </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Activity, topics, and confidence — turned into patterns you can actually see. No chart library, pure Canvas.</p>
-        </div>
-
-        {/* Premium card wrapper — same gradient-border pattern as Knowledge Graph */}
-        <div ref={wrapRef} className="chamber-card-premium" style={{
-          borderRadius:"28px",
-          padding:"2px",
-          background:"linear-gradient(135deg,rgba(255,170,0,0.3),rgba(0,204,255,0.14),rgba(168,85,247,0.1),rgba(255,170,0,0.06))",
-          boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)",
-        }}>
-          <div style={{
-            borderRadius:"27px",
-            overflow:"hidden",
-            background:"rgba(3,3,13,0.98)",
-            backdropFilter:"blur(28px)",
-          }}>
-            {/* Top bar */}
-            <div style={{
-              padding:"22px 32px",
-              borderBottom:"1px solid rgba(255,255,255,0.05)",
-              display:"flex",
-              justifyContent:"space-between",
-              alignItems:"center",
-              flexWrap:"wrap",
-              gap:"14px",
-              background:"linear-gradient(90deg,rgba(255,170,0,0.04),rgba(0,204,255,0.025),transparent)",
-            }}>
-              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
-                <div style={{
-                  width:"44px",height:"44px",borderRadius:"14px",
-                  background:"linear-gradient(135deg,rgba(255,170,0,0.12),rgba(0,204,255,0.08))",
-                  border:"1px solid rgba(255,170,0,0.22)",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  position:"relative",overflow:"hidden",
-                  boxShadow:"0 0 20px rgba(255,170,0,0.1)",
-                }}>
-                  <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 120%,rgba(255,170,0,0.25),transparent 65%)",pointerEvents:"none"}}/>
-                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.amber,position:"relative",zIndex:1}}>query_stats</span>
-                </div>
-                <div>
-                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Neural Analytics</p>
-                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>
-                    7D · 30D · 90D WINDOWS · GET /analytics/dashboard
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => window.location.href = "/analytics"}
-                style={{
-                  padding:"10px 22px",borderRadius:"9999px",
-                  border:`1px solid ${C.amber}45`,
-                  background:"rgba(255,170,0,0.07)",
-                  color:C.amber,fontFamily:"Sora,sans-serif",
-                  fontSize:"12.5px",fontWeight:700,cursor:"pointer",
-                  transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",
-                  display:"flex",alignItems:"center",gap:"7px",flexShrink:0,
-                  letterSpacing:"0.02em",
-                }}
-                onMouseOver={e=>{
-                  e.currentTarget.style.background="rgba(255,170,0,0.18)";
-                  e.currentTarget.style.borderColor=`${C.amber}90`;
-                  e.currentTarget.style.boxShadow=`0 0 24px rgba(255,170,0,0.18)`;
-                  e.currentTarget.style.transform="translateY(-2px)";
-                }}
-                onMouseOut={e=>{
-                  e.currentTarget.style.background="rgba(255,170,0,0.07)";
-                  e.currentTarget.style.borderColor=`${C.amber}45`;
-                  e.currentTarget.style.boxShadow="none";
-                  e.currentTarget.style.transform="translateY(0)";
-                }}
-              >
-                Open full dashboard
-                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
-              </button>
-            </div>
-
-            {/* Body — confidence distribution + activity heatmap */}
-            <div style={{padding:"32px",display:"grid",gridTemplateColumns:"0.85fr 1.15fr",gap:"36px"}} className="hiw-grid">
-              <div>
-                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.12em",marginBottom:"16px",opacity:0.85}}>CONFIDENCE DISTRIBUTION</p>
-                <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
-                  {CONF_BANDS.map((b,i)=>(
-                    <div key={b.label}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"6px"}}>
-                        <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(210,220,235,0.75)"}}>{b.label} <span style={{color:"rgba(130,148,168,0.5)",fontSize:"10.5px"}}>{b.range}</span></span>
-                        <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:b.color}}>{b.val}%</span>
-                      </div>
-                      <div style={{height:"7px",borderRadius:"4px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
-                        <div style={{width:visible?`${b.val}%`:"0%",height:"100%",borderRadius:"4px",background:`linear-gradient(90deg,${b.color}aa,${b.color})`,boxShadow:`0 0 8px ${b.color}55`,transition:`width 1s cubic-bezier(0.22,1,0.36,1) ${0.15+i*0.12}s`}}/>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.amber,letterSpacing:"0.12em",marginBottom:"16px",opacity:0.85}}>ACTIVITY HEATMAP</p>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:"5px"}}>
-                  {HEATMAP_DAYS.map((d,ci)=>(
-                    <div key={d} style={{display:"flex",flexDirection:"column",gap:"5px",alignItems:"center"}}>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:"rgba(130,148,168,0.5)"}}>{d}</span>
-                      {HEATMAP_DATA.map((row,ri)=>{
-                        const v=row[ci],op=v===0?0.06:0.22+(v/maxHeat)*0.78;
-                        const hue=(ci*4+ri)*17;
-                        return (
-                          <div key={ri} className="heat-cell" style={{width:"100%",aspectRatio:"1",borderRadius:"4px",background:C.amber,opacity:visible?op:0,transition:`opacity 0.6s ease ${0.2+(ci*4+ri)*0.02}s, transform 0.25s cubic-bezier(0.23,1,0.32,1), box-shadow 0.25s ease`,position:"relative",cursor:"default"}}
-                            onMouseOver={e=>{e.currentTarget.style.transform="scale(1.35)";e.currentTarget.style.background=`hsl(${hue},90%,60%)`;e.currentTarget.style.boxShadow=`0 0 10px hsl(${hue},90%,60%)`;e.currentTarget.style.zIndex=2;}}
-                            onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.background=C.amber;e.currentTarget.style.boxShadow="none";e.currentTarget.style.zIndex=1;}}
-                            title={`${v} ${v===1?"query":"queries"}`}
-                          />
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(130,148,168,0.45)",marginTop:"12px",textAlign:"right"}}>less <span style={{color:C.amber,opacity:0.25}}>■</span> <span style={{color:C.amber,opacity:0.55}}>■</span> <span style={{color:C.amber}}>■</span> more</p>
-              </div>
-            </div>
-
-            {/* Footer stat strip */}
-            <div style={{
-              padding:"18px 32px",
-              borderTop:"1px solid rgba(255,255,255,0.04)",
-              display:"flex",
-              gap:"0",
-              background:"rgba(2,2,11,0.65)",
-            }}>
-              {[
-                {label:"Total queries", val:"142", color:C.amber},
-                {label:"Debates run", val:"31", color:C.crimson},
-                {label:"Avg. confidence", val:"87%", color:C.green},
-                {label:"Topics mapped", val:"18", color:C.purple},
-              ].map((stat, i) => (
-                <div key={stat.label} style={{
-                  display:"flex",alignItems:"baseline",gap:"10px",
-                  flex:1,cursor:"default",borderRadius:"10px",
-                  padding:"6px 0",
-                  paddingLeft: i === 0 ? "6px" : "32px",
-                  borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.045)",
-                  transition:"box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.23,1,0.32,1), background 0.3s ease",
-                }}
-                onMouseOver={e=>{e.currentTarget.style.boxShadow=`0 0 22px ${stat.color}30`;e.currentTarget.style.background=`${stat.color}0a`;e.currentTarget.style.transform="translateY(-2px)";}}
-                onMouseOut={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.background="transparent";e.currentTarget.style.transform="translateY(0)";}}
-                >
-                  <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
-                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   MORE CAPABILITIES — PDF LAB + API KEY VAULT (lighter secondary band)
-══════════════════════════════════════════════════════════════════════════ */
-function MoreCapabilitiesSection(){
-  const ref = useReveal(0.08);
-  const STAGES = [
-    {label:"Signature check",   icon:"fingerprint"},
-    {label:"Embedded JS scan",  icon:"javascript"},
-    {label:"Malware signatures",icon:"security"},
-    {label:"RAG indexing",      icon:"auto_stories"},
-  ];
-  const [activeStage,setActiveStage]=useState(0);
-  useEffect(()=>{
-    const iv=setInterval(()=>setActiveStage(s=>(s+1)%STAGES.length),1800);
-    return()=>clearInterval(iv);
-  },[]);
-  return(
-    <section id="more" style={{padding:"48px 0"}}>
-      <SectionDivider/>
-      <div ref={ref} className="reveal" style={{marginBottom:"28px"}}>
-        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(150,164,182,0.55)",letterSpacing:"0.2em",marginBottom:"10px",opacity:0.8}}>↓ More capabilities</p>
-        <ScrollFloat
-          containerClassName="capabilities-scrollfloat"
-          animationDuration={1}
-          ease="back.inOut(2)"
-          scrollStart="center bottom+=30%"
-          scrollEnd="bottom bottom-=30%"
-          stagger={0.02}
-        >
-          Document intelligence, and it's your own keys.
-        </ScrollFloat>
-      </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}} className="hiw-grid">
-        {/* PDF Lab — light card */}
-        <div style={{borderRadius:"20px",padding:"26px 26px 24px",background:"rgba(10,10,22,0.75)",border:"1px solid rgba(0,204,255,0.14)",backdropFilter:"blur(14px)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"18px"}}>
-            <div style={{width:"36px",height:"36px",borderRadius:"11px",background:"rgba(0,204,255,0.1)",border:"1px solid rgba(0,204,255,0.25)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"18px",color:C.cyan}}>picture_as_pdf</span>
-            </div>
-            <div>
-              <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>PDF Lab</p>
-              <ScrambledText radius={80} duration={0.8} speed={0.4} scrambleChars="01#$%" className="vault-scramble-label">SECURITY-SCANNED RAG</ScrambledText>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:"6px",marginBottom:"16px"}}>
-            {STAGES.map((st,i)=>{
-              const isActive=activeStage===i;
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"24px",maxWidth:"940px",margin:"0 auto"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",alignContent:"start"}}>
+            {PLAYGROUND_AGENTS.map(agent=>{
+              const isSel=selected===agent.id;
               return(
-                <div key={st.label} title={st.label} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",padding:"8px 4px",borderRadius:"10px",border:`1px solid ${isActive?C.cyan+"55":"rgba(255,255,255,0.05)"}`,background:isActive?`${C.cyan}0d`:"transparent",transition:"all 0.4s ease"}}>
-                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px",color:isActive?C.cyan:"rgba(180,200,220,0.35)"}}>{st.icon}</span>
-                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"7.5px",color:isActive?C.cyan:"rgba(180,200,220,0.3)",textAlign:"center",lineHeight:1.2}}>{st.label}</span>
-                </div>
+                <button key={agent.id} className="agent-btn" onClick={()=>run(agent)} style={{padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color:"rgba(255,255,255,0.06)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
+                  <div style={{fontSize:"22px",marginBottom:"6px"}}>{agent.emoji}</div>
+                  <div style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11px",letterSpacing:"0.1em"}}>{agent.name}</div>
+                  {isSel&&<div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8px",marginTop:"4px",opacity:0.55,color:agent.color}}>● ACTIVE</div>}
+                </button>
               );
             })}
           </div>
-          <PDFDropZone/>
-        </div>
-
-        {/* API Key Vault — light card */}
-        <div style={{borderRadius:"20px",padding:"26px 26px 24px",background:"rgba(10,10,22,0.75)",border:"1px solid rgba(0,230,184,0.14)",backdropFilter:"blur(14px)"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"18px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
-              <div style={{width:"36px",height:"36px",borderRadius:"11px",background:"rgba(0,230,184,0.1)",border:"1px solid rgba(0,230,184,0.25)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"18px",color:C.teal}}>verified_user</span>
-              </div>
-              <div>
-                <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"14px",color:"#fff",margin:0}}>API Key Vault</p>
-                <ScrambledText radius={80} duration={0.8} speed={0.4} scrambleChars="01#$%" className="vault-scramble-label">FERNET · AES-128-CBC</ScrambledText>
-              </div>
-            </div>
-            <button onClick={()=>window.location.href="/settings"} style={{padding:"7px 14px",borderRadius:"9999px",border:`1px solid ${C.teal}40`,background:"rgba(0,230,184,0.06)",color:C.teal,fontFamily:"Sora,sans-serif",fontSize:"11px",fontWeight:700,cursor:"pointer",transition:"all 0.25s"}}
-              onMouseOver={e=>{e.currentTarget.style.background="rgba(0,230,184,0.14)";}}
-              onMouseOut={e=>{e.currentTarget.style.background="rgba(0,230,184,0.06)";}}>
-              Open
-            </button>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"14px"}}>
-            {[
-              {provider:"Anthropic", masked:"sk-ant-•••• (illustrative)", color:C.amber},
-              {provider:"OpenAI",    masked:"sk-•••• (illustrative)",     color:C.cyan},
-              {provider:"Tavily",    masked:"tvly-•••• (illustrative)",   color:C.green},
-            ].map(k=>(
-              <div key={k.provider} style={{borderRadius:"11px",padding:"10px 14px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                <div>
-                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"12px",color:"#fff",margin:0}}>{k.provider}</p>
-                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(150,165,180,0.5)",margin:"2px 0 0"}}>{k.masked}</p>
+          <div style={{display:"flex",flexDirection:"column",borderRadius:"18px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.055)",boxShadow:"0 24px 48px rgba(0,0,0,0.4)"}}>
+            <div style={{padding:"20px 22px",background:"rgba(7,7,18,0.96)",borderBottom:"1px solid rgba(255,255,255,0.04)",minHeight:"90px"}}>
+              {active?(
+                <div style={{animation:"fadeUp 0.3s ease"}} key={active.id}>
+                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em"}}>{active.emoji} {active.name} — ROLE BRIEFING</div>
+                  <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(185,200,175,0.75)",lineHeight:1.65,margin:0}}>{active.desc}</p>
                 </div>
-                <span style={{width:"7px",height:"7px",borderRadius:"50%",background:k.color,boxShadow:`0 0 8px ${k.color}`}}/>
+              ):(
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)",lineHeight:1.7,margin:0}}>← Select an agent to see its role briefing and watch it run.</p>
+              )}
+            </div>
+            <div ref={logRef} style={{flex:1,minHeight:"200px",maxHeight:"200px",overflowY:"auto",background:"#05050f",padding:"16px 20px",fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2,scrollbarWidth:"thin",scrollbarColor:"rgba(0,255,15,0.1) transparent"}}>
+              {log.length===0&&<span style={{color:"rgba(255,255,255,0.12)"}}>_</span>}
+              {log.map((e,i)=>(
+                <div key={i} style={{animation:"fadeUp 0.28s ease",color:e.color,display:"flex",gap:"10px",alignItems:"baseline"}}>
+                  <span style={{color:"rgba(255,255,255,0.15)",fontSize:"10px",minWidth:"18px"}}>{i+1}</span>
+                  <span>{e.text}</span>
+                </div>
+              ))}
+              {running&&(
+                <div style={{display:"flex",alignItems:"center",gap:"5px",marginTop:"4px"}}>
+                  <span style={{color:"rgba(255,255,255,0.15)",fontSize:"10px"}}>{log.length+1}</span>
+                  {[0,1,2].map(i=><div key={i} style={{width:"4px",height:"4px",borderRadius:"50%",background:active?.color||C.green,animation:`pulse 1.1s ${i*0.18}s ease-in-out infinite`}}/>)}
+                </div>
+              )}
+            </div>
+            <div style={{padding:"12px 18px",background:"rgba(5,5,15,0.96)",borderTop:"1px solid rgba(255,255,255,0.03)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"7px"}}>
+                <div style={{width:"5px",height:"5px",borderRadius:"50%",background:running?C.amber:done?C.green:"rgba(255,255,255,0.12)",animation:running?"pulse 0.8s ease-in-out infinite":"none",transition:"background 0.3s"}}/>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.28)"}}>
+                  {running?`${active?.name} processing…`:done?`${active?.name} complete ✓`:"Awaiting selection"}
+                </span>
               </div>
-            ))}
+              {(selected||log.length>0)&&<button onClick={reset} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"7px",padding:"4px 12px",color:"rgba(255,255,255,0.28)",fontFamily:"JetBrains Mono,monospace",fontSize:"10px",cursor:"pointer",transition:"all 0.2s"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.2)";e.currentTarget.style.color="#fff";}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.07)";e.currentTarget.style.color="rgba(255,255,255,0.28)";}}>reset</button>}
+            </div>
           </div>
-          <BYOKBadge/>
         </div>
       </div>
     </section>
@@ -2450,8 +1853,6 @@ function FinalCTA(){
           cellSize={64}
           color={C.green}
           radius={160}
-          falloff="smooth"
-          holdTime={350}
           fadeDuration={700}
           lineWidth={1}
           maxOpacity={0.55}
@@ -2493,7 +1894,7 @@ function DeveloperCard(){
     <section style={{padding:"80px 0"}}>
       <SectionDivider/>
       <div style={{display:"flex",justifyContent:"center"}}>
-        <div ref={ref} className="reveal corner-brackets" style={{maxWidth:"480px",width:"100%",padding:"44px 36px",borderRadius:"24px",display:"flex",flexDirection:"column",alignItems:"center",gap:"22px",background:"rgba(8,8,20,0.88)",backdropFilter:"blur(28px)",border:"1px solid rgba(0,255,15,0.08)",textAlign:"center",position:"relative",overflow:"hidden",boxShadow:"0 40px 80px rgba(0,0,0,0.4)",color:C.green}}>
+        <div ref={ref} className="reveal" style={{maxWidth:"480px",width:"100%",padding:"44px 36px",borderRadius:"24px",display:"flex",flexDirection:"column",alignItems:"center",gap:"22px",background:"rgba(8,8,20,0.88)",backdropFilter:"blur(28px)",border:"1px solid rgba(0,255,15,0.08)",textAlign:"center",position:"relative",overflow:"hidden",boxShadow:"0 40px 80px rgba(0,0,0,0.4)"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.green}50,transparent)`}}/>
           <div style={{position:"relative"}}>
             <div style={{width:"112px",height:"112px",borderRadius:"50%",overflow:"hidden",border:`2px solid rgba(0,255,15,0.4)`,boxShadow:`0 0 30px rgba(0,255,15,0.15),0 0 60px rgba(0,255,15,0.06)`}}>
@@ -2539,56 +1940,6 @@ function Footer(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   WHY POLYNOUS — ORIGIN STORY SECTION
-══════════════════════════════════════════════════════════════════════════ */
-function StorySection(){
-  const ref = useReveal(0.1);
-  const beats = [
-    {icon:"psychology_alt", color:C.crimson, title:"One model, one guess.", body:"Ask a single LLM a hard question and you get its best guess — confident-sounding, unsourced, and impossible to audit. No indication of what it's unsure about."},
-    {icon:"groups",         color:C.amber,   title:"So we built a team, not a guess.", body:"POLYNOUS doesn't answer alone. It searches, condenses, cross-examines, and only then writes — the way a real research team would, with each stage checking the last."},
-    {icon:"gavel",          color:C.gold,    title:"And for the questions with two sides —", body:"— it doesn't pick one. It runs a formal debate, FOR against AGAINST, and lets an impartial judge score the argument, not the answer you wanted."},
-    {icon:"visibility",     color:C.green,   title:"Every claim, traceable.", body:"Confidence scores. Inline citations. Named limitations. You see exactly how sure POLYNOUS is, and why — instead of trusting a black box."},
-  ];
-  return(
-    <section id="why" style={{padding:"96px 0 64px"}}>
-      <SectionDivider/>
-      <div ref={ref} className="reveal" style={{marginBottom:"56px",textAlign:"center",maxWidth:"760px",marginLeft:"auto",marginRight:"auto"}}>
-        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.crimson,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Why POLYNOUS exists</p>
-        <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.6rem)",lineHeight:1.02,letterSpacing:"-0.05em",color:"#fff",margin:"0 0 20px"}}>A single model will always<br/>tell you it's right.</h2>
-        <ScrollReveal
-          tag="div"
-          baseOpacity={0.06}
-          enableBlur={true}
-          baseRotation={2.5}
-          blurStrength={6}
-          containerClassName="story-lede"
-          textClassName="story-lede-text"
-        >
-          That's the quiet problem with most AI answers — not that they're wrong, but that they never say how sure they are, or show their work. POLYNOUS was built on a simple bet: research gets more honest when it's argued out loud, not generated in one breath.
-        </ScrollReveal>
-      </div>
-
-      <div style={{display:"flex",flexDirection:"column",gap:"1px",background:"rgba(255,255,255,0.04)",borderRadius:"20px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.05)"}}>
-        {beats.map((b,i)=>{
-          const bref=useReveal(0.15);
-          return(
-            <div key={b.title} ref={bref} className="reveal" style={{transitionDelay:`${i*0.08}s`,display:"grid",gridTemplateColumns:"64px 1fr",gap:"22px",padding:"30px 32px",background:"rgba(6,6,16,0.92)",alignItems:"flex-start"}}>
-              <div style={{width:"48px",height:"48px",borderRadius:"14px",background:`${b.color}14`,border:`1px solid ${b.color}35`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${b.color}18`}}>
-                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:b.color}}>{b.icon}</span>
-              </div>
-              <div>
-                <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"clamp(1.1rem,1.8vw,1.4rem)",color:"#fff",letterSpacing:"-0.02em",margin:"0 0 8px"}}>{b.title}</h3>
-                <BlurText text={b.body} animateBy="words" direction="top" delay={12} stepDuration={0.25} className="story-beat-body"/>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
    ROOT APP
 ══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage(){
@@ -2610,18 +1961,16 @@ export default function LandingPage(){
     <>
       <div className="noise-overlay"/>
       <NeuralCanvas/>
-      <ScrollProgressBar/>
       <main style={{position:"relative",zIndex:10,minHeight:"100vh"}}>
         <Header/>
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
           <HeroSection/>
-          <StorySection/>
           <HowItWorksSection/>
-          <div style={{height:"140px",margin:"-40px 0",pointerEvents:"none"}}>
+          <div style={{height:"180px",margin:"24px 0 8px",pointerEvents:"none"}}>
             <div style={{pointerEvents:"auto",height:"100%"}}>
               <CurvedLoop
                 marqueeText="Many Minds ✦ One Answer ✦ Seven Agents ✦ Zero Guesswork ✦"
-                speed={1.4}
+                speed={0.5}
                 curveAmount={140}
                 direction="left"
                 interactive={true}
@@ -2631,14 +1980,11 @@ export default function LandingPage(){
           </div>
           <ApiSection/>
           <FeaturesSection/>
-          <ExampleSection/>
           <PipelineSection/>
           <TechHighlights/>
-          <ResearchDebateSection/>
+          <ExampleSection/>
           <KnowledgeGraphSection/>
-          <MemoryBankSection/>
-          <NeuralAnalyticsSection/>
-          <MoreCapabilitiesSection/>
+          <AgentPlayground/>
         </div>
         <FinalCTA/>
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
