@@ -510,10 +510,14 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
     setMessages((m) => [...m, { role: "user", text: question }]);
     setBusy(true);
     try {
-      // apiFetch auto-refreshes the access token on 401, so a long-open report
-      // can still be chatted with after the 15-min access-token TTL expires.
-      const res = await apiFetch(`/report/chat`, {
+      // Plain fetch with a Bearer token (NOT credentials:'include') — matches
+      // the working /debate-visual stream. Using credentialed CORS here made the
+      // browser block the request on deployments whose CORS doesn't allow
+      // credentials, surfacing as "Unable to connect to server".
+      const token = localStorage.getItem("polynous_token") || "";
+      const res = await fetch(`${API_BASE_URL}/report/chat`, {
         method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           question,
           report_answer: answer || "",
