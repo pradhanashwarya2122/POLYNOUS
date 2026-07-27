@@ -1,26 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ── React Bits integration (see React-Bits→POLYNOUS Integration Guide) ─────
-import SplitText from "./react-bits/SplitText";
-import BlurText from "./react-bits/BlurText";
-import ScrollFloat from "./react-bits/ScrollFloat";
-import ScrollReveal from "./react-bits/ScrollReveal";
-import ScrollVelocity from "./react-bits/ScrollVelocity";
-import VariableProximity from "./react-bits/VariableProximity";
-import CurvedLoop from "./react-bits/CurvedLoop";
-import CursorGrid from "./react-bits/CursorGrid";
-import ScrambledText from "./react-bits/ScrambledText";
-import { GlobalSpotlight } from "./react-bits/MagicBento";
-// TargetCursor, CardNav, and FluidGlass are intentionally NOT wired in — each
-// conflicts with something POLYNOUS already has (see guide §8/§13/§14).
-
-// BUG FIX: this was a Windows filesystem path ("C:\Users\Hp\Downloads\...")
-// which is meaningless in a browser and will 404 the profile photo. Files in
-// frontend/public/ are served from the site root, so the correct src is just
-// "/profilepic.jpg" (this was almost certainly part of why things looked
-// broken — a failed image request combined with the react-bits imports
-// throwing at parse time when the target files didn't exist yet was enough
-// to blank the whole app, canvas background included).
+// Served from /frontend/public — anything dropped there is available at the site root.
 const PHOTO_SRC = "/profilepic.jpg";
 
 const C = {
@@ -32,34 +12,22 @@ const C = {
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800;900&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; font-size: 16px; }
+  html { scroll-behavior: smooth; font-size: 16px; scroll-padding-top: 24px; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
   body { background-color: #060610; color: #ffffff; overflow-x: hidden; font-family: 'Hanken Grotesk', sans-serif; }
-  /* ── React Bits integration styles ────────────────────────────────────── */
-  .hero-split-line .split-char, .hero-split-line .split-word {
-    background: linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.8) 52%,rgba(0,204,255,0.65) 82%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 40px rgba(0,255,15,0.12));
-  }
-  .hero-split-line--dim .split-word {
-    background: linear-gradient(165deg,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0.16) 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .hero-subhead { font-family:'Hanken Grotesk',sans-serif; font-size:clamp(16px,1.9vw,20px); color:rgba(130,148,168,0.88); max-width:580px; line-height:1.75; margin:0 0 24px; font-weight:400; }
-  .api-lede { margin: 0 0 28px; }
-  .api-lede-text { font-family:'Hanken Grotesk',sans-serif; font-size:16px; color:rgba(130,148,168,0.82); line-height:1.7; font-weight:400; }
-  .pipeline-scrollfloat .scroll-float-text, .tech-scrollfloat .scroll-float-text {
-    font-family: 'Sora', sans-serif; font-weight: 900; letter-spacing: -0.055em; color: #fff; line-height: 0.9;
-  }
-  .pipeline-scrollfloat .scroll-float-text { font-size: clamp(2rem,4.5vw,3.6rem); letter-spacing:-0.05em; }
-  .tech-scrollfloat .scroll-float-text { font-size: clamp(2.4rem,5.5vw,4.6rem); }
-  .tech-velocity-text {
-    font-family: 'JetBrains Mono', monospace; font-weight: 600;
-    font-size: 1.1rem; letter-spacing: 0.02em; color: rgba(0,255,15,0.35); padding: 0 24px;
-  }
-  @media (min-width: 768px) { .tech-velocity-text { font-size: 1.6rem; } }
-  .curved-loop-text-el { fill: rgba(0,255,15,0.14); font-family: 'Sora', sans-serif; }
-  .magic-bento-card--border-glow.feat-card { --glow-color: 0, 255, 15; }
-  .vault-scramble-label { margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: rgba(130,148,168,0.4); letter-spacing: 0.06em; }
+
+  /* ── Ultra-premium reveal: slower, blurred, physically eased ─────────── */
+  .reveal { opacity:0; transform:translateY(36px) scale(0.985); filter:blur(6px); transition:opacity 1.3s cubic-bezier(0.16,1,0.3,1),transform 1.3s cubic-bezier(0.16,1,0.3,1),filter 1.1s cubic-bezier(0.16,1,0.3,1); will-change:opacity,transform,filter; }
+  .reveal.visible { opacity:1; transform:translateY(0) scale(1); filter:blur(0px); }
+
+  /* ── Premium chamber card: idle sheen + lift-and-glow on hover ───────── */
+  .chamber-card-premium { position:relative; transition:transform 0.6s cubic-bezier(0.16,1,0.3,1), box-shadow 0.6s cubic-bezier(0.16,1,0.3,1), filter 0.6s ease; }
+  .chamber-card-premium::before { content:''; position:absolute; inset:-1px; border-radius:29px; padding:1px; background:inherit; opacity:0; filter:blur(18px); transition:opacity 0.6s ease; pointer-events:none; z-index:-1; }
+  .chamber-card-premium:hover { transform:translateY(-6px) scale(1.004); box-shadow:0 70px 130px rgba(0,0,0,0.65), 0 0 60px rgba(0,255,15,0.06), 0 0 0 1px rgba(255,255,255,0.04) !important; }
+  .chamber-card-premium:hover::before { opacity:0.55; }
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: #06060f; }
   ::-webkit-scrollbar-thumb { background: rgba(0,255,15,0.2); border-radius: 2px; }
@@ -112,16 +80,26 @@ const GLOBAL_STYLES = `
   @keyframes memSparkle   { 0%,100%{opacity:0;transform:scale(0.4) rotate(0deg)} 50%{opacity:1;transform:scale(1) rotate(180deg)} }
   @keyframes memOrbit     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
-  .reveal { opacity:0; transform:translateY(52px); transition:opacity 1.4s cubic-bezier(0.16,1,0.3,1),transform 1.4s cubic-bezier(0.16,1,0.3,1); will-change:opacity,transform; }
-  .reveal.visible { opacity:1; transform:translateY(0); }
-  .reveal-stagger > * { opacity:0; transform:translateY(34px); transition:opacity 1.1s cubic-bezier(0.16,1,0.3,1),transform 1.1s cubic-bezier(0.16,1,0.3,1); }
-  .reveal-stagger.visible > *:nth-child(1)  { opacity:1;transform:translateY(0);transition-delay:0.06s }
-  .reveal-stagger.visible > *:nth-child(2)  { opacity:1;transform:translateY(0);transition-delay:0.17s }
-  .reveal-stagger.visible > *:nth-child(3)  { opacity:1;transform:translateY(0);transition-delay:0.28s }
-  .reveal-stagger.visible > *:nth-child(4)  { opacity:1;transform:translateY(0);transition-delay:0.39s }
-  .reveal-stagger.visible > *:nth-child(5)  { opacity:1;transform:translateY(0);transition-delay:0.50s }
-  .reveal-stagger.visible > *:nth-child(6)  { opacity:1;transform:translateY(0);transition-delay:0.61s }
-  .reveal-stagger.visible > *:nth-child(n+7){ opacity:1;transform:translateY(0);transition-delay:0.72s }
+  @keyframes termBlink   { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes pipelineSheen { 0%{left:-40%} 55%{left:110%} 100%{left:110%} }
+  .term-cursor { display:inline-block; width:7px; height:13px; background:currentColor; margin-left:2px; vertical-align:-2px; animation:termBlink 0.9s step-end infinite; }
+
+  .reveal { opacity:0; transform:translateY(28px) scale(0.995); transition:opacity 1.1s cubic-bezier(0.16,1,0.3,1),transform 1.1s cubic-bezier(0.16,1,0.3,1); will-change:opacity,transform; }
+  .reveal.visible { opacity:1; transform:translateY(0) scale(1); }
+  .reveal-stagger > * { opacity:0; transform:translateY(18px); transition:opacity 0.9s cubic-bezier(0.16,1,0.3,1),transform 0.9s cubic-bezier(0.16,1,0.3,1); }
+  .reveal-stagger.visible > *:nth-child(1)  { opacity:1;transform:translateY(0);transition-delay:0.03s }
+  .reveal-stagger.visible > *:nth-child(2)  { opacity:1;transform:translateY(0);transition-delay:0.08s }
+  .reveal-stagger.visible > *:nth-child(3)  { opacity:1;transform:translateY(0);transition-delay:0.13s }
+  .reveal-stagger.visible > *:nth-child(4)  { opacity:1;transform:translateY(0);transition-delay:0.18s }
+  .reveal-stagger.visible > *:nth-child(5)  { opacity:1;transform:translateY(0);transition-delay:0.23s }
+  .reveal-stagger.visible > *:nth-child(6)  { opacity:1;transform:translateY(0);transition-delay:0.28s }
+  .reveal-stagger.visible > *:nth-child(n+7){ opacity:1;transform:translateY(0);transition-delay:0.32s }
+  /* Premium corner-bracket accent — subtle, POLYNOUS palette only */
+  .corner-brackets { position:relative; }
+  .corner-brackets::before, .corner-brackets::after { content:''; position:absolute; width:16px; height:16px; opacity:0; transition:opacity 0.4s ease; pointer-events:none; }
+  .corner-brackets::before { top:10px; left:10px; border-left:1.5px solid currentColor; border-top:1.5px solid currentColor; }
+  .corner-brackets::after  { bottom:10px; right:10px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; }
+  .corner-brackets:hover::before, .corner-brackets:hover::after { opacity:0.55; }
   .section-rule { width:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,15,0.35),rgba(0,204,255,0.2),transparent);margin:0 auto 88px;transition:width 1.2s cubic-bezier(0.22,1,0.36,1); }
   .section-rule.visible { width:50%; }
   .section-rule-tight.visible { margin:0 auto 32px; }
@@ -131,9 +109,9 @@ const GLOBAL_STYLES = `
   .nav-link { font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:500;color:rgba(100,116,145,0.85);text-decoration:none;transition:color .22s;cursor:pointer;letter-spacing:0.018em; }
   .nav-link:hover { color:#00ff0f; }
   .nav-link-active { color:#00ff0f; }
-  .feat-card { transition:all 0.5s cubic-bezier(0.23,1,0.32,1);position:relative;cursor:pointer;overflow:hidden; }
+  .feat-card { transition:transform 0.55s cubic-bezier(0.16,1,0.3,1),box-shadow 0.55s cubic-bezier(0.16,1,0.3,1),border-color 0.55s ease;position:relative;cursor:pointer;overflow:hidden; }
   .feat-card::before { content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.5s ease;z-index:0;border-radius:inherit; }
-  .feat-card:hover { transform:translateY(-6px); }
+  .feat-card:hover { transform:translateY(-8px) scale(1.012); box-shadow:0 30px 60px rgba(0,0,0,0.45); border-color:rgba(255,255,255,0.14) !important; }
   .feat-card-green::before  { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,255,15,0.1) 0%,transparent 70%); }
   .feat-card-crimson::before{ background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,32,64,0.1) 0%,transparent 70%); }
   .feat-card-cyan::before   { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,204,255,0.1) 0%,transparent 70%); }
@@ -142,6 +120,8 @@ const GLOBAL_STYLES = `
   .feat-card-gold::before   { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,215,0,0.09) 0%,transparent 70%); }
   .feat-card-amber::before  { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,170,0,0.1) 0%,transparent 70%); }
   .feat-card-teal::before   { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,230,184,0.09) 0%,transparent 70%); }
+  .feat-card-coral::before  { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,107,107,0.1) 0%,transparent 70%); }
+  .feat-card-indigo::before { background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(88,120,212,0.1) 0%,transparent 70%); }
   .feat-card:hover::before  { opacity:1; }
   .feat-card:hover .feat-top-line { opacity:1 !important; }
   .feat-card:hover .feat-arrow { opacity:1 !important; transform:translate(3px,-3px) !important; }
@@ -182,7 +162,6 @@ const NAV_SECTIONS = [
   {label:"Features",     id:"features"},
   {label:"Pipeline",     id:"pipeline"},
   {label:"Agents",       id:"playground"},
-  {label:"Simulation",   id:"live-sim"},
 ];
 
 const STEPS = [
@@ -193,14 +172,16 @@ const STEPS = [
 ];
 
 const FEATURES = [
-  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"7 specialized agents collaborate in a LangGraph pipeline — delivering cited, confidence-scored answers in real time.", tag:"RESEARCH"},
-  {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST agents argue opposing sides. An AI Judge evaluates evidence and declares a ruling.", tag:"DEBATE"},
-  {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered knowledge graph, connecting topics and entities visually.", tag:"GRAPH"},
-  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"OpenAI embeddings + Pinecone vector search find past research in milliseconds, by meaning.", tag:"SEARCH"},
-  {icon:"neurology",     title:"Neural Memory Bank",  color:C.purple,  cls:"feat-card-purple",   dot:C.purple,  route:"/memory",   desc:"Track interests, visualize patterns, and discover connections as an interactive living timeline.", tag:"MEMORY"},
-  {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Upload documents, embed with AI, and query with natural language for document-grounded answers.", tag:"PDF LAB"},
+  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"Search → Summariser → Critic → Writer — a live 4-agent pipeline with per-claim confidence scoring and contradiction flags, streamed token-by-token.", tag:"RESEARCH"},
+  {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST build evidence-backed cases; a rubric-scored Judge delivers a 1–10 verdict, generates follow-up questions, and supports post-verdict cross-examination.", tag:"DEBATE"},
+  {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered graph. Pathfinder traces the shortest link between any two entities; centrality analysis surfaces your most-connected ideas.", tag:"GRAPH"},
+  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"Pinecone vector search + Voyage AI embeddings find past research by meaning, not keywords — rendered as a similarity-ranked constellation.", tag:"SEARCH"},
+  {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Every upload runs through signature verification, embedded-JS detection, and malware scanning before RAG — with cross-referencing across multiple PDFs at once.", tag:"PDF LAB"},
   {icon:"bolt",          title:"Streaming Pipeline",  color:C.amber,   cls:"feat-card-amber",    dot:C.amber,   route:"/research", desc:"Server-Sent Events deliver real-time token streaming with live agent progress visualization.", tag:"STREAMING"},
   {icon:"verified_user", title:"API Key Vault",       color:C.teal,    cls:"feat-card-teal",     dot:C.teal,    route:"/settings", desc:"Bring your own Anthropic, OpenAI, or Tavily keys. Fernet-encrypted. Zero-knowledge architecture.", tag:"VAULT"},
+  {icon:"receipt_long",  title:"Run Telemetry",       color:C.coral,   cls:"feat-card-coral",    dot:C.coral,   route:"/research", desc:"Real token spend, real LLM call counts, and an estimated USD cost per run — broken down per agent and labelled an estimate, never fabricated.", tag:"TELEMETRY"},
+  {icon:"cached",        title:"Research Caching",    color:C.indigo,  cls:"feat-card-indigo",   dot:C.indigo,  route:"/research", desc:"Repeat a query inside its freshness window and it's served from your own cache — near-zero latency and token cost.", tag:"CACHE"},
+  {icon:"query_stats",   title:"Neural Analytics",    color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics — extracted automatically from your research history via /analytics/dashboard.", tag:"ANALYTICS"},
 ];
 
 const TECH = [
@@ -220,27 +201,48 @@ const EXAMPLES = [
 ];
 
 const RESEARCH_NODES = [
-  {id:"search",    name:"SEARCH",    emoji:" ",color:C.cyan,  tag:"AG-01"},
-  {id:"summarise", name:"SUMMARISE", emoji:"📄",color:C.indigo,tag:"AG-02"},
-  {id:"critic",    name:"CRITIC",    emoji:"⚖️",color:C.amber, tag:"AG-03"},
-  {id:"writer",    name:"WRITER",    emoji:"✍️",color:C.purple,tag:"AG-04"},
+  {id:"search",    name:"SEARCH",    icon:"search",       color:C.cyan,  tag:"AG-01"},
+  {id:"summarise", name:"SUMMARISE", icon:"summarize",    color:C.indigo,tag:"AG-02"},
+  {id:"critic",    name:"CRITIC",    icon:"balance",      color:C.amber, tag:"AG-03"},
+  {id:"writer",    name:"WRITER",    icon:"edit_note",    color:C.purple,tag:"AG-04"},
 ];
 
 const DIALECTIC_NODES = [
-  {id:"d-search",name:"SEARCH", emoji:" ",color:C.cyan,   tag:"DX-01",x:75, y:240},
-  {id:"for",     name:"FOR",    emoji:"✅",color:C.green,  tag:"DX-02",x:270,y:100},
-  {id:"against", name:"AGAINST",emoji:"❌",color:C.crimson,tag:"DX-03",x:270,y:380},
-  {id:"judge",   name:"JUDGE",  emoji:"👨‍⚖️",color:C.gold,   tag:"DX-04",x:460,y:240,isJudge:true},
+  {id:"d-search",name:"SEARCH", icon:"search",        color:C.cyan,   tag:"DX-01",x:75, y:240},
+  {id:"for",     name:"FOR",    icon:"check_circle",  color:C.green,  tag:"DX-02",x:270,y:100},
+  {id:"against", name:"AGAINST",icon:"cancel",        color:C.crimson,tag:"DX-03",x:270,y:380},
+  {id:"judge",   name:"JUDGE",  icon:"gavel",         color:C.gold,   tag:"DX-04",x:460,y:240,isJudge:true},
 ];
 
 const PLAYGROUND_AGENTS = [
-  {id:"search",   name:"SEARCH",   emoji:" ",color:"#00ccff",desc:"I scan knowledge bases and the web to pull raw, unfiltered data on any topic."},
-  {id:"summarise",name:"SUMMARISE",emoji:"📄",color:"#5878d4",desc:"I distill walls of text into crisp, structured summaries without losing nuance."},
-  {id:"for",      name:"FOR",      emoji:"✅",color:"#00ff0f",desc:"My job is to build the strongest possible case in favour of the proposition."},
-  {id:"against",  name:"AGAINST",  emoji:"❌",color:"#ff2040",desc:"I stress-test every argument and poke holes in assumptions. Nothing slips past me."},
-  {id:"critic",   name:"CRITIC",   emoji:"⚖️",color:"#ffaa00",desc:"I cross-examine both sides and flag logical fallacies or citation gaps."},
-  {id:"writer",   name:"WRITER",   emoji:"✍️",color:"#a855f7",desc:"I synthesize everything into polished, publication-ready prose with citations."},
-  {id:"judge",    name:"JUDGE",    emoji:"👨‍⚖️",color:"#ffd700",desc:"Final verdict. I weigh all evidence, assign confidence scores, and deliver the ruling."},
+  {id:"search",   name:"SEARCH",   icon:"search",       color:"#00ccff",desc:"I scan knowledge bases and the web to pull raw, unfiltered data on any topic."},
+  {id:"summarise",name:"SUMMARISE",icon:"summarize",    color:"#5878d4",desc:"I distill walls of text into crisp, structured summaries without losing nuance."},
+  {id:"for",      name:"FOR",      icon:"check_circle", color:"#00ff0f",desc:"My job is to build the strongest possible case in favour of the proposition."},
+  {id:"against",  name:"AGAINST",  icon:"cancel",       color:"#ff2040",desc:"I stress-test every argument and poke holes in assumptions. Nothing slips past me."},
+  {id:"critic",   name:"CRITIC",   icon:"balance",      color:"#ffaa00",desc:"I cross-examine both sides and flag logical fallacies or citation gaps."},
+  {id:"writer",   name:"WRITER",   icon:"edit_note",    color:"#a855f7",desc:"I synthesize everything into polished, publication-ready prose with citations."},
+  {id:"judge",    name:"JUDGE",    icon:"gavel",        color:"#ffd700",desc:"Final verdict. I weigh all evidence, assign confidence scores, and deliver the ruling."},
+];
+
+const HERO_BOOT_SEQUENCES = [
+  [
+    {text:"> Checking critical dependencies...", color:"rgba(130,148,170,0.6)"},
+    {text:"> Database initialized ✓", color:"rgba(130,148,170,0.6)"},
+    {text:"> Neo4j verified on startup ✓", color:"rgba(130,148,170,0.6)"},
+    {text:"> Uvicorn running on :8000", color:C.green},
+  ],
+  [
+    {text:"$ npm run dev", color:"rgba(100,118,170,0.55)"},
+    {text:"> VITE ready", color:"rgba(130,148,170,0.6)"},
+    {text:"> Local: http://localhost:5173", color:"rgba(130,148,170,0.6)"},
+    {text:"> Frontend ⇄ Backend linked.", color:C.cyan},
+  ],
+  [
+    {text:"> 10 routers mounted: /ask /ask-stream", color:"rgba(130,148,170,0.6)"},
+    {text:"> /ask-visual /memory /knowledge /pdfs...", color:"rgba(130,148,170,0.6)"},
+    {text:"> \"Many Minds, One Answer\"", color:C.purple},
+    {text:"> System nominal. Awaiting query.", color:C.cyan},
+  ],
 ];
 
 const AGENT_QUIPS = {
@@ -254,14 +256,18 @@ const AGENT_QUIPS = {
 };
 
 const MEMORY_DOTS = [
-  {id:1, query:"Quantum entanglement basics",    date:"Jun 18, 2025", tag:"Physics",    icon:"science"},
-  {id:2, query:"CRISPR gene editing ethics",     date:"Jun 15, 2025", tag:"Biology",    icon:"biotech"},
-  {id:3, query:"Mars colonization feasibility",  date:"Jun 12, 2025", tag:"Space",      icon:"rocket_launch"},
-  {id:4, query:"AI regulation global impact",    date:"Jun 9, 2025",  tag:"Policy",     icon:"policy"},
-  {id:5, query:"Fusion energy milestones",       date:"Jun 5, 2025",  tag:"Energy",     icon:"bolt"},
-  {id:6, query:"Neuroplasticity research",       date:"Jun 1, 2025",  tag:"Neuroscience",icon:"neurology"},
-  {id:7, query:"Blockchain & decentralization",  date:"May 28, 2025", tag:"Tech",       icon:"hub"},
-  {id:8, query:"Climate tipping points",         date:"May 24, 2025", tag:"Climate",    icon:"eco"},
+  {id:1,  query:"Quantum entanglement basics",    date:"Jun 18, 2025", tag:"Physics",      icon:"science",        conf:91},
+  {id:2,  query:"CRISPR gene editing ethics",     date:"Jun 15, 2025", tag:"Biology",      icon:"biotech",        conf:84},
+  {id:3,  query:"Mars colonization feasibility",  date:"Jun 12, 2025", tag:"Space",        icon:"rocket_launch",  conf:76},
+  {id:4,  query:"AI regulation global impact",    date:"Jun 9, 2025",  tag:"Policy",       icon:"policy",         conf:68},
+  {id:5,  query:"Fusion energy milestones",       date:"Jun 5, 2025",  tag:"Energy",       icon:"bolt",           conf:88},
+  {id:6,  query:"Neuroplasticity research",       date:"Jun 1, 2025",  tag:"Neuroscience", icon:"neurology",      conf:93},
+  {id:7,  query:"Blockchain & decentralization",  date:"May 28, 2025", tag:"Tech",         icon:"hub",            conf:71},
+  {id:8,  query:"Climate tipping points",         date:"May 24, 2025", tag:"Climate",      icon:"eco",            conf:82},
+  {id:9,  query:"Debate: universal basic income", date:"May 20, 2025", tag:"Debate",       icon:"forum",          conf:79},
+  {id:10, query:"Semantic search: prior sessions",date:"May 16, 2025", tag:"Search",       icon:"travel_explore", conf:95},
+  {id:11, query:"PDF Lab: clinical trial corpus", date:"May 12, 2025", tag:"PDF Lab",      icon:"picture_as_pdf", conf:87},
+  {id:12, query:"Knowledge graph: AI ⇄ policy",   date:"May 8, 2025",  tag:"Graph",        icon:"scatter_plot",   conf:90},
 ];
 
 const MEMORY_COLORS = [C.purple, C.cyan, C.crimson, C.green, C.amber, C.teal, C.indigo, C.gold];
@@ -273,6 +279,20 @@ const TOP_TOPICS = [
   {label:"Biology", val:64, color:C.cyan},
   {label:"Space", val:55, color:C.purple},
   {label:"Energy", val:43, color:C.amber},
+];
+
+const CONF_BANDS = [
+  {label:"High",   range:"80–100%", val:58, color:C.green},
+  {label:"Medium", range:"50–79%",  val:34, color:C.amber},
+  {label:"Low",    range:"0–49%",   val:8,  color:C.crimson},
+];
+
+const HEATMAP_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const HEATMAP_DATA = [
+  [1,2,3,1,0,4,2],
+  [2,3,4,2,1,3,1],
+  [0,1,2,4,3,2,0],
+  [3,4,2,1,2,1,0],
 ];
 
 const GRAPH_NODES_DATA = [
@@ -297,6 +317,124 @@ function useReveal(threshold=0.13) {
   return ref;
 }
 
+/* ── Typing + deleting terminal loop ─────────────────────────────────────────
+   Types a sequence of lines char-by-char, holds, deletes bottom-up, then
+   advances to the next sequence and repeats. Used anywhere the copy is
+   framed as "live system output" so the effect reads as status, not decoration. */
+function useTypewriterLoop(sequences, {typeSpeed=20, lineGap=260, holdTime=2400, deleteSpeed=9, seqGap=450, active=true}={}) {
+  const [seqIdx,setSeqIdx]=useState(0);
+  const [lines,setLines]=useState([]);
+  const [typing,setTyping]=useState(true);
+  useEffect(()=>{
+    if(!active) return;
+    let cancelled=false;
+    const timers=[];
+    const wait=ms=>new Promise(res=>{const t=setTimeout(res,ms);timers.push(t);});
+    const seq=sequences[seqIdx];
+    (async()=>{
+      setTyping(true);
+      setLines([]);
+      for(let li=0;li<seq.length;li++){
+        const full=seq[li].text;
+        for(let ci=1;ci<=full.length;ci++){
+          if(cancelled)return;
+          await wait(typeSpeed);
+          setLines(prev=>{const c=prev.slice(0,li);c[li]={text:full.slice(0,ci),color:seq[li].color};return c;});
+        }
+        await wait(lineGap);
+      }
+      if(cancelled)return;
+      setTyping(false);
+      await wait(holdTime);
+      if(cancelled)return;
+      setTyping(true);
+      for(let li=seq.length-1;li>=0;li--){
+        const full=seq[li].text;
+        for(let ci=full.length;ci>=0;ci--){
+          if(cancelled)return;
+          await wait(deleteSpeed);
+          setLines(prev=>{const c=prev.slice(0,li+1);c[li]={text:full.slice(0,ci),color:seq[li].color};if(ci===0)c.length=li;return c;});
+        }
+      }
+      await wait(seqGap);
+      if(!cancelled)setSeqIdx(i=>(i+1)%sequences.length);
+    })();
+    return()=>{cancelled=true;timers.forEach(clearTimeout);};
+  },[seqIdx,active]);
+  return {lines};
+}
+
+function TerminalTypewriter({sequences,minLines=4,fontSize="12px"}){
+  const ref=useReveal(0.2);
+  const [inView,setInView]=useState(false);
+  useEffect(()=>{
+    const el=ref.current; if(!el)return;
+    const obs=new IntersectionObserver(([e])=>setInView(e.isIntersecting),{threshold:0.2});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+  const {lines}=useTypewriterLoop(sequences,{active:inView});
+  return (
+    <div ref={ref} style={{fontFamily:"JetBrains Mono,monospace",fontSize,lineHeight:2,minHeight:`${minLines*2}em`}}>
+      {lines.length===0 && <div style={{color:"rgba(130,148,170,0.5)"}}><span className="term-cursor"/></div>}
+      {lines.map((l,i)=>(
+        <div key={i} style={{color:l.color}}>
+          {l.text}{i===lines.length-1 && <span className="term-cursor"/>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TypedLine({text,speed=20}){
+  const [n,setN]=useState(0);
+  useEffect(()=>{
+    if(n>=text.length)return;
+    const t=setTimeout(()=>setN(v=>v+1),speed);
+    return()=>clearTimeout(t);
+  },[n,text,speed]);
+  return <>{text.slice(0,n)}{n<text.length&&<span className="term-cursor"/>}</>;
+}
+
+const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+function ScrambleText({text,style,duration=650,loop=false,loopMin=5000,loopMax=10000}){
+  const ref=useRef(null);
+  const [display,setDisplay]=useState(text);
+  const [started,setStarted]=useState(false);
+  useEffect(()=>{
+    const el=ref.current; if(!el)return;
+    const obs=new IntersectionObserver(([e])=>{if(e.isIntersecting&&!started){setStarted(true);obs.disconnect();}},{threshold:0.5});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[started]);
+  useEffect(()=>{
+    if(!started)return;
+    let cancelled=false, ivTimer=null, loopTimer=null;
+    function runOnce(onDone){
+      const chars=text.split("");
+      const frames=Math.max(10,Math.round(duration/40));
+      const lockAt=chars.map((_,i)=>Math.floor((i/Math.max(chars.length,1))*frames*0.65)+Math.floor(Math.random()*frames*0.35));
+      let frame=0;
+      ivTimer=setInterval(()=>{
+        frame++;
+        setDisplay(chars.map((ch,i)=>{
+          if(/[\s.,:/%\-"*]/.test(ch))return ch;
+          if(frame>=lockAt[i])return ch;
+          return SCRAMBLE_CHARS[Math.floor(Math.random()*SCRAMBLE_CHARS.length)];
+        }).join(""));
+        if(frame>=frames+4){clearInterval(ivTimer);setDisplay(text);onDone&&onDone();}
+      },40);
+    }
+    function scheduleNext(){
+      const wait=loopMin+Math.random()*(loopMax-loopMin);
+      loopTimer=setTimeout(()=>{if(!cancelled)runOnce(loop?scheduleNext:undefined);},wait);
+    }
+    runOnce(loop?scheduleNext:undefined);
+    return()=>{cancelled=true;clearInterval(ivTimer);clearTimeout(loopTimer);};
+  },[started]);
+  return <span ref={ref} style={style}>{display}</span>;
+}
+
 /* ── NeuralCanvas ─────────────────────────────────────────────────────────── */
 function NeuralCanvas() {
   const canvasRef=useRef(null);
@@ -304,24 +442,24 @@ function NeuralCanvas() {
   useEffect(()=>{
     const canvas=canvasRef.current,ctx=canvas.getContext("2d"),state=stateRef.current;
     const isSmall=window.innerWidth<768;
-    const COUNT=isSmall?90:220;
-    const LINK_DIST=isSmall?70:95;
+    const COUNT=isSmall?60:180;
+    const LINK_DIST=isSmall?65:85;
     class Particle {
       constructor(){this.reset();this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.baseX=this.x;this.baseY=this.y;}
-      reset(){this.baseX=Math.random()*canvas.width;this.baseY=Math.random()*canvas.height;this.x=this.baseX;this.y=this.baseY;this.size=Math.random()*2.2+0.9;const r=Math.random();this.color=r<0.5?C.green:r<0.8?C.cyan:C.purple;this.vx=0;this.vy=0;}
-      draw(){ctx.shadowBlur=8;ctx.shadowColor=this.color;ctx.fillStyle=this.color;ctx.globalAlpha=0.85;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;}
+      reset(){this.baseX=Math.random()*canvas.width;this.baseY=Math.random()*canvas.height;this.x=this.baseX;this.y=this.baseY;this.size=Math.random()*1.6+0.3;const r=Math.random();this.color=r<0.5?C.green:r<0.8?C.cyan:C.purple;this.vx=0;this.vy=0;}
+      draw(){ctx.fillStyle=this.color;ctx.globalAlpha=0.85;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
       update(){const{x:mx,y:my}=state.mouse;if(mx!==null){const dx=mx-this.x,dy=my-this.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<150){const force=(150-dist)/150;this.vx-=(dx/dist)*force*1.4;this.vy-=(dy/dist)*force*1.4;}}this.vx+=(this.baseX-this.x)*0.008;this.vy+=(this.baseY-this.y)*0.008;this.vx*=0.93;this.vy*=0.93;this.x+=this.vx;this.y+=this.vy;}
     }
     // Only reinit on a genuine width change or a large height change — mobile
     // browsers fire `resize` on URL-bar show/hide during scroll, and re-seeding
-    // particles mid-scroll every time was a source of jank.
+    // 180 particles mid-scroll every time was the source of the scroll jank/crash.
     function init(w,h){canvas.width=w;canvas.height=h;state.particles=Array.from({length:COUNT},()=>new Particle());state.lastW=w;state.lastH=h;}
-    function drawConnections(){const ps=state.particles;for(let i=0;i<ps.length;i++){for(let j=i+1;j<ps.length;j++){const dx=ps[i].x-ps[j].x,dy=ps[i].y-ps[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<LINK_DIST){ctx.strokeStyle=ps[i].color;ctx.globalAlpha=(LINK_DIST-d)/LINK_DIST*0.16;ctx.lineWidth=0.7;ctx.beginPath();ctx.moveTo(ps[i].x,ps[i].y);ctx.lineTo(ps[j].x,ps[j].y);ctx.stroke();ctx.globalAlpha=1;}}}}
+    function drawConnections(){const ps=state.particles;for(let i=0;i<ps.length;i++){for(let j=i+1;j<ps.length;j++){const dx=ps[i].x-ps[j].x,dy=ps[i].y-ps[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<LINK_DIST){ctx.strokeStyle=ps[i].color;ctx.globalAlpha=(LINK_DIST-d)/LINK_DIST*0.05;ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(ps[i].x,ps[i].y);ctx.lineTo(ps[j].x,ps[j].y);ctx.stroke();ctx.globalAlpha=1;}}}}
     function loop(){if(state.paused){state.raf=requestAnimationFrame(loop);return;}ctx.clearRect(0,0,canvas.width,canvas.height);drawConnections();state.particles.forEach(p=>{p.draw();p.update();});state.raf=requestAnimationFrame(loop);}
     let resizeTimer=null;
     const onResize=()=>{
       const w=window.innerWidth,h=window.innerHeight;
-      if(Math.abs(w-state.lastW)<2&&Math.abs(h-state.lastH)<120)return; // ignore mobile URL-bar jitter
+      if(Math.abs(w-state.lastW)<2&&Math.abs(h-state.lastH)<120)return; // ignore URL-bar jitter
       clearTimeout(resizeTimer);
       resizeTimer=setTimeout(()=>init(w,h),160);
     };
@@ -340,10 +478,6 @@ function NeuralCanvas() {
       cancelAnimationFrame(state.raf);
     };
   },[]);
-  // NOTE: zIndex 0 (not -1). A negative z-index can get trapped behind an
-  // ancestor's own stacking context (e.g. anything with a transform/filter
-  // higher up the tree outside this file) and silently disappear. main is
-  // explicitly zIndex 10 below, so 0 still sits safely behind all content.
   return <canvas ref={canvasRef} style={{position:"fixed",top:0,left:0,width:"100vw",height:"100vh",zIndex:0,pointerEvents:"none"}}/>;
 }
 
@@ -379,9 +513,9 @@ function AgentNode({data,isActive,isCompleted}){
     <div style={{width:`${size}px`,height:`${size}px`,minWidth:`${size}px`,borderRadius:"22px",background:C.nodeBg,border:`${data.isJudge?"2.5px":"1.8px"} solid ${color}${isActive?"cc":isCompleted?"88":"38"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",position:"relative",transition:"all 0.5s cubic-bezier(0.4,0,0.2,1)",opacity:isActive?1:isCompleted?0.85:0.32,boxShadow:isActive?`0 0 14px ${color}44,0 0 36px ${color}55,0 0 80px ${color}1a`:isCompleted?`0 0 10px ${color}2a,0 0 24px ${color}33`:"none",animation:isActive?"heartbeatFast 1.1s ease-in-out infinite":isCompleted?"heartbeat 3s ease-in-out infinite":"none",overflow:"visible"}}>
       <div style={{position:"absolute",inset:0,borderRadius:"22px",background:`radial-gradient(circle at center,${color}14 0%,transparent 68%)`,pointerEvents:"none"}}/>
       {burst&&<div style={{position:"absolute",width:`${size}px`,height:`${size}px`,borderRadius:"22px",border:`2px solid ${color}`,animation:"ripple 0.7s ease-out forwards",pointerEvents:"none",top:0,left:0}}/>}
-      <span style={{fontSize:"27px",marginBottom:"6px",zIndex:1}}>{data.emoji}</span>
+      <span style={{fontFamily:"Material Symbols Outlined",fontSize:"26px",marginBottom:"6px",zIndex:1,color,filter:`drop-shadow(0 0 6px ${color}80)`}}>{data.icon}</span>
       <span style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"11px",color,letterSpacing:"0.07em",zIndex:1,textAlign:"center",padding:"0 6px"}}>{data.name}</span>
-      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.25,marginTop:"3px",zIndex:1}}>#{data.tag}</span>
+      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(220,228,240,0.4)",marginTop:"3px",zIndex:1}}>#{data.tag}</span>
       <div style={{position:"absolute",bottom:0,left:0,right:0,height:"4px",borderRadius:"0 0 20px 20px",background:`${color}18`,overflow:"hidden"}}>
         <div style={{height:"100%",background:color,borderRadius:"0 0 20px 20px",width:isCompleted?"100%":"0%",animation:isActive?"shimmerBar 2.5s linear forwards":"none",transition:"width 0.4s ease"}}/>
       </div>
@@ -401,44 +535,94 @@ function NeuralPipeline(){
   const NW=126,GAP=50,BX=60;
   const rP=[0,1,2].map(i=>({x0:BX+i*(NW+GAP)+NW,cx1:BX+i*(NW+GAP)+NW+28,cx2:BX+(i+1)*(NW+GAP)-28,x1:BX+(i+1)*(NW+GAP),y0:195,cy1:195,cy2:195,y1:195}));
   const dP=[{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:100,x1:270,y1:100},{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:380,x1:270,y1:380},{x0:270,y0:100,cx1:350,cy1:100,cx2:395,cy2:240,x1:455,y1:240},{x0:270,y0:380,cx1:350,cy1:380,cx2:395,cy2:240,x1:455,y1:240}];
+  const STEP_LABEL = ["Search agent gathering sources…","Summarise agent condensing findings…","Critic agent validating claims…","Writer agent drafting synthesis…","Forking into dialectic debate…","FOR & AGAINST arguing concurrently…","Judge rendering final verdict…","Cycle complete — resetting…"];
+  const STEP_COLOR = [C.green,C.green,C.amber,C.cyan,C.purple,C.crimson,C.gold,"rgba(180,195,210,0.5)"];
   return(
-    <div style={{width:"100%",minHeight:"620px",display:"flex",alignItems:"stretch",position:"relative"}}>
-      <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
-        <div style={{marginBottom:"32px",textAlign:"center"}}>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.green,letterSpacing:"0.16em",margin:0}}>RESEARCH PIPELINE</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>SEQUENTIAL SYNTHESIS ARCHITECTURE</p>
-        </div>
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
-          <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",overflow:"visible"}} viewBox="0 0 700 390" preserveAspectRatio="xMidYMid meet">
-            {[0,1,2].map(i=>{const x1=BX+i*(NW+GAP)+NW,x2=BX+(i+1)*(NW+GAP);return <Conn key={i} d={`M ${x1},195 L ${x2},195`} color={RESEARCH_NODES[i].color} isActive={rLA(i)}/>;}) }
-            {[0,1,2].map(i=>rLA(i)&&[0,420,840,1260].map((d,j)=><PipelineParticle key={`rp${i}-${j}`} path={rP[i]} color={RESEARCH_NODES[i].color} delay={d} duration={1650}/>))}
-          </svg>
-          <div style={{display:"flex",gap:`${GAP}px`,alignItems:"center",position:"relative",zIndex:10}}>
-            {RESEARCH_NODES.map(n=><AgentNode key={n.id} data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/>)}
+    <div style={{width:"100%",minHeight:"620px",display:"flex",flexDirection:"column",position:"relative"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"9px",padding:"18px 0 0",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",letterSpacing:"0.06em"}}>
+        <span style={{width:"6px",height:"6px",borderRadius:"50%",background:STEP_COLOR[step],boxShadow:`0 0 8px ${STEP_COLOR[step]}`,animation:"termBlink 1.4s step-end infinite"}}/>
+        <span style={{color:STEP_COLOR[step]}}>{STEP_LABEL[step]}</span>
+      </div>
+      <div style={{flex:1,display:"flex",alignItems:"stretch",position:"relative"}}>
+        <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
+          <div style={{marginBottom:"32px",textAlign:"center"}}>
+            <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.green,letterSpacing:"0.16em",margin:0}}>RESEARCH PIPELINE</p>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(210,220,235,0.55)",margin:"5px 0 0",letterSpacing:"0.1em"}}>SEQUENTIAL SYNTHESIS ARCHITECTURE</p>
+          </div>
+          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
+            <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",overflow:"visible"}} viewBox="0 0 700 390" preserveAspectRatio="xMidYMid meet">
+              {[0,1,2].map(i=>{const x1=BX+i*(NW+GAP)+NW,x2=BX+(i+1)*(NW+GAP);return <Conn key={i} d={`M ${x1},195 L ${x2},195`} color={RESEARCH_NODES[i].color} isActive={rLA(i)}/>;}) }
+              {[0,1,2].map(i=>rLA(i)&&[0,420,840,1260].map((d,j)=><PipelineParticle key={`rp${i}-${j}`} path={rP[i]} color={RESEARCH_NODES[i].color} delay={d} duration={1650}/>))}
+            </svg>
+            <div style={{display:"flex",gap:`${GAP}px`,alignItems:"center",position:"relative",zIndex:10}}>
+              {RESEARCH_NODES.map(n=><AgentNode key={n.id} data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/>)}
+            </div>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(210,220,235,0.55)",marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Linear multi-agent processing for structured<br/>data extraction and contextual summarization.</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"7px",justifyContent:"center",marginTop:"16px",maxWidth:"320px"}}>
+            {[
+              {icon:"tune",label:"Style: Technical"},
+              {icon:"filter_9_plus",label:"Sources: Auto"},
+              {icon:"ios_share",label:"Share Research"},
+            ].map(c=>(
+              <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.green}28`,background:"rgba(0,255,15,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.green,letterSpacing:"0.04em"}}>
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
+              </span>
+            ))}
           </div>
         </div>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"#fff",opacity:0.25,marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Linear multi-agent processing for structured<br/>data extraction and contextual summarization.</p>
-      </div>
-      <div style={{width:"1px",alignSelf:"stretch",background:"linear-gradient(to bottom,transparent,#00ff0f 30%,#ff2040 70%,transparent)",boxShadow:"0 0 20px #00ff0f44,0 0 20px #ff204044",flexShrink:0}}/>
-      <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
-        <div style={{marginBottom:"32px",textAlign:"center"}}>
-          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.crimson,letterSpacing:"0.16em",margin:0}}>⚖️ DIALECTIC FORK</p>
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"#fff",opacity:0.28,margin:"5px 0 0",letterSpacing:"0.1em"}}>ADVERSARIAL REASONING TOPOLOGY</p>
+        <div style={{width:"1px",alignSelf:"stretch",background:"linear-gradient(to bottom,transparent,#00ff0f 30%,#ff2040 70%,transparent)",boxShadow:"0 0 20px #00ff0f44,0 0 20px #ff204044",flexShrink:0}}/>
+        <div style={{flex:1,padding:"44px 28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
+          <div style={{marginBottom:"32px",textAlign:"center"}}>
+            <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"12px",color:C.crimson,letterSpacing:"0.16em",margin:0,display:"flex",alignItems:"center",justifyContent:"center",gap:"6px"}}><span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px"}}>balance</span>DIALECTIC FORK</p>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(210,220,235,0.55)",margin:"5px 0 0",letterSpacing:"0.1em"}}>ADVERSARIAL REASONING TOPOLOGY</p>
+          </div>
+          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
+            <svg width="540" height="480" viewBox="0 0 540 480" style={{overflow:"visible"}}>
+              <Conn d="M 75,240 C 160,240 190,100 270,100"  color={C.green}   isActive={dLA(4)}/>
+              <Conn d="M 75,240 C 160,240 190,380 270,380"  color={C.crimson} isActive={dLA(4)}/>
+              <Conn d="M 270,100 C 350,100 395,240 455,240" color={C.green}   isActive={dLA(5)}/>
+              <Conn d="M 270,380 C 350,380 395,240 455,240" color={C.crimson} isActive={dLA(5)}/>
+              {dLA(4)&&[0,1].map(li=>[0,460,920,1380].map((d,j)=><PipelineParticle key={`dp${li}-${j}`} path={dP[li]} color={li===0?C.green:C.crimson} delay={d} duration={1850}/>))}
+              {dLA(5)&&[2,3].map(li=>[0,460,920,1380].map((d,j)=><PipelineParticle key={`dp${li}-${j}`} path={dP[li]} color={li===2?C.green:C.crimson} delay={d} duration={1850}/>))}
+              {DIALECTIC_NODES.map(n=>{const s=n.isJudge?148:126;return <foreignObject key={n.id} x={n.x-s/2} y={n.y-s/2} width={s} height={s} style={{overflow:"visible"}}><AgentNode data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/></foreignObject>;})}
+            </svg>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(210,220,235,0.55)",marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Adversarial evaluation where multiple perspectives<br/>are stress-tested for factual consistency.</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"7px",justifyContent:"center",marginTop:"16px",maxWidth:"320px"}}>
+            {[
+              {icon:"speed",label:"Depth: Detailed"},
+              {icon:"gavel",label:"Judge's Lens"},
+              {icon:"forum",label:"Cross-Examine"},
+            ].map(c=>(
+              <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.crimson}28`,background:"rgba(255,32,64,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.crimson,letterSpacing:"0.04em"}}>
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
+              </span>
+            ))}
+          </div>
         </div>
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",width:"100%"}}>
-          <svg width="540" height="480" viewBox="0 0 540 480" style={{overflow:"visible"}}>
-            <Conn d="M 75,240 C 160,240 190,100 270,100"  color={C.green}   isActive={dLA(4)}/>
-            <Conn d="M 75,240 C 160,240 190,380 270,380"  color={C.crimson} isActive={dLA(4)}/>
-            <Conn d="M 270,100 C 350,100 395,240 455,240" color={C.green}   isActive={dLA(5)}/>
-            <Conn d="M 270,380 C 350,380 395,240 455,240" color={C.crimson} isActive={dLA(5)}/>
-            {dLA(4)&&[0,1].map(li=>[0,460,920,1380].map((d,j)=><PipelineParticle key={`dp${li}-${j}`} path={dP[li]} color={li===0?C.green:C.crimson} delay={d} duration={1850}/>))}
-            {dLA(5)&&[2,3].map(li=>[0,460,920,1380].map((d,j)=><PipelineParticle key={`dp${li}-${j}`} path={dP[li]} color={li===2?C.green:C.crimson} delay={d} duration={1850}/>))}
-            {DIALECTIC_NODES.map(n=>{const s=n.isJudge?148:126;return <foreignObject key={n.id} x={n.x-s/2} y={n.y-s/2} width={s} height={s} style={{overflow:"visible"}}><AgentNode data={n} isActive={isActive(n.id)} isCompleted={isDone(n.id)}/></foreignObject>;})}
-          </svg>
-        </div>
-        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"#fff",opacity:0.25,marginTop:"24px",textAlign:"center",lineHeight:1.65}}>Adversarial evaluation where multiple perspectives<br/>are stress-tested for factual consistency.</p>
       </div>
       <div style={{position:"absolute",bottom:"12px",left:"50%",transform:"translateX(-50%)",fontFamily:"JetBrains Mono,monospace",fontSize:"8px",color:"#fff",opacity:0.12,letterSpacing:"0.2em",whiteSpace:"nowrap",pointerEvents:"none",zIndex:20}}>POLYNOUS NEURAL ENGINE • AUTONOMOUS MULTI-AGENT MESH</div>
+    </div>
+  );
+}
+
+function ScrollProgressBar(){
+  const [pct,setPct]=useState(0);
+  useEffect(()=>{
+    const onScroll=()=>{
+      const h=document.documentElement;
+      const scrolled=h.scrollTop;
+      const max=h.scrollHeight-h.clientHeight;
+      setPct(max>0?(scrolled/max)*100:0);
+    };
+    window.addEventListener("scroll",onScroll,{passive:true});
+    onScroll();
+    return()=>window.removeEventListener("scroll",onScroll);
+  },[]);
+  return(
+    <div style={{position:"fixed",top:0,left:0,right:0,height:"2px",zIndex:9999,background:"rgba(255,255,255,0.03)",pointerEvents:"none"}}>
+      <div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${C.green},${C.cyan},${C.purple})`,boxShadow:`0 0 12px ${C.green}80,0 0 4px ${C.cyan}`,transition:"width 0.12s linear"}}/>
     </div>
   );
 }
@@ -457,7 +641,7 @@ function BYOKBadge() {
         </svg>
         Bring Your Own Key – Anthropic · OpenAI
       </div>
-      <div className="byok-tooltip">🔒 Keys encrypted with Fernet · Never stored in plaintext</div>
+      <div className="byok-tooltip"><span style={{fontFamily:"Material Symbols Outlined",fontSize:"12px",verticalAlign:"-2px",marginRight:"6px"}}>lock</span>Keys encrypted with Fernet · Never stored in plaintext</div>
     </div>
   );
 }
@@ -526,6 +710,7 @@ function UserProfileWidget() {
     {label:"My Research", icon:"biotech",    route:"/research"},
     {label:"Memory Bank", icon:"neurology",  route:"/memory"},
     {label:"Settings",    icon:"settings",   route:"/settings"},
+    {label:"Help", icon:"help", route:"/info"},
     {label:"Logout",      icon:"logout",     action:()=>{localStorage.removeItem("polynous_user");window.location.reload();}},
   ];
   return (
@@ -572,7 +757,7 @@ function ConfidenceRing() {
           <circle cx="45" cy="45" r="35" fill="none" stroke="url(#confGrad)" strokeWidth="6" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} filter="url(#confGlow)" style={{animation:"progressRing 1.8s cubic-bezier(0.22,1,0.36,1) forwards",strokeDashoffset:circumference}}/>
         </svg>
         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontWeight:600,fontSize:"16px",color:"#fff",letterSpacing:"-0.03em"}}>92%</span>
+          <ScrambleText text="92%" style={{fontFamily:"JetBrains Mono,monospace",fontWeight:600,fontSize:"16px",color:"#fff",letterSpacing:"-0.03em"}}/>
         </div>
       </div>
       <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(130,148,168,0.6)",letterSpacing:"0.1em",textTransform:"uppercase"}}>Avg Confidence</span>
@@ -610,9 +795,19 @@ function MemoryTimeline() {
   const [sparkleAt, setSparkleAt] = useState(null);
   const scrollRef = useRef(null);
   const timerRef = useRef(null);
+  const wrapRef = useRef(null);
+  const inViewRef = useRef(true);
+
+  useEffect(() => {
+    const el = wrapRef.current; if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => { inViewRef.current = entry.isIntersecting; }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
+      if (!inViewRef.current) return; // don't animate/scroll a carousel the user isn't looking at
       setActiveId(prev => {
         const idx = MEMORY_DOTS.findIndex(d => d.id === prev);
         const next = MEMORY_DOTS[(idx + 1) % MEMORY_DOTS.length];
@@ -621,9 +816,16 @@ function MemoryTimeline() {
         setTimeout(() => setAnimating(null), 600);
         setTimeout(() => setSparkleAt(null), 750);
         if (scrollRef.current) {
-          const cards = scrollRef.current.querySelectorAll("[data-mem-card]");
+          // Scroll only this strip's own horizontal axis — never call
+          // scrollIntoView here, since it also nudges the page's vertical
+          // scroll position on every ancestor, fighting the user's own scroll.
+          const strip = scrollRef.current;
           const nextIdx = (idx + 1) % MEMORY_DOTS.length;
-          cards[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+          const card = strip.querySelectorAll("[data-mem-card]")[nextIdx];
+          if (card) {
+            const target = card.offsetLeft - (strip.clientWidth - card.clientWidth) / 2;
+            strip.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+          }
         }
         return next.id;
       });
@@ -641,7 +843,7 @@ function MemoryTimeline() {
   };
 
   return (
-    <div style={{ padding: "36px 0 0" }}>
+    <div ref={wrapRef} style={{ padding: "36px 0 0" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -687,19 +889,19 @@ function MemoryTimeline() {
               onClick={() => window.location.href = "/memory"}
               style={{
                 flex: "0 0 auto",
-                width: "200px",
+                width: "236px",
                 cursor: "pointer",
-                borderRadius: "18px",
-                padding: "20px 18px",
+                borderRadius: "20px",
+                padding: "22px 20px",
                 background: isActive
-                  ? `linear-gradient(145deg,${dotColor}18,rgba(8,8,22,0.95))`
+                  ? `linear-gradient(145deg,${dotColor}20,rgba(8,8,22,0.96))`
                   : "rgba(8,8,22,0.75)",
-                border: `1px solid ${isActive ? dotColor + "70" : "rgba(255,255,255,0.06)"}`,
+                border: `1px solid ${isActive ? dotColor + "80" : "rgba(255,255,255,0.06)"}`,
                 boxShadow: isActive
-                  ? `0 0 0 1px ${dotColor}20, 0 8px 32px rgba(0,0,0,0.4), 0 0 24px ${dotColor}18`
-                  : "none",
+                  ? `0 0 0 1px ${dotColor}25, 0 22px 48px rgba(0,0,0,0.5), 0 0 34px ${dotColor}22`
+                  : "0 4px 14px rgba(0,0,0,0.2)",
                 transition: "all 0.45s cubic-bezier(0.23,1,0.32,1)",
-                transform: isActive ? "translateY(-6px) scale(1.02)" : "translateY(0) scale(1)",
+                transform: isActive ? "translateY(-8px) scale(1.035)" : "translateY(0) scale(1)",
                 animation: isAnim ? "memorySlideIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" : "none",
                 backdropFilter: "blur(16px)",
                 position: "relative",
@@ -708,6 +910,8 @@ function MemoryTimeline() {
             >
               {/* Top shimmer line */}
               <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: "1px", background: `linear-gradient(90deg,transparent,${dotColor}${isActive ? "cc" : "30"},transparent)`, transition: "all 0.4s ease" }} />
+              {/* Confidence badge — top right */}
+              <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9.5px", color: isActive ? dotColor : "rgba(255,255,255,0.18)", letterSpacing: "0.04em", transition: "color 0.3s ease" }}>{dot.conf}%</div>
 
               {/* Sparkle burst on activation */}
               {isSparkling && [0,1,2,3].map(k=>(
@@ -739,7 +943,7 @@ function MemoryTimeline() {
               </div>
 
               {/* Session index */}
-              <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: "rgba(255,255,255,0.12)", letterSpacing: "0.06em" }}>#{String(i + 1).padStart(2, "0")}</div>
+              <div style={{ position: "absolute", bottom: "16px", right: "16px", fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: "rgba(255,255,255,0.12)", letterSpacing: "0.06em" }}>#{String(i + 1).padStart(2, "0")}</div>
             </div>
           );
         })}
@@ -860,6 +1064,8 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     particles: [],
     ripples: [],
     nodeCount: GRAPH_NODES_DATA.length,
+    paused: false,
+    W: 700, H: 360,
   });
   const [nodeCount, setNodeCount] = useState(GRAPH_NODES_DATA.length);
   const [tooltip, setTooltip] = useState(null);
@@ -874,10 +1080,28 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
 
     s.nodes.forEach(n => { n.birthTs = -2000; });
 
+    // The canvas previously had a fixed 1100x460 pixel buffer stretched by CSS
+    // to fill its container, with no devicePixelRatio scaling — soft/blurry on
+    // any retina-class screen. fitCanvas sizes the backing buffer to match the
+    // element's actual CSS size × devicePixelRatio, then maps 1 drawing unit to
+    // 1 CSS pixel via setTransform, so everything below can keep working in
+    // simple logical coordinates while rendering crisply at native resolution.
+    function fitCanvas() {
+      const dpr = Math.max(window.devicePixelRatio || 1, 1);
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.round(rect.width));
+      const h = Math.max(1, Math.round(rect.height));
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      s.W = w; s.H = h;
+    }
+    fitCanvas();
+
     function lerp(a, b, t) { return a + (b - a) * t; }
 
     function applyPhysics(dt) {
-      const W = canvas.width, H = canvas.height;
+      const W = s.W, H = s.H;
       s.nodes.forEach((n, i) => {
         if (n.dragging) {
           // ease smoothly toward the pointer target — eliminates the old hard snap
@@ -915,17 +1139,18 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     }
 
     function draw(ts) {
+      if (s.paused) { s.raf = requestAnimationFrame(draw); return; }
       if (!s.lastTs) s.lastTs = ts;
       const dt = Math.min((ts - s.lastTs) / 16.67, 2.5);
       s.lastTs = ts;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, s.W, s.H);
       applyPhysics(dt);
 
       // subtle dot grid
       ctx.fillStyle = "rgba(255,255,255,0.015)";
-      for (let gx = 38; gx < canvas.width; gx += 38) {
-        for (let gy = 38; gy < canvas.height; gy += 38) {
+      for (let gx = 38; gx < s.W; gx += 38) {
+        for (let gy = 38; gy < s.H; gy += 38) {
           ctx.beginPath(); ctx.arc(gx, gy, 0.7, 0, Math.PI*2); ctx.fill();
         }
       }
@@ -1032,13 +1257,15 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
 
         ctx.restore();
 
-        // Label — dark solid text directly on the bright solid node = always legible
+        // Label — rendered below the node, not crammed inside it, so it stays
+        // legible regardless of node radius (small nodes were unreadable before).
         ctx.save();
         ctx.globalAlpha = 1;
-        ctx.font = `${isHov ? "700" : "600"} ${Math.round(8 + (n.r - 10) * 0.34)}px 'JetBrains Mono', monospace`;
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillStyle = "rgba(5,5,18,0.92)";
-        ctx.fillText(n.label, n.x, n.y);
+        ctx.font = `${isHov ? "700" : "600"} ${isHov ? 13 : 12}px 'JetBrains Mono', monospace`;
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        ctx.shadowColor = n.color; ctx.shadowBlur = isHov ? 10 : 5;
+        ctx.fillStyle = isHov ? "rgba(255,255,255,0.98)" : "rgba(235,240,248,0.88)";
+        ctx.fillText(n.label, n.x, n.y + r + 7);
         ctx.restore();
       });
 
@@ -1049,8 +1276,8 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     function getXY(e) {
       const rect = canvas.getBoundingClientRect();
       return {
-        x: (e.clientX - rect.left) * (canvas.width / rect.width),
-        y: (e.clientY - rect.top) * (canvas.height / rect.height),
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
       };
     }
     function hitNode(x, y) {
@@ -1088,7 +1315,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
       if (s.hoveredIdx >= 0) {
         const n = s.nodes[s.hoveredIdx];
         const rect = canvas.getBoundingClientRect();
-        setTooltip({ x: n.x*(rect.width/canvas.width)+rect.left, y: n.y*(rect.height/canvas.height)+rect.top - n.r*n.scale*(rect.height/canvas.height) - 12, label: n.label, color: n.color });
+        setTooltip({ x: n.x+rect.left, y: n.y+rect.top - n.r*n.scale - 12, label: n.label, color: n.color });
         canvas.style.cursor = s.draggingIdx !== null ? "grabbing" : "grab";
       } else {
         setTooltip(null);
@@ -1135,11 +1362,21 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     canvas.addEventListener("mouseleave", () => { s.hoveredIdx = null; setTooltip(null); });
     window.addEventListener("mouseup", onMouseUp);
 
+    const visObserver = new IntersectionObserver(([entry]) => { s.paused = !entry.isIntersecting; }, { threshold: 0.05 });
+    visObserver.observe(canvas);
+
+    let resizeTimer = null;
+    const onWindowResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fitCanvas, 150); };
+    window.addEventListener("resize", onWindowResize, { passive: true });
+
     s.raf = requestAnimationFrame(drawWrapped);
 
     return () => {
       cancelAnimationFrame(s.raf);
       clearInterval(particleTimer);
+      clearTimeout(resizeTimer);
+      visObserver.disconnect();
+      window.removeEventListener("resize", onWindowResize);
       canvas.removeEventListener("mousedown", onMouseDown);
       canvas.removeEventListener("mousemove", onMouseMove);
       canvas.removeEventListener("mouseup", onMouseUp);
@@ -1238,44 +1475,15 @@ function HeroSection(){
       <div style={{position:"absolute",top:"38%",right:"12%",width:"280px",height:"280px",borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,0.035) 0%,transparent 68%)",animation:"orb 11s ease-in-out infinite 2s",pointerEvents:"none"}}/>
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.018) 1px,transparent 1px)",backgroundSize:"80px 80px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 80% 70% at 50% 50%,black 30%,transparent 100%)"}}/>
 
-      <h1 className="hero-title" style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(4rem,10.5vw,10rem)",lineHeight:0.86,letterSpacing:"-0.065em",marginBottom:"24px"}}>
-        <SplitText
-          text="Research"
-          tag="span"
-          className="hero-split-line"
-          delay={28}
-          duration={0.9}
-          ease="power3.out"
-          splitType="chars"
-          from={{ opacity: 0, y: 60 }}
-          to={{ opacity: 1, y: 0 }}
-          threshold={0.3}
-          textAlign="center"
-        />
+      <h1 className="reveal hero-title" ref={useReveal(0.05)} style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(4rem,10.5vw,10rem)",lineHeight:0.86,letterSpacing:"-0.065em",marginBottom:"24px"}}>
+        <span style={{background:"linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.8) 52%,rgba(0,204,255,0.65) 82%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 0 40px rgba(0,255,15,0.12))"}}>Research</span>
         <br/>
-        <SplitText
-          text="beyond answers."
-          tag="span"
-          className="hero-split-line hero-split-line--dim"
-          delay={22}
-          duration={0.8}
-          ease="power3.out"
-          splitType="words"
-          from={{ opacity: 0, y: 30 }}
-          to={{ opacity: 1, y: 0 }}
-          threshold={0.3}
-          textAlign="center"
-        />
+        <span style={{background:"linear-gradient(165deg,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0.16) 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>beyond answers.</span>
       </h1>
 
-      <BlurText
-        text="Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses."
-        animateBy="words"
-        direction="top"
-        delay={18}
-        stepDuration={0.3}
-        className="hero-subhead"
-      />
+      <p className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"24px",fontWeight:400,transitionDelay:"0.14s"}}>
+        Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses.
+      </p>
 
       <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"10px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
         <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:"rgba(255,255,255,0.18)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
@@ -1303,7 +1511,7 @@ function HeroSection(){
           onMouseOver={e=>{e.currentTarget.style.animation="none";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.28),rgba(255,32,64,0.14))`;e.currentTarget.style.boxShadow=`0 0 32px rgba(255,32,64,0.7), 0 0 70px rgba(255,32,64,0.35)`;e.currentTarget.style.transform="scale(1.06)";}}
           onMouseOut={e=>{e.currentTarget.style.animation="crimsonPulse 2.4s ease-in-out infinite";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`;e.currentTarget.style.boxShadow="";e.currentTarget.style.transform="scale(1)";}}
         >
-          ⚖️ Try a Debate
+          <span style={{fontFamily:"Material Symbols Outlined",fontSize:"16px"}}>balance</span> Try a Debate
         </button>
         <a href="#how-it-works" style={{padding:"12px 28px",border:"1px solid rgba(255,255,255,0.09)",color:"rgba(255,255,255,0.55)",fontWeight:600,borderRadius:"9999px",background:"transparent",fontFamily:"Sora,sans-serif",fontSize:"16px",textDecoration:"none",transition:"all 0.25s",display:"inline-flex",alignItems:"center"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
           See How It Works ↓
@@ -1319,9 +1527,9 @@ function HeroSection(){
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.green,opacity:0.7}}/>
           <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous — neural-mesh</span>
         </div>
-        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>npm run polynous</div>
-        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:"rgba(130,148,170,0.5)",marginTop:"10px",lineHeight:2}}>
-          &gt; Initializing Neural Mesh...<br/>&gt; Connecting 7 Sub-Agents...<span style={{color:C.green,opacity:0.75}}> ✓</span><br/>&gt; Logic Lab: Online <span style={{color:C.green}}>[Ready]</span><br/>&gt; <span style={{color:C.cyan}}>Synaptic Bridge established.</span>
+        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>uvicorn main:app --reload</div>
+        <div style={{marginTop:"10px"}}>
+          <TerminalTypewriter sequences={HERO_BOOT_SEQUENCES} minLines={4}/>
         </div>
         <div style={{marginTop:"14px"}}>
           <BYOKBadge/>
@@ -1352,7 +1560,7 @@ function HowItWorksSection(){
         {STEPS.map((s,idx)=>{
           const ref=useReveal(0.1);
           return(
-            <div key={s.n} ref={ref} className="reveal step-row" style={{transitionDelay:`${idx*0.16}s`,position:"relative",padding:"0"}}>
+            <div key={s.n} ref={ref} className="reveal step-row" style={{transitionDelay:`${idx*0.09}s`,position:"relative",padding:"0"}}>
               <div style={{height:"1px",background:"rgba(255,255,255,0.04)",marginBottom:"0"}}/>
               <div className="step-accent-line" style={{height:"1px",background:`linear-gradient(90deg,${s.accent}70,${s.accent}20,transparent)`,opacity:0,width:"0%",transition:"opacity 0.4s ease, width 0.6s cubic-bezier(0.22,1,0.36,1)",marginTop:"-1px"}}/>
               <div style={{display:"grid",gridTemplateColumns:"120px 1fr 1fr",gap:"40px",alignItems:"center",padding:"52px 0"}} className="step-inner">
@@ -1377,23 +1585,6 @@ function HowItWorksSection(){
         })}
         <div style={{height:"1px",background:"rgba(255,255,255,0.04)"}}/>
       </div>
-
-      {/* ENLARGED MEMORY BANK */}
-      <div className="reveal" ref={useReveal(0.1)} style={{
-        marginTop:"64px",
-        padding:"36px 36px 40px",
-        borderRadius:"28px",
-        background:"linear-gradient(145deg,rgba(168,85,247,0.06),rgba(8,8,22,0.9))",
-        border:"1px solid rgba(168,85,247,0.14)",
-        position:"relative",
-        overflow:"hidden",
-        boxShadow:"0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(168,85,247,0.08)",
-      }}>
-        {/* decorative corner glow */}
-        <div style={{position:"absolute",top:0,right:0,width:"280px",height:"280px",borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,0.1) 0%,transparent 70%)",pointerEvents:"none",transform:"translate(50%,-50%)"}}/>
-        <div style={{position:"absolute",bottom:0,left:0,width:"200px",height:"200px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,204,255,0.06) 0%,transparent 70%)",pointerEvents:"none",transform:"translate(-30%,30%)"}}/>
-        <MemoryTimeline/>
-      </div>
     </section>
   );
 }
@@ -1401,6 +1592,15 @@ function HowItWorksSection(){
 /* ── BYOK API Section ─────────────────────────────────────────────────────── */
 function ApiSection(){
   const ref=useReveal(0.12);
+  const [activeKey,setActiveKey]=useState("anthropic");
+  const PROVIDERS=[
+    {id:"anthropic",label:"Anthropic (Claude)",color:C.green,  icon:"neurology",       hint:"Primary LLM for every agent"},
+    {id:"openai",   label:"OpenAI (GPT-4o)",   color:C.cyan,   icon:"psychology",      hint:"Selectable alternative LLM + embeddings"},
+    {id:"tavily",   label:"Tavily (Search)",    color:C.amber,  icon:"travel_explore",  hint:"Live web search for the Search agent"},
+    {id:"voyage",   label:"Voyage AI (Embed)",  color:C.purple, icon:"blur_on",         hint:"High-quality text embeddings"},
+    {id:"pinecone", label:"Pinecone (Vectors)", color:C.indigo, icon:"hub",             hint:"Namespace-scoped semantic memory"},
+    {id:"neo4j",    label:"Neo4j (Graph)",      color:C.coral,  icon:"scatter_plot",    hint:"Per-user knowledge graph store"},
+  ];
   return(
     <section style={{padding:"64px 0"}}>
       <SectionDivider/>
@@ -1410,24 +1610,21 @@ function ApiSection(){
             <div>
               <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK — BRING YOUR OWN INTELLIGENCE</span>
               <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(1.8rem,3.4vw,2.7rem)",marginBottom:"16px",lineHeight:1.08,letterSpacing:"-0.04em",color:"#fff"}}>Total model<br/><span style={{color:C.green}}>sovereignty.</span></h2>
-              <ScrollReveal
-                tag="div"
-                baseOpacity={0.08}
-                enableBlur={true}
-                baseRotation={2}
-                blurStrength={5}
-                containerClassName="api-lede"
-                textClassName="api-lede-text"
-              >
-                Model-agnostic by design. Connect your preferred LLMs or run private local instances with zero lock-in.
-              </ScrollReveal>
+              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Bring your own Anthropic, OpenAI, Tavily, Voyage, Pinecone, or Neo4j key — click a provider to see how POLYNOUS routes it.</p>
               <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginBottom:"28px"}}>
-                {[{label:"OpenAI (GPT-4o)",color:C.green},{label:"Anthropic (Claude)",color:C.cyan},{label:"Ollama (Llama 3)",color:C.crimson}].map(({label,color})=>(
-                  <div key={label} style={{padding:"6px 14px",borderRadius:"9999px",display:"flex",alignItems:"center",gap:"8px",background:`${color}08`,border:`1px solid ${color}22`}}>
-                    <div className="animate-pulse-dot" style={{width:"5px",height:"5px",borderRadius:"50%",background:color}}/>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color}}>{label}</span>
-                  </div>
-                ))}
+                {PROVIDERS.map(({id,label,color,icon,hint})=>{
+                  const isActive=activeKey===id;
+                  return(
+                    <button key={id} title={hint} onClick={()=>setActiveKey(id)} style={{padding:"6px 14px",borderRadius:"9999px",display:"flex",alignItems:"center",gap:"8px",background:isActive?`${color}18`:`${color}08`,border:`1px solid ${isActive?color+"70":color+"22"}`,cursor:"pointer",transition:"all 0.3s cubic-bezier(0.23,1,0.32,1)",boxShadow:isActive?`0 0 16px ${color}35`:"none",transform:isActive?"translateY(-1px)":"none"}}
+                      onMouseOver={e=>{if(!isActive){e.currentTarget.style.background=`${color}12`;e.currentTarget.style.borderColor=`${color}45`;}}}
+                      onMouseOut={e=>{if(!isActive){e.currentTarget.style.background=`${color}08`;e.currentTarget.style.borderColor=`${color}22`;}}}
+                    >
+                      <span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px",color}}>{icon}</span>
+                      <div className="animate-pulse-dot" style={{width:"5px",height:"5px",borderRadius:"50%",background:color}}/>
+                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color}}>{label}</span>
+                    </button>
+                  );
+                })}
               </div>
               <button onClick={()=>window.location.href="/settings"} style={{padding:"13px 26px",background:"#fff",color:C.void,fontWeight:800,borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",display:"inline-flex",alignItems:"center",gap:"8px",transition:"all 0.25s",letterSpacing:"0.02em"}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.03)";e.currentTarget.style.boxShadow="0 0 32px rgba(255,255,255,0.18)";}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="none";}}>
                 <span style={{fontFamily:"Material Symbols Outlined",fontSize:"17px"}}>key</span> Configure API Mesh
@@ -1441,11 +1638,26 @@ function ApiSection(){
               </div>
               <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2.2}}>
                 <p style={{color:C.cyan}}>agents:</p>
-                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>research_lead: <span style={{color:C.green}}>"anthropic/claude-4-5-sonnet"</span></p>
-                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>dialectic_judge: <span style={{color:C.green}}>"openai/gpt-4o"</span></p>
-                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>local_summarizer: <span style={{color:C.green}}>"ollama/llama3"</span></p>
-                <p style={{marginTop:"8px",color:"rgba(255,255,255,0.28)"}}>encryption: <ScrambledText radius={70} duration={0.7} speed={0.4} scrambleChars="01#$%" className="vault-scramble-label" inline color={C.amber}>fernet</ScrambledText></p>
-                <p style={{color:"rgba(255,255,255,0.28)"}}>zero_knowledge: <span style={{color:C.green}}>true</span></p>
+                {[
+                  {label:"search",    val:'"anthropic/claude-sonnet"',key:"anthropic"},
+                  {label:"summarise", val:'"anthropic/claude-sonnet"',key:"anthropic"},
+                  {label:"critic",    val:'"openai/gpt-4o"',key:"openai"},
+                  {label:"writer",    val:'"anthropic/claude-sonnet"',key:"anthropic"},
+                  {label:"judge",     val:'"openai/gpt-4o"',key:"openai"},
+                ].map(row=>{
+                  const isRowActive=activeKey===row.key;
+                  return(
+                    <p key={row.label} style={{paddingLeft:"14px",borderLeft:isRowActive?`2px solid ${row.key==="anthropic"?C.green:C.cyan}`:"2px solid transparent",color:"rgba(220,228,240,0.72)",transition:"all 0.3s ease",background:isRowActive?`${row.key==="anthropic"?C.green:C.cyan}0a`:"transparent"}}>
+                      {row.label}: <ScrambleText text={row.val} style={{color:C.green}} loop loopMin={5000} loopMax={10000}/>
+                    </p>
+                  );
+                })}
+                <p style={{marginTop:"8px",paddingLeft:"14px",borderLeft:activeKey==="voyage"?`2px solid ${C.purple}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>embeddings: <ScrambleText text={'"voyage/voyage-3"'} style={{color:C.purple}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{paddingLeft:"14px",borderLeft:activeKey==="tavily"?`2px solid ${C.amber}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>search_provider: <ScrambleText text={'"tavily"'} style={{color:C.amber}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{paddingLeft:"14px",borderLeft:activeKey==="pinecone"?`2px solid ${C.indigo}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>vector_store: <ScrambleText text={'"pinecone/serverless"'} style={{color:C.indigo}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{paddingLeft:"14px",borderLeft:activeKey==="neo4j"?`2px solid ${C.coral}`:"2px solid transparent",color:"rgba(220,228,240,0.5)",transition:"all 0.3s ease"}}>graph_store: <ScrambleText text={'"neo4j/auradb"'} style={{color:C.coral}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{color:"rgba(220,228,240,0.5)"}}>key_encryption: <ScrambleText text="fernet" style={{color:C.amber}} loop loopMin={5000} loopMax={10000}/></p>
+                <p style={{color:"rgba(220,228,240,0.5)"}}>stored_per_user: <ScrambleText text="true" style={{color:C.green}} loop loopMin={5000} loopMax={10000}/></p>
               </div>
             </div>
           </div>
@@ -1458,21 +1670,19 @@ function ApiSection(){
 /* ── Features ─────────────────────────────────────────────────────────────── */
 function FeaturesSection(){
   const headRef=useReveal(0.1),gridRef=useReveal(0.07);
-  const proximityContainerRef = useRef(null);
   return(
-    <section id="features" style={{padding:"96px 0 24px"}}>
+    <section id="features" style={{padding:"80px 0 24px"}}>
       <SectionDivider/>
-      <div ref={proximityContainerRef} style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"60px",position:"relative"}} className="hiw-grid">
+      <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"60px"}} className="hiw-grid">
         <div ref={headRef} className="reveal">
           <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Capabilities</p>
           <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Seven agents.<br/>One surface.</h2>
         </div>
         <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Every feature built for inquiry that needs to be inspected, traced, and revisited.</p>
       </div>
-      <div ref={gridRef} className="reveal-stagger features-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px",position:"relative"}}>
-        <GlobalSpotlight gridRef={gridRef} spotlightRadius={280} glowColor="0, 255, 15"/>
+      <div ref={gridRef} className="reveal-stagger features-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px"}}>
         {FEATURES.map(f=>(
-          <button key={f.title} className={`feat-card magic-bento-card magic-bento-card--border-glow ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)","--glow-color":f.color.replace('#','').match(/.{2}/g)?.map(h=>parseInt(h,16)).join(', ') || "0, 255, 15"}}>
+          <button key={f.title} className={`feat-card corner-brackets ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)",color:f.color}}>
             <div className="feat-top-line" style={{position:"absolute",top:0,left:"15%",right:"15%",height:"2px",background:`linear-gradient(90deg,transparent,${f.color}80,transparent)`,borderRadius:"1px",opacity:0,transition:"opacity 0.4s ease"}}/>
             <div style={{position:"absolute",top:"18px",right:"18px",padding:"3px 9px",borderRadius:"9999px",background:`${f.color}10`,border:`1px solid ${f.color}25`}}>
               <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:f.color,letterSpacing:"0.12em",opacity:0.85}}>{f.tag}</span>
@@ -1510,25 +1720,19 @@ function FeaturesSection(){
 function PipelineSection(){
   const hRef=useReveal(0.1),bRef=useReveal(0.07);
   return(
-    <section id="pipeline" style={{padding:"24px 0 96px",overflow:"hidden"}}>
+    <section id="pipeline" style={{padding:"24px 0 80px",overflow:"hidden"}}>
       <SectionDivider tight/>
       <div ref={hRef} className="reveal" style={{textAlign:"center",marginBottom:"52px"}}>
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"14px",opacity:0.8}}>↓ Architecture</p>
-        <ScrollFloat
-          containerClassName="pipeline-scrollfloat"
-          animationDuration={1}
-          ease="back.inOut(2)"
-          scrollStart="center bottom+=30%"
-          scrollEnd="bottom bottom-=30%"
-          stagger={0.025}
-        >
-          Neural Pipeline
-        </ScrollFloat>
+        <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",letterSpacing:"-0.05em",marginBottom:"12px",color:"#fff"}}>Neural Pipeline</h2>
         <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.78)",maxWidth:"420px",margin:"0 auto",lineHeight:1.7}}>Real-time multi-agent synthesis, visualized live.</p>
       </div>
-      <div ref={bRef} className="reveal" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)"}}>
+      <div ref={bRef} className="reveal corner-brackets" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)",color:C.green}}>
         <div style={{position:"absolute",inset:0,opacity:0.03,pointerEvents:"none",zIndex:1}}>
           <svg width="100%" height="100%"><defs><pattern id="hex2" width="30" height="52" patternUnits="userSpaceOnUse"><path d="M15 0l15 8.66v17.32L15 34.64 0 25.98V8.66L15 0z" fill="none" stroke="#00ff0f" strokeWidth="1" strokeOpacity="0.15"/></pattern></defs><rect width="100%" height="100%" fill="url(#hex2)"/></svg>
+        </div>
+        <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:2,overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,bottom:0,left:"-40%",width:"35%",background:"linear-gradient(100deg,transparent,rgba(255,255,255,0.035),transparent)",animation:"pipelineSheen 7s ease-in-out infinite"}}/>
         </div>
         <div style={{position:"relative",zIndex:10}}><NeuralPipeline/></div>
       </div>
@@ -1544,33 +1748,36 @@ function TechHighlights(){
     [C.crimson]:"255,32,64",[C.amber]:"255,170,0",[C.gold]:"255,215,0",
   };
   return(
-    <section style={{padding:"96px 0"}}>
+    <section style={{padding:"96px 0 40px"}}>
       <SectionDivider/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"56px"}} className="hiw-grid">
         <div ref={hRef} className="reveal">
           <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Engineering</p>
-          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>
-            <ScrollFloat
-              containerClassName="tech-scrollfloat"
-              animationDuration={1}
-              ease="back.inOut(2)"
-              scrollStart="center bottom+=30%"
-              scrollEnd="bottom bottom-=30%"
-              stagger={0.02}
-            >
-              Tech Highlights
-            </ScrollFloat>
-          </h2>
+          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Tech<br/>Highlights</h2>
         </div>
         <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Engineered for resilience, speed, and uncompromising precision.</p>
       </div>
-      <div style={{margin:"8px 0 40px"}}>
-        <ScrollVelocity
-          texts={["FastAPI · LangGraph · Neo4j · Pinecone", "Claude · GPT-4o · Tavily · Voyage AI"]}
-          velocity={12}
-          numCopies={4}
-          className="tech-velocity-text"
-        />
+      <div className="reveal" style={{borderRadius:"20px",padding:"26px 30px",marginBottom:"14px",background:"rgba(10,10,22,0.85)",border:`1px solid rgba(0,255,15,0.14)`,backdropFilter:"blur(16px)",display:"flex",alignItems:"center",gap:"26px",flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"12px",flex:"1 1 220px"}}>
+          <div style={{width:"44px",height:"44px",borderRadius:"12px",background:"rgba(0,255,15,0.08)",border:`1px solid ${C.green}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.green}}>receipt_long</span>
+          </div>
+          <div>
+            <p style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"14.5px",color:"#fff",margin:0}}>Run Telemetry — never fabricated</p>
+            <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(130,148,168,0.7)",margin:"3px 0 0",lineHeight:1.5}}>Every run reports real usage, labelled honestly.</p>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:"22px",flexWrap:"wrap",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(180,195,210,0.72)"}}>
+          <span>Real token spend</span>
+          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
+          <span>Real LLM call counts</span>
+          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
+          <span>Est. USD cost / run</span>
+          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
+          <span>Per-stage breakdown</span>
+          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
+          <span>Provider · model badge</span>
+        </div>
       </div>
       <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
         {TECH.map((t,i)=>{
@@ -1616,13 +1823,13 @@ function ExampleSection(){
           const type=ex.meta.split(" · ")[0];
           const col=METAS_COLOR[type]||C.cyan;
           return(
-            <button key={ex.title} onClick={()=>window.location.href=ex.route} style={{minHeight:"216px",display:"flex",flexDirection:"column",justifyContent:"space-between",alignItems:"flex-start",textAlign:"left",padding:"32px",borderRadius:"18px",border:`1px solid rgba(255,255,255,0.05)`,background:"rgba(12,12,26,0.8)",cursor:"pointer",position:"relative",overflow:"hidden",transition:"all 0.35s cubic-bezier(0.23,1,0.32,1)"}} onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor=`${col}35`;e.currentTarget.style.background="rgba(14,14,30,0.9)";}} onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(255,255,255,0.05)";e.currentTarget.style.background="rgba(12,12,26,0.8)";}}>
+            <button key={ex.title} onClick={()=>window.location.href=ex.route} style={{minHeight:"160px",display:"flex",flexDirection:"column",justifyContent:"space-between",alignItems:"flex-start",textAlign:"left",padding:"24px",borderRadius:"16px",border:`1px solid rgba(255,255,255,0.05)`,background:"rgba(12,12,26,0.8)",cursor:"pointer",position:"relative",overflow:"hidden",transition:"all 0.35s cubic-bezier(0.23,1,0.32,1)"}} onMouseOver={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor=`${col}35`;e.currentTarget.style.background="rgba(14,14,30,0.9)";}} onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(255,255,255,0.05)";e.currentTarget.style.background="rgba(12,12,26,0.8)";}}>
               <div style={{position:"absolute",top:0,left:0,right:0,height:"2px",background:`linear-gradient(90deg,${col}75,transparent)`}}/>
-              <div style={{width:"36px",height:"36px",borderRadius:"9px",background:`${col}10`,border:`1px solid ${col}22`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"18px",flexShrink:0}}>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:col,fontWeight:600}}>0{i+1}</span>
+              <div style={{width:"28px",height:"28px",borderRadius:"7px",background:`${col}10`,border:`1px solid ${col}22`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"14px",flexShrink:0}}>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:col,fontWeight:600}}>0{i+1}</span>
               </div>
-              <span style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"19px",color:"#fff",lineHeight:1.3,marginBottom:"auto"}}>{ex.title}</span>
-              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:col,lineHeight:1.5,marginTop:"18px",opacity:0.75}}>{ex.meta}</span>
+              <span style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",lineHeight:1.3,marginBottom:"auto"}}>{ex.title}</span>
+              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:col,lineHeight:1.5,marginTop:"14px",opacity:0.75}}>{ex.meta}</span>
             </button>
           );
         })}
@@ -1630,6 +1837,198 @@ function ExampleSection(){
 
       <div style={{marginTop:"28px"}}>
         <AnalyticsMiniPreview/>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESEARCH CHAMBER SECTION
+══════════════════════════════════════════════════════════════════════════ */
+function ResearchChamberSection(){
+  const ref = useReveal(0.08);
+  const STAGES = [
+    {id:"search",    name:"Search",     icon:"search",       color:C.cyan,   desc:"Queries the live web via Tavily and pulls raw sources — URLs, titles, body text."},
+    {id:"summarise", name:"Summarise",  icon:"summarize",    color:C.indigo, desc:"Condenses every source down to its 3–5 key insight points."},
+    {id:"critic",    name:"Critic",     icon:"balance",      color:C.amber,  desc:"Cross-references claims across sources, flags contradictions, assigns a confidence score."},
+    {id:"writer",    name:"Writer",     icon:"edit_note",    color:C.green,  desc:"Synthesizes everything into a cited Summary → Findings → Limitations → Confidence report."},
+  ];
+  return(
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Research Chamber</p>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Ask once.<br/>Get a report, not a guess.</h2>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>A live 4-agent pipeline streams your answer token-by-token, with per-claim confidence and contradiction flags built in.</p>
+        </div>
+
+        <div className="chamber-card-premium" style={{
+          borderRadius:"28px",padding:"2px",
+          background:"linear-gradient(135deg,rgba(0,255,15,0.3),rgba(0,204,255,0.14),rgba(168,85,247,0.08),rgba(0,255,15,0.06))",
+          boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)",
+        }}>
+          <div style={{borderRadius:"27px",overflow:"hidden",background:"rgba(3,3,13,0.98)",backdropFilter:"blur(28px)"}}>
+            {/* Top bar */}
+            <div style={{padding:"22px 32px",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"14px",background:"linear-gradient(90deg,rgba(0,255,15,0.04),rgba(0,204,255,0.02),transparent)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+                <div style={{width:"44px",height:"44px",borderRadius:"14px",background:"linear-gradient(135deg,rgba(0,255,15,0.12),rgba(0,204,255,0.08))",border:"1px solid rgba(0,255,15,0.22)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",boxShadow:"0 0 20px rgba(0,255,15,0.1)"}}>
+                  <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 120%,rgba(0,255,15,0.25),transparent 65%)",pointerEvents:"none"}}/>
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.green,position:"relative",zIndex:1}}>biotech</span>
+                </div>
+                <div>
+                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Neural Research</p>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>POST /ask-stream · SSE · SEARCH → SUMMARISE → CRITIC → WRITER</p>
+                </div>
+              </div>
+              <button onClick={()=>window.location.href="/research"} style={{padding:"10px 22px",borderRadius:"9999px",border:`1px solid ${C.green}45`,background:"rgba(0,255,15,0.07)",color:C.green,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",display:"flex",alignItems:"center",gap:"7px",flexShrink:0,letterSpacing:"0.02em"}}
+                onMouseOver={e=>{e.currentTarget.style.background="rgba(0,255,15,0.18)";e.currentTarget.style.borderColor=`${C.green}90`;e.currentTarget.style.boxShadow=`0 0 24px rgba(0,255,15,0.18)`;e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseOut={e=>{e.currentTarget.style.background="rgba(0,255,15,0.07)";e.currentTarget.style.borderColor=`${C.green}45`;e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="translateY(0)";}}>
+                Launch Research
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{padding:"32px",display:"grid",gridTemplateColumns:"1.3fr 0.7fr",gap:"36px"}} className="hiw-grid">
+              <div>
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.cyan,letterSpacing:"0.12em",marginBottom:"18px",opacity:0.85}}>THE PIPELINE</p>
+                <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+                  {STAGES.map((s,i)=>(
+                    <div key={s.id} style={{display:"flex",gap:"14px",alignItems:"flex-start"}}>
+                      <div style={{width:"34px",height:"34px",borderRadius:"10px",background:`${s.color}12`,border:`1px solid ${s.color}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"17px",color:s.color}}>{s.icon}</span>
+                      </div>
+                      <div>
+                        <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"13px",color:"#fff",margin:0}}>{i+1}. {s.name}</p>
+                        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(150,165,180,0.65)",margin:"4px 0 0",lineHeight:1.55}}>{s.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:"7px",marginTop:"22px"}}>
+                  {[{icon:"tune",label:"Style: Academic/Technical/ELI5/Casual"},{icon:"filter_9_plus",label:"Sources: Auto or 3–20"},{icon:"ios_share",label:"Share Research"},{icon:"cached",label:"Research Caching"}].map(c=>(
+                    <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.green}28`,background:"rgba(0,255,15,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.green,letterSpacing:"0.04em"}}>
+                      <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"18px",borderRadius:"18px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.04)",padding:"28px 20px"}}>
+                <ConfidenceRing/>
+                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(130,148,168,0.6)",lineHeight:1.6,margin:0,textAlign:"center"}}>Every report ships with an animated confidence score — not just a citation list.</p>
+              </div>
+            </div>
+
+            {/* Footer stat strip */}
+            <div style={{padding:"18px 32px",borderTop:"1px solid rgba(255,255,255,0.04)",display:"flex",gap:"0",background:"rgba(2,2,11,0.65)"}}>
+              {[{label:"Agents in pipeline",val:"4",color:C.green},{label:"Delivery",val:"streamed",color:C.cyan},{label:"Report format",val:"structured",color:C.purple}].map((stat,i)=>(
+                <div key={stat.label} style={{display:"flex",alignItems:"baseline",gap:"10px",flex:1,paddingLeft:i===0?0:"32px",borderLeft:i===0?"none":"1px solid rgba(255,255,255,0.045)"}}>
+                  <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DEBATE CHAMBER SECTION
+══════════════════════════════════════════════════════════════════════════ */
+function DebateChamberSection(){
+  const ref = useReveal(0.08);
+  return(
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.crimson,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Debate Chamber</p>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Two sides.<br/>One rubric-scored verdict.</h2>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>FOR and AGAINST build evidence-backed cases; a Judge scores each 1–10 and delivers a ruling with reasoning.</p>
+        </div>
+
+        <div className="chamber-card-premium" style={{
+          borderRadius:"28px",padding:"2px",
+          background:"linear-gradient(135deg,rgba(255,32,64,0.3),rgba(0,255,15,0.14),rgba(255,215,0,0.1),rgba(255,32,64,0.06))",
+          boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)",
+        }}>
+          <div style={{borderRadius:"27px",overflow:"hidden",background:"rgba(3,3,13,0.98)",backdropFilter:"blur(28px)"}}>
+            {/* Top bar */}
+            <div style={{padding:"22px 32px",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"14px",background:"linear-gradient(90deg,rgba(255,32,64,0.04),rgba(255,215,0,0.02),transparent)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+                <div style={{width:"44px",height:"44px",borderRadius:"14px",background:"linear-gradient(135deg,rgba(255,32,64,0.12),rgba(255,215,0,0.08))",border:"1px solid rgba(255,32,64,0.22)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",boxShadow:"0 0 20px rgba(255,32,64,0.1)"}}>
+                  <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 120%,rgba(255,32,64,0.25),transparent 65%)",pointerEvents:"none"}}/>
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.crimson,position:"relative",zIndex:1}}>forum</span>
+                </div>
+                <div>
+                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Debate Chamber</p>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>POST /ask-stream · debate_mode:true · FOR → AGAINST → JUDGE</p>
+                </div>
+              </div>
+              <button onClick={()=>window.location.href="/debate"} style={{padding:"10px 22px",borderRadius:"9999px",border:`1px solid ${C.crimson}45`,background:"rgba(255,32,64,0.07)",color:C.crimson,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",display:"flex",alignItems:"center",gap:"7px",flexShrink:0,letterSpacing:"0.02em"}}
+                onMouseOver={e=>{e.currentTarget.style.background="rgba(255,32,64,0.18)";e.currentTarget.style.borderColor=`${C.crimson}90`;e.currentTarget.style.boxShadow=`0 0 24px rgba(255,32,64,0.18)`;e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseOut={e=>{e.currentTarget.style.background="rgba(255,32,64,0.07)";e.currentTarget.style.borderColor=`${C.crimson}45`;e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="translateY(0)";}}>
+                Launch Debate
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
+              </button>
+            </div>
+
+            {/* Body — FOR vs AGAINST scored panels */}
+            <div style={{padding:"32px"}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px",marginBottom:"22px"}} className="hiw-grid">
+                <div style={{borderRadius:"16px",padding:"20px",background:"rgba(0,255,15,0.04)",border:`1px solid ${C.green}28`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"10px"}}>
+                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.1em"}}>FOR</span>
+                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green,fontWeight:600}}>7.5 / 10</span>
+                  </div>
+                  <div style={{height:"7px",borderRadius:"4px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+                    <div style={{width:"75%",height:"100%",borderRadius:"4px",background:`linear-gradient(90deg,${C.green}aa,${C.green})`,boxShadow:`0 0 8px ${C.green}55`}}/>
+                  </div>
+                  <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(150,165,180,0.6)",margin:"10px 0 0",lineHeight:1.5}}>Constructs supporting arguments with cited evidence.</p>
+                </div>
+                <div style={{borderRadius:"16px",padding:"20px",background:"rgba(255,32,64,0.04)",border:`1px solid ${C.crimson}28`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"10px"}}>
+                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.crimson,letterSpacing:"0.1em"}}>AGAINST</span>
+                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.crimson,fontWeight:600}}>5.5 / 10</span>
+                  </div>
+                  <div style={{height:"7px",borderRadius:"4px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+                    <div style={{width:"55%",height:"100%",borderRadius:"4px",background:`linear-gradient(90deg,${C.crimson}aa,${C.crimson})`,boxShadow:`0 0 8px ${C.crimson}55`}}/>
+                  </div>
+                  <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(150,165,180,0.6)",margin:"10px 0 0",lineHeight:1.5}}>Constructs opposing arguments with counter-evidence.</p>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:"12px",padding:"16px 20px",borderRadius:"14px",background:"rgba(255,215,0,0.04)",border:`1px solid ${C.gold}28`,marginBottom:"22px"}}>
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"20px",color:C.gold}}>gavel</span>
+                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(210,220,235,0.75)",margin:0,lineHeight:1.55}}>The Judge scores each side on a structured rubric, delivers reasoning + verdict, then generates follow-up questions to push the debate further.</p>
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:"7px"}}>
+                {[{icon:"speed",label:"Depth: Concise/Detailed"},{icon:"gavel",label:"Judge's Lens"},{icon:"forum",label:"Cross-Examine"},{icon:"data_object",label:"Full JSON Export"}].map(c=>(
+                  <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.crimson}28`,background:"rgba(255,32,64,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.crimson,letterSpacing:"0.04em"}}>
+                    <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer stat strip */}
+            <div style={{padding:"18px 32px",borderTop:"1px solid rgba(255,255,255,0.04)",display:"flex",gap:"0",background:"rgba(2,2,11,0.65)"}}>
+              {[{label:"Agents in pipeline",val:"3",color:C.crimson},{label:"Judge rubric",val:"1–10",color:C.gold},{label:"Feeds",val:"graph + memory",color:C.purple}].map((stat,i)=>(
+                <div key={stat.label} style={{display:"flex",alignItems:"baseline",gap:"10px",flex:1,paddingLeft:i===0?0:"32px",borderLeft:i===0?"none":"1px solid rgba(255,255,255,0.045)"}}>
+                  <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -1655,7 +2054,7 @@ function KnowledgeGraphSection() {
         </div>
 
         {/* Premium card wrapper */}
-        <div style={{
+        <div className="chamber-card-premium" style={{
           borderRadius:"28px",
           padding:"2px",
           background:"linear-gradient(135deg,rgba(0,204,255,0.3),rgba(168,85,247,0.18),rgba(0,255,15,0.1),rgba(0,204,255,0.06))",
@@ -1751,8 +2150,292 @@ function KnowledgeGraphSection() {
                   paddingLeft: i === 0 ? 0 : "32px",
                   borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.045)",
                 }}>
-                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}>{stat.val}</span>
-                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(130,148,168,0.4)"}}>{stat.label}</span>
+                  <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MEMORY BANK SECTION
+══════════════════════════════════════════════════════════════════════════ */
+function MemoryBankSection(){
+  const ref = useReveal(0.08);
+  return(
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"12px"}} className="hiw-grid">
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.purple,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Memory Bank</p>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Memory that<br/>compounds.</h2>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Stats, an interest graph, debate history, and AI-generated topic suggestions pulled from your own patterns.</p>
+        </div>
+
+        <div className="chamber-card-premium" style={{borderRadius:"28px",padding:"2px",background:"linear-gradient(135deg,rgba(168,85,247,0.3),rgba(0,204,255,0.1),rgba(255,215,0,0.08),rgba(168,85,247,0.06))",boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)"}}>
+          <div style={{borderRadius:"27px",overflow:"hidden",background:"rgba(3,3,13,0.98)",backdropFilter:"blur(28px)",padding:"8px 32px 32px"}}>
+            <MemoryTimeline/>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"7px",marginTop:"6px"}}>
+              {[{icon:"query_stats",label:"Total queries, debates, avg. confidence"},{icon:"scatter_plot",label:"Interactive interest graph"},{icon:"history",label:"Debate history w/ score bars"},{icon:"auto_awesome",label:"AI topic suggestions"}].map(c=>(
+                <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.purple}28`,background:"rgba(168,85,247,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.purple,letterSpacing:"0.04em"}}>
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   NEURAL ANALYTICS SECTION
+══════════════════════════════════════════════════════════════════════════ */
+function NeuralAnalyticsSection(){
+  const ref = useReveal(0.08);
+  const wrapRef = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const maxHeat = Math.max(...HEATMAP_DATA.flat());
+
+  useEffect(()=>{
+    const el = wrapRef.current; if(!el) return;
+    const obs = new IntersectionObserver(([e])=>{if(e.isIntersecting){setVisible(true);obs.unobserve(el);}},{threshold:0.2});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+
+  return(
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.amber,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Neural Analytics</p>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your research,<br/>decoded.</h2>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Activity, topics, and confidence — turned into patterns you can actually see. No chart library, pure Canvas.</p>
+        </div>
+
+        {/* Premium card wrapper — same gradient-border pattern as Knowledge Graph */}
+        <div ref={wrapRef} className="chamber-card-premium" style={{
+          borderRadius:"28px",
+          padding:"2px",
+          background:"linear-gradient(135deg,rgba(255,170,0,0.3),rgba(0,204,255,0.14),rgba(168,85,247,0.1),rgba(255,170,0,0.06))",
+          boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)",
+        }}>
+          <div style={{
+            borderRadius:"27px",
+            overflow:"hidden",
+            background:"rgba(3,3,13,0.98)",
+            backdropFilter:"blur(28px)",
+          }}>
+            {/* Top bar */}
+            <div style={{
+              padding:"22px 32px",
+              borderBottom:"1px solid rgba(255,255,255,0.05)",
+              display:"flex",
+              justifyContent:"space-between",
+              alignItems:"center",
+              flexWrap:"wrap",
+              gap:"14px",
+              background:"linear-gradient(90deg,rgba(255,170,0,0.04),rgba(0,204,255,0.025),transparent)",
+            }}>
+              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+                <div style={{
+                  width:"44px",height:"44px",borderRadius:"14px",
+                  background:"linear-gradient(135deg,rgba(255,170,0,0.12),rgba(0,204,255,0.08))",
+                  border:"1px solid rgba(255,170,0,0.22)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  position:"relative",overflow:"hidden",
+                  boxShadow:"0 0 20px rgba(255,170,0,0.1)",
+                }}>
+                  <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 120%,rgba(255,170,0,0.25),transparent 65%)",pointerEvents:"none"}}/>
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.amber,position:"relative",zIndex:1}}>query_stats</span>
+                </div>
+                <div>
+                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>Neural Analytics</p>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>
+                    7D · 30D · 90D WINDOWS · GET /analytics/dashboard
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => window.location.href = "/analytics"}
+                style={{
+                  padding:"10px 22px",borderRadius:"9999px",
+                  border:`1px solid ${C.amber}45`,
+                  background:"rgba(255,170,0,0.07)",
+                  color:C.amber,fontFamily:"Sora,sans-serif",
+                  fontSize:"12.5px",fontWeight:700,cursor:"pointer",
+                  transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",
+                  display:"flex",alignItems:"center",gap:"7px",flexShrink:0,
+                  letterSpacing:"0.02em",
+                }}
+                onMouseOver={e=>{
+                  e.currentTarget.style.background="rgba(255,170,0,0.18)";
+                  e.currentTarget.style.borderColor=`${C.amber}90`;
+                  e.currentTarget.style.boxShadow=`0 0 24px rgba(255,170,0,0.18)`;
+                  e.currentTarget.style.transform="translateY(-2px)";
+                }}
+                onMouseOut={e=>{
+                  e.currentTarget.style.background="rgba(255,170,0,0.07)";
+                  e.currentTarget.style.borderColor=`${C.amber}45`;
+                  e.currentTarget.style.boxShadow="none";
+                  e.currentTarget.style.transform="translateY(0)";
+                }}
+              >
+                Open full dashboard
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
+              </button>
+            </div>
+
+            {/* Body — confidence distribution + activity heatmap */}
+            <div style={{padding:"32px",display:"grid",gridTemplateColumns:"0.85fr 1.15fr",gap:"36px"}} className="hiw-grid">
+              <div>
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.12em",marginBottom:"16px",opacity:0.85}}>CONFIDENCE DISTRIBUTION</p>
+                <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+                  {CONF_BANDS.map((b,i)=>(
+                    <div key={b.label}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"6px"}}>
+                        <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(210,220,235,0.75)"}}>{b.label} <span style={{color:"rgba(130,148,168,0.5)",fontSize:"10.5px"}}>{b.range}</span></span>
+                        <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:b.color}}>{b.val}%</span>
+                      </div>
+                      <div style={{height:"7px",borderRadius:"4px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+                        <div style={{width:visible?`${b.val}%`:"0%",height:"100%",borderRadius:"4px",background:`linear-gradient(90deg,${b.color}aa,${b.color})`,boxShadow:`0 0 8px ${b.color}55`,transition:`width 1s cubic-bezier(0.22,1,0.36,1) ${0.15+i*0.12}s`}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.amber,letterSpacing:"0.12em",marginBottom:"16px",opacity:0.85}}>ACTIVITY HEATMAP</p>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:"5px"}}>
+                  {HEATMAP_DAYS.map((d,ci)=>(
+                    <div key={d} style={{display:"flex",flexDirection:"column",gap:"5px",alignItems:"center"}}>
+                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8.5px",color:"rgba(130,148,168,0.5)"}}>{d}</span>
+                      {HEATMAP_DATA.map((row,ri)=>{
+                        const v=row[ci],op=v===0?0.06:0.22+(v/maxHeat)*0.78;
+                        const hue=(ci*4+ri)*17;
+                        return (
+                          <div key={ri} className="heat-cell" style={{width:"100%",aspectRatio:"1",borderRadius:"4px",background:C.amber,opacity:visible?op:0,transition:`opacity 0.6s ease ${0.2+(ci*4+ri)*0.02}s, transform 0.25s cubic-bezier(0.23,1,0.32,1), box-shadow 0.25s ease`,position:"relative",cursor:"default"}}
+                            onMouseOver={e=>{e.currentTarget.style.transform="scale(1.35)";e.currentTarget.style.background=`hsl(${hue},90%,60%)`;e.currentTarget.style.boxShadow=`0 0 10px hsl(${hue},90%,60%)`;e.currentTarget.style.zIndex=2;}}
+                            onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.background=C.amber;e.currentTarget.style.boxShadow="none";e.currentTarget.style.zIndex=1;}}
+                            title={`${v} ${v===1?"query":"queries"}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(130,148,168,0.45)",marginTop:"12px",textAlign:"right"}}>less <span style={{color:C.amber,opacity:0.25}}>■</span> <span style={{color:C.amber,opacity:0.55}}>■</span> <span style={{color:C.amber}}>■</span> more</p>
+              </div>
+            </div>
+
+            {/* Footer stat strip */}
+            <div style={{
+              padding:"18px 32px",
+              borderTop:"1px solid rgba(255,255,255,0.04)",
+              display:"flex",
+              gap:"0",
+              background:"rgba(2,2,11,0.65)",
+            }}>
+              {[
+                {label:"Total queries", val:"142", color:C.amber},
+                {label:"Debates run", val:"31", color:C.crimson},
+                {label:"Avg. confidence", val:"87%", color:C.green},
+                {label:"Topics mapped", val:"18", color:C.purple},
+              ].map((stat, i) => (
+                <div key={stat.label} style={{
+                  display:"flex",alignItems:"baseline",gap:"10px",
+                  flex:1,cursor:"default",borderRadius:"10px",
+                  padding:"6px 0",
+                  paddingLeft: i === 0 ? "6px" : "32px",
+                  borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.045)",
+                  transition:"box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.23,1,0.32,1), background 0.3s ease",
+                }}
+                onMouseOver={e=>{e.currentTarget.style.boxShadow=`0 0 22px ${stat.color}30`;e.currentTarget.style.background=`${stat.color}0a`;e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseOut={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.background="transparent";e.currentTarget.style.transform="translateY(0)";}}
+                >
+                  <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SETTINGS & KEY VAULT SECTION
+══════════════════════════════════════════════════════════════════════════ */
+function SettingsSection(){
+  const ref = useReveal(0.08);
+  return(
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.teal,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Settings</p>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Your keys.<br/>Your spend.</h2>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Bring your own Anthropic, OpenAI, or Tavily keys — encrypted at rest, live-validated, never used against you.</p>
+        </div>
+
+        <div className="chamber-card-premium" style={{borderRadius:"28px",padding:"2px",background:"linear-gradient(135deg,rgba(0,230,184,0.3),rgba(0,204,255,0.1),rgba(168,85,247,0.08),rgba(0,230,184,0.06))",boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)"}}>
+          <div style={{borderRadius:"27px",overflow:"hidden",background:"rgba(3,3,13,0.98)",backdropFilter:"blur(28px)"}}>
+            <div style={{padding:"22px 32px",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"14px",background:"linear-gradient(90deg,rgba(0,230,184,0.04),rgba(0,204,255,0.02),transparent)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+                <div style={{width:"44px",height:"44px",borderRadius:"14px",background:"linear-gradient(135deg,rgba(0,230,184,0.12),rgba(0,204,255,0.08))",border:"1px solid rgba(0,230,184,0.22)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",boxShadow:"0 0 20px rgba(0,230,184,0.1)"}}>
+                  <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 120%,rgba(0,230,184,0.25),transparent 65%)",pointerEvents:"none"}}/>
+                  <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.teal,position:"relative",zIndex:1}}>verified_user</span>
+                </div>
+                <div>
+                  <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",color:"#fff",margin:0}}>API Key Vault</p>
+                  <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(130,148,168,0.4)",margin:"4px 0 0",letterSpacing:"0.08em"}}>GET/PUT /settings/api-keys · FERNET · AES-128-CBC</p>
+                </div>
+              </div>
+              <button onClick={()=>window.location.href="/settings"} style={{padding:"10px 22px",borderRadius:"9999px",border:`1px solid ${C.teal}45`,background:"rgba(0,230,184,0.07)",color:C.teal,fontFamily:"Sora,sans-serif",fontSize:"12.5px",fontWeight:700,cursor:"pointer",transition:"all 0.28s cubic-bezier(0.23,1,0.32,1)",display:"flex",alignItems:"center",gap:"7px",flexShrink:0,letterSpacing:"0.02em"}}
+                onMouseOver={e=>{e.currentTarget.style.background="rgba(0,230,184,0.18)";e.currentTarget.style.borderColor=`${C.teal}90`;e.currentTarget.style.boxShadow=`0 0 24px rgba(0,230,184,0.18)`;e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseOut={e=>{e.currentTarget.style.background="rgba(0,230,184,0.07)";e.currentTarget.style.borderColor=`${C.teal}45`;e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="translateY(0)";}}>
+                Open Settings
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"15px"}}>arrow_outward</span>
+              </button>
+            </div>
+
+            <div style={{padding:"32px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px"}} className="hiw-grid">
+              {[
+                {provider:"Anthropic", masked:"sk-ant-****-a1b2", color:C.amber},
+                {provider:"OpenAI",    masked:"sk-****-c3d4",     color:C.cyan},
+                {provider:"Tavily",    masked:"tvly-****-e5f6",   color:C.green},
+              ].map(k=>(
+                <div key={k.provider} style={{borderRadius:"14px",padding:"16px 18px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div>
+                    <p style={{fontFamily:"Sora,sans-serif",fontWeight:600,fontSize:"13px",color:"#fff",margin:0}}>{k.provider}</p>
+                    <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(150,165,180,0.55)",margin:"4px 0 0"}}>{k.masked}</p>
+                  </div>
+                  <span style={{width:"8px",height:"8px",borderRadius:"50%",background:k.color,boxShadow:`0 0 8px ${k.color}`}}/>
+                </div>
+              ))}
+              <div style={{gridColumn:"1 / -1"}}><BYOKBadge/></div>
+            </div>
+
+            <div style={{padding:"18px 32px",borderTop:"1px solid rgba(255,255,255,0.04)",display:"flex",gap:"0",background:"rgba(2,2,11,0.65)"}}>
+              {[{label:"Encryption",val:"Fernet",color:C.teal},{label:"Validation",val:"live test",color:C.cyan},{label:"Preview",val:"masked",color:C.purple}].map((stat,i)=>(
+                <div key={stat.label} style={{display:"flex",alignItems:"baseline",gap:"10px",flex:1,paddingLeft:i===0?0:"32px",borderLeft:i===0?"none":"1px solid rgba(255,255,255,0.045)"}}>
+                  <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
+                  <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
                 </div>
               ))}
             </div>
@@ -1776,16 +2459,20 @@ function AgentPlayground(){
     if(running)return;
     setSelected(agent.id);setDone(false);setLog([]);setRunning(true);
     const quips=AGENT_QUIPS[agent.id]||["Processing…"];
-    quips.forEach((q,i)=>setTimeout(()=>{setLog(p=>[...p,{text:q,color:agent.color}]);if(i===quips.length-1){setRunning(false);setDone(true);}},520*(i+1)));
+    let elapsed=0;
+    quips.forEach((q,i)=>{
+      elapsed+=Math.max(600,q.length*22+280);
+      setTimeout(()=>{setLog(p=>[...p,{text:q,color:agent.color}]);if(i===quips.length-1){setRunning(false);setDone(true);}},elapsed);
+    });
   };
   const reset=()=>{setSelected(null);setLog([]);setRunning(false);setDone(false);};
   const active=PLAYGROUND_AGENTS.find(a=>a.id===selected);
   return(
-    <section id="playground" style={{padding:"96px 0"}}>
+    <section id="playground" style={{padding:"40px 0 96px"}}>
       <SectionDivider/>
       <div ref={ref} className="reveal">
         <div style={{textAlign:"center",marginBottom:"52px"}}>
-          <span style={{display:"inline-block",padding:"4px 16px",borderRadius:"9999px",border:`1px solid ${C.purple}45`,color:C.purple,fontFamily:"JetBrains Mono,monospace",fontSize:"10px",letterSpacing:"0.14em",marginBottom:"14px"}}>✦ AGENT PLAYGROUND</span>
+          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.purple,letterSpacing:"0.2em",marginBottom:"14px",opacity:0.8}}>Agent Playground</p>
           <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.5rem)",letterSpacing:"-0.05em",marginBottom:"10px",color:"#fff"}}>Pick an <span style={{color:C.green}}>Agent.</span> Watch it <span style={{color:C.cyan}}>Think.</span></h2>
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"460px",margin:"0 auto",lineHeight:1.7}}>Click any agent tile to simulate its inner monologue — no backend required.</p>
         </div>
@@ -1795,7 +2482,7 @@ function AgentPlayground(){
               const isSel=selected===agent.id;
               return(
                 <button key={agent.id} className="agent-btn" onClick={()=>run(agent)} style={{padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color:"rgba(255,255,255,0.06)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
-                  <div style={{fontSize:"22px",marginBottom:"6px"}}>{agent.emoji}</div>
+                  <div style={{fontFamily:"Material Symbols Outlined",fontSize:"21px",marginBottom:"6px",color:isSel?agent.color:"rgba(180,195,210,0.55)"}}>{agent.icon}</div>
                   <div style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11px",letterSpacing:"0.1em"}}>{agent.name}</div>
                   {isSel&&<div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8px",marginTop:"4px",opacity:0.55,color:agent.color}}>● ACTIVE</div>}
                 </button>
@@ -1806,7 +2493,7 @@ function AgentPlayground(){
             <div style={{padding:"20px 22px",background:"rgba(7,7,18,0.96)",borderBottom:"1px solid rgba(255,255,255,0.04)",minHeight:"90px"}}>
               {active?(
                 <div style={{animation:"fadeUp 0.3s ease"}} key={active.id}>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em"}}>{active.emoji} {active.name} — ROLE BRIEFING</div>
+                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:"6px"}}><span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{active.icon}</span>{active.name} — ROLE BRIEFING</div>
                   <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(185,200,175,0.75)",lineHeight:1.65,margin:0}}>{active.desc}</p>
                 </div>
               ):(
@@ -1818,7 +2505,7 @@ function AgentPlayground(){
               {log.map((e,i)=>(
                 <div key={i} style={{animation:"fadeUp 0.28s ease",color:e.color,display:"flex",gap:"10px",alignItems:"baseline"}}>
                   <span style={{color:"rgba(255,255,255,0.15)",fontSize:"10px",minWidth:"18px"}}>{i+1}</span>
-                  <span>{e.text}</span>
+                  <span>{(i===log.length-1&&running)?<TypedLine text={e.text}/>:e.text}</span>
                 </div>
               ))}
               {running&&(
@@ -1844,193 +2531,15 @@ function AgentPlayground(){
   );
 }
 
-/* ── Live Simulation Preview (dummy playback of the real Research/Debate engines) ── */
-const SIM_RESEARCH_FRAMES = [
-  {agents:{search:22,summarise:0,critic:0,writer:0},   logs:["🔎 SEARCH — querying live web sources…"],                                              confidence:null, breakdown:[]},
-  {agents:{search:100,summarise:38,critic:0,writer:0}, logs:["🔎 SEARCH — 12 sources retrieved, deduping…","📄 SUMMARISE — condensing 12 sources…"],   confidence:null, breakdown:[]},
-  {agents:{search:100,summarise:100,critic:44,writer:0},logs:["📄 SUMMARISE — key claims extracted.","⚖️ CRITIC — checking cross-source agreement…"],  confidence:null, breakdown:[]},
-  {agents:{search:100,summarise:100,critic:100,writer:52},logs:["⚖️ CRITIC — consensus measured across 12 sources.","✍️ WRITER — drafting cited synthesis…"], confidence:61, breakdown:[{label:"Agreement cluster A",pct:52,color:"#00ff0f"},{label:"Agreement cluster B",pct:9,color:"#00ccff"}]},
-  {agents:{search:100,summarise:100,critic:100,writer:100},logs:["✍️ WRITER — synthesis complete, citations linked.","✅ Done — 12 sources · 8 in agreement"], confidence:74, breakdown:[{label:"Agreement cluster A",pct:67,color:"#00ff0f"},{label:"Agreement cluster B",pct:25,color:"#00ccff"},{label:"Outliers",pct:8,color:"#ff2040"}]},
-];
-const SIM_DEBATE_FRAMES = [
-  {clashPct:50, logs:["⚔️ EVIDENCE — both sides gathering sources…"],                              verdict:null},
-  {clashPct:59, logs:["⚔️ EVIDENCE — 9 sources found.","🟢 FOR opens — cites 4 peer-reviewed studies."], verdict:null},
-  {clashPct:46, logs:["🔴 AGAINST rebuts — challenges methodology in 2 of 4 sources."],              verdict:null},
-  {clashPct:64, logs:["🟢 FOR rebuttal — reinforces claim with 2 new citations."],                   verdict:null},
-  {clashPct:64, logs:["👨‍⚖️ JUDGE — weighing evidence and logical consistency…"],                    verdict:null},
-  {clashPct:64, logs:["🏁 Verdict — FOR wins, 7.5 / 10"],                                            verdict:{winner:"FOR",score:"7.5",color:"#00ff0f"}},
-];
-const SIM_RESEARCH_AGENTS=[
-  {id:"search",   name:"SEARCH",    icon:"travel_explore", color:C.cyan},
-  {id:"summarise",name:"SUMMARISE", icon:"description",    color:C.indigo},
-  {id:"critic",   name:"CRITIC",    icon:"balance",         color:C.amber},
-  {id:"writer",   name:"WRITER",    icon:"auto_stories",    color:C.purple},
-];
-
-function LiveSimSection(){
-  const ref=useReveal(0.1);
-  const[mode,setMode]=useState("research");
-  const[frame,setFrame]=useState(0);
-  const[allLogs,setAllLogs]=useState([]);
-  const logRef=useRef(null);
-  const modeRef=useRef(mode);
-  useEffect(()=>{modeRef.current=mode;},[mode]);
-
-  useEffect(()=>{
-    setFrame(0);setAllLogs([]);
-    let i=-1;
-    const frames=mode==="research"?SIM_RESEARCH_FRAMES:SIM_DEBATE_FRAMES;
-    const tick=()=>{
-      i++;
-      if(i>=frames.length){
-        setTimeout(()=>{ if(modeRef.current===mode) setMode(mode==="research"?"debate":"research"); },2200);
-        return;
-      }
-      setFrame(i);
-      setAllLogs(prev=>[...prev,...frames[i].logs]);
-      timer=setTimeout(tick,1450);
-    };
-    let timer=setTimeout(tick,500);
-    return()=>clearTimeout(timer);
-  },[mode]);
-
-  useEffect(()=>{logRef.current?.scrollTo({top:logRef.current.scrollHeight,behavior:"smooth"});},[allLogs]);
-
-  const switchMode=m=>{ if(m!==mode) setMode(m); };
-  const rData=mode==="research"?SIM_RESEARCH_FRAMES[frame]:null;
-  const dData=mode==="debate"?SIM_DEBATE_FRAMES[frame]:null;
-
-  return(
-    <section id="live-sim" style={{padding:"96px 0"}}>
-      <SectionDivider/>
-      <div ref={ref} className="reveal">
-        <div style={{textAlign:"center",marginBottom:"48px"}}>
-          <span style={{display:"inline-block",padding:"4px 16px",borderRadius:"9999px",border:`1px solid ${C.cyan}45`,color:C.cyan,fontFamily:"JetBrains Mono,monospace",fontSize:"10px",letterSpacing:"0.14em",marginBottom:"14px"}}>✦ LIVE SIMULATION</span>
-          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.5rem)",letterSpacing:"-0.05em",marginBottom:"10px",color:"#fff"}}>Watch the engines <span style={{color:C.green}}>think.</span></h2>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"520px",margin:"0 auto",lineHeight:1.7}}>A live-looping preview of the actual Research Pipeline and Debate Arena visuals — dummy data, real UI.</p>
-        </div>
-
-        <div style={{display:"flex",justifyContent:"center",gap:"10px",marginBottom:"32px"}}>
-          {[{id:"research",label:"Research Pipeline",color:C.cyan},{id:"debate",label:"Debate Arena",color:C.crimson}].map(t=>(
-            <button key={t.id} onClick={()=>switchMode(t.id)} style={{padding:"9px 20px",borderRadius:"9999px",border:`1px solid ${mode===t.id?t.color:"rgba(255,255,255,0.08)"}`,background:mode===t.id?`${t.color}12`:"rgba(255,255,255,0.02)",color:mode===t.id?t.color:"rgba(150,165,180,0.6)",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",letterSpacing:"0.08em",cursor:"pointer",transition:"all 0.3s cubic-bezier(0.16,1,0.3,1)"}}>{t.label}</button>
-          ))}
-        </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:"24px",maxWidth:"980px",margin:"0 auto"}} className="hiw-grid">
-          {/* Visual panel */}
-          <div style={{borderRadius:"20px",padding:"28px",background:"rgba(8,8,20,0.9)",border:"1px solid rgba(255,255,255,0.06)",boxShadow:"0 24px 48px rgba(0,0,0,0.4)",minHeight:"320px",position:"relative",overflow:"hidden"}}>
-            {mode==="research" ? (
-              <div key="research-panel" style={{animation:"fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both"}}>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.cyan,letterSpacing:"0.16em",marginBottom:"20px",opacity:0.8}}>↓ NEURAL PIPELINE</div>
-                <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
-                  {SIM_RESEARCH_AGENTS.map(a=>{
-                    const pct=rData.agents[a.id]||0;
-                    return(
-                      <div key={a.id}>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"6px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-                            <span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px",color:a.color}}>{a.icon}</span>
-                            <span style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11.5px",letterSpacing:"0.08em",color:pct>0?"#fff":"rgba(255,255,255,0.35)"}}>{a.name}</span>
-                          </div>
-                          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10.5px",color:a.color,opacity:pct>0?0.9:0.3}}>{pct}%</span>
-                        </div>
-                        <div style={{height:"6px",borderRadius:"9999px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${pct}%`,borderRadius:"9999px",background:`linear-gradient(90deg,${a.color},${a.color}88)`,transition:"width 1.1s cubic-bezier(0.16,1,0.3,1)",boxShadow:pct>0?`0 0 12px ${a.color}66`:"none"}}/>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{marginTop:"26px",paddingTop:"22px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.35)",letterSpacing:"0.1em"}}>CONFIDENCE</span>
-                  <span style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"22px",color:rData.confidence?C.green:"rgba(255,255,255,0.2)",transition:"color 0.4s"}}>{rData.confidence?`${rData.confidence}%`:"—"}</span>
-                </div>
-                {rData.breakdown.length>0 && (
-                  <div style={{display:"flex",height:"8px",borderRadius:"9999px",overflow:"hidden",marginTop:"10px",background:"rgba(255,255,255,0.05)"}}>
-                    {rData.breakdown.map((b,i)=>(
-                      <div key={i} style={{width:`${b.pct}%`,background:b.color,transition:"width 0.8s cubic-bezier(0.16,1,0.3,1)"}}/>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div key="debate-panel" style={{animation:"fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both"}}>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.crimson,letterSpacing:"0.16em",marginBottom:"20px",opacity:0.8}}>↓ DEBATE ARENA</div>
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"18px"}}>
-                  <div style={{width:"52px",height:"52px",borderRadius:"50%",border:`1px solid ${C.purple}66`,background:`${C.purple}14`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Sora,sans-serif",fontStyle:"italic",fontWeight:800,fontSize:"16px",color:C.purple}}>VS</div>
-                  <div style={{width:"100%"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.1em"}}>FOR {dData.clashPct}%</span>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.crimson,letterSpacing:"0.1em"}}>{100-dData.clashPct}% AGAINST</span>
-                    </div>
-                    <div style={{position:"relative",height:"14px",borderRadius:"9999px",overflow:"hidden",background:"rgba(255,255,255,0.06)"}}>
-                      <div style={{position:"absolute",top:0,bottom:0,left:0,width:`${dData.clashPct}%`,background:`linear-gradient(90deg,rgba(0,255,15,0.9),rgba(0,255,15,0.45))`,transition:"width 1.1s cubic-bezier(0.16,1,0.3,1)"}}/>
-                      <div style={{position:"absolute",top:0,bottom:0,right:0,width:`${100-dData.clashPct}%`,background:`linear-gradient(270deg,rgba(255,32,64,0.9),rgba(255,32,64,0.45))`,transition:"width 1.1s cubic-bezier(0.16,1,0.3,1)"}}/>
-                      <div style={{position:"absolute",top:"-3px",bottom:"-3px",width:"2px",borderRadius:"2px",background:"#fff",left:`calc(${dData.clashPct}% - 1px)`,transition:"left 1.1s cubic-bezier(0.16,1,0.3,1)"}}/>
-                    </div>
-                  </div>
-                  <div style={{width:"100%",marginTop:"8px",minHeight:"60px",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"14px",background:dData.verdict?`${dData.verdict.color}0f`:"rgba(255,255,255,0.02)",border:`1px solid ${dData.verdict?dData.verdict.color+"35":"rgba(255,255,255,0.05)"}`,transition:"all 0.5s ease"}}>
-                    {dData.verdict ? (
-                      <div style={{textAlign:"center",animation:"fadeUp 0.4s ease both"}}>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.14em",marginBottom:"4px"}}>VERDICT</div>
-                        <div style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"20px",color:dData.verdict.color}}>{dData.verdict.winner} wins · {dData.verdict.score}/10</div>
-                      </div>
-                    ):(
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>Awaiting verdict…</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Streaming log panel */}
-          <div style={{display:"flex",flexDirection:"column",borderRadius:"18px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.055)",boxShadow:"0 24px 48px rgba(0,0,0,0.4)"}}>
-            <div style={{padding:"14px 18px",background:"rgba(7,7,18,0.96)",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",alignItems:"center",gap:"7px"}}>
-              <div style={{width:"5px",height:"5px",borderRadius:"50%",background:mode==="research"?C.cyan:C.crimson,animation:"pulse 1.4s ease-in-out infinite"}}/>
-              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.1em"}}>LIVE ACTIVITY LOG</span>
-            </div>
-            <div ref={logRef} style={{flex:1,minHeight:"280px",maxHeight:"280px",overflowY:"auto",background:"#05050f",padding:"16px 20px",fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2}}>
-              {allLogs.length===0 && <span style={{color:"rgba(255,255,255,0.12)"}}>_</span>}
-              {allLogs.map((l,i)=>(
-                <div key={i} style={{animation:"fadeUp 0.35s ease both",color:"rgba(210,220,230,0.85)",marginBottom:"2px"}}>
-                  <span style={{color:"rgba(255,255,255,0.15)",marginRight:"8px"}}>{String(i+1).padStart(2,"0")}</span>{l}
-                </div>
-              ))}
-            </div>
-            <div style={{padding:"10px 18px",background:"rgba(5,5,15,0.96)",borderTop:"1px solid rgba(255,255,255,0.03)"}}>
-              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(255,255,255,0.25)",letterSpacing:"0.06em"}}>Simulated preview · dummy data · no API calls</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ── Final CTA ────────────────────────────────────────────────────────────── */
 function FinalCTA(){
   const ref=useReveal(0.15);
   return(
     <section style={{padding:"128px 32px",textAlign:"center",borderTop:"1px solid rgba(255,255,255,0.04)",position:"relative",overflow:"hidden"}}>
-      <div style={{position:"absolute",inset:0,zIndex:0}}>
-        <CursorGrid
-          cellSize={64}
-          color={C.green}
-          radius={160}
-          fadeDuration={700}
-          lineWidth={1}
-          maxOpacity={0.55}
-          fillOpacity={0.03}
-          gridOpacity={0.02}
-          clickPulse
-          pulseSpeed={500}
-        />
-      </div>
-      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"700px",height:"700px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,255,15,0.035) 0%,transparent 68%)",pointerEvents:"none",zIndex:1}}/>
-      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"500px",height:"500px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,204,255,0.02) 0%,transparent 68%)",pointerEvents:"none",zIndex:1}}/>
-      <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.012) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 70% 60% at 50% 50%,black 20%,transparent 100%)",zIndex:1}}/>
-      <div ref={ref} className="reveal" style={{position:"relative",zIndex:2}}>
+      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"700px",height:"700px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,255,15,0.035) 0%,transparent 68%)",pointerEvents:"none"}}/>
+      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"500px",height:"500px",borderRadius:"50%",background:"radial-gradient(circle,rgba(0,204,255,0.02) 0%,transparent 68%)",pointerEvents:"none"}}/>
+      <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.012) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 70% 60% at 50% 50%,black 20%,transparent 100%)"}}/>
+      <div ref={ref} className="reveal">
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"20px",opacity:0.7}}>START RESEARCHING</p>
         <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.8rem,8vw,7rem)",lineHeight:0.88,letterSpacing:"-0.065em",color:"#fff",marginBottom:"52px"}}>Ready to<br/>research deeper?</h2>
         <div style={{display:"inline-flex",flexDirection:"column",alignItems:"center",gap:"20px"}}>
@@ -2059,7 +2568,7 @@ function DeveloperCard(){
     <section style={{padding:"80px 0"}}>
       <SectionDivider/>
       <div style={{display:"flex",justifyContent:"center"}}>
-        <div ref={ref} className="reveal" style={{maxWidth:"480px",width:"100%",padding:"44px 36px",borderRadius:"24px",display:"flex",flexDirection:"column",alignItems:"center",gap:"22px",background:"rgba(8,8,20,0.88)",backdropFilter:"blur(28px)",border:"1px solid rgba(0,255,15,0.08)",textAlign:"center",position:"relative",overflow:"hidden",boxShadow:"0 40px 80px rgba(0,0,0,0.4)"}}>
+        <div ref={ref} className="reveal corner-brackets" style={{maxWidth:"480px",width:"100%",padding:"44px 36px",borderRadius:"24px",display:"flex",flexDirection:"column",alignItems:"center",gap:"22px",background:"rgba(8,8,20,0.88)",backdropFilter:"blur(28px)",border:"1px solid rgba(0,255,15,0.08)",textAlign:"center",position:"relative",overflow:"hidden",boxShadow:"0 40px 80px rgba(0,0,0,0.4)",color:C.green}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.green}50,transparent)`}}/>
           <div style={{position:"relative"}}>
             <div style={{width:"112px",height:"112px",borderRadius:"50%",overflow:"hidden",border:`2px solid rgba(0,255,15,0.4)`,boxShadow:`0 0 30px rgba(0,255,15,0.15),0 0 60px rgba(0,255,15,0.06)`}}>
@@ -2105,6 +2614,114 @@ function Footer(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   PDF LAB SECTION
+══════════════════════════════════════════════════════════════════════════ */
+function PDFLabSection(){
+  const ref = useReveal(0.08);
+  const STAGES = [
+    {label:"Signature check",   icon:"fingerprint",     desc:"Validates real magic bytes before anything else touches the file"},
+    {label:"Embedded JS scan",  icon:"javascript",      desc:"Rejects PDFs carrying embedded scripts"},
+    {label:"Malware signatures",icon:"security",        desc:"Pattern-matches against known malicious payloads"},
+    {label:"RAG indexing",      icon:"auto_stories",    desc:"Chunks, embeds, and indexes for cross-PDF Q&A"},
+  ];
+  const [activeStage,setActiveStage]=useState(0);
+  useEffect(()=>{
+    const iv=setInterval(()=>setActiveStage(s=>(s+1)%STAGES.length),1800);
+    return()=>clearInterval(iv);
+  },[]);
+  return(
+    <section style={{padding:"80px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"40px"}} className="hiw-grid">
+          <div>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.cyan,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ PDF Lab</p>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Documents,<br/>interrogated.</h2>
+          </div>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Drag in a PDF and it's screened, indexed, and ready for Q&A — with multi-PDF cross-referencing.</p>
+        </div>
+
+        <div className="chamber-card-premium" style={{borderRadius:"28px",padding:"2px",background:"linear-gradient(135deg,rgba(0,204,255,0.3),rgba(0,255,15,0.1),rgba(168,85,247,0.08),rgba(0,204,255,0.06))",boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)"}}>
+          <div style={{borderRadius:"27px",overflow:"hidden",background:"rgba(3,3,13,0.98)",backdropFilter:"blur(28px)",padding:"36px 32px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"36px",alignItems:"center"}} className="hiw-grid">
+              <div>
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.cyan,letterSpacing:"0.12em",marginBottom:"18px",opacity:0.85}}>SECURITY VALIDATION PIPELINE</p>
+                <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                  {STAGES.map((st,i)=>{
+                    const isActive=activeStage===i;
+                    return(
+                      <div key={st.label} style={{display:"flex",alignItems:"center",gap:"14px",padding:"12px 14px",borderRadius:"12px",border:`1px solid ${isActive?C.cyan+"55":"rgba(255,255,255,0.05)"}`,background:isActive?`${C.cyan}0d`:"transparent",boxShadow:isActive?`0 0 20px ${C.cyan}18`:"none",transition:"all 0.4s cubic-bezier(0.23,1,0.32,1)"}}>
+                        <div style={{width:"32px",height:"32px",borderRadius:"9px",display:"flex",alignItems:"center",justifyContent:"center",background:isActive?`${C.cyan}20`:"rgba(255,255,255,0.04)",border:`1px solid ${isActive?C.cyan+"70":"rgba(255,255,255,0.07)"}`,flexShrink:0,transition:"all 0.4s ease"}}>
+                          <span style={{fontFamily:"Material Symbols Outlined",fontSize:"16px",color:isActive?C.cyan:"rgba(180,200,220,0.4)"}}>{st.icon}</span>
+                        </div>
+                        <div>
+                          <p style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"13px",color:isActive?"#fff":"rgba(200,212,228,0.65)",margin:0,transition:"color 0.3s"}}>{st.label}</p>
+                          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"11.5px",color:"rgba(130,148,168,0.55)",margin:"3px 0 0"}}>{st.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <PDFDropZone/>
+                <div style={{display:"flex",flexWrap:"wrap",gap:"7px",marginTop:"18px",justifyContent:"center"}}>
+                  {[{icon:"layers",label:"Multi-PDF cross-reference"},{icon:"question_answer",label:"Full RAG Q&A"},{icon:"shield",label:"Security-scanned uploads"}].map(c=>(
+                    <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.cyan}28`,background:"rgba(0,204,255,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.cyan,letterSpacing:"0.04em"}}>
+                      <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   WHY POLYNOUS — ORIGIN STORY SECTION
+══════════════════════════════════════════════════════════════════════════ */
+function StorySection(){
+  const ref = useReveal(0.1);
+  const beats = [
+    {icon:"psychology_alt", color:C.crimson, title:"One model, one guess.", body:"Ask a single LLM a hard question and you get its best guess — confident-sounding, unsourced, and impossible to audit. No indication of what it's unsure about."},
+    {icon:"groups",         color:C.amber,   title:"So we built a team, not a guess.", body:"POLYNOUS doesn't answer alone. It searches, condenses, cross-examines, and only then writes — the way a real research team would, with each stage checking the last."},
+    {icon:"gavel",          color:C.gold,    title:"And for the questions with two sides —", body:"— it doesn't pick one. It runs a formal debate, FOR against AGAINST, and lets an impartial judge score the argument, not the answer you wanted."},
+    {icon:"visibility",     color:C.green,   title:"Every claim, traceable.", body:"Confidence scores. Inline citations. Named limitations. You see exactly how sure POLYNOUS is, and why — instead of trusting a black box."},
+  ];
+  return(
+    <section id="why" style={{padding:"96px 0 64px"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal" style={{marginBottom:"56px",textAlign:"center",maxWidth:"760px",marginLeft:"auto",marginRight:"auto"}}>
+        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.crimson,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Why POLYNOUS exists</p>
+        <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.6rem)",lineHeight:1.02,letterSpacing:"-0.05em",color:"#fff",margin:"0 0 20px"}}>A single model will always<br/>tell you it's right.</h2>
+        <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16.5px",color:"rgba(150,164,182,0.85)",lineHeight:1.75,margin:0}}>That's the quiet problem with most AI answers — not that they're wrong, but that they never say how sure they are, or show their work. POLYNOUS was built on a simple bet: research gets more honest when it's argued out loud, not generated in one breath.</p>
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:"1px",background:"rgba(255,255,255,0.04)",borderRadius:"20px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.05)"}}>
+        {beats.map((b,i)=>{
+          const bref=useReveal(0.15);
+          return(
+            <div key={b.title} ref={bref} className="reveal" style={{transitionDelay:`${i*0.08}s`,display:"grid",gridTemplateColumns:"64px 1fr",gap:"22px",padding:"30px 32px",background:"rgba(6,6,16,0.92)",alignItems:"flex-start"}}>
+              <div style={{width:"48px",height:"48px",borderRadius:"14px",background:`${b.color}14`,border:`1px solid ${b.color}35`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${b.color}18`}}>
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:b.color}}>{b.icon}</span>
+              </div>
+              <div>
+                <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"clamp(1.1rem,1.8vw,1.4rem)",color:"#fff",letterSpacing:"-0.02em",margin:"0 0 8px"}}>{b.title}</h3>
+                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"15px",color:"rgba(150,164,182,0.8)",lineHeight:1.7,margin:0}}>{b.body}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    ROOT APP
 ══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage(){
@@ -2126,31 +2743,26 @@ export default function LandingPage(){
     <>
       <div className="noise-overlay"/>
       <NeuralCanvas/>
+      <ScrollProgressBar/>
       <main style={{position:"relative",zIndex:10,minHeight:"100vh"}}>
         <Header/>
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
           <HeroSection/>
+          <StorySection/>
           <HowItWorksSection/>
-          <div style={{height:"180px",margin:"24px 0 8px",pointerEvents:"none"}}>
-            <div style={{pointerEvents:"auto",height:"100%"}}>
-              <CurvedLoop
-                marqueeText="Many Minds ✦ One Answer ✦ Seven Agents ✦ Zero Guesswork ✦"
-                speed={0.5}
-                curveAmount={140}
-                direction="left"
-                interactive={true}
-                className="curved-loop-text"
-              />
-            </div>
-          </div>
           <ApiSection/>
           <FeaturesSection/>
           <PipelineSection/>
           <TechHighlights/>
-          <ExampleSection/>
-          <KnowledgeGraphSection/>
           <AgentPlayground/>
-          <LiveSimSection/>
+          <ResearchChamberSection/>
+          <DebateChamberSection/>
+          <KnowledgeGraphSection/>
+          <MemoryBankSection/>
+          <PDFLabSection/>
+          <NeuralAnalyticsSection/>
+          <SettingsSection/>
+          <ExampleSection/>
         </div>
         <FinalCTA/>
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
