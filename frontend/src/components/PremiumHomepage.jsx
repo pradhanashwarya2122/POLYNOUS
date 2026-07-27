@@ -179,11 +179,17 @@ const GLOBAL_STYLES = `
   /* ScrollReveal manifesto — keep body-copy scale (component ships no font size) */
   .story-manifesto { text-align:center; }
   .story-manifesto .scroll-reveal-text { font-family:'Hanken Grotesk',sans-serif; font-size:16.5px; color:rgba(150,164,182,0.85); line-height:1.75; }
-  /* ScrollVelocity marquee — mono, spaced, faint, framed by hairlines */
-  .tech-velocity { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; letter-spacing:0.14em; color:rgba(150,170,200,0.34); text-transform:uppercase; padding-right:42px; }
-  /* CurvedLoop divider — the jacket fills its host; give it a fixed band + palette */
+  /* ScrollVelocity marquee — large, animated multi-colour gradient, premium */
+  .tech-velocity { font-family:'Sora',sans-serif; font-size:clamp(22px,2.8vw,34px); font-weight:800; letter-spacing:0.05em; text-transform:uppercase; padding-right:52px;
+    background:linear-gradient(90deg,#00ff0f,#00ccff,#a855f7,#ffd700,#00ff0f); background-size:220% auto;
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+    animation:borderFlow 7s linear infinite; filter:drop-shadow(0 0 18px rgba(0,204,255,0.14)); }
+  .scroll-velocity-wrap { gap:4px; }
+  /* CurvedLoop dividers — fixed band, soft glow; the second is slower + cyan-lean */
   .curved-divider { height:150px; margin:8px 0; color:rgba(0,255,15,0.5); }
-  .curved-divider .curved-loop-text-el { fill:currentColor; font-family:'Sora',sans-serif; font-weight:800; font-size:30px; letter-spacing:0.08em; }
+  .curved-divider .curved-loop-text-el { fill:currentColor; font-family:'Sora',sans-serif; font-weight:800; font-size:30px; letter-spacing:0.1em; filter:drop-shadow(0 0 12px rgba(0,255,15,0.22)); }
+  .curved-divider-2 { color:rgba(0,204,255,0.55); }
+  .curved-divider-2 .curved-loop-text-el { filter:drop-shadow(0 0 14px rgba(0,204,255,0.28)); }
 `;
 
 const NAV_SECTIONS = [
@@ -1856,10 +1862,10 @@ function TechHighlights(){
           <span>Provider · model badge</span>
         </div>
       </div>
-      <div style={{margin:"6px 0 20px",padding:"14px 0",borderTop:"1px solid rgba(255,255,255,0.045)",borderBottom:"1px solid rgba(255,255,255,0.045)"}}>
+      <div style={{margin:"10px 0 26px",padding:"28px 0",position:"relative",borderTop:"1px solid rgba(255,255,255,0.05)",borderBottom:"1px solid rgba(255,255,255,0.05)",background:"linear-gradient(90deg,transparent,rgba(0,255,15,0.02),rgba(0,204,255,0.02),rgba(168,85,247,0.02),transparent)",overflow:"hidden"}}>
         <ScrollVelocity
           texts={["FASTAPI · LANGGRAPH · NEO4J · PINECONE · DOCKER · ", "SSE STREAMING · FERNET ENCRYPTION · CORS · REST · "]}
-          velocity={38} numCopies={6} className="tech-velocity"
+          velocity={14} numCopies={6} className="tech-velocity"
         />
       </div>
       <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
@@ -2550,6 +2556,8 @@ function SettingsSection(){
 /* ── Agent Playground ─────────────────────────────────────────────────────── */
 function AgentPlayground(){
   const ref=useReveal(0.08);
+  const tilesRef=useRef(null);
+  const hexToRgb=(c)=>{const n=parseInt((c||"#00ff0f").slice(1),16);return `${(n>>16)&255},${(n>>8)&255},${n&255}`;};
   const[selected,setSelected]=useState(null);
   const[log,setLog]=useState([]);
   const[running,setRunning]=useState(false);
@@ -2578,11 +2586,12 @@ function AgentPlayground(){
           <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"460px",margin:"0 auto",lineHeight:1.7}}>Click any agent tile to simulate its inner monologue — no backend required.</p>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"24px",maxWidth:"940px",margin:"0 auto"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",alignContent:"start"}}>
+          <div ref={tilesRef} style={{position:"relative",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",alignContent:"start"}}>
+            <GlobalSpotlight gridRef={tilesRef} spotlightRadius={300} glowColor="168,85,247"/>
             {PLAYGROUND_AGENTS.map(agent=>{
               const isSel=selected===agent.id;
               return(
-                <button key={agent.id} className="agent-btn" onClick={()=>run(agent)} style={{padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color:"rgba(255,255,255,0.06)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
+                <button key={agent.id} className="agent-btn magic-bento-card--border-glow" onClick={()=>run(agent)} style={{"--glow-color":hexToRgb(agent.color),padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color:"rgba(255,255,255,0.06)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
                   <div style={{fontFamily:"Material Symbols Outlined",fontSize:"21px",marginBottom:"6px",color:isSel?agent.color:"rgba(180,195,210,0.55)"}}>{agent.icon}</div>
                   <div style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11px",letterSpacing:"0.1em"}}>{agent.name}</div>
                   {isSel&&<div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8px",marginTop:"4px",opacity:0.55,color:agent.color}}>● ACTIVE</div>}
@@ -2853,12 +2862,12 @@ export default function LandingPage(){
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
           <HeroSection/>
           <StorySection/>
-          <CurvedLoop marqueeText="ASK ✦ GATHER ✦ CHALLENGE ✦ SYNTHESIZE ✦ " speed={2} curveAmount={180} interactive className="curved-divider"/>
+          <CurvedLoop marqueeText="ASK ✦ GATHER ✦ CHALLENGE ✦ SYNTHESIZE ✦ " speed={1} curveAmount={180} interactive className="curved-divider"/>
           <HowItWorksSection/>
           <ApiSection/>
           <FeaturesSection/>
           <PipelineSection/>
-          <CurvedLoop marqueeText="MANY MINDS ✦ ONE ANSWER ✦ " speed={2} curveAmount={160} direction="right" interactive className="curved-divider"/>
+          <CurvedLoop marqueeText="MANY MINDS ✦ ONE ANSWER ✦ " speed={0.6} curveAmount={140} direction="right" interactive className="curved-divider curved-divider-2"/>
           <TechHighlights/>
           <AgentPlayground/>
           <ResearchChamberSection/>
