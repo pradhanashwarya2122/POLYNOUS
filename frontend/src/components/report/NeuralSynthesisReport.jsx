@@ -430,6 +430,15 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
         <div style={{ height:2,width:44,background:`linear-gradient(90deg, ${accent}, transparent)`,borderRadius:2,marginTop:11 }} />
       </div>
 
+      {/* Prominent, explicit spend headline for this run */}
+      <div style={{ display:"flex",alignItems:"baseline",gap:12,flexWrap:"wrap",background:`${accent}0f`,border:`1px solid ${accent}33`,borderRadius:12,padding:"14px 18px",marginBottom:16 }}>
+        <Icon name="payments" style={{ fontSize:22,color:accent,alignSelf:"center" }} />
+        <span style={{ fontFamily:"'Sora',sans-serif",fontSize:30,fontWeight:800,color:"#fff",lineHeight:1 }}>{fmtCost(cost.usd)}</span>
+        <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:12.5,color:C.textSecondary }}>
+          spent on your key this run{typeof cost.usd === "number" ? " · estimated from list prices" : " — provider didn't report token usage"}
+        </span>
+      </div>
+
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom: stages.length ? 18 : 0 }}>
         {tiles.map((tile) => (
           <div key={tile.label} style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"12px 14px" }}>

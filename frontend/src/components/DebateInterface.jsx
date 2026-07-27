@@ -905,7 +905,15 @@ function DebateTelemetryCard({ telemetry }) {
           </span>
         ))}
       </div>
-      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 800, color: "#fff", margin: "0 0 14px" }}>Run Telemetry</h3>
+      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 800, color: "#fff", margin: "0 0 12px" }}>Run Telemetry</h3>
+      {/* Prominent, explicit spend headline for this debate */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", background: `${accent}12`, border: `1px solid ${accent}33`, borderRadius: 12, padding: "14px 18px", marginBottom: 14 }}>
+        <Icon name="payments" style={{ fontSize: 22, color: accent, alignSelf: "center" }} />
+        <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 30, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{fmtCost(cost.usd)}</span>
+        <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary }}>
+          spent on your key this debate{typeof cost.usd === "number" ? " · estimated from list prices" : " — provider didn't report token usage"}
+        </span>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: stages.length ? 16 : 0 }}>
         {tiles.map((tile) => (
           <div key={tile.label} style={{ background: C.white5, border: `1px solid ${C.white10}`, borderRadius: 12, padding: "12px 14px" }}>
