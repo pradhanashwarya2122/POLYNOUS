@@ -1,0 +1,3 @@
+.scroll-velocity-wrap { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.scroll-velocity-row { overflow: hidden; white-space: nowrap; }
+.scroll-velocity-track { display: inline-block; will-change: transform; white-space: nowrap; }

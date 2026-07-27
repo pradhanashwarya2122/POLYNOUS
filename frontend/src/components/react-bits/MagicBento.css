@@ -1,0 +1,36 @@
+.magic-bento-global-spotlight {
+  position: fixed;
+  top: 0; left: 0;
+  width: var(--spotlight-radius, 280px);
+  height: var(--spotlight-radius, 280px);
+  margin-left: calc(var(--spotlight-radius, 280px) / -2);
+  margin-top: calc(var(--spotlight-radius, 280px) / -2);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(circle, rgba(var(--spotlight-color, 0,255,15), 0.06) 0%, transparent 70%);
+}
+
+.magic-bento-card--border-glow {
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-intensity: 0;
+  position: relative;
+}
+.magic-bento-card--border-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: radial-gradient(220px circle at var(--glow-x) var(--glow-y),
+    rgba(var(--glow-color, 0,255,15), calc(var(--glow-intensity) * 0.9)) 0%, transparent 65%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+}

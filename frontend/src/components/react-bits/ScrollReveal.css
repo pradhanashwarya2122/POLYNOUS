@@ -1,0 +1,2 @@
+.scroll-reveal { transform-origin: 0% 50%; will-change: transform; }
+.scroll-reveal-text .sr-word { display: inline-block; will-change: opacity, filter; }

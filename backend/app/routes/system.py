@@ -21,6 +21,54 @@ from app.cors_config import ALLOWED_ORIGINS
 router = APIRouter()
 
 
+def _running_commit() -> str:
+    """Best-effort git SHA of the build actually running. Railway injects
+    RAILWAY_GIT_COMMIT_SHA at deploy time; fall back to reading .git locally."""
+    for var in ("RAILWAY_GIT_COMMIT_SHA", "GIT_COMMIT", "SOURCE_COMMIT", "COMMIT_SHA"):
+        v = os.getenv(var)
+        if v:
+            return v
+    try:
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2]
+        head = (root / ".git" / "HEAD").read_text(encoding="utf-8").strip()
+        if head.startswith("ref:"):
+            ref = head.split(" ", 1)[1].strip()
+            return (root / ".git" / ref).read_text(encoding="utf-8").strip()
+        return head  # detached HEAD already holds the SHA
+    except Exception:
+        return ""
+
+
+@router.get("/version")
+async def version(request: Request):
+    """Which build is this server actually running? Public, no auth — so you can
+    curl it and see the commit + whether the newest feature routes are live.
+    If `all_features_live` is false, the running build predates those routes
+    (i.e. this deployment is stale)."""
+    from datetime import datetime, timezone
+    commit = _running_commit()
+    paths = {getattr(r, "path", "") for r in request.app.routes}
+    feature_routes = {
+        "/report/chat": "/report/chat" in paths,
+        "/debate/rejudge": "/debate/rejudge" in paths,
+        "/debate/cross-exam": "/debate/cross-exam" in paths,
+        "/debate/respond": "/debate/respond" in paths,
+        "/settings/usage": "/settings/usage" in paths,
+        "/evals/run": "/evals/run" in paths,
+    }
+    return {
+        "commit": (commit[:12] if commit else "unknown"),
+        "commit_full": commit or None,
+        "branch": os.getenv("RAILWAY_GIT_BRANCH"),
+        "commit_message": os.getenv("RAILWAY_GIT_COMMIT_MESSAGE"),
+        "routes_total": len(paths),
+        "feature_routes": feature_routes,
+        "all_features_live": all(feature_routes.values()),
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/")
 async def root():
     db_healthy, db_msg = check_database_connection()

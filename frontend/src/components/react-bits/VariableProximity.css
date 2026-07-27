@@ -1,0 +1,3 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap');
+.variable-proximity { font-family: 'Roboto Flex', sans-serif; display: inline-block; }
+.variable-proximity .vp-char { transition: font-variation-settings 0.08s linear; will-change: font-variation-settings; }
