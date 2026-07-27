@@ -182,6 +182,7 @@ const NAV_SECTIONS = [
   {label:"Features",     id:"features"},
   {label:"Pipeline",     id:"pipeline"},
   {label:"Agents",       id:"playground"},
+  {label:"Simulation",   id:"live-sim"},
 ];
 
 const STEPS = [
@@ -1843,6 +1844,170 @@ function AgentPlayground(){
   );
 }
 
+/* ── Live Simulation Preview (dummy playback of the real Research/Debate engines) ── */
+const SIM_RESEARCH_FRAMES = [
+  {agents:{search:22,summarise:0,critic:0,writer:0},   logs:["🔎 SEARCH — querying live web sources…"],                                              confidence:null, breakdown:[]},
+  {agents:{search:100,summarise:38,critic:0,writer:0}, logs:["🔎 SEARCH — 12 sources retrieved, deduping…","📄 SUMMARISE — condensing 12 sources…"],   confidence:null, breakdown:[]},
+  {agents:{search:100,summarise:100,critic:44,writer:0},logs:["📄 SUMMARISE — key claims extracted.","⚖️ CRITIC — checking cross-source agreement…"],  confidence:null, breakdown:[]},
+  {agents:{search:100,summarise:100,critic:100,writer:52},logs:["⚖️ CRITIC — consensus measured across 12 sources.","✍️ WRITER — drafting cited synthesis…"], confidence:61, breakdown:[{label:"Agreement cluster A",pct:52,color:"#00ff0f"},{label:"Agreement cluster B",pct:9,color:"#00ccff"}]},
+  {agents:{search:100,summarise:100,critic:100,writer:100},logs:["✍️ WRITER — synthesis complete, citations linked.","✅ Done — 12 sources · 8 in agreement"], confidence:74, breakdown:[{label:"Agreement cluster A",pct:67,color:"#00ff0f"},{label:"Agreement cluster B",pct:25,color:"#00ccff"},{label:"Outliers",pct:8,color:"#ff2040"}]},
+];
+const SIM_DEBATE_FRAMES = [
+  {clashPct:50, logs:["⚔️ EVIDENCE — both sides gathering sources…"],                              verdict:null},
+  {clashPct:59, logs:["⚔️ EVIDENCE — 9 sources found.","🟢 FOR opens — cites 4 peer-reviewed studies."], verdict:null},
+  {clashPct:46, logs:["🔴 AGAINST rebuts — challenges methodology in 2 of 4 sources."],              verdict:null},
+  {clashPct:64, logs:["🟢 FOR rebuttal — reinforces claim with 2 new citations."],                   verdict:null},
+  {clashPct:64, logs:["👨‍⚖️ JUDGE — weighing evidence and logical consistency…"],                    verdict:null},
+  {clashPct:64, logs:["🏁 Verdict — FOR wins, 7.5 / 10"],                                            verdict:{winner:"FOR",score:"7.5",color:"#00ff0f"}},
+];
+const SIM_RESEARCH_AGENTS=[
+  {id:"search",   name:"SEARCH",    icon:"travel_explore", color:C.cyan},
+  {id:"summarise",name:"SUMMARISE", icon:"description",    color:C.indigo},
+  {id:"critic",   name:"CRITIC",    icon:"balance",         color:C.amber},
+  {id:"writer",   name:"WRITER",    icon:"auto_stories",    color:C.purple},
+];
+
+function LiveSimSection(){
+  const ref=useReveal(0.1);
+  const[mode,setMode]=useState("research");
+  const[frame,setFrame]=useState(0);
+  const[allLogs,setAllLogs]=useState([]);
+  const logRef=useRef(null);
+  const modeRef=useRef(mode);
+  useEffect(()=>{modeRef.current=mode;},[mode]);
+
+  useEffect(()=>{
+    setFrame(0);setAllLogs([]);
+    let i=-1;
+    const frames=mode==="research"?SIM_RESEARCH_FRAMES:SIM_DEBATE_FRAMES;
+    const tick=()=>{
+      i++;
+      if(i>=frames.length){
+        setTimeout(()=>{ if(modeRef.current===mode) setMode(mode==="research"?"debate":"research"); },2200);
+        return;
+      }
+      setFrame(i);
+      setAllLogs(prev=>[...prev,...frames[i].logs]);
+      timer=setTimeout(tick,1450);
+    };
+    let timer=setTimeout(tick,500);
+    return()=>clearTimeout(timer);
+  },[mode]);
+
+  useEffect(()=>{logRef.current?.scrollTo({top:logRef.current.scrollHeight,behavior:"smooth"});},[allLogs]);
+
+  const switchMode=m=>{ if(m!==mode) setMode(m); };
+  const rData=mode==="research"?SIM_RESEARCH_FRAMES[frame]:null;
+  const dData=mode==="debate"?SIM_DEBATE_FRAMES[frame]:null;
+
+  return(
+    <section id="live-sim" style={{padding:"96px 0"}}>
+      <SectionDivider/>
+      <div ref={ref} className="reveal">
+        <div style={{textAlign:"center",marginBottom:"48px"}}>
+          <span style={{display:"inline-block",padding:"4px 16px",borderRadius:"9999px",border:`1px solid ${C.cyan}45`,color:C.cyan,fontFamily:"JetBrains Mono,monospace",fontSize:"10px",letterSpacing:"0.14em",marginBottom:"14px"}}>✦ LIVE SIMULATION</span>
+          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.5rem)",letterSpacing:"-0.05em",marginBottom:"10px",color:"#fff"}}>Watch the engines <span style={{color:C.green}}>think.</span></h2>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"520px",margin:"0 auto",lineHeight:1.7}}>A live-looping preview of the actual Research Pipeline and Debate Arena visuals — dummy data, real UI.</p>
+        </div>
+
+        <div style={{display:"flex",justifyContent:"center",gap:"10px",marginBottom:"32px"}}>
+          {[{id:"research",label:"Research Pipeline",color:C.cyan},{id:"debate",label:"Debate Arena",color:C.crimson}].map(t=>(
+            <button key={t.id} onClick={()=>switchMode(t.id)} style={{padding:"9px 20px",borderRadius:"9999px",border:`1px solid ${mode===t.id?t.color:"rgba(255,255,255,0.08)"}`,background:mode===t.id?`${t.color}12`:"rgba(255,255,255,0.02)",color:mode===t.id?t.color:"rgba(150,165,180,0.6)",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",letterSpacing:"0.08em",cursor:"pointer",transition:"all 0.3s cubic-bezier(0.16,1,0.3,1)"}}>{t.label}</button>
+          ))}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:"24px",maxWidth:"980px",margin:"0 auto"}} className="hiw-grid">
+          {/* Visual panel */}
+          <div style={{borderRadius:"20px",padding:"28px",background:"rgba(8,8,20,0.9)",border:"1px solid rgba(255,255,255,0.06)",boxShadow:"0 24px 48px rgba(0,0,0,0.4)",minHeight:"320px",position:"relative",overflow:"hidden"}}>
+            {mode==="research" ? (
+              <div key="research-panel" style={{animation:"fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both"}}>
+                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.cyan,letterSpacing:"0.16em",marginBottom:"20px",opacity:0.8}}>↓ NEURAL PIPELINE</div>
+                <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
+                  {SIM_RESEARCH_AGENTS.map(a=>{
+                    const pct=rData.agents[a.id]||0;
+                    return(
+                      <div key={a.id}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"6px"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                            <span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px",color:a.color}}>{a.icon}</span>
+                            <span style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11.5px",letterSpacing:"0.08em",color:pct>0?"#fff":"rgba(255,255,255,0.35)"}}>{a.name}</span>
+                          </div>
+                          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10.5px",color:a.color,opacity:pct>0?0.9:0.3}}>{pct}%</span>
+                        </div>
+                        <div style={{height:"6px",borderRadius:"9999px",background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${pct}%`,borderRadius:"9999px",background:`linear-gradient(90deg,${a.color},${a.color}88)`,transition:"width 1.1s cubic-bezier(0.16,1,0.3,1)",boxShadow:pct>0?`0 0 12px ${a.color}66`:"none"}}/>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{marginTop:"26px",paddingTop:"22px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.35)",letterSpacing:"0.1em"}}>CONFIDENCE</span>
+                  <span style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"22px",color:rData.confidence?C.green:"rgba(255,255,255,0.2)",transition:"color 0.4s"}}>{rData.confidence?`${rData.confidence}%`:"—"}</span>
+                </div>
+                {rData.breakdown.length>0 && (
+                  <div style={{display:"flex",height:"8px",borderRadius:"9999px",overflow:"hidden",marginTop:"10px",background:"rgba(255,255,255,0.05)"}}>
+                    {rData.breakdown.map((b,i)=>(
+                      <div key={i} style={{width:`${b.pct}%`,background:b.color,transition:"width 0.8s cubic-bezier(0.16,1,0.3,1)"}}/>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div key="debate-panel" style={{animation:"fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both"}}>
+                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.crimson,letterSpacing:"0.16em",marginBottom:"20px",opacity:0.8}}>↓ DEBATE ARENA</div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"18px"}}>
+                  <div style={{width:"52px",height:"52px",borderRadius:"50%",border:`1px solid ${C.purple}66`,background:`${C.purple}14`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Sora,sans-serif",fontStyle:"italic",fontWeight:800,fontSize:"16px",color:C.purple}}>VS</div>
+                  <div style={{width:"100%"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}>
+                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.green,letterSpacing:"0.1em"}}>FOR {dData.clashPct}%</span>
+                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:C.crimson,letterSpacing:"0.1em"}}>{100-dData.clashPct}% AGAINST</span>
+                    </div>
+                    <div style={{position:"relative",height:"14px",borderRadius:"9999px",overflow:"hidden",background:"rgba(255,255,255,0.06)"}}>
+                      <div style={{position:"absolute",top:0,bottom:0,left:0,width:`${dData.clashPct}%`,background:`linear-gradient(90deg,rgba(0,255,15,0.9),rgba(0,255,15,0.45))`,transition:"width 1.1s cubic-bezier(0.16,1,0.3,1)"}}/>
+                      <div style={{position:"absolute",top:0,bottom:0,right:0,width:`${100-dData.clashPct}%`,background:`linear-gradient(270deg,rgba(255,32,64,0.9),rgba(255,32,64,0.45))`,transition:"width 1.1s cubic-bezier(0.16,1,0.3,1)"}}/>
+                      <div style={{position:"absolute",top:"-3px",bottom:"-3px",width:"2px",borderRadius:"2px",background:"#fff",left:`calc(${dData.clashPct}% - 1px)`,transition:"left 1.1s cubic-bezier(0.16,1,0.3,1)"}}/>
+                    </div>
+                  </div>
+                  <div style={{width:"100%",marginTop:"8px",minHeight:"60px",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"14px",background:dData.verdict?`${dData.verdict.color}0f`:"rgba(255,255,255,0.02)",border:`1px solid ${dData.verdict?dData.verdict.color+"35":"rgba(255,255,255,0.05)"}`,transition:"all 0.5s ease"}}>
+                    {dData.verdict ? (
+                      <div style={{textAlign:"center",animation:"fadeUp 0.4s ease both"}}>
+                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.14em",marginBottom:"4px"}}>VERDICT</div>
+                        <div style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"20px",color:dData.verdict.color}}>{dData.verdict.winner} wins · {dData.verdict.score}/10</div>
+                      </div>
+                    ):(
+                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>Awaiting verdict…</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Streaming log panel */}
+          <div style={{display:"flex",flexDirection:"column",borderRadius:"18px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.055)",boxShadow:"0 24px 48px rgba(0,0,0,0.4)"}}>
+            <div style={{padding:"14px 18px",background:"rgba(7,7,18,0.96)",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",alignItems:"center",gap:"7px"}}>
+              <div style={{width:"5px",height:"5px",borderRadius:"50%",background:mode==="research"?C.cyan:C.crimson,animation:"pulse 1.4s ease-in-out infinite"}}/>
+              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.1em"}}>LIVE ACTIVITY LOG</span>
+            </div>
+            <div ref={logRef} style={{flex:1,minHeight:"280px",maxHeight:"280px",overflowY:"auto",background:"#05050f",padding:"16px 20px",fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2}}>
+              {allLogs.length===0 && <span style={{color:"rgba(255,255,255,0.12)"}}>_</span>}
+              {allLogs.map((l,i)=>(
+                <div key={i} style={{animation:"fadeUp 0.35s ease both",color:"rgba(210,220,230,0.85)",marginBottom:"2px"}}>
+                  <span style={{color:"rgba(255,255,255,0.15)",marginRight:"8px"}}>{String(i+1).padStart(2,"0")}</span>{l}
+                </div>
+              ))}
+            </div>
+            <div style={{padding:"10px 18px",background:"rgba(5,5,15,0.96)",borderTop:"1px solid rgba(255,255,255,0.03)"}}>
+              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:"rgba(255,255,255,0.25)",letterSpacing:"0.06em"}}>Simulated preview · dummy data · no API calls</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Final CTA ────────────────────────────────────────────────────────────── */
 function FinalCTA(){
   const ref=useReveal(0.15);
@@ -1985,6 +2150,7 @@ export default function LandingPage(){
           <ExampleSection/>
           <KnowledgeGraphSection/>
           <AgentPlayground/>
+          <LiveSimSection/>
         </div>
         <FinalCTA/>
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
