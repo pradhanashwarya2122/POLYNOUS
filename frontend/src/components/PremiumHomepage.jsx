@@ -7,7 +7,7 @@ import BlurText from "./react-bits/BlurText";
 import ScrollReveal from "./react-bits/ScrollReveal";
 import ScrollFloat from "./react-bits/ScrollFloat";
 import ScrollVelocity from "./react-bits/ScrollVelocity";
-import CurvedLoop from "./react-bits/CurvedLoop";
+
 import CursorGrid from "./react-bits/CursorGrid";
 import ScrambledText from "./react-bits/ScrambledText";
 import { GlobalSpotlight } from "./react-bits/MagicBento";
@@ -2932,7 +2932,7 @@ export default function LandingPage(){
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>
           <HeroSection/>
           <StorySection/>
-          <CurvedLoop marqueeText="ASK ✦ GATHER ✦ CHALLENGE ✦ SYNTHESIZE ✦ " speed={1} curveAmount={180} interactive className="curved-divider"/>
+          
           <HowItWorksSection/>
           <ApiSection/>
           <FeaturesSection/>
