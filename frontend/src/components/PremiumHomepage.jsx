@@ -188,6 +188,16 @@ const GLOBAL_STYLES = `
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
     animation:borderFlow 7s linear infinite; filter:drop-shadow(0 0 18px rgba(0,204,255,0.14)); }
   .scroll-velocity-wrap { gap:4px; }
+  /* Flip cards — front shows heading under icon; click reveals details on the back */
+  .flip-card { perspective: 1600px; }
+  .flip-inner { position:relative; width:100%; height:100%; transition: transform 0.75s cubic-bezier(0.22,1,0.36,1); transform-style: preserve-3d; }
+  .flip-card.is-flipped .flip-inner { transform: rotateY(180deg); }
+  .flip-face { position:absolute; inset:0; width:100%; height:100%; border-radius:20px; overflow:hidden; -webkit-backface-visibility:hidden; backface-visibility:hidden; display:flex; flex-direction:column; }
+  .flip-face-back { transform: rotateY(180deg); }
+  .flip-card .flip-front { transition: box-shadow 0.4s ease, border-color 0.4s ease; }
+  .flip-card:not(.is-flipped):hover .flip-front { border-color: rgba(255,255,255,0.16) !important; box-shadow: 0 22px 54px rgba(0,0,0,0.45); }
+  .flip-hint { opacity:0.55; transition: opacity 0.3s ease; }
+  .flip-card:hover .flip-hint { opacity:0.95; }
   /* CurvedLoop dividers — fixed band, soft glow; the second is slower + cyan-lean */
   .curved-divider { height:150px; margin:8px 0; color:rgba(0,255,15,0.5); }
   .curved-divider .curved-loop-text-el { fill:currentColor; font-family:'Sora',sans-serif; font-weight:800; font-size:30px; letter-spacing:0.1em; filter:drop-shadow(0 0 12px rgba(0,255,15,0.22)); }
@@ -209,19 +219,26 @@ const STEPS = [
   {n:"04", title:"Deliver structured truth", body:"The Writer synthesizes everything into polished, cited, confidence-scored output. Not a response — a document.", accent:C.purple,  icon:"auto_stories"},
 ];
 
+// The SEVEN core pages/surfaces of POLYNOUS (one card per real page/route).
 const FEATURES = [
   {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"Search → Summariser → Critic → Writer — a live 4-agent pipeline with per-claim confidence scoring and contradiction flags, streamed token-by-token.", tag:"RESEARCH"},
   {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST build evidence-backed cases; a rubric-scored Judge delivers a 1–10 verdict, generates follow-up questions, and supports post-verdict cross-examination.", tag:"DEBATE"},
-  {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered graph. Pathfinder traces the shortest link between any two entities; centrality analysis surfaces your most-connected ideas.", tag:"GRAPH"},
+  {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered graph. Pathfinder traces the shortest link between any two entities and surfaces your most-connected ideas.", tag:"GRAPH"},
   {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"Pinecone vector search + OpenAI embeddings find past research by meaning, not keywords — rendered as a similarity-ranked constellation.", tag:"SEARCH"},
   {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Every upload runs through signature verification, embedded-JS detection, and malware scanning before RAG — with cross-referencing across multiple PDFs at once.", tag:"PDF LAB"},
-  {icon:"bolt",          title:"Streaming Pipeline",  color:C.amber,   cls:"feat-card-amber",    dot:C.amber,   route:"/research", desc:"Server-Sent Events deliver real-time token streaming with live agent progress visualization.", tag:"STREAMING"},
-  {icon:"verified_user", title:"API Key Vault",       color:C.teal,    cls:"feat-card-teal",     dot:C.teal,    route:"/settings", desc:"Bring your own Anthropic, OpenAI, or Tavily keys. Fernet-encrypted. Zero-knowledge architecture.", tag:"VAULT"},
-  {icon:"receipt_long",  title:"Run Telemetry",       color:C.coral,   cls:"feat-card-coral",    dot:C.coral,   route:"/research", desc:"Real token spend, real LLM call counts, and an estimated USD cost per run — broken down per agent and labelled an estimate, never fabricated.", tag:"TELEMETRY"},
-  {icon:"cached",        title:"Research Caching",    color:C.indigo,  cls:"feat-card-indigo",   dot:C.indigo,  route:"/research", desc:"Repeat a query inside its freshness window and it's served from your own cache — near-zero latency and token cost.", tag:"CACHE"},
-  {icon:"query_stats",   title:"Neural Analytics",    color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics — extracted automatically from your research history and memory stats.", tag:"ANALYTICS"},
-  {icon:"redeem",        title:"Free-Key Onboarding", color:C.green,   cls:"feat-card-green",    dot:C.green,   route:"/settings", desc:"Start with zero setup — claim a pooled starter key, run real research immediately, then swap in your own key whenever you're ready.", tag:"FREE KEY"},
-  {icon:"fact_check",    title:"Evaluation Harness",  color:C.purple,  cls:"feat-card-purple",   dot:C.purple,  route:"/analytics",desc:"A built-in eval suite scores pipeline quality — run it on demand and read the summary right inside the analytics dashboard.", tag:"EVALS"},
+  {icon:"neurology",     title:"Memory Bank",         color:C.purple,  cls:"feat-card-purple",   dot:C.purple,  route:"/memory",   desc:"Stats, an interactive interest graph, debate history with score bars, and AI-generated topic suggestions pulled from your own research patterns.", tag:"MEMORY"},
+  {icon:"query_stats",   title:"Neural Analytics",    color:C.amber,   cls:"feat-card-amber",    dot:C.amber,   route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics — extracted automatically from your research history and memory stats.", tag:"ANALYTICS"},
+  {icon:"settings",      title:"Settings Management", color:C.teal,    cls:"feat-card-teal",     dot:C.teal,    route:"/settings", desc:"Your control room — manage Fernet-encrypted API keys across every provider, pick per-provider models, set response style, and track real spend in one vault.", tag:"SETTINGS"},
+];
+
+// Cross-cutting capabilities (not pages) — surfaced as flip cards in Tech Highlights.
+const TECH_EXTRA = [
+  {icon:"bolt",          title:"Streaming Pipeline",  color:C.amber,   route:"/research",  desc:"Server-Sent Events deliver real-time token streaming with live per-agent progress visualization."},
+  {icon:"verified_user", title:"API Key Vault",       color:C.teal,    route:"/settings",  desc:"Bring your own Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, DeepSeek, or Tavily key — Fernet-encrypted, zero-knowledge."},
+  {icon:"receipt_long",  title:"Run Telemetry",       color:C.coral,   route:"/research",  desc:"Real token spend, real LLM call counts, and an estimated USD cost per run — broken down per agent, labelled an estimate, never fabricated."},
+  {icon:"cached",        title:"Research Caching",    color:C.indigo,  route:"/research",  desc:"Repeat a query inside its freshness window and it's served from your own cache — near-zero latency and token cost."},
+  {icon:"redeem",        title:"Free-Key Onboarding", color:C.green,   route:"/settings",  desc:"Start with zero setup — claim a pooled starter key, run real research immediately, then swap in your own key whenever you're ready."},
+  {icon:"fact_check",    title:"Evaluation Harness",  color:C.purple,  route:"/analytics", desc:"A built-in eval suite scores pipeline quality — run it on demand and read the summary right inside the analytics dashboard."},
 ];
 
 const TECH = [
@@ -1744,6 +1761,74 @@ function ApiSection(){
 }
 
 /* ── Features ─────────────────────────────────────────────────────────────── */
+/* ── FlipCard ─────────────────────────────────────────────────────────────
+   Front: icon + heading only. Click → smooth 3D flip to the back with the full
+   details. Auto-flips back after 10s. Used by both the 7-page grid and Tech
+   Highlights. `route` (optional) shows an "Open" button on the back. */
+function FlipCard({ icon, title, tag, desc, color, route, height = 262 }) {
+  const [flipped, setFlipped] = useState(false);
+  const timer = useRef(null);
+  const flip = () => {
+    setFlipped(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setFlipped(false), 10000); // auto flip back after 10s
+  };
+  const unflip = () => { clearTimeout(timer.current); setFlipped(false); };
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const faceBase = {
+    padding: "26px 24px", background: "rgba(9,9,20,0.92)", backdropFilter: "blur(16px)",
+    border: `1px solid rgba(255,255,255,0.06)`, color, boxSizing: "border-box",
+  };
+
+  return (
+    <div className={`flip-card${flipped ? " is-flipped" : ""}`} style={{ height, position: "relative" }}>
+      <div className="flip-inner">
+        {/* FRONT — icon + heading only */}
+        <button className="flip-face flip-front" onClick={flip} aria-label={`${title} — tap to reveal details`}
+          style={{ ...faceBase, cursor: "pointer", textAlign: "left", alignItems: "flex-start", outline: "none" }}>
+          <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: "2px", background: `linear-gradient(90deg,transparent,${color}88,transparent)` }} />
+          {tag && (
+            <div style={{ position: "absolute", top: 16, right: 16, padding: "3px 10px", borderRadius: 9999, background: `${color}10`, border: `1px solid ${color}25` }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 500, color, letterSpacing: "0.18em", textTransform: "uppercase" }}>{tag}</span>
+            </div>
+          )}
+          <div style={{ width: 56, height: 56, borderRadius: 15, background: `${color}0e`, border: `1px solid ${color}26`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "auto" }}>
+            <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 29, color }}>{icon}</span>
+          </div>
+          <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20.5, lineHeight: 1.1, letterSpacing: "-0.03em", marginTop: 18, background: "linear-gradient(180deg,#ffffff 32%,rgba(255,255,255,0.66))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "#fff" }}>{title}</span>
+          <span className="flip-hint" style={{ marginTop: 11, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 500, color, letterSpacing: "0.14em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 13 }}>touch_app</span> tap to reveal
+          </span>
+        </button>
+
+        {/* BACK — details */}
+        <div className="flip-face flip-face-back" onClick={unflip}
+          style={{ ...faceBase, cursor: "pointer", justifyContent: "space-between", border: `1px solid ${color}55`, background: `linear-gradient(158deg, ${color}16, rgba(9,9,20,0.97))` }}>
+          <div style={{ overflowY: "auto", minHeight: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
+              <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 19, color }}>{icon}</span>
+              <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16.5, color: "#fff", letterSpacing: "-0.025em" }}>{title}</span>
+            </div>
+            <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, fontWeight: 400, color: "rgba(212,223,238,0.92)", lineHeight: 1.72, letterSpacing: "0.006em", margin: 0 }}>{desc}</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+            {route ? (
+              <button onClick={(e) => { e.stopPropagation(); window.location.href = route; }}
+                style={{ padding: "7px 15px", borderRadius: 9999, border: `1px solid ${color}55`, background: `${color}14`, color, fontFamily: "Sora,sans-serif", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                Open <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 14 }}>arrow_outward</span>
+              </button>
+            ) : <span />}
+            <span className="flip-hint" style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9.5, color: "rgba(150,165,180,0.65)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 12 }}>undo</span> flip back
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FeaturesSection(){
   const headRef=useReveal(0.1),gridRef=useReveal(0.07);
   return(
@@ -1751,29 +1836,17 @@ function FeaturesSection(){
       <SectionDivider/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"60px"}} className="hiw-grid">
         <div ref={headRef} className="reveal">
-          <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Capabilities</p>
-          <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.9,letterSpacing:"-0.055em",color:"#fff",margin:0}}>Seven agents.<br/>One surface.</h2>
+          <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:"11px",color:C.green,letterSpacing:"0.24em",marginBottom:"18px",opacity:0.85,textTransform:"uppercase"}}>↓ The eight surfaces</p>
+          <h2 style={{fontFamily:"'Sora',sans-serif",fontWeight:900,fontSize:"clamp(2.4rem,5.5vw,4.6rem)",lineHeight:0.88,letterSpacing:"-0.06em",color:"#fff",margin:0}}>Eight chambers.<br/>One cortex.</h2>
         </div>
-        <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Every feature built for inquiry that needs to be inspected, traced, and revisited.</p>
+        <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"'Hanken Grotesk',sans-serif",fontSize:"17px",color:"rgba(140,158,178,0.85)",lineHeight:1.72,margin:0,paddingBottom:"4px",transitionDelay:"0.08s",letterSpacing:"0.004em"}}>Eight dedicated surfaces, one mind behind them. Tap any card to flip it and see what lives inside.</p>
       </div>
       <div ref={gridRef} className="reveal-stagger features-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px"}}>
         {FEATURES.map(f=>(
-          <button key={f.title} className={`feat-card corner-brackets magic-bento-card--border-glow ${f.cls}`} onClick={()=>window.location.href=f.route} style={{minHeight:"260px",display:"flex",flexDirection:"column",alignItems:"flex-start",textAlign:"left",padding:"28px 26px 24px",borderRadius:"20px",border:`1px solid rgba(255,255,255,0.055)`,background:"rgba(10,10,22,0.85)",cursor:"pointer",position:"relative",backdropFilter:"blur(16px)",color:f.color,"--glow-color":"0,255,15"}}>
-            <div className="feat-top-line" style={{position:"absolute",top:0,left:"15%",right:"15%",height:"2px",background:`linear-gradient(90deg,transparent,${f.color}80,transparent)`,borderRadius:"1px",opacity:0,transition:"opacity 0.4s ease"}}/>
-            <div style={{position:"absolute",top:"18px",right:"18px",padding:"3px 9px",borderRadius:"9999px",background:`${f.color}10`,border:`1px solid ${f.color}25`}}>
-              <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"9px",color:f.color,letterSpacing:"0.12em",opacity:0.85}}>{f.tag}</span>
-            </div>
-            <span className="feat-arrow" style={{position:"absolute",bottom:"22px",right:"22px",fontFamily:"Material Symbols Outlined",fontSize:"18px",color:f.color,opacity:0.3,transition:"opacity 0.3s ease, transform 0.3s ease"}}>arrow_outward</span>
-            <div style={{width:"52px",height:"52px",borderRadius:"14px",background:`${f.color}0c`,border:`1px solid ${f.color}22`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"18px",flexShrink:0,position:"relative",zIndex:1}}>
-              <span style={{fontFamily:"Material Symbols Outlined",fontSize:"26px",color:f.color}}>{f.icon}</span>
-            </div>
-            <span style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"16px",color:"#fff",display:"block",marginBottom:"10px",lineHeight:1.2,position:"relative",zIndex:1,letterSpacing:"-0.01em"}}>{f.title}</span>
-            <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13.5px",color:"rgba(145,160,178,0.78)",lineHeight:1.72,position:"relative",zIndex:1,flex:1}}>{f.desc}</span>
-            <div style={{marginTop:"20px",height:"1.5px",width:"100%",borderRadius:"9999px",background:`linear-gradient(90deg,${f.color}45,${f.color}10,transparent)`,position:"relative",zIndex:1}}/>
-          </button>
+          <FlipCard key={f.title} icon={f.icon} title={f.title} tag={f.tag} desc={f.desc} color={f.color} route={f.route} height={278}/>
         ))}
       </div>
-      {/* Cursor-tracking spotlight + per-card border glow over the feature grid */}
+      {/* Cursor-tracking spotlight over the feature grid */}
       <GlobalSpotlight gridRef={gridRef} spotlightRadius={340} glowColor="0,255,15"/>
 
       <div className="reveal-stagger" style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:"14px",marginTop:"14px"}}>
@@ -1864,25 +1937,11 @@ function TechHighlights(){
         />
       </div>
       <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
-        {TECH.map((t,i)=>{
-          const rgb=GLOW_RGB[t.color]||"0,255,15";
-          return(
-            <div key={t.title} className="tech-card" style={{borderRadius:"20px",padding:"2px",background:`linear-gradient(135deg,rgba(${rgb},0.12) 0%,rgba(${rgb},0.03) 40%,transparent 100%)`,position:"relative"}}>
-              <div className="tc-glow" style={{position:"absolute",inset:"2px",borderRadius:"18px",background:`radial-gradient(ellipse 70% 50% at 50% 100%,rgba(${rgb},0.1) 0%,transparent 70%)`,opacity:0,transition:"opacity 0.45s ease",pointerEvents:"none",zIndex:0}}/>
-              <div style={{borderRadius:"18px",padding:"28px",background:"rgba(8,8,20,0.92)",border:`1px solid rgba(${rgb},0.12)`,height:"100%",position:"relative",zIndex:1,backdropFilter:"blur(16px)"}}>
-                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:"22px"}}>
-                  <div style={{width:"46px",height:"46px",borderRadius:"12px",background:`rgba(${rgb},0.08)`,border:`1px solid rgba(${rgb},0.18)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:t.color}}>{t.icon}</span>
-                  </div>
-                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.12)",letterSpacing:"0.1em",marginTop:"3px"}}>0{i+1}</span>
-                </div>
-                <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15.5px",color:"#fff",marginBottom:"10px",letterSpacing:"-0.015em",lineHeight:1.2}}>{t.title}</h3>
-                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(130,148,168,0.72)",lineHeight:1.72,margin:0}}>{t.desc}</p>
-                <div className="tc-bar" style={{marginTop:"22px",height:"1.5px",borderRadius:"9999px",background:`linear-gradient(90deg,${t.color}55,${t.color}10,transparent)`,opacity:0.5,transition:"opacity 0.45s ease"}}/>
-              </div>
-            </div>
-          );
-        })}
+        {/* Engineering pillars (no route) + the cross-cutting capabilities moved
+            out of the 7-page grid — all click-to-flip. */}
+        {[...TECH, ...TECH_EXTRA].map((t)=>(
+          <FlipCard key={t.title} icon={t.icon} title={t.title} desc={t.desc} color={t.color} route={t.route} height={244}/>
+        ))}
       </div>
     </section>
   );
