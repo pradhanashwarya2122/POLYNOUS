@@ -44,7 +44,7 @@ export default function NeuralSidebar({ user, onLogout, currentPage, onNavigate 
       <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '24px' }}>.</span>
+            <img src="/favicon.png" alt="POLYNOUS" style={{ width: 34, height: 34, borderRadius: 9, objectFit: 'cover', boxShadow: '0 0 10px rgba(0,255,15,0.35)', border: '1px solid rgba(0,255,15,0.25)' }} />
             <div>
               <div style={{ color: '#fff', fontWeight: 800, fontSize: '16px' }}>POLYNOUS</div>
               <div style={{ color: '#555', fontSize: '10px' }}>Neural Memory</div>

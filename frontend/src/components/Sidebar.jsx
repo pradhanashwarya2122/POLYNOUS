@@ -133,7 +133,9 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
       <style>{FOCUS_CSS}</style>
       {/* Logo + Collapse */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 40 }}>
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img src="/favicon.png" alt="POLYNOUS" style={{ width: 40, height: 40, borderRadius: 11, objectFit: "cover", boxShadow: "0 0 12px rgba(168,85,247,0.35)", border: "1px solid rgba(168,85,247,0.3)" }} />
+          <div>
           <h1 style={{
             fontFamily: "'Sora',sans-serif", fontSize: 28, fontWeight: 800,
             color: C.purple, letterSpacing: "-0.03em", whiteSpace: "nowrap",
@@ -143,6 +145,7 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
             color: C.onSurfaceVariant, textTransform: "uppercase",
             letterSpacing: "0.2em", opacity: 0.7,
           }}>Cerebral Vitality Engine</p>
+          </div>
         </div>
         <button
           onClick={() => setCollapsed(true)}

@@ -497,7 +497,7 @@ function LoginCard({ onLogin, oauthError }) {
       <SynapseDot style={{ bottom: 16, right: 16 }} />
 
       <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <div className="pulse-brain" style={{ fontSize: 56, marginBottom: 12, lineHeight: 1 }}>.</div>
+        <img src="/favicon.png" alt="POLYNOUS" className="pulse-brain" style={{ width: 72, height: 72, marginBottom: 12, borderRadius: 18, objectFit: "cover", boxShadow: "0 0 24px rgba(0,255,15,0.28)", border: "1px solid rgba(0,255,15,0.3)" }} />
         <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 38, fontWeight: 700, color: C.green, letterSpacing: "-0.03em", marginBottom: 4 }}>POLYNOUS</h1>
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.2em" }}>Cerebral Vitality Engine</p>
       </div>

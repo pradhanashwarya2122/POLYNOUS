@@ -1508,9 +1508,7 @@ function Header(){
     <header style={{display:"flex",justifyContent:"center",width:"100%",height:"64px",position:"sticky",top:0,zIndex:50,background:scrolled?"rgba(6,6,16,0.92)":"rgba(6,6,16,0.6)",backdropFilter:"blur(24px)",borderBottom:`1px solid ${scrolled?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.02)"}`,transition:"background 0.4s ease,border-color 0.4s ease"}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",alignItems:"center",width:"100%",maxWidth:"1400px",padding:"0 32px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"8px",cursor:"pointer"}} onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}>
-          <div style={{width:"28px",height:"28px",borderRadius:"8px",background:`linear-gradient(135deg,${C.green}20,${C.cyan}15)`,border:`1px solid ${C.green}40`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <div style={{width:"10px",height:"10px",borderRadius:"3px",background:`linear-gradient(135deg,${C.green},${C.cyan})`,boxShadow:`0 0 8px ${C.green}80`}}/>
-          </div>
+          <img src="/favicon.png" alt="POLYNOUS" style={{width:"30px",height:"30px",borderRadius:"8px",objectFit:"cover",border:`1px solid ${C.green}30`,boxShadow:`0 0 10px ${C.green}45`}}/>
           <span style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"16px",color:"#fff",letterSpacing:"0.06em"}}>POLYNOUS</span>
         </div>
         <nav className="nav-center" style={{display:"flex",alignItems:"center",gap:"34px"}}>
@@ -2754,7 +2752,8 @@ function Footer(){
   return(
     <footer style={{padding:"32px 0",borderTop:"1px solid rgba(255,255,255,0.035)"}}>
       <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px",display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:"16px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"18px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+          <img src="/favicon.png" alt="POLYNOUS" style={{width:"24px",height:"24px",borderRadius:"6px",objectFit:"cover",border:`1px solid ${C.green}25`}}/>
           <span style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"14px",color:C.green,letterSpacing:"0.1em"}}>POLYNOUS</span>
           <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)"}}>7 Agents · Claude · GPT · Gemini · Mistral · Groq · NVIDIA · DeepSeek</span>
         </div>
