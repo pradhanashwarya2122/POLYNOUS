@@ -1010,13 +1010,33 @@ function DebateFollowups({ query, result, onVerdict }) {
     return { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
   };
 
+  // Shared POST for the debate follow-ups. Separates a genuine network/CORS
+  // failure (fetch throws → "can't reach server") from a server-side error
+  // (reads the backend's detail/message), so the UI stops showing a bare
+  // "Unable to connect" for what is actually a 4xx/5xx with a real reason.
+  const followupPost = async (path, body, failLabel) => {
+    let res;
+    try {
+      res = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+    } catch (netErr) {
+      throw new Error("Can't reach the server — check your connection and try again in a moment.");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401) throw new Error("Please sign in again to continue the debate.");
+      if (res.status === 400 && /api key/i.test(data?.detail || data?.message || "")) {
+        throw new Error("No API key configured for your account. Add your key in Settings.");
+      }
+      throw new Error(data?.detail || data?.message || `${failLabel} (${res.status})`);
+    }
+    return data;
+  };
+
   const pickLens = async (key) => {
     if (key === lens || lensBusy) return;
     setLensErr(""); setLensBusy(key);
     try {
-      const res = await fetch(`${API_BASE_URL}/debate/rejudge`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ ...args, persona: key }) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || "Re-judge failed");
+      const data = await followupPost("/debate/rejudge", { ...args, persona: key }, "Re-judge failed");
       setLens(key);
       onVerdict?.(data.verdict, { keepExchange: true });
     } catch (e) { setLensErr(String(e.message || e)); }
@@ -1028,9 +1048,7 @@ function DebateFollowups({ query, result, onVerdict }) {
     if (!text || joinBusy || !ready) return;
     setJoinErr(""); setJoinBusy(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/debate/respond`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ ...args, side, persona: lens, user_argument: text }) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || "Response failed");
+      const data = await followupPost("/debate/respond", { ...args, side, persona: lens, user_argument: text }, "Response failed");
       setExchange({ argument: text, side, opponent_response: data.opponent_response, opponent_side: data.opponent_side });
       setArg("");
       onVerdict?.(data.verdict, { keepExchange: true });
@@ -1042,9 +1060,7 @@ function DebateFollowups({ query, result, onVerdict }) {
     if (crossBusy) return;
     setCrossErr(""); setCrossBusy(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/debate/cross-exam`, { method: "POST", headers: authHeaders(), body: JSON.stringify(args) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || "Cross-examination failed");
+      const data = await followupPost("/debate/cross-exam", args, "Cross-examination failed");
       setCrossEx({ for_asks: data.for_asks, against_asks: data.against_asks });
     } catch (e) { setCrossErr(String(e.message || e)); }
     finally { setCrossBusy(false); }

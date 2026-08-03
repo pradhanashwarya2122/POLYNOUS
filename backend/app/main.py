@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.cors_config import ALLOWED_ORIGINS
+from app.cors_config import ALLOWED_ORIGINS, ALLOWED_ORIGIN_REGEX
 from app.database import init_db
 from app.utils.startup_checks import run_startup_checks
 from app.utils.fix_users import add_missing_encryption_keys
@@ -87,6 +87,10 @@ app = FastAPI(title="POLYNOUS API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS if ALLOWED_ORIGINS else ["http://localhost:5174"],
+    # Also accept per-deploy preview subdomains (pages.dev / vercel / netlify)
+    # so the JSON POST endpoints (report chat, debate follow-ups) don't fail
+    # their CORS preflight with "Unable to connect to server".
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

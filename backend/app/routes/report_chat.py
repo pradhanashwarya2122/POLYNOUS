@@ -117,15 +117,35 @@ async def report_chat(request: Request, db: Session = Depends(get_db)):
         f"{style_hint}\n\n{context}"
     )
 
+    # Provider-complete call: build the client from the resolved (provider,
+    # api_key) so this works with EVERY key the Settings page allows — not just
+    # OpenAI/Anthropic. OpenAI-compatible gateways (Groq/Mistral/NVIDIA/
+    # DeepSeek/Gemini) go through the OpenAI client with their base_url, the
+    # user's chosen model, and openai_compat's param self-healing.
+    from app.llm_providers import resolve_provider, resolve_model
+    client_type, base_url = resolve_provider(provider)
+    used_model = resolve_model(user, provider)
     try:
-        from app.llm_client import ask_llm
-        answer = ask_llm(
-            user, provider,
-            system_prompt=system_prompt,
-            messages=[{"role": "user", "content": question}],
-            max_tokens=700,
-            temperature=0.3,
-        )
+        if client_type == "openai":
+            from openai import OpenAI
+            from app.utils.openai_compat import openai_chat
+            oc = OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {}))
+            resp = openai_chat(
+                oc, model=used_model,
+                messages=[{"role": "system", "content": system_prompt},
+                          {"role": "user", "content": question}],
+                max_tokens=700, temperature=0.3,
+            )
+            answer = resp.choices[0].message.content
+        else:
+            from anthropic import Anthropic
+            ac = Anthropic(api_key=api_key)
+            msg = ac.messages.create(
+                model=used_model, max_tokens=700, temperature=0.3,
+                system=system_prompt,
+                messages=[{"role": "user", "content": question}],
+            )
+            answer = msg.content[0].text
     except Exception as e:
         raise HTTPException(502, f"Report chat failed: {e}")
 

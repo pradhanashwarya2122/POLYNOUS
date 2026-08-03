@@ -536,7 +536,14 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || data?.message || `Chat failed (${res.status})`);
+      if (!res.ok) {
+        // A bare "Not Found" (FastAPI's 404 body) is confusing in a chat bubble —
+        // map it to something actionable instead of echoing the raw detail.
+        if (res.status === 404) {
+          throw new Error("Report chat is unavailable on the server right now (404). Please try again shortly.");
+        }
+        throw new Error(data?.detail || data?.message || `Chat failed (${res.status})`);
+      }
       setMessages((m) => [...m, { role: "assistant", text: data.answer || "(no answer)" }]);
     } catch (e) {
       const msg = String(e.message || e);
