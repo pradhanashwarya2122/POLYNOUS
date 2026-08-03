@@ -1578,23 +1578,17 @@ function HeroSection(){
         ))}
       </div>
 
+      {/* Search + Go above is the primary research CTA — keep only one clean
+          secondary action (debate) here instead of three competing buttons. */}
       <div className="reveal" ref={useReveal(0.05)} style={{display:"flex",flexWrap:"wrap",gap:"12px",justifyContent:"center",marginBottom:"72px",transitionDelay:"0.3s"}}>
-        <div style={{padding:"2px",borderRadius:"9999px",background:"conic-gradient(from 0deg,#ff0000,#ff8800,#ffff00,#00ff0f,#00ccff,#a855f7,#ff0088,#ff0000)",animation:"rainbowSpin 4s linear infinite",boxShadow:"0 0 32px rgba(0,255,15,0.15),0 0 64px rgba(0,204,255,0.08)"}}>
-          <button onClick={()=>window.location.href="/auth"} style={{padding:"13px 32px",background:"rgba(6,6,16,0.95)",borderRadius:"9999px",border:"none",cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"16px",fontWeight:800,color:"#fff",backdropFilter:"blur(20px)",letterSpacing:"-0.01em",transition:"transform 0.25s ease,background 0.25s ease"}} onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.background="rgba(6,6,16,0.85)";}} onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.background="rgba(6,6,16,0.95)";}}>
-            Start Research →
-          </button>
-        </div>
         <button
           onClick={()=>window.location.href="/debate?topic=Should+AI+be+regulated%3F"}
-          style={{padding:"13px 28px",borderRadius:"9999px",border:`1.5px solid ${C.crimson}`,background:`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`,color:"#ff4868",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",cursor:"pointer",letterSpacing:"0.02em",transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",display:"inline-flex",alignItems:"center",gap:"8px",animation:"crimsonPulse 2.4s ease-in-out infinite",textShadow:`0 0 14px rgba(255,32,64,0.9)`}}
-          onMouseOver={e=>{e.currentTarget.style.animation="none";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.28),rgba(255,32,64,0.14))`;e.currentTarget.style.boxShadow=`0 0 32px rgba(255,32,64,0.7), 0 0 70px rgba(255,32,64,0.35)`;e.currentTarget.style.transform="scale(1.06)";}}
-          onMouseOut={e=>{e.currentTarget.style.animation="crimsonPulse 2.4s ease-in-out infinite";e.currentTarget.style.background=`linear-gradient(135deg,rgba(255,32,64,0.16),rgba(255,32,64,0.07))`;e.currentTarget.style.boxShadow="";e.currentTarget.style.transform="scale(1)";}}
+          style={{padding:"12px 26px",borderRadius:"9999px",border:`1px solid ${C.crimson}55`,background:"rgba(255,32,64,0.06)",color:"#ff6b80",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",cursor:"pointer",letterSpacing:"0.02em",transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",display:"inline-flex",alignItems:"center",gap:"8px"}}
+          onMouseOver={e=>{e.currentTarget.style.background="rgba(255,32,64,0.12)";e.currentTarget.style.borderColor=C.crimson;e.currentTarget.style.transform="translateY(-2px)";}}
+          onMouseOut={e=>{e.currentTarget.style.background="rgba(255,32,64,0.06)";e.currentTarget.style.borderColor=`${C.crimson}55`;e.currentTarget.style.transform="translateY(0)";}}
         >
           <span style={{fontFamily:"Material Symbols Outlined",fontSize:"16px"}}>balance</span> Try a Debate
         </button>
-        <a href="#how-it-works" style={{padding:"12px 28px",border:"1px solid rgba(255,255,255,0.09)",color:"rgba(255,255,255,0.55)",fontWeight:600,borderRadius:"9999px",background:"transparent",fontFamily:"Sora,sans-serif",fontSize:"16px",textDecoration:"none",transition:"all 0.25s",display:"inline-flex",alignItems:"center"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
-          See How It Works ↓
-        </a>
       </div>
 
       <div className="reveal terminal-bg" ref={useReveal(0.1)} style={{padding:"22px 26px",borderRadius:"16px",width:"min(440px,100%)",textAlign:"left",transitionDelay:"0.38s",position:"relative",overflow:"hidden",boxShadow:`0 24px 64px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.04)`}}>

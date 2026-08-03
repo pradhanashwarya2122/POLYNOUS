@@ -86,6 +86,35 @@ export default function App() {
     }
   }, [isLoggedIn])
 
+  // ── Keep the session alive ("Keep Synapse Active") ──────────────────────────
+  // The access token lives only 15 min; previously it was refreshed ONLY when an
+  // API call happened to hit a 401, so an idle or returning user got silently
+  // logged out. This proactively refreshes on mount and every 12 min using the
+  // (httpOnly) refresh cookie, so the session stays alive for as long as the
+  // refresh token is valid (30 days when "Keep Synapse Active" is checked).
+  useEffect(() => {
+    const token = localStorage.getItem('polynous_token') || ''
+    if (!isLoggedIn || token.startsWith('guest_')) return
+    let cancelled = false
+    const refresh = async () => {
+      try {
+        const r = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        if (!r.ok || cancelled) return
+        const d = await r.json().catch(() => ({}))
+        if (d.access_token) {
+          localStorage.setItem('polynous_token', d.access_token)
+          window.__POLYNOUS_ACCESS_TOKEN__ = d.access_token
+        }
+      } catch (_) { /* offline / transient — leave the existing token in place */ }
+    }
+    refresh()                                   // immediately on mount / login
+    const id = setInterval(refresh, 12 * 60 * 1000)   // before the 15-min expiry
+    return () => { cancelled = true; clearInterval(id) }
+  }, [isLoggedIn])
+
   // ═══════════════════════════════════════════════════════════
   // AUTH HANDLERS
   // ═══════════════════════════════════════════════════════════

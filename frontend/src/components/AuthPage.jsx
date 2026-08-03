@@ -64,17 +64,18 @@ function GlobalStyles() {
         box-shadow: 0 0 15px rgba(0,204,255,0.4);
       }
 
+      /* Premium matte green — no neon glow; subtle depth + inset highlight. */
       .btn-glow-green {
-        background: #00ff0f;
-        color: #003a00;
-        box-shadow: 0 0 10px rgba(0,255,15,0.5);
-        transition: box-shadow 0.3s, transform 0.3s;
+        background: linear-gradient(180deg, #1ecb3a 0%, #14a828 100%);
+        color: #04240b;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18);
+        transition: filter 0.25s, transform 0.25s;
       }
       .btn-glow-green:hover {
-        box-shadow: 0 0 28px rgba(0,255,15,0.85);
+        filter: brightness(1.07);
         transform: translateY(-2px);
       }
-      .btn-glow-green:active { transform: translateY(0); }
+      .btn-glow-green:active { transform: translateY(0); filter: brightness(0.98); }
 
       .footer-link { transition: color 0.2s; }
       .footer-link:hover { color: #00ccff !important; }
@@ -497,9 +498,9 @@ function LoginCard({ onLogin, oauthError }) {
       <SynapseDot style={{ bottom: 16, right: 16 }} />
 
       <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <img src="/favicon.png" alt="POLYNOUS" className="pulse-brain" style={{ width: 72, height: 72, marginBottom: 12, borderRadius: 18, objectFit: "cover", boxShadow: "0 0 24px rgba(0,255,15,0.28)", border: "1px solid rgba(0,255,15,0.3)" }} />
+        {/* Static logo — no breathing/scale animation; the glow (light) stays. */}
+        <img src="/favicon.png" alt="POLYNOUS" style={{ width: 72, height: 72, marginBottom: 12, borderRadius: 18, objectFit: "cover", boxShadow: "0 0 24px rgba(0,255,15,0.28)", border: "1px solid rgba(0,255,15,0.3)" }} />
         <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 38, fontWeight: 700, color: C.green, letterSpacing: "-0.03em", marginBottom: 4 }}>POLYNOUS</h1>
-        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.2em" }}>Cerebral Vitality Engine</p>
       </div>
 
       {oauthError && (
@@ -520,8 +521,8 @@ function LoginCard({ onLogin, oauthError }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         
         <div style={{ display: "flex", background: C.white5, borderRadius: 14, padding: 4 }}>
-          <button onClick={() => { setIsLogin(true); setError(''); setSuccess('') }} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: isLogin ? C.green : 'transparent', color: isLogin ? C.void : C.onSurfaceVariant, fontWeight: 600, fontSize: 14, fontFamily: "'Sora', sans-serif" }}>Login</button>
-          <button onClick={() => { setIsLogin(false); setError(''); setSuccess('') }} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: !isLogin ? C.green : 'transparent', color: !isLogin ? C.void : C.onSurfaceVariant, fontWeight: 600, fontSize: 14, fontFamily: "'Sora', sans-serif" }}>Sign Up</button>
+          <button onClick={() => { setIsLogin(true); setError(''); setSuccess('') }} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: isLogin ? 'linear-gradient(180deg,#1ecb3a,#14a828)' : 'transparent', color: isLogin ? '#04240b' : C.onSurfaceVariant, fontWeight: 600, fontSize: 14, fontFamily: "'Sora', sans-serif", transition: 'background 0.25s' }}>Login</button>
+          <button onClick={() => { setIsLogin(false); setError(''); setSuccess('') }} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: !isLogin ? 'linear-gradient(180deg,#1ecb3a,#14a828)' : 'transparent', color: !isLogin ? '#04240b' : C.onSurfaceVariant, fontWeight: 600, fontSize: 14, fontFamily: "'Sora', sans-serif", transition: 'background 0.25s' }}>Sign Up</button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -540,15 +541,30 @@ function LoginCard({ onLogin, oauthError }) {
           </OAuthButton>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ flex: 1, borderTop: `1px solid ${C.white10}` }} />
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>Or connect via neural link</span>
-          <div style={{ flex: 1, borderTop: `1px solid ${C.white10}` }} />
-        </div>
+        <div style={{ borderTop: `1px solid ${C.white10}` }} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }} onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}>
           <NeuralInput label="Neural Identity (Email)" type="email" placeholder="researcher@neural.bank" icon="alternate_email" value={email} onChange={e => setEmail(e.target.value)} />
           <NeuralInput label="Cortex Key (Password)" type="password" placeholder="••••••••" icon="fingerprint" value={password} onChange={e => setPassword(e.target.value)} />
+          {!isLogin && (() => {
+            const reqs = [
+              { ok: password.length >= 8, label: "8+ characters" },
+              { ok: /[A-Z]/.test(password), label: "uppercase" },
+              { ok: /[a-z]/.test(password), label: "lowercase" },
+              { ok: /[0-9]/.test(password), label: "number" },
+              { ok: /[^A-Za-z0-9]/.test(password), label: "symbol" },
+            ];
+            return (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "-6px 4px 0", fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5 }}>
+                {reqs.map(r => (
+                  <span key={r.label} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: r.ok ? "#1ecb3a" : C.onSurfaceVariant, transition: "color 0.2s" }}>
+                    <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 12 }}>{r.ok ? "check_circle" : "radio_button_unchecked"}</span>
+                    {r.label}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px" }}>
             <label className="remember-label" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
