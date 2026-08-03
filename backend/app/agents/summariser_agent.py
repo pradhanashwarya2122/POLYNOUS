@@ -231,7 +231,11 @@ def _summarise_one(
  
     try:
         client, ptype = get_client(provider, api_key, base_url)
-        chosen_model  = model or DEFAULT_MODELS.get(ptype, DEFAULT_MODELS["anthropic"])
+        # Resolve the default from the real PROVIDER (groq/mistral/nvidia/…),
+        # not the client type — DEFAULT_MODELS is keyed by provider, so keying
+        # by ptype ("openai"/"openai_compatible") sent e.g. "gpt-4o-mini" to
+        # Groq. Provider-first keeps every key on its own model.
+        chosen_model  = model or DEFAULT_MODELS.get(provider) or DEFAULT_MODELS.get(ptype, DEFAULT_MODELS["anthropic"])
         result.model_used = chosen_model
  
         user_prompt = _build_user_prompt(title, url, type_note, content, query)

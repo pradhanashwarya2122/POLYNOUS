@@ -2,23 +2,23 @@
 app/utils/openai_compat.py — model-agnostic OpenAI Chat Completions wrapper.
 
 WHY THIS EXISTS
-Newer OpenAI models (the gpt-5.x family, the o-series, and OpenAI-compatible
-gateways that mirror them) changed two request parameters that every agent in
-this codebase had hard-coded for gpt-4o-mini:
+The OpenAI-style Chat Completions API is now spoken by many providers (OpenAI
+itself, plus Groq, Mistral, NVIDIA NIM, DeepSeek, Gemini's OpenAI-compat
+endpoint …) and by several model generations that disagree on two request
+parameters every agent here used to hard-code for gpt-4o-mini:
 
-  * `max_tokens`  → rejected with 400; the model wants `max_completion_tokens`.
-  * `temperature` → only the default (1) is accepted; any other value 400s.
+  * `max_tokens`   — the gpt-5.x / o-series reject it and require
+                     `max_completion_tokens`; some older gateways reject
+                     `max_completion_tokens` and require `max_tokens`.
+  * `temperature`  — the gpt-5.x / o-series accept only the default value and
+                     400 on any custom temperature.
 
-The symptom was brutal and misleading: the Critic, "Chat with report", and every
-debate follow-up would fail with a generic "check model/API key" / 502, even
-though the key was perfectly valid — the *parameters* were the problem. A user
-who picked gpt-5.1 in Settings saw the whole analysis layer go dark.
-
-Rather than hard-code a list of model names (which drifts every release), we call
-the API optimistically and, on the specific 400s above, transparently rewrite the
-offending parameter and retry. Once a model is known to need a rewrite we cache it
-per-process, so the discovery cost (one failed call) is paid at most once per
-model, not on every request.
+Hard-coding either shape breaks a whole class of keys. Instead we call the API
+optimistically and, on the specific errors, transparently rewrite the offending
+parameter and retry — in BOTH directions — then cache what worked per model so
+the steady-state path is a single clean call. This makes the Critic (and every
+other agent routed through it) work with every provider/model combination the
+Settings page offers.
 """
 from __future__ import annotations
 
@@ -26,69 +26,112 @@ import logging
 
 logger = logging.getLogger("polynous.openai_compat")
 
-# Models discovered (at runtime) to need the newer-parameter shape. Keyed by
-# model id; value is a set of applied rewrites so we skip straight to the
-# working call shape next time.
+# Per-process memory of what each model actually accepts, so we skip straight to
+# the working call shape on subsequent requests.
 _NEEDS_MAX_COMPLETION_TOKENS: set[str] = set()
 _NEEDS_DEFAULT_TEMPERATURE: set[str] = set()
 
 
-def _looks_like_max_tokens_error(msg: str) -> bool:
-    m = msg.lower()
-    return "max_completion_tokens" in m or (
-        "max_tokens" in m and ("not supported" in m or "unsupported" in m)
+def _rejects_kwarg(msg_l: str, name: str) -> bool:
+    """True when the error says this exact kwarg is unknown/unexpected — i.e.
+    the SDK or gateway does not accept it at all (as opposed to the model
+    wanting the *other* token param)."""
+    return (
+        f"unexpected keyword argument '{name}'" in msg_l
+        or (name in msg_l and "unrecognized" in msg_l)
+        or (name in msg_l and "unknown parameter" in msg_l)
+        or (name in msg_l and "unknown argument" in msg_l)
     )
 
 
-def _looks_like_temperature_error(msg: str) -> bool:
-    m = msg.lower()
-    return "temperature" in m and (
-        "unsupported" in m
-        or "does not support" in m
-        or "only the default" in m
-        or "only supports" in m
+def _wants_max_completion_tokens(msg_l: str) -> bool:
+    """Model/endpoint is telling us to use max_completion_tokens instead of
+    max_tokens."""
+    if _rejects_kwarg(msg_l, "max_completion_tokens"):
+        return False  # it can't take mct — that's the revert case, not this one
+    return (
+        "max_completion_tokens" in msg_l
+        or (
+            "max_tokens" in msg_l
+            and (
+                "not supported" in msg_l
+                or "unsupported" in msg_l
+                or "use 'max_completion_tokens'" in msg_l
+                or 'use "max_completion_tokens"' in msg_l
+                or _rejects_kwarg(msg_l, "max_tokens")
+            )
+        )
+    )
+
+
+def _wants_max_tokens(msg_l: str) -> bool:
+    """Endpoint rejects max_completion_tokens outright — fall back to the
+    classic max_tokens (older gateways / older SDKs)."""
+    return _rejects_kwarg(msg_l, "max_completion_tokens")
+
+
+def _temperature_rejected(msg_l: str) -> bool:
+    return "temperature" in msg_l and (
+        "unsupported" in msg_l
+        or "does not support" in msg_l
+        or "only the default" in msg_l
+        or "only supports" in msg_l
+        or "is not supported" in msg_l
+        or "not supported with this model" in msg_l
     )
 
 
 def openai_chat(client, *, model: str, messages: list, max_tokens=None,
                 temperature=None, **extra):
     """
-    Call client.chat.completions.create, self-healing the two parameter shape
-    changes that newer OpenAI models require. Returns the raw SDK response.
+    Call client.chat.completions.create, self-healing the parameter-shape
+    differences across providers/models. Returns the raw SDK response.
 
-    Pass max_tokens/temperature exactly as before; this wrapper decides whether
-    to send them as-is, rename max_tokens → max_completion_tokens, or drop a
-    non-default temperature, based on what the target model actually accepts.
+    Pass max_tokens/temperature exactly as before; this wrapper decides the
+    working shape per model and remembers it.
     """
     params = dict(extra)
     params["model"] = model
     params["messages"] = messages
 
-    # Apply anything we already learned about this model up front, so the common
-    # steady-state path is a single successful call.
+    # Start from what we already learned about this model.
     token_param = "max_completion_tokens" if model in _NEEDS_MAX_COMPLETION_TOKENS else "max_tokens"
     if max_tokens is not None:
         params[token_param] = max_tokens
     if temperature is not None and model not in _NEEDS_DEFAULT_TEMPERATURE:
         params["temperature"] = temperature
 
-    # At most a few adjustments: token-param rename, temperature drop, and a
-    # final clean attempt.
-    for _ in range(4):
+    last_error = None
+    for _ in range(6):
         try:
             return client.chat.completions.create(**params)
-        except Exception as e:  # noqa: BLE001 — inspect provider error text
-            msg = str(e)
-            if "max_tokens" in params and _looks_like_max_tokens_error(msg):
+        except Exception as e:  # noqa: BLE001 — provider error text is the signal
+            last_error = e
+            msg_l = str(e).lower()
+
+            # 1) custom temperature rejected → drop it
+            if "temperature" in params and _temperature_rejected(msg_l):
+                params.pop("temperature", None)
+                _NEEDS_DEFAULT_TEMPERATURE.add(model)
+                logger.info("openai_compat: %s rejects custom temperature; using default", model)
+                continue
+
+            # 2) needs max_completion_tokens instead of max_tokens
+            if "max_tokens" in params and _wants_max_completion_tokens(msg_l):
                 params["max_completion_tokens"] = params.pop("max_tokens")
                 _NEEDS_MAX_COMPLETION_TOKENS.add(model)
                 logger.info("openai_compat: %s needs max_completion_tokens; adapting", model)
                 continue
-            if "temperature" in params and _looks_like_temperature_error(msg):
-                params.pop("temperature")
-                _NEEDS_DEFAULT_TEMPERATURE.add(model)
-                logger.info("openai_compat: %s rejects custom temperature; using default", model)
+
+            # 3) endpoint rejects max_completion_tokens → revert to max_tokens
+            if "max_completion_tokens" in params and _wants_max_tokens(msg_l):
+                params["max_tokens"] = params.pop("max_completion_tokens")
+                _NEEDS_MAX_COMPLETION_TOKENS.discard(model)
+                logger.info("openai_compat: %s rejects max_completion_tokens; reverting to max_tokens", model)
                 continue
+
             raise
-    # Last try with whatever adaptations stuck (lets the real error surface).
+    # Ran out of adaptations — surface the real error.
+    if last_error:
+        raise last_error
     return client.chat.completions.create(**params)

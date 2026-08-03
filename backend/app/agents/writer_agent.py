@@ -470,8 +470,9 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
               model: Optional[str] = None, usage=None, provider: str = "anthropic") -> str:
     """Call the appropriate LLM (user's chosen model wins over the default)"""
     from app.utils.usage import record as _record_usage
+    from app.llm_providers import default_model as _default_model
     if client_type == "openai":
-        used_model = model or DEFAULT_OPENAI_MODEL
+        used_model = model or _default_model(provider) or DEFAULT_OPENAI_MODEL
         from app.utils.openai_compat import openai_chat
         response = openai_chat(
             client,
@@ -486,7 +487,7 @@ def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,
         _record_usage(usage, "writer", provider, used_model, response, client_type)
         return response.choices[0].message.content
     else:
-        used_model = model or DEFAULT_ANTHROPIC_MODEL
+        used_model = model or _default_model(provider) or DEFAULT_ANTHROPIC_MODEL
         message = client.messages.create(
             model=used_model,
             max_tokens=MAX_TOKENS,
