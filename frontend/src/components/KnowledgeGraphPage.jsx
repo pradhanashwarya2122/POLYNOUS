@@ -77,7 +77,7 @@ function easeOutBack(t) {
 }
 
 // ─── BIG BANG INTRO ──────────────────────────────────────────
-function BigBangIntro({ onComplete }) {
+function BigBangIntro({ onComplete, offsetLeft = 0 }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -255,10 +255,11 @@ function BigBangIntro({ onComplete }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
+      position: "fixed", top: 0, right: 0, bottom: 0, left: offsetLeft, zIndex: 9999,
       background: "#080818",
       display: "flex", alignItems: "center", justifyContent: "center",
       overflow: "hidden",
+      transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)",
     }}>
       <canvas ref={canvasRef} style={{
         position: "absolute", inset: 0, width: "100%", height: "100%",
@@ -1858,7 +1859,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
           collapsed={sidebarCollapsed}
           setCollapsed={setSidebarCollapsed}
         />
-        <BigBangIntro onComplete={() => setIntroComplete(true)} />
+        <BigBangIntro onComplete={() => setIntroComplete(true)} offsetLeft={sidebarWidth} />
       </>
     );
   }

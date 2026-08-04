@@ -18,6 +18,7 @@ import SemanticSearchPage from './components/SemanticSearchPage';
 import PdfLabPage from './components/PdfLabPage';
 import PolynousDashboard from './components/PolynousDashboard';
 import InfoPage from './components/InfoPage';
+import { PrivacyPage, TermsPage, DocsPage } from './components/StaticPages';
 import { API_BASE_URL } from './config';
 
 // ═══════════════════════════════════════════════════════════════
@@ -113,6 +114,18 @@ export default function App() {
     refresh()                                   // immediately on mount / login
     const id = setInterval(refresh, 12 * 60 * 1000)   // before the 15-min expiry
     return () => { cancelled = true; clearInterval(id) }
+  }, [isLoggedIn])
+
+  // Load saved preferences for RETURNING users too (previously this only ran on
+  // fresh login, so a reload left default_mode / response_style / streaming /
+  // autosave / confidence_threshold unset -> the app fell back to defaults and
+  // those settings appeared "not working"). Runs once when a real session mounts.
+  useEffect(() => {
+    const tok = localStorage.getItem('polynous_token') || ''
+    if (isLoggedIn && !tok.startsWith('guest_')) {
+      loadUserPreferences(user?.email)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn])
 
   // ═══════════════════════════════════════════════════════════
@@ -289,6 +302,11 @@ export default function App() {
           path="/info"
           element={<InfoPage user={user} onNavigate={navigateTo} onLogout={handleLogout} />}
         />
+
+        {/* ── PUBLIC STATIC PAGES ───────────────────────── */}
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/docs" element={<DocsPage />} />
 
         {/* ── PROTECTED ROUTES ──────────────────────────── */}
         <Route path="/settings" element={isLoggedIn ? <SettingsPage user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" />} />

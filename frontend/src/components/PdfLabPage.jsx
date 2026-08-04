@@ -547,17 +547,29 @@ const VIZ_MAP = { chunks: ChunksViz, vectors: VectorsViz, retrieval: RetrievalVi
 
 function HowItWorks() {
   const [active, setActive] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(true);   // auto-run the pipeline on load
   const [vizKey, setVizKey] = useState(0);
+  const rootRef = useRef(null);
 
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => {
       setActive(s => (s + 1) % PIPELINE.length);
-      setVizKey(k => k + 1);
+      setVizKey(k => k + 1);   // remount the active viz so its animation replays
     }, 3400);
     return () => clearInterval(id);
   }, [playing]);
+
+  // Kick the first viz's animation once on mount (so it plays immediately even
+  // before the first interval tick) and pause auto-play while off-screen.
+  useEffect(() => {
+    setVizKey(k => k + 1);
+    const el = rootRef.current;
+    if (!el || !("IntersectionObserver" in window)) return;
+    const obs = new IntersectionObserver(([e]) => { if (!e.isIntersecting) setPlaying(false); }, { threshold: 0.15 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const handleStepClick = (i) => {
     setActive(i);
@@ -569,7 +581,7 @@ function HowItWorks() {
   const Viz = VIZ_MAP[step.visual];
 
   return (
-    <div style={{
+    <div ref={rootRef} style={{
       background: T.surface, backdropFilter:"blur(20px)",
       border: `1px solid ${T.borderGold}`, borderRadius:20,
       padding:28, marginBottom:28,

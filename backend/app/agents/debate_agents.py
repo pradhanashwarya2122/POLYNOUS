@@ -451,12 +451,29 @@ Judge and return JSON:"""
         against_score = round(0.5 * rubric_against["computed_score"] + 0.5 * against_quality, 1)
 
         gap = abs(for_score - against_score)
-        if gap < 0.5:
-            winner = "TIE"
-        else:
+        # The headline scores (rubric + LLM quality) frequently land within a
+        # few tenths of each other, which used to collapse almost every debate
+        # into a "TIE / Both sides balanced" verdict. When the top-line gap is
+        # small, break the near-tie with REAL sub-signals — grounding coverage,
+        # breadth of distinct sources, and a penalty for hallucinated citations
+        # — so a genuine winner emerges unless the arguments are truly matched.
+        if gap >= 0.5:
             winner = "FOR" if for_score > against_score else "AGAINST"
-        # margin label computed from the real score gap, never LLM-invented
-        margin = "split" if gap < 0.5 else ("close" if gap < 1.0 else ("clear" if gap < 2.0 else "decisive"))
+            eff_gap = gap
+        else:
+            def _edge(rub, quality):
+                return (rub.get("citation_coverage", 0) * 2.0
+                        + rub.get("distinct_sources_cited", 0) * 0.30
+                        - rub.get("hallucinated_citations", 0) * 1.0
+                        + quality * 0.15)
+            edge = _edge(rubric_for, for_quality) - _edge(rubric_against, against_quality)
+            if abs(edge) < 0.15:
+                winner = "TIE"
+            else:
+                winner = "FOR" if edge > 0 else "AGAINST"
+            eff_gap = max(gap, min(0.9, abs(edge)))  # keep a "close" flavour, never "decisive"
+        # margin label computed from the real (effective) score gap, never LLM-invented
+        margin = "split" if winner == "TIE" else ("close" if eff_gap < 1.0 else ("clear" if eff_gap < 2.0 else "decisive"))
 
         follow_ups = [q for q in (llm.get("follow_up_questions") or []) if isinstance(q, str) and q.strip()][:4]
         if not follow_ups:

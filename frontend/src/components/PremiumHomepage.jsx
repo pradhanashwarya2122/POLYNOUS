@@ -1570,10 +1570,10 @@ function HeroSection(){
       <div style={{position:"absolute",top:"38%",right:"12%",width:"280px",height:"280px",borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,0.035) 0%,transparent 68%)",animation:"orb 11s ease-in-out infinite 2s",pointerEvents:"none"}}/>
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.018) 1px,transparent 1px)",backgroundSize:"80px 80px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 80% 70% at 50% 50%,black 30%,transparent 100%)"}}/>
 
-      <h1 className="reveal hero-title" ref={useReveal(0.05)} style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(4rem,10.5vw,10rem)",lineHeight:0.86,letterSpacing:"-0.065em",marginBottom:"24px"}}>
+      <h1 className="reveal hero-title" ref={useReveal(0.05)} style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(4rem,10.5vw,10rem)",lineHeight:0.95,letterSpacing:"-0.065em",marginBottom:"24px"}}>
         <SplitText text="Research" tag="span" className="hero-split hero-split-green" splitType="chars" delay={48} duration={0.95} from={{opacity:0,y:46,filter:"blur(8px)"}} to={{opacity:1,y:0,filter:"blur(0px)"}}/>
         <br/>
-        <SplitText text="beyond answers." tag="span" className="hero-split hero-split-dim" splitType="chars" delay={22} duration={0.8} from={{opacity:0,y:30}} to={{opacity:1,y:0}}/>
+        <SplitText text="beyond answers" tag="span" className="hero-split hero-split-dim" splitType="chars" delay={22} duration={0.8} from={{opacity:0,y:30}} to={{opacity:1,y:0}}/>
       </h1>
 
       <div className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"24px",fontWeight:400,transitionDelay:"0.14s"}}>
@@ -1782,8 +1782,8 @@ function FlipCard({ icon, title, tag, desc, color, route, height = 262 }) {
           <div style={{ width: 56, height: 56, borderRadius: 15, background: `${color}0e`, border: `1px solid ${color}26`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "auto" }}>
             <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 29, color }}>{icon}</span>
           </div>
-          <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20.5, lineHeight: 1.1, letterSpacing: "-0.03em", marginTop: 18, background: "linear-gradient(180deg,#ffffff 32%,rgba(255,255,255,0.66))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "#fff" }}>{title}</span>
-          <span className="flip-hint" style={{ marginTop: 11, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 500, color, letterSpacing: "0.14em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 24, lineHeight: 1.08, letterSpacing: "-0.03em", marginTop: 16, color: "#ffffff", textShadow: "0 1px 18px rgba(0,0,0,0.5)" }}>{title}</span>
+          <span className="flip-hint" style={{ marginTop: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 500, color, letterSpacing: "0.14em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 13 }}>sync_alt</span> hover to explore
           </span>
         </div>
@@ -1854,11 +1854,11 @@ function FeaturesSection(){
 function PipelineSection(){
   const hRef=useReveal(0.1),bRef=useReveal(0.07);
   return(
-    <section id="pipeline" style={{padding:"24px 0 80px",overflow:"hidden"}}>
+    <section id="pipeline" style={{padding:"24px 0 28px",overflow:"hidden"}}>
       <SectionDivider tight/>
       <div ref={hRef} className="reveal" style={{textAlign:"center",marginBottom:"52px"}}>
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.green,letterSpacing:"0.2em",marginBottom:"14px",opacity:0.8}}>↓ Architecture</p>
-        <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.6rem)",letterSpacing:"-0.05em",marginBottom:"12px",color:"#fff",display:"flex",justifyContent:"center"}}><ScrollFloat containerClassName="pipeline-float" stagger={0.04}>Neural Pipeline</ScrollFloat></h2>
+        <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.8rem,6.5vw,5.2rem)",letterSpacing:"-0.055em",marginBottom:"12px",color:"#fff",display:"flex",justifyContent:"center"}}><ScrollFloat containerClassName="pipeline-float" stagger={0.04}>Neural Pipeline</ScrollFloat></h2>
         <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.78)",maxWidth:"420px",margin:"0 auto",lineHeight:1.7}}>Real-time multi-agent synthesis, visualized live.</p>
       </div>
       <div ref={bRef} className="reveal corner-brackets" style={{width:"100%",maxWidth:"1440px",margin:"0 auto",borderRadius:"32px",overflow:"hidden",background:"radial-gradient(ellipse 130% 80% at 25% 50%,rgba(0,24,8,0.55) 0%,rgba(3,4,16,0.92) 55%),radial-gradient(ellipse 130% 80% at 75% 50%,rgba(24,0,5,0.4) 0%,rgba(3,4,16,0.92) 55%)",border:"1px solid rgba(255,255,255,0.05)",position:"relative",boxShadow:"0 40px 80px rgba(0,0,0,0.5)",color:C.green}}>
@@ -1883,7 +1883,7 @@ function TechHighlights(){
     [C.crimson]:"255,32,64",[C.amber]:"255,170,0",[C.gold]:"255,215,0",
   };
   return(
-    <section style={{padding:"96px 0 40px"}}>
+    <section style={{padding:"32px 0 40px"}}>
       <SectionDivider/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 0.55fr",gap:"48px",alignItems:"end",marginBottom:"56px"}} className="hiw-grid">
         <div ref={hRef} className="reveal">
@@ -2794,10 +2794,9 @@ function Footer(){
         <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
           <img src="/favicon.png" alt="POLYNOUS" style={{width:"24px",height:"24px",borderRadius:"6px",objectFit:"cover",border:`1px solid ${C.green}25`}}/>
           <span style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"14px",color:C.green,letterSpacing:"0.1em"}}>POLYNOUS</span>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)"}}>7 Agents · Claude · GPT · Gemini · Mistral · Groq · NVIDIA · DeepSeek</span>
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:"22px"}}>
-          {[{label:"GitHub",href:"https://github.com/pradhanashwarya2122"},{label:"Docs",href:"#"},{label:"Privacy",href:"#"},{label:"Terms",href:"#"}].map(({label,href})=>(
+          {[{label:"GitHub",href:"https://github.com/pradhanashwarya2122"},{label:"Docs",href:"/docs"},{label:"Privacy",href:"/privacy"},{label:"Terms",href:"/terms"}].map(({label,href})=>(
             <a key={label} href={href} target={href.startsWith("http")?"_blank":undefined} rel="noreferrer" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(100,118,150,0.6)",textDecoration:"none",transition:"color 0.2s"}} onMouseOver={e=>e.currentTarget.style.color=C.green} onMouseOut={e=>e.currentTarget.style.color="rgba(100,118,150,0.6)"}>{label}</a>
           ))}
         </div>

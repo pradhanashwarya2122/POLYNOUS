@@ -168,10 +168,35 @@ function parseAnswer(text) {
 
 function parseLimitationPoints(text) {
   if (!text) return [];
-  return splitItems(text)
+  // Already an array (critic sometimes hands coverage_gaps straight through).
+  if (Array.isArray(text)) return text.map(clean).filter((l) => l.length > 6);
+  let s = String(text).trim();
+  // A stringified array, e.g. ['a', 'b', 'c'] or ["a","b"] - parse into items
+  // instead of dumping the raw brackets into the UI.
+  if (/^\[[\s\S]*\]$/.test(s)) {
+    try {
+      const arr = JSON.parse(s.replace(/'/g, '"'));
+      if (Array.isArray(arr)) return arr.map(clean).filter((l) => l.length > 6);
+    } catch (_) {
+      const inner = s.slice(1, -1).split(/'\s*,\s*'|"\s*,\s*"/).map((x) => x.replace(/^['"]|['"]$/g, ""));
+      if (inner.length) return inner.map(clean).filter((l) => l.length > 6);
+    }
+  }
+  return splitItems(s)
     .map(clean)
     // drop leaked header tails like "& UNCERTAINTIES" or bare "CONFIDENCE ASSESSMENT"
     .filter((l) => l.length > 15 && !/^(&|CONFIDENCE|SOURCES)/i.test(l));
+}
+
+// Classify a caveat into a typed, labelled, colour-coded card from its wording.
+function caveatMeta(t) {
+  const s = String(t).toLowerCase();
+  if (/bias|affiliation|perspective|institution|funding|agenda|commercial/.test(s)) return { label: "Institutional Bias", icon: "balance", color: "#ffaa00" };
+  if (/informal|blog|rigou?r|peer|anecdot|unverified|opinion|less rigorous/.test(s)) return { label: "Source Rigor", icon: "school", color: "#ff6b6b" };
+  if (/temporal|date|recen|outdated|\btime\b|year|context is unclear/.test(s)) return { label: "Temporal Ambiguity", icon: "schedule", color: "#00ccff" };
+  if (/coverage|gap|missing|not covered|absent|limited data|sample|underrepresent/.test(s)) return { label: "Coverage Gap", icon: "search_off", color: "#a855f7" };
+  if (/conflict|contradict|disagree|dispute/.test(s)) return { label: "Conflicting Evidence", icon: "bolt", color: "#ff2040" };
+  return { label: "Caveat", icon: "info", color: "#ffaa00" };
 }
 
 function SynapseDots() {
@@ -393,6 +418,7 @@ function StructuredConfidenceCard({ analysis, delay = 0 }) {
 const PROVIDER_LABEL = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", groq: "Groq", mistral: "Mistral", cohere: "Cohere", together: "Together" };
 
 function RunTelemetryCard({ telemetry, accent = C.cyan }) {
+  const [open, setOpen] = useState(false);
   if (!telemetry) return null;
   const t = telemetry;
   const cost = t.estimated_cost || {};
@@ -414,7 +440,7 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
 
   return (
     <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${accent}`,borderRadius:14,padding:"22px 26px",position:"relative",animation:"sectionIn 0.5s 0.14s ease both" }}>
-      <div style={{ marginBottom:16 }}>
+      <button onClick={()=>setOpen(o=>!o)} style={{ width:"100%",background:"transparent",border:"none",cursor:"pointer",textAlign:"left",padding:0,marginBottom: open ? 16 : 0 }}>
         <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:7 }}>
           <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:accent,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,opacity:0.85 }}>Real usage · your key</span>
           {(t.providers || []).map((p) => (
@@ -426,9 +452,15 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
         <div style={{ display:"flex",alignItems:"center",gap:10 }}>
           <Icon name="monitoring" style={{ fontSize:19,color:accent }} />
           <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Run Telemetry</h3>
+          <span style={{ marginLeft:"auto",display:"flex",alignItems:"center",gap:12 }}>
+            <span style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,color:"#fff" }}>{fmtCost(cost.usd)}</span>
+            <Icon name="expand_more" style={{ fontSize:22,color:accent,transform:open?"rotate(180deg)":"none",transition:"transform 0.35s cubic-bezier(0.23,1,0.32,1)" }} />
+          </span>
         </div>
+        {!open && <p style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:12,color:C.textSecondary,margin:"9px 0 0" }}>Tap to see the full per-agent token and cost breakdown.</p>}
         <div style={{ height:2,width:44,background:`linear-gradient(90deg, ${accent}, transparent)`,borderRadius:2,marginTop:11 }} />
-      </div>
+      </button>
+      <div style={{ maxHeight: open ? 4000 : 0, opacity: open ? 1 : 0, overflow:"hidden", transition:"max-height 0.55s cubic-bezier(0.23,1,0.32,1), opacity 0.4s ease" }}>
 
       {/* Prominent, explicit spend headline for this run */}
       <div style={{ display:"flex",alignItems:"baseline",gap:12,flexWrap:"wrap",background:`${accent}0f`,border:`1px solid ${accent}33`,borderRadius:12,padding:"14px 18px",marginBottom:16 }}>
@@ -482,6 +514,7 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
         Costs are estimates from public list prices{cost.priced_all === false ? " (partial - some models have no price entry, shown as - )" : ""}.
         {missing ? " Some calls' providers did not report token usage (shown as - )." : ""}
       </div>
+      </div>
     </div>
   );
 }
@@ -523,24 +556,43 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
       // the working /debate-visual stream. Using credentialed CORS here made the
       // browser block the request on deployments whose CORS doesn't allow
       // credentials, surfacing as "Unable to connect to server".
-      const token = localStorage.getItem("polynous_token") || "";
-      const res = await fetch(`${API_BASE_URL}/report/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          question,
-          report_answer: answer || "",
-          source_summaries: sourceSummaries || [],
-          citations: (sources || []).map((s) => (typeof s === "string" ? { title: s } : { title: s.title, url: s.url })),
-          response_style: localStorage.getItem("polynous_response_style") || "",
-        }),
+      const body = JSON.stringify({
+        question,
+        report_answer: answer || "",
+        source_summaries: sourceSummaries || [],
+        citations: (sources || []).map((s) => (typeof s === "string" ? { title: s } : { title: s.title, url: s.url })),
+        response_style: localStorage.getItem("polynous_response_style") || "",
       });
+      const doPost = (tok) => fetch(`${API_BASE_URL}/report/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}) },
+        body,
+      });
+      let token = localStorage.getItem("polynous_token") || window.__POLYNOUS_ACCESS_TOKEN__ || "";
+      let res = await doPost(token);
+      // The access token lives ~15 min. If it expired, the user is still logged
+      // in (30-day refresh cookie) - silently refresh once and retry instead of
+      // telling them to sign in.
+      if (res.status === 401) {
+        try {
+          const rr = await fetch(`${API_BASE_URL}/auth/refresh`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } });
+          if (rr.ok) {
+            const rd = await rr.json().catch(() => ({}));
+            if (rd.access_token) {
+              localStorage.setItem("polynous_token", rd.access_token);
+              window.__POLYNOUS_ACCESS_TOKEN__ = rd.access_token;
+              res = await doPost(rd.access_token);
+            }
+          }
+        } catch (_) { /* fall through to error handling below */ }
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // A bare "Not Found" (FastAPI's 404 body) is confusing in a chat bubble - 
-        // map it to something actionable instead of echoing the raw detail.
         if (res.status === 404) {
           throw new Error("Report chat is unavailable on the server right now (404). Please try again shortly.");
+        }
+        if (res.status === 401) {
+          throw new Error("Your session expired. Please refresh the page, then ask again.");
         }
         throw new Error(data?.detail || data?.message || `Chat failed (${res.status})`);
       }
@@ -961,13 +1013,23 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
             </div>
             <div style={{ height:2,width:44,background:`linear-gradient(90deg, ${C.amber}, transparent)`,borderRadius:2,marginTop:11 }} />
           </div>
-          <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-            {limitationPoints.length>0 ? limitationPoints.map((pt,i)=>(
-              <div key={i} style={{ display:"flex",alignItems:"flex-start",gap:14 }}>
-                <span style={{ flexShrink:0,width:26,height:26,borderRadius:"50%",background:"rgba(255,170,0,0.1)",border:`1px solid ${C.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:800,color:C.amber,marginTop:2 }}>{i+1}</span>
-                <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:"rgba(255,200,100,0.9)",fontStyle:"italic" }}>{clean(pt)}</p>
-              </div>
-            )) : <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14,lineHeight:1.8,color:"rgba(255,200,100,0.85)",fontStyle:"italic" }}>{clean(limitations)}</p>}
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(248px,1fr))",gap:12 }}>
+            {(limitationPoints.length>0 ? limitationPoints : [clean(limitations)]).filter(Boolean).map((pt,i)=>{
+              const m = caveatMeta(pt);
+              return (
+                <div key={i} style={{ background:`${m.color}0d`,border:`1px solid ${m.color}33`,borderRadius:12,padding:"14px 16px",display:"flex",flexDirection:"column",gap:9,transition:"transform 0.25s, box-shadow 0.25s" }}
+                  onMouseOver={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow=`0 14px 30px rgba(0,0,0,0.35), 0 0 20px ${m.color}18`;}}
+                  onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="none";}}>
+                  <div style={{ display:"flex",alignItems:"center",gap:9 }}>
+                    <span style={{ flexShrink:0,width:30,height:30,borderRadius:9,background:`${m.color}1c`,border:`1px solid ${m.color}45`,display:"flex",alignItems:"center",justifyContent:"center" }}>
+                      <Icon name={m.icon} style={{ fontSize:17,color:m.color }} />
+                    </span>
+                    <span style={{ fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:12.5,color:"#fff",letterSpacing:"-0.01em" }}>{m.label}</span>
+                  </div>
+                  <p style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13,lineHeight:1.62,color:"rgba(232,222,204,0.84)",margin:0 }}>{pt}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

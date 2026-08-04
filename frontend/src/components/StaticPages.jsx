@@ -1,0 +1,111 @@
+import { useEffect } from "react";
+
+/* Lightweight, premium-styled static content pages (Docs / Privacy / Terms).
+   Real placeholder content now; the user can drop richer .jsx in later and
+   these routes already exist. */
+
+const C = {
+  green: "#00ff0f", cyan: "#00ccff", void: "#060610",
+};
+
+function Shell({ title, tag, accent = C.green, children }) {
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+  return (
+    <div style={{ minHeight: "100vh", background: C.void, color: "#fff", position: "relative" }}>
+      <div style={{ position: "fixed", inset: 0, background: `radial-gradient(ellipse 70% 50% at 50% 0%, ${accent}0c, transparent 60%)`, pointerEvents: "none" }} />
+      <header style={{ position: "sticky", top: 0, zIndex: 20, backdropFilter: "blur(24px)", background: "rgba(6,6,16,0.7)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+            <img src="/favicon.png" alt="POLYNOUS" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover", border: `1px solid ${accent}40` }} />
+            <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 16, color: "#fff", letterSpacing: "0.06em" }}>POLYNOUS</span>
+          </a>
+          <a href="/" style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: "rgba(150,165,185,0.8)", textDecoration: "none" }}>← Back home</a>
+        </div>
+      </header>
+      <main style={{ maxWidth: 820, margin: "0 auto", padding: "56px 28px 100px", position: "relative", zIndex: 1 }}>
+        <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: accent, letterSpacing: "0.24em", textTransform: "uppercase", margin: "0 0 14px" }}>{tag}</p>
+        <h1 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: "clamp(2.2rem,5vw,3.4rem)", letterSpacing: "-0.04em", lineHeight: 1.02, margin: "0 0 12px" }}>{title}</h1>
+        <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: "rgba(130,148,168,0.6)", margin: "0 0 40px" }}>Last updated: {new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</p>
+        <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15.5, lineHeight: 1.8, color: "rgba(206,218,232,0.86)" }}>{children}</div>
+      </main>
+    </div>
+  );
+}
+
+function Section({ h, children }) {
+  return (
+    <section style={{ marginBottom: 32 }}>
+      <h2 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", letterSpacing: "-0.02em", margin: "0 0 12px" }}>{h}</h2>
+      {children}
+    </section>
+  );
+}
+
+export function PrivacyPage() {
+  return (
+    <Shell title="Privacy Policy" tag="Legal" accent={C.cyan}>
+      <p style={{ marginTop: 0 }}>Your privacy matters. POLYNOUS is built around a bring-your-own-key model, which means the intelligence that powers your research runs on credentials you control, not ours.</p>
+      <Section h="1. What we store">
+        <p>We store your account (email, a one-way hashed password), your saved preferences, and your research and debate history so you can revisit it. Your API keys are encrypted at rest with Fernet and are never returned to the browser in plaintext.</p>
+      </Section>
+      <Section h="2. What we never do">
+        <p>We do not sell your data, we do not train models on your private research, and we do not read your API keys. Requests to third-party model providers are made directly with your key for the sole purpose of fulfilling your request.</p>
+      </Section>
+      <Section h="3. Third-party providers">
+        <p>When you run research or a debate, your query and the material fetched for it are sent to the model provider you selected (for example Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, or DeepSeek) and to the search provider. Their handling of that data is governed by their own privacy policies.</p>
+      </Section>
+      <Section h="4. Your control">
+        <p>You can export or permanently delete your research history and reset your account at any time from Settings. Deleting your account removes your stored profile, preferences, and encrypted keys.</p>
+      </Section>
+      <Section h="5. Contact">
+        <p>Questions about this policy can be sent to the project maintainer via the GitHub repository linked in the footer.</p>
+      </Section>
+    </Shell>
+  );
+}
+
+export function TermsPage() {
+  return (
+    <Shell title="Terms of Service" tag="Legal" accent={C.green}>
+      <p style={{ marginTop: 0 }}>By using POLYNOUS you agree to these terms. Please read them carefully.</p>
+      <Section h="1. The service">
+        <p>POLYNOUS is a multi-agent research and debate assistant. Outputs are generated by AI models and are provided for informational purposes only. They may contain errors and should be independently verified before you rely on them.</p>
+      </Section>
+      <Section h="2. Your keys and usage">
+        <p>You are responsible for the API keys you add and for any usage costs those keys incur with their providers. You agree not to use the service for unlawful purposes or in violation of any provider's terms.</p>
+      </Section>
+      <Section h="3. No warranty">
+        <p>The service is provided "as is" without warranties of any kind. We do not guarantee accuracy, availability, or fitness for a particular purpose.</p>
+      </Section>
+      <Section h="4. Limitation of liability">
+        <p>To the maximum extent permitted by law, POLYNOUS and its maintainers are not liable for any indirect, incidental, or consequential damages arising from your use of the service.</p>
+      </Section>
+      <Section h="5. Changes">
+        <p>These terms may be updated over time. Continued use of the service after changes take effect constitutes acceptance of the revised terms.</p>
+      </Section>
+    </Shell>
+  );
+}
+
+export function DocsPage() {
+  return (
+    <Shell title="Documentation" tag="Guide" accent={C.green}>
+      <p style={{ marginTop: 0 }}>A quick tour of what POLYNOUS does and how to get started.</p>
+      <Section h="Getting started">
+        <p>Sign in, then open Settings and add an API key for at least one provider (Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, or DeepSeek) plus a Tavily key for live web search. Pick your preferred provider, and every agent will run on it.</p>
+      </Section>
+      <Section h="Neural Research">
+        <p>Ask a question and a five-stage pipeline (Search, Summarise, Critic, Deepen, Writer) streams back a cited report with per-claim confidence and flagged contradictions, not a single unsourced guess.</p>
+      </Section>
+      <Section h="Debate Chamber">
+        <p>Pose a proposition and watch FOR and AGAINST build evidence-backed cases while a rubric-scored Judge delivers a verdict you can re-weight, re-frame through different value lenses, and even join yourself.</p>
+      </Section>
+      <Section h="Knowledge Graph, Search, Memory, PDF Lab, Analytics">
+        <p>Every session feeds a Neo4j knowledge graph and a Pinecone semantic index, so past research is findable by meaning. Upload PDFs for security-screened, document-grounded Q&A, and track your activity and spend in Analytics.</p>
+      </Section>
+      <Section h="Full docs">
+        <p>Deeper documentation is on the way. For now, the README in the GitHub repository linked in the footer covers architecture and setup.</p>
+      </Section>
+    </Shell>
+  );
+}

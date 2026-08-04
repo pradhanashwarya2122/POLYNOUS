@@ -751,6 +751,24 @@ function Reveal({ children, animation = "fadeUp", delay = 0, style }) {
   return <div ref={ref} style={style}>{children}</div>;
 }
 
+// ─── Argument text formatter — strips leading bullets, renders **bold**, and
+//     turns [n] citations into small colored chips so points read cleanly. ────
+function ArgText({ text, accent }) {
+  const cleaned = String(text || "").replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "").trim();
+  const parts = cleaned.split(/(\*\*[^*]+\*\*|\[\d{1,2}\])/g).filter((p) => p !== "");
+  return (
+    <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14.5, lineHeight: 1.8, color: "#d3dbe6", margin: 0, fontWeight: 400 }}>
+      {parts.map((p, i) => {
+        if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color: "#fff", fontWeight: 700 }}>{p.slice(2, -2)}</strong>;
+        if (/^\[\d{1,2}\]$/.test(p)) return (
+          <span key={i} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 17, height: 16, padding: "0 5px", margin: "0 2px", borderRadius: 5, background: `${accent}1e`, border: `1px solid ${accent}55`, color: accent, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 700, verticalAlign: "1px" }}>{p.slice(1, -1)}</span>
+        );
+        return <span key={i}>{p}</span>;
+      })}
+    </p>
+  );
+}
+
 // ─── PointCard (result side) ──────────────────────────────────────────────────
 
 function PointCard({ text, index, side }) {
@@ -783,10 +801,33 @@ function PointCard({ text, index, side }) {
               {isFor ? "Supporting" : "Counter"} · {index + 1}
             </span>
           </div>
-          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14.5, lineHeight: 1.85, color: "#cdd5e0", margin: 0, fontWeight: 400 }}>
-            {text}
-          </p>
+          <ArgText text={text} accent={accent} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ClashMeter — live head-to-head bar; the knot slides toward the leader and
+//     animates whenever the scores change (re-judge / lens / join). ───────────
+function ClashMeter({ forScore, againstScore }) {
+  const total = (forScore + againstScore) || 1;
+  const forShare = Math.max(6, Math.min(94, (forScore / total) * 100));
+  const lead = forScore === againstScore ? "tie" : forScore > againstScore ? "for" : "against";
+  const leadColor = lead === "for" ? C.green : lead === "against" ? C.crimson : C.purple;
+  const gap = Math.abs(forScore - againstScore).toFixed(1);
+  const ease = "left 0.9s cubic-bezier(0.34,1.56,0.64,1), width 0.9s cubic-bezier(0.34,1.56,0.64,1)";
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 11 }}>
+        <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16, color: C.green }}>{Number(forScore).toFixed(1)}<span style={{ fontSize: 10, color: C.textSecondary, fontWeight: 600 }}> FOR</span></span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: leadColor, letterSpacing: "0.06em", textTransform: "uppercase" }}>{lead === "tie" ? "Dead heat" : `${lead === "for" ? "Supporting" : "Counter"} leads by ${gap}`}</span>
+        <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16, color: C.crimson }}><span style={{ fontSize: 10, color: C.textSecondary, fontWeight: 600 }}>AGAINST </span>{Number(againstScore).toFixed(1)}</span>
+      </div>
+      <div style={{ position: "relative", height: 16, borderRadius: 9, background: "rgba(255,255,255,0.04)", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${forShare}%`, background: `linear-gradient(90deg, rgba(0,230,77,0.35), ${C.green})`, transition: ease, boxShadow: `0 0 14px ${C.green}55` }} />
+        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: `${100 - forShare}%`, background: `linear-gradient(270deg, rgba(255,32,64,0.35), ${C.crimson})`, transition: ease, boxShadow: `0 0 14px ${C.crimson}55` }} />
+        <div style={{ position: "absolute", top: "50%", left: `${forShare}%`, transform: "translate(-50%,-50%)", width: 18, height: 18, borderRadius: "50%", background: leadColor, border: "2px solid #0a0a1e", boxShadow: `0 0 12px ${leadColor}`, transition: ease, zIndex: 2 }} />
       </div>
     </div>
   );
@@ -1073,7 +1114,7 @@ function DebateFollowups({ query, result, onVerdict }) {
   const flipFor = canFlip ? (wEv * forRub + (1 - wEv) * forQ) : 0;
   const flipAgainst = canFlip ? (wEv * againstRub + (1 - wEv) * againstQ) : 0;
   const flipGap = flipFor - flipAgainst;
-  const flipWinner = Math.abs(flipGap) < 0.5 ? "TIE" : (flipGap > 0 ? "FOR" : "AGAINST");
+  const flipWinner = Math.abs(flipGap) < 0.25 ? "TIE" : (flipGap > 0 ? "FOR" : "AGAINST");
   const flipWinColor = flipWinner === "FOR" ? C.green : flipWinner === "AGAINST" ? C.crimson : C.purple;
   const realWinner = v?.winner;
   const flipped = canFlip && flipWinner !== realWinner && Math.abs(wEv - 0.5) > 0.001;
@@ -1120,19 +1161,9 @@ function DebateFollowups({ query, result, onVerdict }) {
           <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.6 }}>
             The verdict is 50% measured evidence + 50% judged argument quality. Drag to re-weight and watch the scores move - the verdict is reasoned, not decreed.
           </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div>
-              <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 800, color: C.green }}>{flipFor.toFixed(1)}</span>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary }}> FOR</span>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 800, color: flipWinColor }}>{flipWinner === "TIE" ? "TIE" : `${flipWinner} leads`}</div>
-              {flipped && <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.gold, marginTop: 3, letterSpacing: "0.05em" }}>⚠ FLIPPED from {realWinner}</div>}
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary }}>AGAINST </span>
-              <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 800, color: C.crimson }}>{flipAgainst.toFixed(1)}</span>
-            </div>
+          <div style={{ marginBottom: 16 }}>
+            <ClashMeter forScore={flipFor} againstScore={flipAgainst} />
+            {flipped && <div style={{ textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.gold, marginTop: 10, letterSpacing: "0.05em" }}>⚠ This weighting FLIPS the verdict from {realWinner} to {flipWinner}</div>}
           </div>
           <input type="range" min={0} max={100} value={Math.round(wEv * 100)} onChange={(e) => setWEv(Number(e.target.value) / 100)}
             style={{ width: "100%", accentColor: flipWinColor, cursor: "pointer" }} />
@@ -1733,9 +1764,15 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
 
                   {/* Score comparison */}
                   <div style={{ background: "rgba(10,10,30,0.55)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 16, padding: "20px 26px", marginBottom: 24, animation: "dropIn 0.4s 0.2s ease both" }}>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: C.textSecondary, marginBottom: 18 }}>Comparative Scores</div>
-                    <ScoreBar label="Supporting" score={forScore} color={C.green} fillGradient={`linear-gradient(90deg, rgba(0,230,77,0.5), ${C.green})`} delay={300} />
-                    <ScoreBar label="Counter" score={againstScore} color={C.crimson} fillGradient={`linear-gradient(90deg, rgba(255,32,64,0.5), ${C.crimson})`} delay={450} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+                      <Icon name="sports_kabaddi" style={{ fontSize: 16, color: C.purple }} />
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: C.textSecondary }}>Clash Meter</span>
+                    </div>
+                    <ClashMeter forScore={forScore} againstScore={againstScore} />
+                    <div style={{ marginTop: 18 }}>
+                      <ScoreBar label="Supporting" score={forScore} color={C.green} fillGradient={`linear-gradient(90deg, rgba(0,230,77,0.5), ${C.green})`} delay={300} />
+                      <ScoreBar label="Counter" score={againstScore} color={C.crimson} fillGradient={`linear-gradient(90deg, rgba(255,32,64,0.5), ${C.crimson})`} delay={450} />
+                    </div>
                   </div>
 
                   {/* Verdict panel */}

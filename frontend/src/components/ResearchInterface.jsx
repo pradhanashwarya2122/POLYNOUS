@@ -1092,6 +1092,22 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   // Rerun the CURRENT query bypassing the research cache (chip button).
   const rerunFresh = () => startResearch(activeQuery || query, { forceFresh: true });
 
+  // Auto-load a query passed via ?query= (landing hero, example chips, deep
+  // links) so results render automatically instead of waiting for the user to
+  // re-type and press a button.
+  const autoRanRef = useRef(false);
+  useEffect(() => {
+    if (autoRanRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const q = (params.get("query") || params.get("q") || "").trim();
+    if (q) {
+      autoRanRef.current = true;
+      setQuery(q);
+      startResearch(q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleNew  = () => { setAnswer(""); setQuery(""); setActiveQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); setEngineDone(false); };
   const handleCopy = () => { navigator.clipboard.writeText(answer); };
   const confColor  = (v) => v>=80?C.green:v>=60?C.amber:C.crimson;
