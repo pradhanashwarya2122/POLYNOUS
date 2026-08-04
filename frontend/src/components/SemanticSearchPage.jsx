@@ -36,7 +36,7 @@ function Icon({ name, style }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AMBIENT GALAXY — transparent WebGL background
+// AMBIENT GALAXY - transparent WebGL background
 // ═══════════════════════════════════════════════════════════════
 const DISC_TILT = 0.21
 const FIXED_RX  = 5.5
@@ -434,7 +434,7 @@ function AmbientGalaxy({ sidebarWidth = 320 }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PREMIUM RIGHT PANEL — orrery + constellation art
+// PREMIUM RIGHT PANEL - orrery + constellation art
 // ═══════════════════════════════════════════════════════════════
 function PremiumRightPanel() {
   const canvasRef = useRef(null)
@@ -803,7 +803,7 @@ function CornerInfoCard() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// VECTOR NODE COUNT — bottom-left corner badge (live API call)
+// VECTOR NODE COUNT - bottom-left corner badge (live API call)
 // ═══════════════════════════════════════════════════════════════
 function VectorNodeBadge({ sidebarWidth }) {
   const [count, setCount] = useState(null)
@@ -844,7 +844,7 @@ const res = await fetch(`${API_BASE_URL}/stats/vector-count`, {
   }, [])
 
   const formatCount = n => {
-    if (n === null) return '—'
+    if (n === null) return ' - '
     if (n >= 1000000) return `${(n / 1000000).toFixed(2)}M`
     if (n >= 1000) return `${(n / 1000).toFixed(1)}K`
     return n.toString()
@@ -1365,7 +1365,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CONSTELLATION BACKGROUND — rich star field with constellation lines
+// CONSTELLATION BACKGROUND - rich star field with constellation lines
 // ═══════════════════════════════════════════════════════════════
 function ParticleCanvas() {
   const ref   = useRef(null)
@@ -1452,7 +1452,7 @@ function ParticleCanvas() {
         vy: (Math.random() - 0.5) * 0.06,
       }))
 
-      // Scattered background micro-stars — many more, spread evenly
+      // Scattered background micro-stars - many more, spread evenly
       const micro = Array.from({ length: 320 }, () => ({
         x: Math.random() * W,
         y: Math.random() * H,
@@ -1589,7 +1589,7 @@ function ParticleCanvas() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ALL 25 SUGGESTION TOPICS — short keyword combos, auto-shuffled
+// ALL 25 SUGGESTION TOPICS - short keyword combos, auto-shuffled
 // ═══════════════════════════════════════════════════════════════
 const ALL_SUGGESTIONS = [
   'AI alignment',
@@ -1619,7 +1619,7 @@ const ALL_SUGGESTIONS = [
   'biosignature detection',
 ]
 
-// Shuffle helper — Fisher-Yates
+// Shuffle helper - Fisher-Yates
 function shuffle(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -1752,7 +1752,7 @@ function ResultPanel({ result, onClose, onStartResearch }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PREMIUM IDLE STATE — reworked, no removed elements
+// PREMIUM IDLE STATE - reworked, no removed elements
 // ═══════════════════════════════════════════════════════════════
 function IdleState({ noResults = false }) {
   return (
@@ -1763,7 +1763,7 @@ function IdleState({ noResults = false }) {
       border: '1px solid rgba(0,204,255,0.12)',
       overflow: 'hidden',
     }}>
-      {/* CTA — "Query the neural void" with stellar aesthetic */}
+      {/* CTA - "Query the neural void" with stellar aesthetic */}
       <div style={{ padding: '72px 40px 52px', textAlign: 'center', position: 'relative' }}>
 
         {/* Ambient glow behind icon */}
@@ -1794,7 +1794,7 @@ function IdleState({ noResults = false }) {
           </div>
         </div>
 
-        {/* Main heading — "Query the neural void" */}
+        {/* Main heading - "Query the neural void" */}
         {noResults ? (
           <>
             <h3 style={{
@@ -1810,7 +1810,7 @@ function IdleState({ noResults = false }) {
               fontFamily: "'Hanken Grotesk',sans-serif", color: C.textSecondary,
               fontSize: 14, maxWidth: 360, margin: '0 auto', lineHeight: 1.7,
             }}>
-              Try broader keywords — the constellation forms when embeddings find their alignment.
+              Try broader keywords - the constellation forms when embeddings find their alignment.
             </p>
           </>
         ) : (
@@ -1839,7 +1839,7 @@ function IdleState({ noResults = false }) {
               margin: '0 auto',
               lineHeight: 1.75,
             }}>
-              Semantic embeddings turn your research into living constellations — each star a conceptual match, each edge a hidden connection.
+              Semantic embeddings turn your research into living constellations - each star a conceptual match, each edge a hidden connection.
             </p>
           </>
         )}
@@ -2111,7 +2111,7 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
         </div>
       </main>
 
-      {/* ── VECTOR NODE BADGE — bottom-left, adjusts with sidebar ── */}
+      {/* ── VECTOR NODE BADGE - bottom-left, adjusts with sidebar ── */}
       <VectorNodeBadge sidebarWidth={sidebarW} />
 
       <CornerInfoCard />

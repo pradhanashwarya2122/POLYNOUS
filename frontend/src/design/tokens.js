@@ -2,7 +2,7 @@
 //
 // Shared design tokens for POLYNOUS (Phase 7). Single source of truth for the
 // palette, type ramp, and spacing that the engines and reports reuse. Colours
-// here are the exact hex values already used across the app — no visual change,
+// here are the exact hex values already used across the app - no visual change,
 // just deduplicated. Per-surface accents (research = green/cyan, debate =
 // crimson) are grouped so each view imports its own accent without redefining
 // the neutral base.

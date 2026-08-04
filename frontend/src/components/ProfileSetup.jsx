@@ -365,12 +365,12 @@ function StyleDial({ selected, onChange }) {
       </div>
       <div key={selected} style={{ animation: 'fadeIn 0.28s ease' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, letterSpacing: '0.2em', color: '#333', textTransform: 'uppercase', flexShrink: 0 }}>MODE</span>
-          <div style={{ flex: 1, borderTop: '1px dashed rgba(255,255,255,0.06)' }} />
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.22em', color: 'rgba(180,195,215,0.55)', textTransform: 'uppercase', flexShrink: 0 }}>MODE</span>
+          <div style={{ flex: 1, borderTop: '1px dashed rgba(255,255,255,0.1)' }} />
           <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 700, letterSpacing: '0.1em', color: active.accent, textTransform: 'uppercase', flexShrink: 0, textShadow: `0 0 24px rgba(${hexToRgb(active.accent)},0.45)`, transition: 'color 0.3s ease, text-shadow 0.3s ease' }}>{active.label}</span>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.18)', textTransform: 'uppercase' }}>{active.sub}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.1em', color: `rgba(${hexToRgb(active.accent)},0.85)`, textTransform: 'uppercase' }}>{active.sub}</span>
         </div>
       </div>
     </div>
@@ -591,7 +591,7 @@ export default function ProfileSetup({ onComplete, email, token }) {
     setBtnLabel('SAVING KEYS...')
 
     try {
-      // ✅ Save API keys FIRST — and surface any that fail, non-blocking:
+      // ✅ Save API keys FIRST - and surface any that fail, non-blocking:
       // the user still completes setup and can fix keys later in Settings.
       const keyResults = await saveAllKeys()
       const failed = (keyResults || []).filter(r => !r.ok)

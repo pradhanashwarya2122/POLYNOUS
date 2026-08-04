@@ -76,7 +76,7 @@ export async function apiFetch(url, options = {}) {
   } catch (error) {
     // Network errors (offline, DNS failure, etc.)
     if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-      console.error('Network error — backend may be offline');
+      console.error('Network error - backend may be offline');
       throw new Error('Unable to connect to server. Please check your connection.');
     }
     throw error;

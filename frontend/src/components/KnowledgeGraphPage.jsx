@@ -618,7 +618,7 @@ function NeuralCanvas() {
       twinkleSpeed: 0.004 + Math.random() * 0.008,
     }));
 
-    // Plasma orbs — big drifting color blobs
+    // Plasma orbs - big drifting color blobs
     const ORBS = Array.from({ length: 7 }, (_, i) => ({
       x: Math.random(),
       y: Math.random(),
@@ -695,7 +695,7 @@ function NeuralCanvas() {
       ctx.fillStyle = "#06040f";
       ctx.fillRect(0, 0, w, h);
 
-      // — PLASMA ORBS (big soft blobs that drift) —
+      // - PLASMA ORBS (big soft blobs that drift) - 
       ORBS.forEach(orb => {
         orb.phase += orb.speed;
         const ox = (orb.orbitCx + Math.cos(orb.phase) * orb.orbitR) * w;
@@ -708,7 +708,7 @@ function NeuralCanvas() {
         ctx.fillRect(0, 0, w, h);
       });
 
-      // — AURORA BANDS (horizontal sine wave curtains) —
+      // - AURORA BANDS (horizontal sine wave curtains) - 
       AURORA_BANDS.forEach(band => {
         band.phase += band.speed;
         const segCount = Math.ceil(w / 8);
@@ -724,7 +724,7 @@ function NeuralCanvas() {
         }
       });
 
-      // — GEOMETRIC SPINNING RINGS (subtle sacred geometry feel) —
+      // - GEOMETRIC SPINNING RINGS (subtle sacred geometry feel) - 
       HEX_RINGS.forEach(ring => {
         ring.phase += ring.speed;
         const cx = ring.cx * w, cy = ring.cy * h;
@@ -739,7 +739,7 @@ function NeuralCanvas() {
         ctx.stroke();
       });
 
-      // — STARS (twinkling) —
+      // - STARS (twinkling) - 
       STARS.forEach(s => {
         const twink = 0.45 + 0.55 * Math.sin(s.twinkle + frame * s.twinkleSpeed);
         const alpha = s.opacity * twink;
@@ -762,7 +762,7 @@ function NeuralCanvas() {
         ctx.fill();
       });
 
-      // — CONSTELLATION PARTICLES + LINKS —
+      // - CONSTELLATION PARTICLES + LINKS - 
       CONSTELLATIONS.forEach((p, i) => {
         p.x += p.vx;
         p.y += p.vy;
@@ -801,7 +801,7 @@ function NeuralCanvas() {
         }
       });
 
-      // — CENTRAL RADIANT PULSE (purple heartbeat from centre) —
+      // - CENTRAL RADIANT PULSE (purple heartbeat from centre) - 
       const pulseT = (Math.sin(frame * 0.012) * 0.5 + 0.5);
       const pulseR = 80 + pulseT * 60;
       const pulseAlpha = 0.06 + pulseT * 0.08;
@@ -819,7 +819,7 @@ function NeuralCanvas() {
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // — TOP VIGNETTE (keep UI readable) —
+      // - TOP VIGNETTE (keep UI readable) - 
       const vigTop = ctx.createLinearGradient(0, 0, 0, h * 0.35);
       vigTop.addColorStop(0, "rgba(6,4,15,0.55)");
       vigTop.addColorStop(1, "rgba(6,4,15,0)");
@@ -1010,14 +1010,14 @@ function Pathfinder({ positions, graphData, onClose, onPathFound }) {
         </div>
         {result?.steps && (
           <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 10 }}>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", marginBottom: 8 }}>Path — {result.steps.length} hops</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", marginBottom: 8 }}>Path - {result.steps.length} hops</div>
             {result.steps.map((step, i) => (
               <div key={i}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 8px", borderRadius: 6, background: "rgba(70,179,255,0.05)", border: "1px solid rgba(70,179,255,0.1)", marginBottom: 2 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.cyan }} />
                   <span style={{ fontSize: 10, color: "#fff", fontFamily: "'Space Grotesk',sans-serif" }}>{step.node}</span>
                 </div>
-                {step.edge && <div style={{ fontSize: 9, color: C.cyan, fontFamily: "'Space Grotesk',sans-serif", fontStyle: "italic", paddingLeft: 18, marginBottom: 2 }}>— {step.edge} —</div>}
+                {step.edge && <div style={{ fontSize: 9, color: C.cyan, fontFamily: "'Space Grotesk',sans-serif", fontStyle: "italic", paddingLeft: 18, marginBottom: 2 }}> -  {step.edge} - </div>}
               </div>
             ))}
           </div>
@@ -1151,7 +1151,7 @@ function ContextMenu({ node, position, onClose, onResearch, onHighlight, onPathf
   );
 }
 
-// ─── TIMELINE SLIDER (FIXED — no hardcoded 2025, no buggy playback) ──
+// ─── TIMELINE SLIDER (FIXED - no hardcoded 2025, no buggy playback) ──
 // Now serves as a Graph Exploration bar: Growth animation + zoom level control
 function TimelineSlider({ onExportGIF, exporting, growthStep, maxGrowthStep, growthPlaying, onGrowthPlay, onGrowthReset, growthSpeed, onSpeedChange, zoom, onZoomChange, onCenterGraph }) {
   const growthPct = maxGrowthStep > 0 ? (growthStep / maxGrowthStep) * 100 : 0;
@@ -1168,7 +1168,7 @@ function TimelineSlider({ onExportGIF, exporting, growthStep, maxGrowthStep, gro
       display: "flex", alignItems: "center", gap: 0,
       height: 58, padding: "0 20px",
     }}>
-      {/* — GRAPH GROWTH REVEAL — */}
+      {/* - GRAPH GROWTH REVEAL - */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 20, borderRight: "1px solid rgba(255,255,255,0.06)", marginRight: 20 }}>
         <span style={{ fontSize: 9, color: "rgba(168,85,247,0.6)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.10em", marginRight: 2 }}>Reveal</span>
         <button onClick={onGrowthPlay} style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
@@ -1190,7 +1190,7 @@ function TimelineSlider({ onExportGIF, exporting, growthStep, maxGrowthStep, gro
         ))}
       </div>
 
-      {/* — ZOOM CONTROL — */}
+      {/* - ZOOM CONTROL - */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 20, borderRight: "1px solid rgba(255,255,255,0.06)", marginRight: 20 }}>
         <span style={{ fontSize: 9, color: "rgba(168,85,247,0.6)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.10em" }}>Zoom</span>
         <button onClick={() => onZoomChange(Math.max(0.3, zoom - 0.1))} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 4, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1 }}>−</button>
@@ -1206,14 +1206,14 @@ function TimelineSlider({ onExportGIF, exporting, growthStep, maxGrowthStep, gro
         <span style={{ fontFamily: "'Space Grotesk',monospace", fontSize: 9, color: "#a855f7", fontWeight: 700, minWidth: 34 }}>{Math.round(zoom * 100)}%</span>
       </div>
 
-      {/* — CENTER GRAPH BUTTON — */}
+      {/* - CENTER GRAPH BUTTON - */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 20, borderRight: "1px solid rgba(255,255,255,0.06)", marginRight: 20 }}>
         <button onClick={onCenterGraph} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.28)", color: "#c084fc", fontSize: 10, fontFamily: "'Space Grotesk',sans-serif", cursor: "pointer", fontWeight: 600 }}>
           <Ico name="center" size={11} color="#c084fc" /> Center Graph
         </button>
       </div>
 
-      {/* — EXPORT — */}
+      {/* - EXPORT - */}
       <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
         <button onClick={onExportGIF} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, background: exporting ? "rgba(255,200,0,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${exporting ? "rgba(255,200,0,0.35)" : "rgba(255,255,255,0.07)"}`, color: exporting ? "#e6c44a" : "rgba(255,255,255,0.35)", fontSize: 9, fontFamily: "'Space Grotesk',sans-serif", cursor: "pointer" }}>
           <Ico name="video" size={11} color={exporting ? "#e6c44a" : "rgba(255,255,255,0.3)"} />
@@ -1906,7 +1906,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
         overflow: "hidden",
       }} onWheel={handleWheel}>
         <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-          {/* Graph canvas — transparent so NeuralCanvas shows through */}
+          {/* Graph canvas - transparent so NeuralCanvas shows through */}
           <canvas
             ref={canvasRef}
             style={{ width: "100%", height: "100%", display: "block", background: "transparent" }}

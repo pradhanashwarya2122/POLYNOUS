@@ -49,7 +49,7 @@ const ANIMATION_MODES = [
   { key:"breathing", label:"🫁 Breathing", desc:"Nodes gently grow and shrink (original)" },
   { key:"sparkle", label:"⭐ Sparkle Burst", desc:"Random sparkles appear around nodes" },
   { key:"energyBeam", label:"    Energy Beams", desc:"Energy beams connect related nodes" },
-  { key:"none", label:"🔘 Static", desc:"No animation — clean minimal look" },
+  { key:"none", label:"🔘 Static", desc:"No animation - clean minimal look" },
 ];
 
 function hexToRgb(hex) {

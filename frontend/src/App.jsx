@@ -21,7 +21,7 @@ import InfoPage from './components/InfoPage';
 import { API_BASE_URL } from './config';
 
 // ═══════════════════════════════════════════════════════════════
-// INITIAL AUTH STATE — Safe, non‑destructive localStorage check
+// INITIAL AUTH STATE - Safe, non‑destructive localStorage check
 // ═══════════════════════════════════════════════════════════════
 const getInitialAuthState = () => {
   const token = localStorage.getItem('polynous_token')
@@ -30,7 +30,7 @@ const getInitialAuthState = () => {
   if (token && userData) {
     try {
       const parsed = JSON.parse(userData)
-      // Only reject guest tokens — don't clear localStorage for missing fields
+      // Only reject guest tokens - don't clear localStorage for missing fields
       const isGuest = token.startsWith('guest_') || 
                       (parsed.email && parsed.email === 'guest@polynous.ai')
       if (!isGuest) {
@@ -49,7 +49,7 @@ const getInitialAuthState = () => {
 // ═══════════════════════════════════════════════════════════════
 function loadUserPreferences(userEmail) {
   const userId = userEmail || 'guest_user'
-  // The endpoint is auth-gated — must send the token, or default_mode etc.
+  // The endpoint is auth-gated - must send the token, or default_mode etc.
   // never populate localStorage (previously a silent 401).
   const token = localStorage.getItem('polynous_token') || window.__POLYNOUS_ACCESS_TOKEN__ || ''
   fetch(`${API_BASE_URL}/settings/preferences?user_id=${encodeURIComponent(userId)}`, {
@@ -108,7 +108,7 @@ export default function App() {
           localStorage.setItem('polynous_token', d.access_token)
           window.__POLYNOUS_ACCESS_TOKEN__ = d.access_token
         }
-      } catch (_) { /* offline / transient — leave the existing token in place */ }
+      } catch (_) { /* offline / transient - leave the existing token in place */ }
     }
     refresh()                                   // immediately on mount / login
     const id = setInterval(refresh, 12 * 60 * 1000)   // before the 15-min expiry
@@ -121,7 +121,7 @@ export default function App() {
   const handleLogin = (data) => {
     console.log('🔑 handleLogin called with:', data)
 
-    // ✅ Profile setup just completed — clear flag only
+    // ✅ Profile setup just completed - clear flag only
     if (data?.profile_setup_complete) {
       setNeedsProfileSetup(false)
       localStorage.removeItem('polynous_needs_setup')
@@ -139,7 +139,7 @@ export default function App() {
       return
     }
 
-    // ✅ Email/password registration — needs profile setup
+    // ✅ Email/password registration - needs profile setup
     if (data?.needs_profile_setup === true) {
       localStorage.setItem('polynous_token', data.token)
       const userData = { email: data.email, username: data.username || '' }
@@ -200,7 +200,7 @@ export default function App() {
   const defaultRoute = (localStorage.getItem('polynous_default_mode') === 'debate') ? '/debate' : '/research'
 
   // ═══════════════════════════════════════════════════════════
-  // PROFILE SETUP MODE — Full screen, bypasses Router
+  // PROFILE SETUP MODE - Full screen, bypasses Router
   // ═══════════════════════════════════════════════════════════
   if (needsProfileSetup && isLoggedIn) {
     return (
@@ -223,7 +223,7 @@ export default function App() {
             console.error('Failed to update username on backend', e)
           }
 
-          // ✅ Persist the chosen response style — without this, the
+          // ✅ Persist the chosen response style - without this, the
           // style picked during onboarding never reached the backend and
           // had zero effect on generated answers.
           if (responseStyle) {
@@ -268,7 +268,7 @@ export default function App() {
           element={isLoggedIn ? <Navigate to={defaultRoute} replace /> : <PremiumHomepage user={user} onNavigate={navigateTo} />} 
         />
         
-        {/* ✅ Auth page — allows access when profile setup is needed */}
+        {/* ✅ Auth page - allows access when profile setup is needed */}
         <Route 
           path="/auth" 
           element={
@@ -278,13 +278,13 @@ export default function App() {
           } 
         />
         
-        {/* ✅ OAuth Callback — only ONE route */}
+        {/* ✅ OAuth Callback - only ONE route */}
         <Route
           path="/auth/callback"
           element={<OAuthCallback onLogin={handleLogin} />}
         />
 
-        {/* ✅ Help / Info — PUBLIC so troubleshooting is readable even when login is broken */}
+        {/* ✅ Help / Info - PUBLIC so troubleshooting is readable even when login is broken */}
         <Route
           path="/info"
           element={<InfoPage user={user} onNavigate={navigateTo} onLogout={handleLogout} />}

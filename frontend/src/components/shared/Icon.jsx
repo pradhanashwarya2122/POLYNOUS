@@ -1,4 +1,4 @@
-// Shared Material Symbols icon wrapper (Phase 7 — extracted verbatim from
+// Shared Material Symbols icon wrapper (Phase 7 - extracted verbatim from
 // ResearchInterface so the research report can live in its own module).
 export function Icon({ name, style: s }) {
   return (

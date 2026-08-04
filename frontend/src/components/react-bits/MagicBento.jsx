@@ -2,13 +2,13 @@ import { useRef, useEffect } from "react";
 import "./MagicBento.css";
 
 /**
- * GlobalSpotlight — a single cursor-tracked radial glow that lights up
+ * GlobalSpotlight - a single cursor-tracked radial glow that lights up
  * whichever `.magic-bento-card--border-glow` cards it's near, scoped to
  * the grid referenced by `gridRef`.
  *
  * NOTE: per the integration guide (Path B), only this sub-component plus
  * the `.magic-bento-card--border-glow::after` CSS rule are used against
- * POLYNOUS's existing `feat-card` markup — ParticleCard, tilt, and
+ * POLYNOUS's existing `feat-card` markup - ParticleCard, tilt, and
  * magnetism from the full upstream MagicBento are intentionally not wired
  * in, to avoid fighting the existing feat-card hover system.
  */
@@ -64,7 +64,7 @@ export function GlobalSpotlight({ gridRef, spotlightRadius = 280, glowColor = "0
 }
 
 export default function MagicBento() {
-  // Full upstream BentoCardGrid/ParticleCard intentionally not used — see
+  // Full upstream BentoCardGrid/ParticleCard intentionally not used - see
   // GlobalSpotlight docblock above. Exported as a default no-op so importing
   // the whole file (rather than just GlobalSpotlight) doesn't break a build.
   return null;

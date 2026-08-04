@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL } from "../config";
 
-// ── React Bits — animated text/scroll primitives (src/components/react-bits) ──
+// ── React Bits - animated text/scroll primitives (src/components/react-bits) ──
 import SplitText from "./react-bits/SplitText";
 import BlurText from "./react-bits/BlurText";
 import ScrollReveal from "./react-bits/ScrollReveal";
@@ -14,8 +14,10 @@ import { GlobalSpotlight } from "./react-bits/MagicBento";
 import KineticText from "./react-bits/KineticText";
 import { MaskContainer } from "./react-bits/MaskContainer";
 import Lenis from "lenis";
+import ResearchChamberSection from "./ResearchChamberSection";
+import DebateChamberSection from "./DebateChamberSection";
 
-// Served from /frontend/public — anything dropped there is available at the site root.
+// Served from /frontend/public - anything dropped there is available at the site root.
 const PHOTO_SRC = "/profilepic.jpg";
 
 const C = {
@@ -109,7 +111,7 @@ const GLOBAL_STYLES = `
   .reveal-stagger.visible > *:nth-child(5)  { opacity:1;transform:translateY(0);transition-delay:0.23s }
   .reveal-stagger.visible > *:nth-child(6)  { opacity:1;transform:translateY(0);transition-delay:0.28s }
   .reveal-stagger.visible > *:nth-child(n+7){ opacity:1;transform:translateY(0);transition-delay:0.32s }
-  /* Premium corner-bracket accent — subtle, POLYNOUS palette only */
+  /* Premium corner-bracket accent - subtle, POLYNOUS palette only */
   .corner-brackets { position:relative; }
   .corner-brackets::before, .corner-brackets::after { content:''; position:absolute; width:16px; height:16px; opacity:0; transition:opacity 0.4s ease; pointer-events:none; }
   .corner-brackets::before { top:10px; left:10px; border-left:1.5px solid currentColor; border-top:1.5px solid currentColor; }
@@ -172,33 +174,33 @@ const GLOBAL_STYLES = `
   @media (max-width:600px) { .features-grid,.tech-3,.example-4 { grid-template-columns:1fr !important; } .search-bar { flex-direction:column;border-radius:20px !important;padding:12px !important; } .hero-title { font-size:clamp(3rem,14vw,5rem) !important; } }
 
   /* ── React Bits integration overrides ─────────────────────────────────── */
-  /* SplitText hero — per-char gradient so the animated letters keep the brand fills */
+  /* SplitText hero - per-char gradient so the animated letters keep the brand fills */
   .hero-split { display:inline-block; }
   .hero-split-green .split-char { background:linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.85) 55%,rgba(0,204,255,0.7) 88%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 40px rgba(0,255,15,0.12)); }
   .hero-split-dim .split-char { background:linear-gradient(180deg,rgba(255,255,255,0.55),rgba(255,255,255,0.16)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-  /* BlurText — inherit color/size from a styled wrapper; just fix alignment */
+  /* BlurText - inherit color/size from a styled wrapper; just fix alignment */
   .blur-center { justify-content:center; }
   .blur-left { justify-content:flex-start; }
-  /* ScrollReveal manifesto — keep body-copy scale (component ships no font size) */
+  /* ScrollReveal manifesto - keep body-copy scale (component ships no font size) */
   .story-manifesto { text-align:center; }
   .story-manifesto .scroll-reveal-text { font-family:'Hanken Grotesk',sans-serif; font-size:16.5px; color:rgba(150,164,182,0.85); line-height:1.75; }
-  /* ScrollVelocity marquee — large, animated multi-colour gradient, premium */
+  /* ScrollVelocity marquee - large, animated multi-colour gradient, premium */
   .tech-velocity { font-family:'Sora',sans-serif; font-size:clamp(22px,2.8vw,34px); font-weight:800; letter-spacing:0.05em; text-transform:uppercase; padding-right:52px;
     background:linear-gradient(90deg,#00ff0f,#00ccff,#a855f7,#ffd700,#00ff0f); background-size:220% auto;
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
     animation:borderFlow 7s linear infinite; filter:drop-shadow(0 0 18px rgba(0,204,255,0.14)); }
   .scroll-velocity-wrap { gap:4px; }
-  /* Flip cards — front shows heading under icon; click reveals details on the back */
-  .flip-card { perspective: 1600px; }
-  .flip-inner { position:relative; width:100%; height:100%; transition: transform 0.75s cubic-bezier(0.22,1,0.36,1); transform-style: preserve-3d; }
+  /* Flip cards - front shows heading under icon; hovering flips to the details */
+  .flip-card { perspective: 1600px; transition: transform 0.5s cubic-bezier(0.22,1,0.36,1); will-change: transform; }
+  .flip-card:hover { transform: translateY(-6px); }
+  .flip-inner { position:relative; width:100%; height:100%; transition: transform 0.72s cubic-bezier(0.4,0.15,0.2,1); transform-style: preserve-3d; }
   .flip-card.is-flipped .flip-inner { transform: rotateY(180deg); }
-  .flip-face { position:absolute; inset:0; width:100%; height:100%; border-radius:20px; overflow:hidden; -webkit-backface-visibility:hidden; backface-visibility:hidden; display:flex; flex-direction:column; }
+  .flip-face { position:absolute; inset:0; width:100%; height:100%; border-radius:20px; overflow:hidden; -webkit-backface-visibility:hidden; backface-visibility:hidden; display:flex; flex-direction:column; box-shadow: 0 10px 30px rgba(0,0,0,0.28); }
+  .flip-card:hover .flip-face { box-shadow: 0 26px 60px rgba(0,0,0,0.5); }
   .flip-face-back { transform: rotateY(180deg); }
-  .flip-card .flip-front { transition: box-shadow 0.4s ease, border-color 0.4s ease; }
-  .flip-card:not(.is-flipped):hover .flip-front { border-color: rgba(255,255,255,0.16) !important; box-shadow: 0 22px 54px rgba(0,0,0,0.45); }
   .flip-hint { opacity:0.55; transition: opacity 0.3s ease; }
   .flip-card:hover .flip-hint { opacity:0.95; }
-  /* CurvedLoop dividers — fixed band, soft glow; the second is slower + cyan-lean */
+  /* CurvedLoop dividers - fixed band, soft glow; the second is slower + cyan-lean */
   .curved-divider { height:150px; margin:8px 0; color:rgba(0,255,15,0.5); }
   .curved-divider .curved-loop-text-el { fill:currentColor; font-family:'Sora',sans-serif; font-weight:800; font-size:30px; letter-spacing:0.1em; filter:drop-shadow(0 0 12px rgba(0,255,15,0.22)); }
   .curved-divider-2 { color:rgba(0,204,255,0.55); }
@@ -213,32 +215,32 @@ const NAV_SECTIONS = [
 ];
 
 const STEPS = [
-  {n:"01", title:"Ask anything", body:"POLYNOUS activates its 7-agent neural mesh instantly. No waiting, no setup — just intent, translated into structured inquiry.", accent:C.green,   icon:"search"},
+  {n:"01", title:"Ask anything", body:"POLYNOUS activates its 7-agent neural mesh instantly. No waiting, no setup - just intent, translated into structured inquiry.", accent:C.green,   icon:"search"},
   {n:"02", title:"Search & synthesize", body:"Dedicated agents scan, retrieve, and distill sources with automatic citation tracking. Every fact traced to origin.", accent:C.cyan,    icon:"manage_search"},
-  {n:"03", title:"Challenge & critique", body:"A dedicated Critic agent stress-tests every claim. Contradictions get flagged before they reach you — rigorous by default.", accent:C.amber,   icon:"balance"},
-  {n:"04", title:"Deliver structured truth", body:"The Writer synthesizes everything into polished, cited, confidence-scored output. Not a response — a document.", accent:C.purple,  icon:"auto_stories"},
+  {n:"03", title:"Challenge & critique", body:"A dedicated Critic agent stress-tests every claim. Contradictions get flagged before they reach you - rigorous by default.", accent:C.amber,   icon:"balance"},
+  {n:"04", title:"Deliver structured truth", body:"The Writer synthesizes everything into polished, cited, confidence-scored output. Not a response - a document.", accent:C.purple,  icon:"auto_stories"},
 ];
 
 // The SEVEN core pages/surfaces of POLYNOUS (one card per real page/route).
 const FEATURES = [
-  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"Search → Summariser → Critic → Writer — a live 4-agent pipeline with per-claim confidence scoring and contradiction flags, streamed token-by-token.", tag:"RESEARCH"},
-  {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST build evidence-backed cases; a rubric-scored Judge delivers a 1–10 verdict, generates follow-up questions, and supports post-verdict cross-examination.", tag:"DEBATE"},
+  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"Search → Summariser → Critic → Writer - a live 4-agent pipeline with per-claim confidence scoring and contradiction flags, streamed token-by-token.", tag:"RESEARCH"},
+  {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST build evidence-backed cases; a rubric-scored Judge delivers a 1-10 verdict, generates follow-up questions, and supports post-verdict cross-examination.", tag:"DEBATE"},
   {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered graph. Pathfinder traces the shortest link between any two entities and surfaces your most-connected ideas.", tag:"GRAPH"},
-  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"Pinecone vector search + OpenAI embeddings find past research by meaning, not keywords — rendered as a similarity-ranked constellation.", tag:"SEARCH"},
-  {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Every upload runs through signature verification, embedded-JS detection, and malware scanning before RAG — with cross-referencing across multiple PDFs at once.", tag:"PDF LAB"},
+  {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"Pinecone vector search + OpenAI embeddings find past research by meaning, not keywords - rendered as a similarity-ranked constellation.", tag:"SEARCH"},
+  {icon:"description",   title:"PDF Intelligence",    color:C.gold,    cls:"feat-card-gold",     dot:C.gold,    route:"/pdf-lab",  desc:"Every upload runs through signature verification, embedded-JS detection, and malware scanning before RAG - with cross-referencing across multiple PDFs at once.", tag:"PDF LAB"},
   {icon:"neurology",     title:"Memory Bank",         color:C.purple,  cls:"feat-card-purple",   dot:C.purple,  route:"/memory",   desc:"Stats, an interactive interest graph, debate history with score bars, and AI-generated topic suggestions pulled from your own research patterns.", tag:"MEMORY"},
-  {icon:"query_stats",   title:"Neural Analytics",    color:C.amber,   cls:"feat-card-amber",    dot:C.amber,   route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics — extracted automatically from your research history and memory stats.", tag:"ANALYTICS"},
-  {icon:"settings",      title:"Settings Management", color:C.teal,    cls:"feat-card-teal",     dot:C.teal,    route:"/settings", desc:"Your control room — manage Fernet-encrypted API keys across every provider, pick per-provider models, set response style, and track real spend in one vault.", tag:"SETTINGS"},
+  {icon:"query_stats",   title:"Neural Analytics",    color:C.amber,   cls:"feat-card-amber",    dot:C.amber,   route:"/analytics",desc:"Activity heatmap, confidence distribution, and top topics - extracted automatically from your research history and memory stats.", tag:"ANALYTICS"},
+  {icon:"settings",      title:"Settings Management", color:C.teal,    cls:"feat-card-teal",     dot:C.teal,    route:"/settings", desc:"Your control room - manage Fernet-encrypted API keys across every provider, pick per-provider models, set response style, and track real spend in one vault.", tag:"SETTINGS"},
 ];
 
-// Cross-cutting capabilities (not pages) — surfaced as flip cards in Tech Highlights.
+// Cross-cutting capabilities (not pages) - surfaced as flip cards in Tech Highlights.
 const TECH_EXTRA = [
   {icon:"bolt",          title:"Streaming Pipeline",  color:C.amber,   route:"/research",  desc:"Server-Sent Events deliver real-time token streaming with live per-agent progress visualization."},
-  {icon:"verified_user", title:"API Key Vault",       color:C.teal,    route:"/settings",  desc:"Bring your own Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, DeepSeek, or Tavily key — Fernet-encrypted, zero-knowledge."},
-  {icon:"receipt_long",  title:"Run Telemetry",       color:C.coral,   route:"/research",  desc:"Real token spend, real LLM call counts, and an estimated USD cost per run — broken down per agent, labelled an estimate, never fabricated."},
-  {icon:"cached",        title:"Research Caching",    color:C.indigo,  route:"/research",  desc:"Repeat a query inside its freshness window and it's served from your own cache — near-zero latency and token cost."},
-  {icon:"redeem",        title:"Free-Key Onboarding", color:C.green,   route:"/settings",  desc:"Start with zero setup — claim a pooled starter key, run real research immediately, then swap in your own key whenever you're ready."},
-  {icon:"fact_check",    title:"Evaluation Harness",  color:C.purple,  route:"/analytics", desc:"A built-in eval suite scores pipeline quality — run it on demand and read the summary right inside the analytics dashboard."},
+  {icon:"verified_user", title:"API Key Vault",       color:C.teal,    route:"/settings",  desc:"Bring your own Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, DeepSeek, or Tavily key - Fernet-encrypted, zero-knowledge."},
+  {icon:"receipt_long",  title:"Run Telemetry",       color:C.coral,   route:"/research",  desc:"Real token spend, real LLM call counts, and an estimated USD cost per run - broken down per agent, labelled an estimate, never fabricated."},
+  {icon:"cached",        title:"Research Caching",    color:C.indigo,  route:"/research",  desc:"Repeat a query inside its freshness window and it's served from your own cache - near-zero latency and token cost."},
+  {icon:"redeem",        title:"Free-Key Onboarding", color:C.green,   route:"/settings",  desc:"Start with zero setup - claim a pooled starter key, run real research immediately, then swap in your own key whenever you're ready."},
+  {icon:"fact_check",    title:"Evaluation Harness",  color:C.purple,  route:"/analytics", desc:"A built-in eval suite scores pipeline quality - run it on demand and read the summary right inside the analytics dashboard."},
 ];
 
 const TECH = [
@@ -303,9 +305,9 @@ const HERO_BOOT_SEQUENCES = [
 ];
 
 const AGENT_QUIPS = {
-  search:   ["Scanning 14,000 nodes… hit!","Cross-referencing semantic vectors…","Found 847 relevant chunks — filtering top 12.","Knowledge graph query complete."],
+  search:   ["Scanning 14,000 nodes… hit!","Cross-referencing semantic vectors…","Found 847 relevant chunks - filtering top 12.","Knowledge graph query complete."],
   summarise:["Compressing 4,200 tokens → 180…","Key entities extracted: 6.","Distillation confidence: 94%.","Summary locked and staged."],
-  for:      ["Building affirmative case…","3 strong premises identified.","Constructing syllogism chain…","Case FOR filed — bulletproof."],
+  for:      ["Building affirmative case…","3 strong premises identified.","Constructing syllogism chain…","Case FOR filed - bulletproof."],
   against:  ["Stress-testing every premise…","Identified 2 logical gaps!","Counter-evidence ratio: 67%.","Opposition case finalized."],
   critic:   ["Running fallacy detection…","Ad hominem: 0. Straw man: 1. Flagged.","Source reliability score: 88/100.","Critical review complete."],
   writer:   ["Stitching narrative threads…","Prose coherence index: 97%.","Applying citation layer…","Draft ready for judgment."],
@@ -339,9 +341,9 @@ const TOP_TOPICS = [
 ];
 
 const CONF_BANDS = [
-  {label:"High",   range:"80–100%", val:58, color:C.green},
-  {label:"Medium", range:"50–79%",  val:34, color:C.amber},
-  {label:"Low",    range:"0–49%",   val:8,  color:C.crimson},
+  {label:"High",   range:"80-100%", val:58, color:C.green},
+  {label:"Medium", range:"50-79%",  val:34, color:C.amber},
+  {label:"Low",    range:"0-49%",   val:8,  color:C.crimson},
 ];
 
 const HEATMAP_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -507,7 +509,7 @@ function NeuralCanvas() {
       draw(){ctx.fillStyle=this.color;ctx.globalAlpha=0.85;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
       update(){const{x:mx,y:my}=state.mouse;if(mx!==null){const dx=mx-this.x,dy=my-this.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<150){const force=(150-dist)/150;this.vx-=(dx/dist)*force*1.4;this.vy-=(dy/dist)*force*1.4;}}this.vx+=(this.baseX-this.x)*0.008;this.vy+=(this.baseY-this.y)*0.008;this.vx*=0.93;this.vy*=0.93;this.x+=this.vx;this.y+=this.vy;}
     }
-    // Only reinit on a genuine width change or a large height change — mobile
+    // Only reinit on a genuine width change or a large height change - mobile
     // browsers fire `resize` on URL-bar show/hide during scroll, and re-seeding
     // 180 particles mid-scroll every time was the source of the scroll jank/crash.
     function init(w,h){canvas.width=w;canvas.height=h;state.particles=Array.from({length:COUNT},()=>new Particle());state.lastW=w;state.lastH=h;}
@@ -592,7 +594,7 @@ function NeuralPipeline(){
   const NW=126,GAP=50,BX=60;
   const rP=[0,1,2].map(i=>({x0:BX+i*(NW+GAP)+NW,cx1:BX+i*(NW+GAP)+NW+28,cx2:BX+(i+1)*(NW+GAP)-28,x1:BX+(i+1)*(NW+GAP),y0:195,cy1:195,cy2:195,y1:195}));
   const dP=[{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:100,x1:270,y1:100},{x0:75,y0:240,cx1:160,cy1:240,cx2:190,cy2:380,x1:270,y1:380},{x0:270,y0:100,cx1:350,cy1:100,cx2:395,cy2:240,x1:455,y1:240},{x0:270,y0:380,cx1:350,cy1:380,cx2:395,cy2:240,x1:455,y1:240}];
-  const STEP_LABEL = ["Search agent gathering sources…","Summarise agent condensing findings…","Critic agent validating claims…","Writer agent drafting synthesis…","Forking into dialectic debate…","FOR & AGAINST arguing concurrently…","Judge rendering final verdict…","Cycle complete — resetting…"];
+  const STEP_LABEL = ["Search agent gathering sources…","Summarise agent condensing findings…","Critic agent validating claims…","Writer agent drafting synthesis…","Forking into dialectic debate…","FOR & AGAINST arguing concurrently…","Judge rendering final verdict…","Cycle complete - resetting…"];
   const STEP_COLOR = [C.green,C.green,C.amber,C.cyan,C.purple,C.crimson,C.gold,"rgba(180,195,210,0.5)"];
   return(
     <div style={{width:"100%",minHeight:"620px",display:"flex",flexDirection:"column",position:"relative"}}>
@@ -756,7 +758,7 @@ function PDFDropZone() {
 
 function UserProfileWidget() {
   const [user] = useState(()=>{
-    // The app stores the JWT under "polynous_token" (see config.js) — the old
+    // The app stores the JWT under "polynous_token" (see config.js) - the old
     // code read "token"/"polynous_user", so the widget never detected a session.
     try{
       const t=localStorage.getItem("polynous_token");
@@ -882,7 +884,7 @@ function QuickActionsRow() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PREMIUM MEMORY BANK — enlarged, polished, animated with sparkle bursts
+   PREMIUM MEMORY BANK - enlarged, polished, animated with sparkle bursts
 ══════════════════════════════════════════════════════════════════ */
 function MemoryTimeline() {
   const [activeId, setActiveId] = useState(MEMORY_DOTS[0].id);
@@ -911,7 +913,7 @@ function MemoryTimeline() {
         setTimeout(() => setAnimating(null), 600);
         setTimeout(() => setSparkleAt(null), 750);
         if (scrollRef.current) {
-          // Scroll only this strip's own horizontal axis — never call
+          // Scroll only this strip's own horizontal axis - never call
           // scrollIntoView here, since it also nudges the page's vertical
           // scroll position on every ancestor, fighting the user's own scroll.
           const strip = scrollRef.current;
@@ -1005,7 +1007,7 @@ function MemoryTimeline() {
             >
               {/* Top shimmer line */}
               <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: "1px", background: `linear-gradient(90deg,transparent,${dotColor}${isActive ? "cc" : "30"},transparent)`, transition: "all 0.4s ease" }} />
-              {/* Confidence badge — top right */}
+              {/* Confidence badge - top right */}
               <div style={{ position: "absolute", top: "16px", right: "14px", fontFamily: "JetBrains Mono,monospace", fontSize: "9.5px", color: isActive ? dotColor : "rgba(255,255,255,0.18)", letterSpacing: "0.04em", transition: "color 0.3s ease" }}><ScrambledText inline radius={70} duration={0.9} speed={0.5} scrambleChars="0123456789%">{`${dot.conf}%`}</ScrambledText></div>
 
               {/* Sparkle burst on activation */}
@@ -1136,7 +1138,7 @@ function AnalyticsMiniPreview() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   PREMIUM INTERACTIVE KNOWLEDGE GRAPH — smoothed drag, solid-color nodes
+   PREMIUM INTERACTIVE KNOWLEDGE GRAPH - smoothed drag, solid-color nodes
 ══════════════════════════════════════════════════════════════════════════ */
 function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
   const canvasRef = useRef(null);
@@ -1145,7 +1147,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
       ...n,
       vx: 0, vy: 0,
       dragging: false,
-      targetX: n.x, targetY: n.y, // smooth-follow target while dragging — no snapping
+      targetX: n.x, targetY: n.y, // smooth-follow target while dragging - no snapping
       glowPhase: Math.random() * Math.PI * 2,
       scale: 1, scaleTarget: 1,
       birthTs: 0, born: true,
@@ -1176,7 +1178,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
     s.nodes.forEach(n => { n.birthTs = -2000; });
 
     // The canvas previously had a fixed 1100x460 pixel buffer stretched by CSS
-    // to fill its container, with no devicePixelRatio scaling — soft/blurry on
+    // to fill its container, with no devicePixelRatio scaling - soft/blurry on
     // any retina-class screen. fitCanvas sizes the backing buffer to match the
     // element's actual CSS size × devicePixelRatio, then maps 1 drawing unit to
     // 1 CSS pixel via setTransform, so everything below can keep working in
@@ -1199,7 +1201,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
       const W = s.W, H = s.H;
       s.nodes.forEach((n, i) => {
         if (n.dragging) {
-          // ease smoothly toward the pointer target — eliminates the old hard snap
+          // ease smoothly toward the pointer target - eliminates the old hard snap
           n.x = lerp(n.x, n.targetX, Math.min(1, 0.22 * dt));
           n.y = lerp(n.y, n.targetY, Math.min(1, 0.22 * dt));
           return;
@@ -1264,7 +1266,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
         ctx.lineWidth = hov ? 8 : 4;
         ctx.filter = "blur(4px)"; ctx.stroke(); ctx.filter = "none";
 
-        // crisp line — brighter than before for clarity
+        // crisp line - brighter than before for clarity
         ctx.beginPath();
         ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
         ctx.strokeStyle = hov ? `rgba(0,200,255,${0.55+phase*0.3})` : `rgba(120,140,210,${0.16+phase*0.08})`;
@@ -1303,7 +1305,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
         ctx.lineWidth = 1.5; ctx.stroke(); ctx.globalAlpha = 1;
       });
 
-      // ── Nodes — solid premium fill, crisp legible labels, smooth scaling ──
+      // ── Nodes - solid premium fill, crisp legible labels, smooth scaling ──
       s.nodes.forEach((n, i) => {
         const isHov = s.hoveredIdx === i;
         n.scaleTarget = isHov ? 1.14 : (n.dragging ? 1.08 : 1);
@@ -1315,7 +1317,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
         ctx.save();
         ctx.translate(n.x, n.y);
 
-        // soft halo — breathes smoothly
+        // soft halo - breathes smoothly
         const haloR = r * 2.6 + glow * 5;
         const haloA = isHov ? 0.5 : 0.18 + glow * 0.12;
         const halo = ctx.createRadialGradient(0,0,r*0.6,0,0,haloR);
@@ -1324,7 +1326,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
         ctx.beginPath(); ctx.arc(0, 0, haloR, 0, Math.PI*2);
         ctx.fillStyle = halo; ctx.fill();
 
-        // solid node body — premium flat fill (no washed-out low-alpha gradient)
+        // solid node body - premium flat fill (no washed-out low-alpha gradient)
         ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
         ctx.fillStyle = n.color;
         ctx.fill();
@@ -1352,7 +1354,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
 
         ctx.restore();
 
-        // Label — rendered below the node, not crammed inside it, so it stays
+        // Label - rendered below the node, not crammed inside it, so it stays
         // legible regardless of node radius (small nodes were unreadable before).
         ctx.save();
         ctx.globalAlpha = 1;
@@ -1379,7 +1381,7 @@ function PremiumKnowledgeGraph({ embedded = false, onNodeCountChange }) {
       return s.nodes.findIndex(n => Math.hypot(n.x - x, n.y - y) < n.r * n.scale + 7);
     }
 
-    // periodic particles — slightly slower cadence for a calmer, premium pace
+    // periodic particles - slightly slower cadence for a calmer, premium pace
     const particleTimer = setInterval(() => {
       if (!s.edges.length) return;
       const [a, b] = s.edges[Math.floor(Math.random() * s.edges.length)];
@@ -1576,7 +1578,7 @@ function HeroSection(){
 
       <div className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"24px",fontWeight:400,transitionDelay:"0.14s"}}>
         <BlurText
-          text="Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses."
+          text="Seven specialized AI agents that search, analyze, debate, and synthesize - delivering comprehensive research, not just responses."
           animateBy="words" direction="top" delay={55} className="blur-center"
         />
       </div>
@@ -1595,18 +1597,7 @@ function HeroSection(){
         ))}
       </div>
 
-      {/* Search + Go above is the primary research CTA — keep only one clean
-          secondary action (debate) here instead of three competing buttons. */}
-      <div className="reveal" ref={useReveal(0.05)} style={{display:"flex",flexWrap:"wrap",gap:"12px",justifyContent:"center",marginBottom:"72px",transitionDelay:"0.3s"}}>
-        <button
-          onClick={()=>window.location.href="/debate?topic=Should+AI+be+regulated%3F"}
-          style={{padding:"12px 26px",borderRadius:"9999px",border:`1px solid ${C.crimson}55`,background:"rgba(255,32,64,0.06)",color:"#ff6b80",fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15px",cursor:"pointer",letterSpacing:"0.02em",transition:"all 0.25s cubic-bezier(0.23,1,0.32,1)",display:"inline-flex",alignItems:"center",gap:"8px"}}
-          onMouseOver={e=>{e.currentTarget.style.background="rgba(255,32,64,0.12)";e.currentTarget.style.borderColor=C.crimson;e.currentTarget.style.transform="translateY(-2px)";}}
-          onMouseOut={e=>{e.currentTarget.style.background="rgba(255,32,64,0.06)";e.currentTarget.style.borderColor=`${C.crimson}55`;e.currentTarget.style.transform="translateY(0)";}}
-        >
-          <span style={{fontFamily:"Material Symbols Outlined",fontSize:"16px"}}>balance</span> Try a Debate
-        </button>
-      </div>
+      <div style={{ marginBottom: "40px" }} />
 
       <div className="reveal terminal-bg" ref={useReveal(0.1)} style={{padding:"22px 26px",borderRadius:"16px",width:"min(440px,100%)",textAlign:"left",transitionDelay:"0.38s",position:"relative",overflow:"hidden",boxShadow:`0 24px 64px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.04)`}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.green}50,transparent)`}}/>
@@ -1615,7 +1606,7 @@ function HeroSection(){
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.crimson,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.gold,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.green,opacity:0.7}}/>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous — neural-mesh</span>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous - neural-mesh</span>
         </div>
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>uvicorn main:app --reload</div>
         <div style={{marginTop:"10px"}}>
@@ -1659,10 +1650,6 @@ function HowItWorksSection(){
                   {idx<STEPS.length-1&&<div style={{position:"absolute",bottom:"-52px",left:"28px",width:"1px",height:"52px",background:`linear-gradient(to bottom,${s.accent}50,transparent)`,pointerEvents:"none"}}/>}
                 </div>
                 <div style={{paddingLeft:"8px"}}>
-                  <div style={{display:"inline-flex",alignItems:"center",gap:"8px",marginBottom:"16px",padding:"4px 10px",borderRadius:"6px",background:`${s.accent}0a`,border:`1px solid ${s.accent}20`}}>
-                    <span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px",color:s.accent}}>{s.icon}</span>
-                    <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:s.accent,letterSpacing:"0.14em",opacity:0.9}}>STEP {s.n}</span>
-                  </div>
                   <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"clamp(1.45rem,2.4vw,2rem)",color:"#fff",lineHeight:1.1,letterSpacing:"-0.03em",margin:0}}>{s.title}</h3>
                 </div>
                 <div style={{position:"relative",paddingLeft:"28px"}}>
@@ -1700,9 +1687,9 @@ function ApiSection(){
         <div style={{borderRadius:"27px",padding:"52px",background:"rgba(8,8,20,0.97)",backdropFilter:"blur(28px)"}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"56px",alignItems:"center"}} className="api-grid">
             <div>
-              <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK — BRING YOUR OWN INTELLIGENCE</span>
+              <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK - BRING YOUR OWN INTELLIGENCE</span>
               <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(1.8rem,3.4vw,2.7rem)",marginBottom:"16px",lineHeight:1.08,letterSpacing:"-0.04em",color:"#fff"}}><KineticText text="Total model" style={{fontWeight:400}}/><br/><span style={{background:`linear-gradient(90deg,${C.green},${C.cyan},${C.purple},${C.gold},${C.green})`,backgroundSize:"240% auto",WebkitBackgroundClip:"text",backgroundClip:"text",WebkitTextFillColor:"transparent",color:"transparent",animation:"borderFlow 6s linear infinite",filter:`drop-shadow(0 0 22px ${C.green}22)`}}>sovereignty.</span></h2>
-              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Bring your own <strong style={{color:"rgba(210,222,235,0.92)"}}>Anthropic, OpenAI, Google Gemini, Mistral, Groq, NVIDIA NIM, DeepSeek</strong>, or Tavily key — plus any OpenAI-compatible endpoint. Click a provider to see how POLYNOUS routes it.</p>
+              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Bring your own <strong style={{color:"rgba(210,222,235,0.92)"}}>Anthropic, OpenAI, Google Gemini, Mistral, Groq, NVIDIA NIM, DeepSeek</strong>, or Tavily key - plus any OpenAI-compatible endpoint. Click a provider to see how POLYNOUS routes it.</p>
               <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginBottom:"28px"}}>
                 {PROVIDERS.map(({id,label,color,icon,hint})=>{
                   const isActive=activeKey===id;
@@ -1762,19 +1749,12 @@ function ApiSection(){
 
 /* ── Features ─────────────────────────────────────────────────────────────── */
 /* ── FlipCard ─────────────────────────────────────────────────────────────
-   Front: icon + heading only. Click → smooth 3D flip to the back with the full
-   details. Auto-flips back after 10s. Used by both the 7-page grid and Tech
-   Highlights. `route` (optional) shows an "Open" button on the back. */
+   Front: icon + heading only. Flips smoothly to the back (full details) on
+   HOVER; flips back on mouse-leave. On touch devices (no hover) a tap toggles
+   it. Used by both the 8-page grid and Tech Highlights. `route` (optional) adds
+   an "Open" button on the back. */
 function FlipCard({ icon, title, tag, desc, color, route, height = 262 }) {
   const [flipped, setFlipped] = useState(false);
-  const timer = useRef(null);
-  const flip = () => {
-    setFlipped(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setFlipped(false), 10000); // auto flip back after 10s
-  };
-  const unflip = () => { clearTimeout(timer.current); setFlipped(false); };
-  useEffect(() => () => clearTimeout(timer.current), []);
 
   const faceBase = {
     padding: "26px 24px", background: "rgba(9,9,20,0.92)", backdropFilter: "blur(16px)",
@@ -1782,11 +1762,17 @@ function FlipCard({ icon, title, tag, desc, color, route, height = 262 }) {
   };
 
   return (
-    <div className={`flip-card${flipped ? " is-flipped" : ""}`} style={{ height, position: "relative" }}>
+    <div
+      className={`flip-card${flipped ? " is-flipped" : ""}`}
+      style={{ height, position: "relative" }}
+      onMouseEnter={() => setFlipped(true)}
+      onMouseLeave={() => setFlipped(false)}
+      onClick={() => setFlipped((f) => !f)}   /* touch fallback */
+    >
       <div className="flip-inner">
-        {/* FRONT — icon + heading only */}
-        <button className="flip-face flip-front" onClick={flip} aria-label={`${title} — tap to reveal details`}
-          style={{ ...faceBase, cursor: "pointer", textAlign: "left", alignItems: "flex-start", outline: "none" }}>
+        {/* FRONT - icon + heading only */}
+        <div className="flip-face flip-front"
+          style={{ ...faceBase, cursor: "pointer", textAlign: "left", alignItems: "flex-start" }}>
           <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: "2px", background: `linear-gradient(90deg,transparent,${color}88,transparent)` }} />
           {tag && (
             <div style={{ position: "absolute", top: 16, right: 16, padding: "3px 10px", borderRadius: 9999, background: `${color}10`, border: `1px solid ${color}25` }}>
@@ -1798,13 +1784,13 @@ function FlipCard({ icon, title, tag, desc, color, route, height = 262 }) {
           </div>
           <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20.5, lineHeight: 1.1, letterSpacing: "-0.03em", marginTop: 18, background: "linear-gradient(180deg,#ffffff 32%,rgba(255,255,255,0.66))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "#fff" }}>{title}</span>
           <span className="flip-hint" style={{ marginTop: 11, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 500, color, letterSpacing: "0.14em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 13 }}>touch_app</span> tap to reveal
+            <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 13 }}>sync_alt</span> hover to explore
           </span>
-        </button>
+        </div>
 
-        {/* BACK — details */}
-        <div className="flip-face flip-face-back" onClick={unflip}
-          style={{ ...faceBase, cursor: "pointer", justifyContent: "space-between", border: `1px solid ${color}55`, background: `linear-gradient(158deg, ${color}16, rgba(9,9,20,0.97))` }}>
+        {/* BACK - details */}
+        <div className="flip-face flip-face-back"
+          style={{ ...faceBase, justifyContent: "space-between", border: `1px solid ${color}55`, background: `linear-gradient(158deg, ${color}16, rgba(9,9,20,0.97))` }}>
           <div style={{ overflowY: "auto", minHeight: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
               <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 19, color }}>{icon}</span>
@@ -1812,17 +1798,14 @@ function FlipCard({ icon, title, tag, desc, color, route, height = 262 }) {
             </div>
             <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, fontWeight: 400, color: "rgba(212,223,238,0.92)", lineHeight: 1.72, letterSpacing: "0.006em", margin: 0 }}>{desc}</p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-            {route ? (
+          {route && (
+            <div style={{ display: "flex", marginTop: 14 }}>
               <button onClick={(e) => { e.stopPropagation(); window.location.href = route; }}
-                style={{ padding: "7px 15px", borderRadius: 9999, border: `1px solid ${color}55`, background: `${color}14`, color, fontFamily: "Sora,sans-serif", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                style={{ padding: "8px 16px", borderRadius: 9999, border: `1px solid ${color}55`, background: `${color}14`, color, fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.01em", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
                 Open <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 14 }}>arrow_outward</span>
               </button>
-            ) : <span />}
-            <span className="flip-hint" style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9.5, color: "rgba(150,165,180,0.65)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontFamily: "Material Symbols Outlined", fontSize: 12 }}>undo</span> flip back
-            </span>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1894,6 +1877,7 @@ function PipelineSection(){
 /* ── Tech Highlights ──────────────────────────────────────────────────────── */
 function TechHighlights(){
   const hRef=useReveal(0.1),gRef=useReveal(0.07);
+  const [teleOpen,setTeleOpen]=useState(false);
   const GLOW_RGB = {
     [C.green]:"0,255,15",[C.purple]:"168,85,247",[C.cyan]:"0,204,255",
     [C.crimson]:"255,32,64",[C.amber]:"255,170,0",[C.gold]:"255,215,0",
@@ -1908,26 +1892,27 @@ function TechHighlights(){
         </div>
         <p ref={useReveal(0.1)} className="reveal" style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px",transitionDelay:"0.08s"}}>Engineered for resilience, speed, and uncompromising precision.</p>
       </div>
-      <div className="reveal" style={{borderRadius:"20px",padding:"26px 30px",marginBottom:"14px",background:"rgba(10,10,22,0.85)",border:`1px solid rgba(0,255,15,0.14)`,backdropFilter:"blur(16px)",display:"flex",alignItems:"center",gap:"26px",flexWrap:"wrap"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"12px",flex:"1 1 220px"}}>
+      <div className="reveal" style={{borderRadius:"20px",marginBottom:"14px",background:"rgba(10,10,22,0.85)",border:`1px solid rgba(0,255,15,${teleOpen?"0.28":"0.14"})`,backdropFilter:"blur(16px)",overflow:"hidden",transition:"border-color 0.35s ease"}}>
+        {/* single bar — click to expand */}
+        <button onClick={()=>setTeleOpen(o=>!o)} style={{width:"100%",display:"flex",alignItems:"center",gap:"14px",padding:"20px 26px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
           <div style={{width:"44px",height:"44px",borderRadius:"12px",background:"rgba(0,255,15,0.08)",border:`1px solid ${C.green}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
             <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.green}}>receipt_long</span>
           </div>
-          <div>
-            <p style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"14.5px",color:"#fff",margin:0}}>Run Telemetry — never fabricated</p>
-            <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12.5px",color:"rgba(130,148,168,0.7)",margin:"3px 0 0",lineHeight:1.5}}>Every run reports real usage, labelled honestly.</p>
+          <div style={{flex:1,minWidth:0}}>
+            <p style={{fontFamily:"'Sora',sans-serif",fontWeight:800,fontSize:"14.5px",color:"#fff",margin:0,letterSpacing:"-0.01em"}}>Run Telemetry, never fabricated</p>
+            <p style={{fontFamily:"'Hanken Grotesk',sans-serif",fontSize:"12.5px",color:"rgba(130,148,168,0.7)",margin:"3px 0 0",lineHeight:1.5}}>Every run reports real usage, labelled honestly. {teleOpen?"":"Tap to see what's tracked."}</p>
           </div>
-        </div>
-        <div style={{display:"flex",gap:"22px",flexWrap:"wrap",fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(180,195,210,0.72)"}}>
-          <span>Real token spend</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Real LLM call counts</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Est. USD cost / run</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Per-stage breakdown</span>
-          <span style={{color:"rgba(255,255,255,0.15)"}}>·</span>
-          <span>Provider · model badge</span>
+          <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:C.green,flexShrink:0,transform:teleOpen?"rotate(180deg)":"none",transition:"transform 0.4s cubic-bezier(0.23,1,0.32,1)"}}>expand_more</span>
+        </button>
+        {/* expandable content */}
+        <div style={{maxHeight:teleOpen?220:0,opacity:teleOpen?1:0,overflow:"hidden",transition:"max-height 0.5s cubic-bezier(0.23,1,0.32,1), opacity 0.35s ease"}}>
+          <div style={{padding:"0 26px 24px 84px",display:"flex",gap:"9px",flexWrap:"wrap"}}>
+            {[{i:"paid",t:"Real token spend"},{i:"api",t:"Real LLM call counts"},{i:"payments",t:"Est. USD cost / run"},{i:"stacked_bar_chart",t:"Per-stage breakdown"},{i:"badge",t:"Provider · model badge"}].map(m=>(
+              <span key={m.t} style={{display:"inline-flex",alignItems:"center",gap:"6px",padding:"7px 13px",borderRadius:"9999px",border:`1px solid ${C.green}22`,background:"rgba(0,255,15,0.04)",fontFamily:"'JetBrains Mono',monospace",fontSize:"10.5px",color:"rgba(190,205,220,0.82)",letterSpacing:"0.02em"}}>
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px",color:C.green}}>{m.i}</span>{m.t}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
       <div style={{margin:"10px 0 26px",padding:"28px 0",position:"relative",borderTop:"1px solid rgba(255,255,255,0.05)",borderBottom:"1px solid rgba(255,255,255,0.05)",background:"linear-gradient(90deg,transparent,rgba(0,255,15,0.02),rgba(0,204,255,0.02),rgba(168,85,247,0.02),transparent)",overflow:"hidden"}}>
@@ -1938,7 +1923,7 @@ function TechHighlights(){
       </div>
       <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
         {/* Engineering pillars (no route) + the cross-cutting capabilities moved
-            out of the 7-page grid — all click-to-flip. */}
+            out of the 7-page grid - all click-to-flip. */}
         {[...TECH, ...TECH_EXTRA].map((t)=>(
           <FlipCard key={t.title} icon={t.icon} title={t.title} desc={t.desc} color={t.color} route={t.route} height={244}/>
         ))}
@@ -1986,13 +1971,14 @@ function ExampleSection(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   RESEARCH CHAMBER SECTION
+   RESEARCH CHAMBER SECTION - superseded by ./ResearchChamberSection.jsx (imported).
+   Legacy inline version kept below (unused) for reference only.
 ══════════════════════════════════════════════════════════════════════════ */
-function ResearchChamberSection(){
+function _LegacyResearchChamberSection(){
   const ref = useReveal(0.08);
   const STAGES = [
-    {id:"search",    name:"Search",     icon:"search",       color:C.cyan,   desc:"Queries the live web via Tavily and pulls raw sources — URLs, titles, body text."},
-    {id:"summarise", name:"Summarise",  icon:"summarize",    color:C.indigo, desc:"Condenses every source down to its 3–5 key insight points."},
+    {id:"search",    name:"Search",     icon:"search",       color:C.cyan,   desc:"Queries the live web via Tavily and pulls raw sources - URLs, titles, body text."},
+    {id:"summarise", name:"Summarise",  icon:"summarize",    color:C.indigo, desc:"Condenses every source down to its 3-5 key insight points."},
     {id:"critic",    name:"Critic",     icon:"balance",      color:C.amber,  desc:"Cross-references claims across sources, flags contradictions, assigns a confidence score."},
     {id:"deepen",    name:"Deepen",     icon:"repeat",       color:C.crimson,desc:"The genuinely agentic step: when the Critic finds coverage gaps, it auto-runs targeted follow-up searches, then re-critiques with the richer evidence."},
     {id:"writer",    name:"Writer",     icon:"edit_note",    color:C.green,  desc:"Synthesizes everything into a cited Summary → Findings → Limitations → Confidence report."},
@@ -2053,7 +2039,7 @@ function ResearchChamberSection(){
                   ))}
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:"7px",marginTop:"22px"}}>
-                  {[{icon:"tune",label:"Style: Academic/Technical/ELI5/Casual"},{icon:"filter_9_plus",label:"Sources: Auto or 3–20"},{icon:"forum",label:"Chat with your report"},{icon:"ios_share",label:"Share Research"},{icon:"cached",label:"Research Caching"}].map(c=>(
+                  {[{icon:"tune",label:"Style: Academic/Technical/ELI5/Casual"},{icon:"filter_9_plus",label:"Sources: Auto or 3-20"},{icon:"forum",label:"Chat with your report"},{icon:"ios_share",label:"Share Research"},{icon:"cached",label:"Research Caching"}].map(c=>(
                     <span key={c.label} style={{display:"flex",alignItems:"center",gap:"5px",padding:"5px 11px",borderRadius:"9999px",border:`1px solid ${C.green}28`,background:"rgba(0,255,15,0.05)",fontFamily:"JetBrains Mono,monospace",fontSize:"9.5px",color:C.green,letterSpacing:"0.04em"}}>
                       <span style={{fontFamily:"Material Symbols Outlined",fontSize:"11px"}}>{c.icon}</span>{c.label}
                     </span>
@@ -2062,7 +2048,7 @@ function ResearchChamberSection(){
               </div>
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"18px",borderRadius:"18px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.04)",padding:"28px 20px"}}>
                 <ConfidenceRing/>
-                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(130,148,168,0.6)",lineHeight:1.6,margin:0,textAlign:"center"}}>Every report ships with an animated confidence score — not just a citation list.</p>
+                <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(130,148,168,0.6)",lineHeight:1.6,margin:0,textAlign:"center"}}>Every report ships with an animated confidence score - not just a citation list.</p>
               </div>
             </div>
 
@@ -2085,7 +2071,7 @@ function ResearchChamberSection(){
 /* ══════════════════════════════════════════════════════════════════════════
    DEBATE CHAMBER SECTION
 ══════════════════════════════════════════════════════════════════════════ */
-function DebateChamberSection(){
+function _LegacyDebateChamberSection(){
   const ref = useReveal(0.08);
   return(
     <section style={{padding:"80px 0"}}>
@@ -2096,7 +2082,7 @@ function DebateChamberSection(){
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.crimson,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Debate Chamber</p>
             <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Two sides." style={{fontWeight:400}}/><br/><KineticText text="One rubric-scored verdict." style={{fontWeight:400}}/></h2>
           </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>FOR and AGAINST build evidence-backed cases; a Judge scores each 1–10 and delivers a ruling with reasoning.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>FOR and AGAINST build evidence-backed cases; a Judge scores each 1-10 and delivers a ruling with reasoning.</p>
         </div>
 
         <div className="chamber-card-premium" style={{
@@ -2125,7 +2111,7 @@ function DebateChamberSection(){
               </button>
             </div>
 
-            {/* Body — FOR vs AGAINST scored panels */}
+            {/* Body - FOR vs AGAINST scored panels */}
             <div style={{padding:"32px"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px",marginBottom:"22px"}} className="hiw-grid">
                 <div style={{borderRadius:"16px",padding:"20px",background:"rgba(0,255,15,0.04)",border:`1px solid ${C.green}28`}}>
@@ -2164,7 +2150,7 @@ function DebateChamberSection(){
 
             {/* Footer stat strip */}
             <div style={{padding:"18px 32px",borderTop:"1px solid rgba(255,255,255,0.04)",display:"flex",gap:"0",background:"rgba(2,2,11,0.65)"}}>
-              {[{label:"Agents in pipeline",val:"3",color:C.crimson},{label:"Judge rubric",val:"1–10",color:C.gold},{label:"Feeds",val:"graph + memory",color:C.purple}].map((stat,i)=>(
+              {[{label:"Agents in pipeline",val:"3",color:C.crimson},{label:"Judge rubric",val:"1-10",color:C.gold},{label:"Feeds",val:"graph + memory",color:C.purple}].map((stat,i)=>(
                 <div key={stat.label} style={{display:"flex",alignItems:"baseline",gap:"10px",flex:1,paddingLeft:i===0?0:"32px",borderLeft:i===0?"none":"1px solid rgba(255,255,255,0.045)"}}>
                   <ScrambleText text={stat.val} style={{fontFamily:"JetBrains Mono,monospace",fontSize:"16px",fontWeight:600,color:stat.color,letterSpacing:"-0.01em"}}/>
                   <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"12px",color:"rgba(170,185,205,0.62)"}}>{stat.label}</span>
@@ -2194,7 +2180,7 @@ function KnowledgeGraphSection() {
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.cyan,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Knowledge Graph</p>
             <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Knowledge that" style={{fontWeight:400}}/><br/><KineticText text="connects itself." style={{fontWeight:400}}/></h2>
           </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every session feeds a living Neo4j graph. Entities link automatically — try it below.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Every session feeds a living Neo4j graph. Entities link automatically - try it below.</p>
         </div>
 
         {/* Premium card wrapper */}
@@ -2374,10 +2360,10 @@ function NeuralAnalyticsSection(){
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.amber,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Neural Analytics</p>
             <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Your research," style={{fontWeight:400}}/><br/><KineticText text="decoded." style={{fontWeight:400}}/></h2>
           </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Activity, topics, and confidence — turned into patterns you can actually see. No chart library, pure Canvas.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Activity, topics, and confidence - turned into patterns you can actually see. No chart library, pure Canvas.</p>
         </div>
 
-        {/* Premium card wrapper — same gradient-border pattern as Knowledge Graph */}
+        {/* Premium card wrapper - same gradient-border pattern as Knowledge Graph */}
         <div ref={wrapRef} className="chamber-card-premium" style={{
           borderRadius:"28px",
           padding:"2px",
@@ -2450,7 +2436,7 @@ function NeuralAnalyticsSection(){
               </button>
             </div>
 
-            {/* Body — confidence distribution + activity heatmap */}
+            {/* Body - confidence distribution + activity heatmap */}
             <div style={{padding:"32px",display:"grid",gridTemplateColumns:"0.85fr 1.15fr",gap:"36px"}} className="hiw-grid">
               <div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"20px"}}>
@@ -2561,7 +2547,7 @@ function SettingsSection(){
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.teal,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Settings</p>
             <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Your keys." style={{fontWeight:400}}/><br/><KineticText text="Your spend." style={{fontWeight:400}}/></h2>
           </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Bring your own Anthropic, OpenAI, Gemini, Mistral, Groq, NVIDIA, DeepSeek, or Tavily keys — encrypted at rest, live-validated, never used against you. Sign in with email, or Google / GitHub OAuth.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Bring your own Anthropic, OpenAI, Gemini, Mistral, Groq, NVIDIA, DeepSeek, or Tavily keys - encrypted at rest, live-validated, never used against you. Sign in with email, or Google / GitHub OAuth.</p>
         </div>
 
         <div className="chamber-card-premium" style={{borderRadius:"28px",padding:"2px",background:"linear-gradient(135deg,rgba(0,230,184,0.3),rgba(0,204,255,0.1),rgba(168,85,247,0.08),rgba(0,230,184,0.06))",boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)"}}>
@@ -2678,7 +2664,7 @@ function AgentPlayground(){
         <div style={{textAlign:"center",marginBottom:"52px"}}>
           <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.purple,letterSpacing:"0.2em",marginBottom:"14px",opacity:0.8}}>Agent Playground</p>
           <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.5rem)",letterSpacing:"-0.05em",marginBottom:"10px",color:"#fff"}}>Pick an <span style={{color:C.green}}>Agent.</span> Watch it <span style={{color:C.cyan}}>Think.</span></h2>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"460px",margin:"0 auto",lineHeight:1.7}}>Click any agent tile to simulate its inner monologue — no backend required.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"460px",margin:"0 auto",lineHeight:1.7}}>Click any agent tile to simulate its inner monologue - no backend required.</p>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"24px",maxWidth:"940px",margin:"0 auto"}}>
           <div ref={tilesRef} style={{position:"relative",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",alignContent:"start"}}>
@@ -2698,7 +2684,7 @@ function AgentPlayground(){
             <div style={{padding:"20px 22px",background:"rgba(7,7,18,0.96)",borderBottom:"1px solid rgba(255,255,255,0.04)",minHeight:"90px"}}>
               {active?(
                 <div style={{animation:"fadeUp 0.3s ease"}} key={active.id}>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:"6px"}}><span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{active.icon}</span><SplitText key={active.id} text={active.name} tag="span" splitType="chars" delay={28} duration={0.5} from={{opacity:0,y:12,filter:"blur(3px)"}} to={{opacity:1,y:0,filter:"blur(0px)"}}/>&nbsp;— ROLE BRIEFING</div>
+                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:"6px"}}><span style={{fontFamily:"Material Symbols Outlined",fontSize:"13px"}}>{active.icon}</span><SplitText key={active.id} text={active.name} tag="span" splitType="chars" delay={28} duration={0.5} from={{opacity:0,y:12,filter:"blur(3px)"}} to={{opacity:1,y:0,filter:"blur(0px)"}}/>&nbsp; -  ROLE BRIEFING</div>
                   <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(185,200,175,0.75)",lineHeight:1.65,margin:0}}>{active.desc}</p>
                 </div>
               ):(
@@ -2845,7 +2831,7 @@ function PDFLabSection(){
             <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.cyan,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ PDF Lab</p>
             <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.9rem)",lineHeight:0.95,letterSpacing:"-0.055em",color:"#fff",margin:0}}><KineticText text="Documents," style={{fontWeight:400}}/><br/><KineticText text="interrogated." style={{fontWeight:400}}/></h2>
           </div>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Drag in a PDF and it's screened, indexed, and ready for Q&A — with multi-PDF cross-referencing.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,margin:0,paddingBottom:"4px"}}>Drag in a PDF and it's screened, indexed, and ready for Q&A - with multi-PDF cross-referencing.</p>
         </div>
 
         <div className="chamber-card-premium" style={{borderRadius:"28px",padding:"2px",background:"linear-gradient(135deg,rgba(0,204,255,0.3),rgba(0,255,15,0.1),rgba(168,85,247,0.08),rgba(0,204,255,0.06))",boxShadow:"0 52px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.025)"}}>
@@ -2889,15 +2875,15 @@ function PDFLabSection(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   WHY POLYNOUS — ORIGIN STORY SECTION
+   WHY POLYNOUS - ORIGIN STORY SECTION
 ══════════════════════════════════════════════════════════════════════════ */
 function StorySection(){
   const ref = useReveal(0.1);
   const beats = [
-    {icon:"psychology_alt", color:C.crimson, title:"One model, one guess.", body:"Ask a single LLM a hard question and you get its best guess — confident-sounding, unsourced, and impossible to audit. No indication of what it's unsure about."},
-    {icon:"groups",         color:C.amber,   title:"So we built a team, not a guess.", body:"POLYNOUS doesn't answer alone. It searches, condenses, cross-examines, and only then writes — the way a real research team would, with each stage checking the last."},
-    {icon:"gavel",          color:C.gold,    title:"And for the questions with two sides —", body:"— it doesn't pick one. It runs a formal debate, FOR against AGAINST, and lets an impartial judge score the argument, not the answer you wanted."},
-    {icon:"visibility",     color:C.green,   title:"Every claim, traceable.", body:"Confidence scores. Inline citations. Named limitations. You see exactly how sure POLYNOUS is, and why — instead of trusting a black box."},
+    {icon:"psychology_alt", color:C.crimson, title:"One model, one confident guess.", body:"Ask a single LLM a hard question and you get one voice, polished and self-assured, with no sources you can open and no sense of what it might have gotten wrong. It never disagrees with itself, so you never learn where the real uncertainty lives."},
+    {icon:"groups",         color:C.amber,   title:"So POLYNOUS answers as a team.", body:"Seven specialized agents split the work the way a real research group would. One searches the live web, one distills each source, a Critic hunts for contradictions, a Deepen step chases the gaps, and only then does a Writer synthesize. Every stage checks the one before it, out in the open."},
+    {icon:"gavel",          color:C.gold,    title:"For questions with two sides, it argues both.", body:"Instead of quietly picking a winner, POLYNOUS runs a formal debate: FOR and AGAINST each build the strongest case they can, then an impartial judge scores the reasoning on a rubric. You watch the argument unfold and see exactly why the verdict landed where it did."},
+    {icon:"visibility",     color:C.green,   title:"Every claim is traceable, every number is real.", body:"Confidence scores, inline citations, named limitations, and honest per-run token and cost telemetry. Nothing is fabricated and nothing is hidden. You are never asked to simply trust a black box; you are shown the work and left to judge it yourself."},
   ];
   return(
     <section id="why" style={{padding:"96px 0 64px"}}>
@@ -2905,7 +2891,7 @@ function StorySection(){
       <div ref={ref} className="reveal" style={{marginBottom:"56px",textAlign:"center",maxWidth:"760px",marginLeft:"auto",marginRight:"auto"}}>
         <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:C.crimson,letterSpacing:"0.2em",marginBottom:"16px",opacity:0.8}}>↓ Why POLYNOUS exists</p>
         <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2.2rem,4.8vw,3.6rem)",lineHeight:1.02,letterSpacing:"-0.05em",color:"#fff",margin:"0 0 20px"}}>A single model will always<br/>tell you it's right.</h2>
-        <ScrollReveal tag="p" baseOpacity={0.15} baseRotation={2} blurStrength={6} containerClassName="story-manifesto">That's the quiet problem with most AI answers — not that they're wrong, but that they never say how sure they are, or show their work. POLYNOUS was built on a simple bet: research gets more honest when it's argued out loud, not generated in one breath.</ScrollReveal>
+        <ScrollReveal tag="p" baseOpacity={0.15} baseRotation={2} blurStrength={6} containerClassName="story-manifesto">That is the quiet problem with most AI answers. They are rarely obviously wrong; they simply never tell you how sure they are, or show the work behind the claim. POLYNOUS was built on a simple bet: research gets more honest when it is argued out loud by many minds, checked at every step, and scored in the open, instead of generated in one confident breath.</ScrollReveal>
       </div>
 
       <div style={{maxWidth:"820px",margin:"0 auto 40px"}}>
@@ -2951,7 +2937,7 @@ export default function LandingPage(){
     document.head.appendChild(el);
     return()=>{try{document.head.removeChild(el);}catch(_){}};
   },[]);
-  // Lenis smooth scroll — synced with the GSAP ScrollTrigger the React Bits use,
+  // Lenis smooth scroll - synced with the GSAP ScrollTrigger the React Bits use,
   // so scroll-driven reveals stay in lockstep with the eased scroll position.
   useEffect(()=>{
     if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;

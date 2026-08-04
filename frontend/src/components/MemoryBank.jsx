@@ -757,7 +757,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
     
     // If no token, try cookies or other sources
     if (!accessToken) {
-      console.warn('⚠️ No auth token found — memory data will be empty');
+      console.warn('⚠️ No auth token found - memory data will be empty');
       setStats({ total_research: 0, total_debates: 0, avg_confidence: 0, unique_topics: 0 });
       setInterests([]);
       setHistory([]);
@@ -1113,7 +1113,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                   !loading && (
                     <div style={{ textAlign:"center", padding:"48px 20px", color: C.textMuted,
                                   fontFamily: C.fontMono, fontSize:13 }}>
-                      No research yet — start asking questions.
+                      No research yet - start asking questions.
                     </div>
                   )
                 )}
@@ -1186,7 +1186,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
           {(activeTab === "All Activity" || activeTab === "Debates") && debates.length === 0 && !loading && (
             <div style={{ textAlign:"center", padding:"40px 20px", color: C.textMuted,
                           fontFamily: C.fontMono, fontSize:12, marginBottom:44 }}>
-              No debates yet — start a debate to see your history.
+              No debates yet - start a debate to see your history.
             </div>
           )}
 

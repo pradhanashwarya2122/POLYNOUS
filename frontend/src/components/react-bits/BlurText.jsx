@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { motion, useInView } from "motion/react";
 
 /**
- * BlurText — animates text by word (or char) with a blur-to-sharp settle.
+ * BlurText - animates text by word (or char) with a blur-to-sharp settle.
  * Lightweight: Motion only, no GSAP dependency.
  */
 export default function BlurText({

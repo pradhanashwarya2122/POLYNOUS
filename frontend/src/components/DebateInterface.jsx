@@ -28,7 +28,7 @@ const GLOBAL_STYLES = `
   @keyframes orbPulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.4)}50%{box-shadow:0 0 40px rgba(255,215,0,0.8)}}
   @keyframes winnerGlow{0%,100%{text-shadow:0 0 20px currentColor}50%{text-shadow:0 0 48px currentColor}}
   @keyframes dropIn{0%{opacity:0;transform:translateY(-18px) scale(0.96)}70%{transform:translateY(3px) scale(1.01)}100%{opacity:1;transform:translateY(0) scale(1)}}
-  /* Flipping from the report back up to the live engine — glides in from below */
+  /* Flipping from the report back up to the live engine - glides in from below */
   @keyframes debateViewEnter{0%{opacity:0;transform:translateY(40px) scale(0.985)}100%{opacity:1;transform:translateY(0) scale(1)}}
   .debate-view-enter{animation:debateViewEnter 0.55s cubic-bezier(0.16,1,0.3,1) both}
   .point-card{transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
@@ -52,7 +52,7 @@ function Icon({ name, style }) {
 // ═══════════════════════════════════════════════════════════════
 // Debates now run through the live /debate-visual SSE pipeline via
 // <DebateEngine>. Results arrive as STRUCTURED data (verdict object +
-// server-split argument points) — the old blocking /ask call and its
+// server-split argument points) - the old blocking /ask call and its
 // regex parsing of the answer blob are gone.
 // ═══════════════════════════════════════════════════════════════
 
@@ -124,7 +124,7 @@ function Globe({ containerRef }) {
       const pl = new THREE.PointLight(RED, 2.5, 8); pl.position.set(4, 4, 4); scene.add(pl);
 
       // ═══════════════════════════════════════════════════════════════════
-      // FLIGHTS — dense, continuous, premium-motion air-traffic layer
+      // FLIGHTS - dense, continuous, premium-motion air-traffic layer
       // ═══════════════════════════════════════════════════════════════════
       const GOLD = new THREE.Color(0xffd700);
       const clock = new THREE.Clock();
@@ -199,7 +199,7 @@ function Globe({ containerRef }) {
       // Airplane silhouette (nose forward, tail back), matching the classic
       // "flight" icon: pointed nose, swept main wings, small tail wings.
       // Built once as a flat shape and reused (geometry) across every pooled
-      // plane — only each plane's material (for per-instance opacity) differs.
+      // plane - only each plane's material (for per-instance opacity) differs.
       // Simple, convex dart/paper-airplane silhouette: nose, two wingtips, tail.
       // Convex shape triangulates cleanly (the earlier notched outline was
       // producing a mangled, "X"-like mesh at small scale).
@@ -219,7 +219,7 @@ function Globe({ containerRef }) {
 
       // Single shared shader material for ALL trail lines. Per-flight fade
       // and gradient are baked into each line's own vertex-alpha buffer, so
-      // one GPU program serves every trail — no per-frame material churn.
+      // one GPU program serves every trail - no per-frame material churn.
       const trailMaterial = new THREE.ShaderMaterial({
         uniforms: { uColor: { value: GOLD } },
         vertexShader: `
@@ -248,7 +248,7 @@ function Globe({ containerRef }) {
       const MAX_BULGE = 1.40;
 
       // ─── Flight slot pool ────────────────────────────────────────────
-      const POOL_SIZE = 14;         // fewer planes — cleaner, more premium sky
+      const POOL_SIZE = 14;         // fewer planes - cleaner, more premium sky
       const TRAIL_POINTS = 26;      // long, smooth contrails
       const RING_POOL_SIZE = 14;
 
@@ -323,9 +323,9 @@ function Globe({ containerRef }) {
         slot.destVec.copy(b);
 
         const distNorm = Math.min(dist / 2, 1);
-        slot.duration = THREE.MathUtils.lerp(9, 14, distNorm) + Math.random() * 4; // 9-18s — unhurried, premium pace
+        slot.duration = THREE.MathUtils.lerp(9, 14, distNorm) + Math.random() * 4; // 9-18s - unhurried, premium pace
         slot.elapsed = -Math.random() * 0.6; // slight randomized easing/start offset
-        slot.trailSpan = 0.16 + Math.random() * 0.14; // 16-30% of arc — long, visible contrails
+        slot.trailSpan = 0.16 + Math.random() * 0.14; // 16-30% of arc - long, visible contrails
         slot.state = "flying";
         slot.fade = 1;
 
@@ -397,7 +397,7 @@ function Globe({ containerRef }) {
             slot.plane.material.opacity = 0.95 * inOpacity;
             slot.glow.material.opacity = 0.28 * inOpacity;
 
-            // rolling trail buffer — update in place, no reallocation
+            // rolling trail buffer - update in place, no reallocation
             for (let i = 0; i < TRAIL_POINTS; i++) {
               const f = i / (TRAIL_POINTS - 1);
               const su = Math.max(0, u - slot.trailSpan * (1 - f));
@@ -427,7 +427,7 @@ function Globe({ containerRef }) {
             if (fadeT >= 1) {
               slot.state = "idle";
               slot.waitTimer = 0;
-              slot.waitFor = 0.3 + Math.random() * 0.7; // 300-1000ms — relaxed turnaround
+              slot.waitFor = 0.3 + Math.random() * 0.7; // 300-1000ms - relaxed turnaround
             }
           }
         }
@@ -680,7 +680,7 @@ const TOPIC_VISIBLE = 6;
 
 function TopicCards({ onSelect }) {
   const [cards, setCards] = useState(() => shuffle(ALL_TOPICS).slice(0, TOPIC_VISIBLE));
-  const [phase, setPhase] = useState("in"); // in | out — drives the staggered crossfade
+  const [phase, setPhase] = useState("in"); // in | out - drives the staggered crossfade
 
   const reshuffle = useCallback(() => {
     setPhase("out");
@@ -808,7 +808,7 @@ function ScoreBar({ label, score, color, fillGradient, delay = 0 }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TRIBUNAL REPORT SECTIONS — Steelman · Framing · Analytics ·
+// TRIBUNAL REPORT SECTIONS - Steelman · Framing · Analytics ·
 // Sources · Minority Report · Track Record · Vote · Case File
 // Every number is computed or judge-assessed-and-labelled.
 // ═══════════════════════════════════════════════════════════════
@@ -875,8 +875,8 @@ function PreVerdictStrips({ verdict, debate }) {
   );
 }
 
-// Run telemetry (Phase 6) — REAL token counts + estimated cost + per-stage
-// latency for a debate run. "—" wherever the SDK didn't report usage.
+// Run telemetry (Phase 6) - REAL token counts + estimated cost + per-stage
+// latency for a debate run. " - " wherever the SDK didn't report usage.
 const PROVIDER_LABEL = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", groq: "Groq", mistral: "Mistral", cohere: "Cohere", together: "Together" };
 
 function DebateTelemetryCard({ telemetry }) {
@@ -884,13 +884,13 @@ function DebateTelemetryCard({ telemetry }) {
   const t = telemetry;
   const cost = t.estimated_cost || {};
   const accent = C.crimson;
-  const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : "—");
-  const fmtCost = (usd) => (typeof usd === "number" ? `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : "—");
+  const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : " - ");
+  const fmtCost = (usd) => (typeof usd === "number" ? `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : " - ");
   const stages = Object.entries(t.by_stage || {});
   const STAGE_LABEL = { search: "Search", for_opening: "FOR opening", against_opening: "AGAINST opening",
     for_rebuttal: "FOR rebuttal", against_rebuttal: "AGAINST rebuttal", judge: "Judge" };
   const tiles = [
-    { label: "LLM calls", value: t.calls ?? "—" },
+    { label: "LLM calls", value: t.calls ?? " - " },
     { label: "Total tokens", value: fmtTok(t.total_tokens) },
     { label: "Est. cost", value: fmtCost(cost.usd), sub: "estimate" },
     { label: "Scrape cache", value: t.scrape_cache_hits ? `${t.scrape_cache_hits} hit${t.scrape_cache_hits !== 1 ? "s" : ""}` : "0" },
@@ -911,7 +911,7 @@ function DebateTelemetryCard({ telemetry }) {
         <Icon name="payments" style={{ fontSize: 22, color: accent, alignSelf: "center" }} />
         <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 30, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{fmtCost(cost.usd)}</span>
         <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary }}>
-          spent on your key this debate{typeof cost.usd === "number" ? " · estimated from list prices" : " — provider didn't report token usage"}
+          spent on your key this debate{typeof cost.usd === "number" ? " · estimated from list prices" : " - provider didn't report token usage"}
         </span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: stages.length ? 16 : 0 }}>
@@ -939,9 +939,9 @@ function DebateTelemetryCard({ telemetry }) {
               {stages.map(([stage, s]) => (
                 <tr key={stage} style={{ borderTop: `1px solid ${C.white10}`, color: "#e6c9cf" }}>
                   <td style={{ padding: "6px 8px", color: "#fff" }}>{STAGE_LABEL[stage] || stage}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{s.calls ?? "—"}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{(s.input_tokens || s.output_tokens) ? `${fmtTok(s.input_tokens)} / ${fmtTok(s.output_tokens)}` : "—"}</td>
-                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{typeof s.latency_s === "number" ? `${s.latency_s.toFixed(1)}s` : "—"}</td>
+                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{s.calls ?? " - "}</td>
+                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{(s.input_tokens || s.output_tokens) ? `${fmtTok(s.input_tokens)} / ${fmtTok(s.output_tokens)}` : " - "}</td>
+                  <td style={{ padding: "6px 8px", textAlign: "right" }}>{typeof s.latency_s === "number" ? `${s.latency_s.toFixed(1)}s` : " - "}</td>
                   <td style={{ padding: "6px 8px", textAlign: "right", color: accent }}>{fmtCost((cost.by_stage || {})[stage])}</td>
                 </tr>
               ))}
@@ -950,8 +950,8 @@ function DebateTelemetryCard({ telemetry }) {
         </div>
       )}
       <div style={{ marginTop: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary, lineHeight: 1.6 }}>
-        Costs are estimates from public list prices{cost.priced_all === false ? " (partial — some models have no price entry)" : ""}.
-        {t.missing_usage ? " Some calls' providers did not report token usage (shown as —)." : ""}
+        Costs are estimates from public list prices{cost.priced_all === false ? " (partial - some models have no price entry)" : ""}.
+        {t.missing_usage ? " Some calls' providers did not report token usage (shown as - )." : ""}
       </div>
     </div>
   );
@@ -959,12 +959,12 @@ function DebateTelemetryCard({ telemetry }) {
 
 // ── Interactive follow-ups: Judge's Lens (#5) + Join the Debate (#6) ──────────
 const JUDGE_LENSES = [
-  { key: "impartial",   label: "Impartial",   icon: "balance",       blurb: "Neutral judge — logic and evidence only" },
+  { key: "impartial",   label: "Impartial",   icon: "balance",       blurb: "Neutral judge - logic and evidence only" },
   { key: "economist",   label: "Economist",   icon: "trending_up",   blurb: "Cost-benefit, incentives, efficiency, tradeoffs" },
   { key: "ethicist",    label: "Ethicist",    icon: "diversity_3",   blurb: "Rights, duties, fairness, harm to the vulnerable" },
   { key: "pragmatist",  label: "Pragmatist",  icon: "construction",  blurb: "Feasibility, implementation, what works in practice" },
   { key: "scientist",   label: "Scientist",   icon: "science",       blurb: "Empirical evidence, data quality, falsifiability" },
-  { key: "skeptic",     label: "Skeptic",     icon: "help",          blurb: "Demands proof — discounts unsupported claims" },
+  { key: "skeptic",     label: "Skeptic",     icon: "help",          blurb: "Demands proof - discounts unsupported claims" },
   { key: "futurist",    label: "Futurist",    icon: "rocket_launch", blurb: "Long-term and second-order consequences" },
   { key: "humanist",    label: "Humanist",    icon: "favorite",      blurb: "Human wellbeing, dignity, ordinary people" },
   { key: "libertarian", label: "Libertarian", icon: "lock_open",     blurb: "Individual liberty, consent, limits on power" },
@@ -997,7 +997,7 @@ function DebateFollowups({ query, result, onVerdict }) {
   const [crossBusy, setCrossBusy] = useState(false);
   const [crossErr, setCrossErr] = useState("");
 
-  // #8 "what flips this" — pure client-side recompute from the verdict's own
+  // #8 "what flips this" - pure client-side recompute from the verdict's own
   // evidence-rubric vs judge-quality components.
   const v = result?.verdict || {};
   const forRub = v?.rubric_for?.computed_score, againstRub = v?.rubric_against?.computed_score;
@@ -1019,7 +1019,7 @@ function DebateFollowups({ query, result, onVerdict }) {
     try {
       res = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
     } catch (netErr) {
-      throw new Error("Can't reach the server — check your connection and try again in a moment.");
+      throw new Error("Can't reach the server - check your connection and try again in a moment.");
     }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -1087,7 +1087,7 @@ function DebateFollowups({ query, result, onVerdict }) {
           <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Judge's Lens</h3>
         </div>
         <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
-          Same debate, same evidence — re-scored through a different value frame. Watch who wins change.
+          Same debate, same evidence - re-scored through a different value frame. Watch who wins change.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
           {JUDGE_LENSES.map((L) => {
@@ -1110,7 +1110,7 @@ function DebateFollowups({ query, result, onVerdict }) {
         {lensErr && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, margin: "10px 0 0" }}>{lensErr}</p>}
       </div>
 
-      {/* #8 What flips this — interactive verdict sensitivity */}
+      {/* #8 What flips this - interactive verdict sensitivity */}
       {canFlip && (
         <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${flipWinColor}`, borderRadius: 16, padding: "22px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -1118,7 +1118,7 @@ function DebateFollowups({ query, result, onVerdict }) {
             <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>What flips this?</h3>
           </div>
           <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.6 }}>
-            The verdict is 50% measured evidence + 50% judged argument quality. Drag to re-weight and watch the scores move — the verdict is reasoned, not decreed.
+            The verdict is 50% measured evidence + 50% judged argument quality. Drag to re-weight and watch the scores move - the verdict is reasoned, not decreed.
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
@@ -1153,7 +1153,7 @@ function DebateFollowups({ query, result, onVerdict }) {
           <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Cross-examination</h3>
         </div>
         <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
-          Each side puts its sharpest question to the other — and must answer. This is where weak arguments break.
+          Each side puts its sharpest question to the other - and must answer. This is where weak arguments break.
         </p>
         {!crossEx && (
           <button onClick={runCrossExam} disabled={crossBusy}
@@ -1214,7 +1214,7 @@ function DebateFollowups({ query, result, onVerdict }) {
           ))}
         </div>
         <textarea value={arg} onChange={(e) => setArg(e.target.value)} disabled={joinBusy}
-          placeholder={`Make your case ${side === "for" ? "for" : "against"} — the ${side === "for" ? "counter" : "supporting"} advocate will reply…`}
+          placeholder={`Make your case ${side === "for" ? "for" : "against"} - the ${side === "for" ? "counter" : "supporting"} advocate will reply…`}
           rows={3}
           style={{ width: "100%", boxSizing: "border-box", background: "rgba(6,6,16,0.7)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, resize: "vertical", outline: "none" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, marginTop: 10 }}>
@@ -1258,7 +1258,7 @@ function DebateExtras({ result, activeTopic, onNewDebate }) {
     const docket = `PLYN-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.abs([...activeTopic].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)).toString(16).slice(0, 6).toUpperCase()}`;
     const rows = (label, obj) => Object.entries(obj || {}).map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`).join("\n");
     const body = `═══════════════════════════════════════════════════════
-  POLYNOUS DEBATE TRIBUNAL — CASE FILE
+  POLYNOUS DEBATE TRIBUNAL - CASE FILE
   Docket No. ${docket}
   Filed: ${new Date().toUTCString()}
 ═══════════════════════════════════════════════════════
@@ -1267,38 +1267,38 @@ PROPOSITION UNDER REVIEW
   ${activeTopic}
 
 VERDICT
-  Winner: ${verdict.winner || "—"} · Margin: ${verdict.margin || "—"} · Judge certainty: ${verdict.judge_certainty ?? "—"}%
-  Scoring: ${verdict.scoring || "—"}
-  FOR ${verdict.for_score ?? "—"}/10 · AGAINST ${verdict.against_score ?? "—"}/10
+  Winner: ${verdict.winner || " - "} · Margin: ${verdict.margin || " - "} · Judge certainty: ${verdict.judge_certainty ?? " - "}%
+  Scoring: ${verdict.scoring || " - "}
+  FOR ${verdict.for_score ?? " - "}/10 · AGAINST ${verdict.against_score ?? " - "}/10
 
 JUDGE'S REASONING
-  ${verdict.reasoning || "—"}
+  ${verdict.reasoning || " - "}
 
 MINORITY REPORT
-  ${minority ? `${minority.could_flip ? "Verdict could flip" : "Verdict holds"} — ${minority.condition || ""}. ${minority.note || ""}` : "None recorded."}
+  ${minority ? `${minority.could_flip ? "Verdict could flip" : "Verdict holds"} - ${minority.condition || ""}. ${minority.note || ""}` : "None recorded."}
 
-FOR — OPENING
-${result?.debate?.for_opening || "—"}
+FOR - OPENING
+${result?.debate?.for_opening || " - "}
 
-FOR — REBUTTAL
-${result?.debate?.for_rebuttal || "—"}
+FOR - REBUTTAL
+${result?.debate?.for_rebuttal || " - "}
 
-AGAINST — OPENING
-${result?.debate?.against_opening || "—"}
+AGAINST - OPENING
+${result?.debate?.against_opening || " - "}
 
-AGAINST — REBUTTAL
-${result?.debate?.against_rebuttal || "—"}
+AGAINST - REBUTTAL
+${result?.debate?.against_rebuttal || " - "}
 
 COMPUTED ANALYTICS
   FOR:\n${rows("FOR", analytics?.computed?.FOR)}
   AGAINST:\n${rows("AGAINST", analytics?.computed?.AGAINST)}
 
 SOURCES CITED
-${sources.map(s => `  [${s.id}] ${s.title} — ${s.domain} · trust ${s.trust_score} · ${s.freshness} · cited ${s.cited_count}×\n      ${s.url}`).join("\n")}
+${sources.map(s => `  [${s.id}] ${s.title} - ${s.domain} · trust ${s.trust_score} · ${s.freshness} · cited ${s.cited_count}×\n      ${s.url}`).join("\n")}
 
 ═══════════════════════════════════════════════════════
   Signed: FOR Advocate · AGAINST Advocate · The Judge
-  Generated by POLYNOUS — computed metrics, honest verdicts.
+  Generated by POLYNOUS - computed metrics, honest verdicts.
 ═══════════════════════════════════════════════════════
 `;
     const blob = new Blob([body], { type: "text/plain" });
@@ -1314,27 +1314,27 @@ ${sources.map(s => `  [${s.id}] ${s.title} — ${s.domain} · trust ${s.trust_sc
 
   return (
     <div style={{ marginTop: 22 }}>
-      {/* Run telemetry (Phase 6) — real tokens/cost for the debate run */}
+      {/* Run telemetry (Phase 6) - real tokens/cost for the debate run */}
       <DebateTelemetryCard telemetry={result?.telemetry} />
       {/* Minority report */}
       {minority && !unscored && (
         <TribunalCard icon="balance" iconColor="#e0a458" title="Minority Report" accent="rgba(224,164,88,0.25)" delay={0.05}>
           <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.7, color: "#e0c9a0" }}>
             {minority.could_flip ? "⚠ This verdict is sensitive: " : "This verdict is robust: "}
-            {minority.condition}{minority.note ? ` — ${minority.note}` : ""}
+            {minority.condition}{minority.note ? ` - ${minority.note}` : ""}
           </p>
         </TribunalCard>
       )}
 
-      {/* Judge track record + vote — REAL telemetry, honest empty state */}
+      {/* Judge track record + vote - REAL telemetry, honest empty state */}
       <TribunalCard icon="monitoring" iconColor={C.gold} title="Judge Track Record" delay={0.1}
         right={voteStats && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.gold }}>vote recorded ✓</span>}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: C.onSurfaceVariant }}>
             {(() => {
               const tr = voteStats || trackRecord;
-              if (!tr || !tr.sample_size) return "No verdict votes recorded yet — yours would be the first.";
-              if (tr.sample_size < 5) return `${tr.sample_size} vote${tr.sample_size > 1 ? "s" : ""} recorded — not enough yet for a reliable agreement rate.`;
+              if (!tr || !tr.sample_size) return "No verdict votes recorded yet - yours would be the first.";
+              if (tr.sample_size < 5) return `${tr.sample_size} vote${tr.sample_size > 1 ? "s" : ""} recorded - not enough yet for a reliable agreement rate.`;
               return `Historically agrees with user votes ${Math.round(tr.agreement_rate_with_users * 100)}% of the time (${tr.sample_size} debates).`;
             })()}
           </p>
@@ -1365,7 +1365,7 @@ ${sources.map(s => `  [${s.id}] ${s.title} — ${s.domain} · trust ${s.trust_sc
             <span style={{ color: C.crimson, fontWeight: 700, textAlign: "right" }}>AGAINST</span>
             {[["Evidence quality", "evidence_quality", v => `${v}%`],
               ["Source diversity", "source_diversity", v => `${v} sources`],
-              ["Source trust (avg)", "source_trust_avg", v => v ? `${v}` : "—"],
+              ["Source trust (avg)", "source_trust_avg", v => v ? `${v}` : " - "],
               ["Argument density", "argument_density", v => v],
               ["Hallucinated citations", "hallucinated_citations", v => v],
             ].map(([label, key, fmt]) => (
@@ -1386,7 +1386,7 @@ ${sources.map(s => `  [${s.id}] ${s.title} — ${s.domain} · trust ${s.trust_sc
       {/* Sources cited */}
       {sources.length > 0 && (
         <TribunalCard icon="menu_book" iconColor="#00ccff" title="Sources Cited" delay={0.2}
-          right={<span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary }}>🟢 &lt;6mo · 🟡 6–18mo · 🔴 stale</span>}>
+          right={<span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary }}>🟢 &lt;6mo · 🟡 6-18mo · 🔴 stale</span>}>
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             {sources.map(s => (
               <a key={s.id} href={s.url || undefined} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 11, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(0,204,255,0.12)", borderRadius: 11, padding: "10px 14px", transition: "border-color 0.2s" }}
@@ -1754,7 +1754,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                     </div>
                     {verdict.winner === "UNSCORED" && (
                       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#ffd700", background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 10, padding: "10px 16px", margin: "0 auto 20px", maxWidth: 520, lineHeight: 1.6 }}>
-                        The judge could not score this debate — the numbers shown are the computed evidence rubric only, not a quality verdict.
+                        The judge could not score this debate - the numbers shown are the computed evidence rubric only, not a quality verdict.
                       </div>
                     )}
                     {verdict.winner !== "UNSCORED" && (verdict.margin || verdict.judge_certainty != null) && (

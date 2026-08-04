@@ -1,0 +1,40 @@
+.scroll-list-container {
+  position: relative;
+  width: 100%;
+}
+
+.scroll-list {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+
+.scroll-list::-webkit-scrollbar { width: 6px; }
+.scroll-list::-webkit-scrollbar-track { background: transparent; }
+.scroll-list::-webkit-scrollbar-thumb { background: rgba(0,255,15,0.18); border-radius: 4px; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.item {
+  padding: 14px 16px;
+  background-color: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+}
+.item.selected {
+  background-color: rgba(0,255,15,0.06);
+  border-color: rgba(0,255,15,0.35);
+}
+.item-text { color: #fff; margin: 0; font-family: 'Sora', sans-serif; }
+
+.top-gradient {
+  position: absolute; top: 0; left: 0; right: 0; height: 40px;
+  background: linear-gradient(to bottom, rgba(9,9,20,0.95), transparent);
+  pointer-events: none; transition: opacity 0.3s ease; border-radius: 12px 12px 0 0;
+}
+.bottom-gradient {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
+  background: linear-gradient(to top, rgba(9,9,20,0.95), transparent);
+  pointer-events: none; transition: opacity 0.3s ease; border-radius: 0 0 12px 12px;
+}

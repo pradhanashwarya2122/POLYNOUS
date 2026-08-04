@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 // Premium page-load skeleton for POLYNOUS.
 // Navigation here is full page reloads (window.location.href), so every page is
 // a fresh mount. On mount this paints a skeleton that MATCHES the real layout
-// of the destination page — the shared sidebar plus a per-route content
-// skeleton (research / debate / settings / analytics / memory) — on the app's
+// of the destination page - the shared sidebar plus a per-route content
+// skeleton (research / debate / settings / analytics / memory) - on the app's
 // own dark background (never white), then fades out to reveal the page.
 // Respects prefers-reduced-motion. Paired with critical CSS in index.html that
 // keeps the pre-React boot flash dark.
@@ -68,7 +68,7 @@ const Card = ({ h, mb = 16, o = 1 }) => <B w="100%" h={h} r={18} mb={mb} o={o} /
 function ResearchSkel() {
   // LEFT-aligned hero matching LandingHero: eyebrow, 3-line display heading,
   // subtitle, quote block, search pill, source-count chips, then the suggestion
-  // card grid — with a faint globe/mountain glow on the right.
+  // card grid - with a faint globe/mountain glow on the right.
   return (
     <div style={{ flex: 1, position: "relative", padding: "48px 56px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0, overflow: "hidden" }}>
       <B w={460} h={460} r="50%" o={0.18} style={{ position: "absolute", right: -120, top: "50%", transform: "translateY(-50%)" }} />
@@ -78,7 +78,7 @@ function ResearchSkel() {
           {[1, 0.5, 0.2].map((o, i) => <B key={i} w={6} h={6} o={o} style={{ transform: "rotate(45deg)" }} />)}
           <B w={230} h={10} o={0.5} />
         </Row>
-        {/* big heading — 3 lines */}
+        {/* big heading - 3 lines */}
         <B w={280} h={62} r={10} mb={10} />
         <B w={360} h={62} r={10} mb={10} />
         <B w={230} h={62} r={10} mb={20} />

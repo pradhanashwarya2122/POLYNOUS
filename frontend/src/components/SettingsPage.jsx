@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL, apiFetch } from '../config';
 import ScrapeCountControl from './ScrapeCountControl';
+import AnimatedList from './react-bits/AnimatedList';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DESIGN TOKENS
@@ -312,7 +313,7 @@ const NAV = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SIDEBAR — persona-aware
+// SIDEBAR - persona-aware
 // ─────────────────────────────────────────────────────────────────────────────
 function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona }) {
   const go = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
@@ -392,7 +393,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona 
             <Icon name="add" style={{ fontSize: 16, color: C.void }} />
           </div>
           <div
-            title={persona ? `${persona.name} — ${persona.role}` : "Account"}
+            title={persona ? `${persona.name} - ${persona.role}` : "Account"}
             style={{
               width: 30,
               height: 30,
@@ -923,7 +924,7 @@ const PROVIDERS = {
   deepseek:  { label: "DeepSeek",          icon: "waves",          color: "#4d6bff",  placeholder: "sk-…",
                models: ["deepseek-chat", "deepseek-reasoner"] },
   tavily:    { label: "Tavily Search",     icon: "travel_explore", color: C.gold,     placeholder: "tvly-…",
-               models: null }, // search service — no model choice
+               models: null }, // search service - no model choice
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -982,7 +983,7 @@ const PERSONAS = [
     id: "orion",
     name: "ORION",
     role: "The Cybernetic Mentor",
-    desc: "Guides the system with wisdom, memory, and strategic perspective — trustworthy and experienced.",
+    desc: "Guides the system with wisdom, memory, and strategic perspective - trustworthy and experienced.",
     trait: "Leadership · Experience · Trusted Intelligence",
     color: "#818cf8",
     colorFaint: "rgba(129,140,248,0.08)",
@@ -993,7 +994,7 @@ const PERSONAS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PERSONA SELECTOR — animation layer
+// PERSONA SELECTOR - animation layer
 // ─────────────────────────────────────────────────────────────────────────────
 function PersonaStyles() {
   return (
@@ -1067,7 +1068,7 @@ function PersonaCard({ persona, isActive, isAnyActive, onSelect }) {
         userSelect: "none",
       }}
     >
-      {/* Signature accent — a single quiet hairline at the top when active */}
+      {/* Signature accent - a single quiet hairline at the top when active */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, height: 2,
         background: isActive ? persona.color : "transparent",
@@ -1115,7 +1116,7 @@ function PersonaCard({ persona, isActive, isAnyActive, onSelect }) {
           {persona.role}
         </div>
 
-        {/* Description — only on the active card */}
+        {/* Description - only on the active card */}
         {isActive && (
           <div className="persona-detail" style={{
             fontFamily: C.fontBody, fontSize: 13, color: C.onSurfaceVariant,
@@ -1200,7 +1201,7 @@ function ProfileSection({ user: initialUser, push, activePersona, onPersonaChang
     const next = activePersona === id ? null : id;
     onPersonaChange(next);
     const p = PERSONAS.find(p => p.id === id);
-    if (next && p) push(`${p.name} — ${p.role} activated`);
+    if (next && p) push(`${p.name} - ${p.role} activated`);
     // Optionally persist to API: api.updateProfile({ persona: next })
   };
 
@@ -1213,7 +1214,7 @@ function ProfileSection({ user: initialUser, push, activePersona, onPersonaChang
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
 
-              {/* Avatar — updates to persona portrait when one is active */}
+              {/* Avatar - updates to persona portrait when one is active */}
               <div style={{
                 width: 64, height: 64, borderRadius: "50%",
                 background: currentPersona
@@ -1360,7 +1361,7 @@ function ProfileSection({ user: initialUser, push, activePersona, onPersonaChang
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: C.fontDisplay, fontSize: 13, letterSpacing: "0.06em", color: currentPersona.color, marginBottom: 2 }}>
-                    {currentPersona.name} — {currentPersona.role}
+                    {currentPersona.name} - {currentPersona.role}
                   </div>
                   <div style={{ fontFamily: C.fontMono, fontSize: 11, color: C.textSecondary, letterSpacing: "0.04em" }}>
                     {currentPersona.trait}
@@ -1531,6 +1532,7 @@ function ApiKeysSection({ push }) {
   const [previews,   setPreviews]   = useState(Object.fromEntries(providerIds.map(id => [id, null])));
   const [savedModels, setSavedModels] = useState({});
   const [preferred,  setPreferred]  = useState("anthropic");
+  const [prefOpen,   setPrefOpen]   = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [loadErr,    setLoadErr]    = useState(null);
   const [savingPref, setSavingPref] = useState(false);
@@ -1557,7 +1559,7 @@ function ApiKeysSection({ push }) {
     setSavingPref(true);
     try {
       // Writes the real user.preferred_provider COLUMN (the one the research
-      // endpoints read) — not the preferences JSON blob.
+      // endpoints read) - not the preferences JSON blob.
       await api.setPreferredProvider(id);
       push(`${PROVIDERS[id].label} set as preferred`);
     } catch (err) {
@@ -1600,7 +1602,7 @@ function ApiKeysSection({ push }) {
               🎁 Claim your free starter key
             </div>
             <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.5, maxWidth: 460 }}>
-              New here? Get one free API key to try POLYNOUS instantly — no card, no setup. You can add your own key anytime.
+              New here? Get one free API key to try POLYNOUS instantly - no card, no setup. You can add your own key anytime.
             </div>
           </div>
           <button onClick={claimFree} disabled={claiming} style={{
@@ -1613,25 +1615,63 @@ function ApiKeysSection({ push }) {
       )}
       <div style={{ marginBottom: 20 }}>
         <Label>Preferred AI Provider</Label>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {Object.keys(PROVIDERS).filter(id => PROVIDERS[id].models).map(id => {
-            const col = PROVIDERS[id].color, active = preferred === id;
-            return (
-              <button key={id} onClick={() => setPreferredAndSave(id)} disabled={savingPref} style={{
-                padding: "8px 18px", borderRadius: 9999,
-                border: `1px solid ${active ? col + "55" : C.white10}`,
-                background: active ? `${col}10` : "transparent",
-                color: active ? col : C.onSurfaceVariant,
-                cursor: savingPref ? "wait" : "pointer",
-                fontFamily: C.fontHead, fontWeight: 600, fontSize: 13.5,
-                transition: "all 0.18s", display: "flex", alignItems: "center", gap: 6,
+        {(() => {
+          const ids = Object.keys(PROVIDERS).filter(id => PROVIDERS[id].models);
+          const cur = PROVIDERS[preferred] || PROVIDERS[ids[0]];
+          const curCol = cur?.color || C.green;
+          return (
+            <div style={{ position: "relative", maxWidth: 460 }}>
+              {/* Trigger */}
+              <button onClick={() => setPrefOpen(o => !o)} disabled={savingPref} style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                padding: "12px 16px", borderRadius: 14, cursor: savingPref ? "wait" : "pointer",
+                border: `1px solid ${prefOpen ? curCol + "66" : C.white10}`,
+                background: prefOpen ? `${curCol}0d` : "rgba(255,255,255,0.02)",
+                transition: "all 0.25s cubic-bezier(0.23,1,0.32,1)",
               }}>
-                {savingPref && active && <InlineSpinner />}
-                {PROVIDERS[id].label.split(" ")[0]}
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: curCol }}>{cur?.icon || "smart_toy"}</span>
+                  <span style={{ fontFamily: C.fontHead, fontWeight: 700, fontSize: 14, color: "#fff" }}>{cur?.label || preferred}</span>
+                  {savingPref && <InlineSpinner />}
+                </span>
+                <span className="material-symbols-outlined" style={{ fontSize: 20, color: C.onSurfaceVariant, transform: prefOpen ? "rotate(180deg)" : "none", transition: "transform 0.3s cubic-bezier(0.23,1,0.32,1)" }}>expand_more</span>
               </button>
-            );
-          })}
-        </div>
+              {/* Expanding animated list */}
+              <div style={{
+                overflow: "hidden", maxHeight: prefOpen ? 360 : 0, opacity: prefOpen ? 1 : 0,
+                transition: "max-height 0.42s cubic-bezier(0.23,1,0.32,1), opacity 0.3s ease",
+                marginTop: prefOpen ? 8 : 0,
+                borderRadius: 14, border: prefOpen ? `1px solid ${C.white10}` : "1px solid transparent",
+                background: "rgba(9,9,20,0.6)", backdropFilter: "blur(14px)",
+              }}>
+                <AnimatedList
+                  items={ids}
+                  displayScrollbar={ids.length > 5}
+                  enableArrowNavigation={prefOpen}
+                  onItemSelect={(id) => { setPreferredAndSave(id); setPrefOpen(false); }}
+                  renderItem={(id, i, isSel) => {
+                    const p = PROVIDERS[id]; const active = preferred === id;
+                    return (
+                      <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                        padding: "12px 14px", borderRadius: 12,
+                        border: `1px solid ${(isSel || active) ? p.color + "55" : "rgba(255,255,255,0.05)"}`,
+                        background: active ? `${p.color}12` : isSel ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+                        transition: "all 0.2s ease",
+                      }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 17, color: p.color }}>{p.icon}</span>
+                          <span style={{ fontFamily: C.fontHead, fontWeight: 600, fontSize: 13.5, color: "#fff" }}>{p.label}</span>
+                        </span>
+                        {active && <span className="material-symbols-outlined" style={{ fontSize: 16, color: p.color }}>check_circle</span>}
+                      </div>
+                    );
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {loading ? <Spinner /> : loadErr ? (
@@ -1691,11 +1731,11 @@ function CustomKeyTester({ push }) {
 
       {open && (
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-          <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="Base URL — e.g. https://integrate.api.nvidia.com/v1"
+          <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="Base URL - e.g. https://integrate.api.nvidia.com/v1"
             style={{ ...inputStyle }} onFocus={onFI} onBlur={onFO} />
           <input type="password" value={key} onChange={e => setKey(e.target.value)} placeholder="API key"
             style={{ ...inputStyle }} onFocus={onFI} onBlur={onFO} />
-          <input value={model} onChange={e => setModel(e.target.value)} placeholder="Model (optional — e.g. deepseek-ai/deepseek-v4-flash)"
+          <input value={model} onChange={e => setModel(e.target.value)} placeholder="Model (optional - e.g. deepseek-ai/deepseek-v4-flash)"
             style={{ ...inputStyle }} onFocus={onFI} onBlur={onFO} />
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <button onClick={doTest} disabled={testing} style={{ padding: "9px 20px", borderRadius: 8, border: `1px solid ${C.purple}55`,
@@ -1818,7 +1858,7 @@ function PreferencesSection({ push }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ fontFamily: C.fontHead, fontSize: 15, fontWeight: 500, color: C.onSurface }}>Confidence Threshold</span>
-            <InfoDot text={`Every research answer gets a computed confidence score (0–100%) from source agreement, diversity, recency and citation grounding. When an answer scores BELOW this threshold, the report shows a prominent "treat this as a lead, not a conclusion" warning so you never trust a weakly-supported answer. Raise it to be stricter; lower it to see more answers without the caution banner. Default 70%.`} />
+            <InfoDot text={`Every research answer gets a computed confidence score (0-100%) from source agreement, diversity, recency and citation grounding. When an answer scores BELOW this threshold, the report shows a prominent "treat this as a lead, not a conclusion" warning so you never trust a weakly-supported answer. Raise it to be stricter; lower it to see more answers without the caution banner. Default 70%.`} />
           </div>
           <span style={{ fontFamily: C.fontMono, fontSize: 12, color: C.silver, background: C.silverFaint, padding: "3px 10px", borderRadius: 9999, border: `1px solid ${C.silverBorder}` }}>{conf}%</span>
         </div>
@@ -1877,7 +1917,7 @@ function IntegrationsSection({ push }) {
         const result = await api.connectIntegration(row.id);
         if (result?.redirect_url) {
           window.open(result.redirect_url, "_blank", "width=600,height=700");
-          push(`Opening ${row.label} auth — complete in the new window`, "warn");
+          push(`Opening ${row.label} auth - complete in the new window`, "warn");
         } else {
           setStatuses(prev => ({ ...prev, [row.id]: { ...prev[row.id], connected: true, detail: result?.detail || null } }));
           push(`${row.label} connected`);
@@ -1961,7 +2001,7 @@ function ChangePasswordModal({ open, onClose, push }) {
     setBusy(true);
     try {
       await api.changePassword({ current_password: current, new_password: next });
-      push("Password changed — please log in again");
+      push("Password changed - please log in again");
       reset(); onClose();
       setTimeout(() => { localStorage.clear(); window.location.href = "/auth"; }, 1200);
     } catch (err) {
@@ -2005,7 +2045,7 @@ function SecuritySection({ push }) {
     setRevoking(true);
     try {
       await api.revokeAllSessions();
-      push("All sessions revoked — logging out");
+      push("All sessions revoked - logging out");
       setTimeout(() => { localStorage.clear(); window.location.href = "/auth"; }, 1400);
     } catch (err) {
       push(err.message || "Revoke failed", "err");
@@ -2036,15 +2076,15 @@ function SecuritySection({ push }) {
       {/* What each control does + how your data is protected */}
       <div style={{ background: C.silverFaint, border: `1px solid ${C.silverBorder}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", flexDirection: "column", gap: 9 }}>
         {[
-          ["key", "Change Password", "Update the password you sign in with. It's checked against your current password, must meet strength rules, and every device is signed out afterward — you'll log in again with the new one."],
+          ["key", "Change Password", "Update the password you sign in with. It's checked against your current password, must meet strength rules, and every device is signed out afterward - you'll log in again with the new one."],
           ["logout", "Revoke All Sessions", "Instantly sign out everywhere by invalidating all existing access tokens. Use this if a device is lost or you suspect someone else has access."],
-          ["lock", "Your keys & password", "API keys are encrypted per-account with a key only you unlock — they're shown masked and never in full, not even to POLYNOUS staff. Your password is stored only as a salted one-way hash and can't be viewed by anyone."],
+          ["lock", "Your keys & password", "API keys are encrypted per-account with a key only you unlock - they're shown masked and never in full, not even to POLYNOUS staff. Your password is stored only as a salted one-way hash and can't be viewed by anyone."],
         ].map(([icon, title, body]) => (
           <div key={title} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
             <Icon name={icon} style={{ fontSize: 16, color: C.cyan, marginTop: 2, flexShrink: 0 }} />
             <div>
               <span style={{ fontFamily: C.fontHead, fontSize: 13, fontWeight: 700, color: C.onSurface }}>{title}</span>
-              <span style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55 }}> — {body}</span>
+              <span style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55 }}> - {body}</span>
             </div>
           </div>
         ))}
@@ -2077,7 +2117,7 @@ function DangerZone({ push }) {
     setDeletingAcct(true);
     try {
       await api.deleteAccount();
-      push("Account deleted — goodbye");
+      push("Account deleted - goodbye");
       setTimeout(() => { localStorage.clear(); window.location.href = "/auth"; }, 1200);
     } catch (err) {
       push(err.message || "Delete failed", "err");
@@ -2103,7 +2143,7 @@ function DangerZone({ push }) {
 
   return (
     <Card danger>
-      <SectionHead icon="warning" title="Danger Zone" subtitle="Irreversible — proceed with caution" />
+      <SectionHead icon="warning" title="Danger Zone" subtitle="Irreversible - proceed with caution" />
       <p style={{ fontFamily: C.fontMono, fontSize: 13, color: C.textSecondary, letterSpacing: "0.03em", marginBottom: 20, lineHeight: 1.75 }}>
         These actions cannot be undone. All stored data, memory, and API keys will be permanently removed.
       </p>
@@ -2141,7 +2181,7 @@ function DangerZone({ push }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-// ── Usage & Credits — real per-run token/cost usage, research vs debate ──────
+// ── Usage & Credits - real per-run token/cost usage, research vs debate ──────
 function UsageSection({ push }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2153,7 +2193,7 @@ function UsageSection({ push }) {
       .then(setData)
       .catch(() => {
         // Endpoint unavailable (e.g. an older backend deploy) shouldn't render a
-        // scary "Not Found" — fall back to the honest empty state instead.
+        // scary "Not Found" - fall back to the honest empty state instead.
         setData({ available: false, message: "No runs recorded yet." });
       })
       .finally(() => setLoading(false));
@@ -2162,7 +2202,7 @@ function UsageSection({ push }) {
 
   const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : "0");
   const fmtCost = (usd, partial) =>
-    typeof usd === "number" ? `${partial ? "~" : ""}$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : "—";
+    typeof usd === "number" ? `${partial ? "~" : ""}$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : " - ";
   const timeAgo = (iso) => {
     if (!iso) return "";
     // Backend stores naive UTC; append 'Z' so the browser doesn't read it as local.
@@ -2254,9 +2294,9 @@ function UsageSection({ push }) {
   );
 }
 
-// ── Admin — owner-only user-base overview. Self-hides for non-admins (the
+// ── Admin - owner-only user-base overview. Self-hides for non-admins (the
 //    backend returns 403 unless the account's email is in ADMIN_EMAILS).
-//    Never shows passwords or API keys — only presence + security guarantees.
+//    Never shows passwords or API keys - only presence + security guarantees.
 function AdminSection({ push }) {
   const [data, setData] = useState(null);
   const [isAdmin, setIsAdmin] = useState(null);   // null = unknown, false = hide
@@ -2274,7 +2314,7 @@ function AdminSection({ push }) {
 
   const t = data.totals || {};
   const users = data.users || [];
-  const fmtDate = (iso) => (iso ? new Date(/[Z+]/.test(iso.slice(10)) ? iso : iso + "Z").toLocaleDateString() : "—");
+  const fmtDate = (iso) => (iso ? new Date(/[Z+]/.test(iso.slice(10)) ? iso : iso + "Z").toLocaleDateString() : " - ");
 
   return (
     <Card>
@@ -2292,7 +2332,7 @@ function AdminSection({ push }) {
       <div style={{ display: "flex", alignItems: "flex-start", gap: 9, background: "rgba(94,201,126,0.06)", border: "1px solid rgba(94,201,126,0.22)", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
         <Icon name="verified_user" style={{ fontSize: 16, color: C.green, marginTop: 1, flexShrink: 0 }} />
         <span style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55 }}>
-          Passwords are salted one-way hashes — unreadable by anyone, including you. API keys are encrypted per-account and never returned here; only which providers each user configured is shown.
+          Passwords are salted one-way hashes - unreadable by anyone, including you. API keys are encrypted per-account and never returned here; only which providers each user configured is shown.
         </span>
       </div>
 

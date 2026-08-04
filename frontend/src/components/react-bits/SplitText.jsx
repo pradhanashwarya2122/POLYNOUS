@@ -5,7 +5,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 
 /**
- * SplitText — per-character or per-word stagger reveal.
+ * SplitText - per-character or per-word stagger reveal.
  * NOTE: implemented with core GSAP + ScrollTrigger only (no `gsap/SplitText`
  * club plugin dependency), so it works regardless of your GSAP license tier.
  * Splitting is done manually by wrapping each char/word in its own <span>.

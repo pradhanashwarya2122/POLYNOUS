@@ -2,7 +2,7 @@ import { useRef, useCallback } from "react";
 import "./ScrambledText.css";
 
 /**
- * ScrambledText — scrambles characters near the cursor, then resolves back
+ * ScrambledText - scrambles characters near the cursor, then resolves back
  * to the original text. Implemented with plain rAF/text manipulation
  * (no `gsap/ScrambleTextPlugin` club-plugin dependency required).
  */

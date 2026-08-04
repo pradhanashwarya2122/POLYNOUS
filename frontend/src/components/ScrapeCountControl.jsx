@@ -21,7 +21,7 @@ export default function ScrapeCountControl({ accent = "#00ff47", persist = false
       try {
         await apiFetch("/settings/preferences", { method: "PUT", body: JSON.stringify({ scrape_count: n || null }) });
         setSaved(true); setTimeout(() => setSaved(false), 2000);
-      } catch { /* non-fatal — localStorage still applies to this device */ }
+      } catch { /* non-fatal - localStorage still applies to this device */ }
     }
   };
 

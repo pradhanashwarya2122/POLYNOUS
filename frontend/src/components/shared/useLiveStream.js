@@ -7,15 +7,15 @@ import { deepMerge } from "./deepMerge";
 // deep-merging each patch into a per-engine `defaultData` shape.
 //
 // Behavior preserved exactly from the two former hooks:
-//   - useLiveResearch: pass options.extraBody = { force_fresh } and include
+//  - useLiveResearch: pass options.extraBody = { force_fresh } and include
 //     the same value in options.deps so a rerun re-fires the effect.
-//   - useLiveDebate:   no extra body, no extra deps.
+//  - useLiveDebate:   no extra body, no extra deps.
 //
 // options:
 //   responseStyle : string sent as response_style
 //   defaultData   : initial state object patches merge into
 //   extraBody     : extra fields merged into the POST body (default {})
-//   deps          : extra effect deps (default []) — e.g. [forceFresh]
+//   deps          : extra effect deps (default []) - e.g. [forceFresh]
 export function useLiveStream(apiUrl, query, options = {}) {
   const { responseStyle, defaultData, extraBody = {}, deps = [] } = options;
   const [liveData, setLiveData] = useState(null);

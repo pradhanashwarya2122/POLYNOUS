@@ -2,7 +2,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 
 // ============================================================================
-// INFO / HELP PAGE — how to get an API key, claim a free starter key, and
+// INFO / HELP PAGE - how to get an API key, claim a free starter key, and
 // troubleshoot. Public (readable even when login is failing).
 // ============================================================================
 
@@ -31,14 +31,14 @@ const Icon = ({ name, style }) => (
 // What each kind of key actually powers in the pipeline
 const KEY_ROLES = [
   { icon: "psychology", color: "#a855f7", title: "Your LLM key (Anthropic / OpenAI / Google / Groq / NVIDIA / DeepSeek / Mistral)",
-    body: "This is the brain. It reads every source, extracts what each one says, cross-examines them for agreement and contradiction, computes the confidence score, and writes the final cited report. In Debate mode it also powers the two advocates and the judge. Every reasoning step runs on this key — pick whichever provider you like." },
+    body: "This is the brain. It reads every source, extracts what each one says, cross-examines them for agreement and contradiction, computes the confidence score, and writes the final cited report. In Debate mode it also powers the two advocates and the judge. Every reasoning step runs on this key - pick whichever provider you like." },
   { icon: "travel_explore", color: "#ffd700", title: "Tavily key (web search & scraping)",
-    body: "This is how POLYNOUS reads the live web. Tavily finds the most relevant pages for your question and POLYNOUS scrapes their full text — that scraped content is the evidence every citation points back to. Without it, the pipeline has nothing real to reason over. Tavily gives 1,000 free searches per month." },
-  { icon: "hub", color: "#00ccff", title: "Voyage key (optional — semantic memory)",
-    body: "Optional. Used only for embeddings that power Semantic Search and the memory features — turning your past research into a searchable knowledge space. The core research and debate flows work fine without it." },
+    body: "This is how POLYNOUS reads the live web. Tavily finds the most relevant pages for your question and POLYNOUS scrapes their full text - that scraped content is the evidence every citation points back to. Without it, the pipeline has nothing real to reason over. Tavily gives 1,000 free searches per month." },
+  { icon: "hub", color: "#00ccff", title: "Voyage key (optional - semantic memory)",
+    body: "Optional. Used only for embeddings that power Semantic Search and the memory features - turning your past research into a searchable knowledge space. The core research and debate flows work fine without it." },
 ];
 
-// Inline free-key claim — loader → reveals a (placeholder) key, no navigation
+// Inline free-key claim - loader → reveals a (placeholder) key, no navigation
 function FreeKeyClaim() {
   const [state, setState] = useState("idle"); // idle | loading | done
   const [key, setKey] = useState("");
@@ -91,7 +91,7 @@ function FreeKeyClaim() {
         </button>
       </div>
       <p style={{ fontSize: 12, color: "#6b7386", marginTop: 10, lineHeight: 1.5 }}>
-        Placeholder for now — real starter keys are being provisioned. Paste it (or your own key) in Settings → API Keys to start researching.
+        Placeholder for now - real starter keys are being provisioned. Paste it (or your own key) in Settings → API Keys to start researching.
       </p>
     </div>
   );
@@ -102,19 +102,19 @@ const PROVIDERS = [
   { name: "Anthropic (Claude)", url: "https://console.anthropic.com/settings/keys", prefix: "sk-ant-…", free: "$5 free credit on signup", color: "#d97757" },
   { name: "OpenAI (GPT)", url: "https://platform.openai.com/api-keys", prefix: "sk-…", free: "Pay-as-you-go", color: "#10a37f" },
   { name: "Google (Gemini)", url: "https://aistudio.google.com/app/apikey", prefix: "AIza…", free: "Generous free tier", color: "#8ab4f8" },
-  { name: "Mistral", url: "https://console.mistral.ai/api-keys", prefix: "—", free: "Free tier available", color: "#f4a261" },
-  { name: "Groq (fast, free)", url: "https://console.groq.com/keys", prefix: "gsk_…", free: "Free tier — great to start", color: "#ff6b6b" },
-  { name: "NVIDIA NIM", url: "https://build.nvidia.com/", prefix: "nvapi-…", free: "Free credits — gpt-oss, Llama, DeepSeek", color: "#76b900" },
+  { name: "Mistral", url: "https://console.mistral.ai/api-keys", prefix: " - ", free: "Free tier available", color: "#f4a261" },
+  { name: "Groq (fast, free)", url: "https://console.groq.com/keys", prefix: "gsk_…", free: "Free tier - great to start", color: "#ff6b6b" },
+  { name: "NVIDIA NIM", url: "https://build.nvidia.com/", prefix: "nvapi-…", free: "Free credits - gpt-oss, Llama, DeepSeek", color: "#76b900" },
   { name: "DeepSeek", url: "https://platform.deepseek.com/api_keys", prefix: "sk-…", free: "Very low cost", color: "#4d6bff" },
   { name: "Tavily (web search)", url: "https://app.tavily.com/", prefix: "tvly-…", free: "1,000 free searches/mo", color: "#ffd700" },
 ];
 
 const TROUBLESHOOTING = [
-  { q: "The research engine or report won't open / stays blank", a: "First, refresh the page. If it's still stuck, log out and log back in — this reissues your session token. Most 'nothing happens' cases are an expired login." },
+  { q: "The research engine or report won't open / stays blank", a: "First, refresh the page. If it's still stuck, log out and log back in - this reissues your session token. Most 'nothing happens' cases are an expired login." },
   { q: "Research starts but the answer is degraded or empty", a: "This almost always means your API key is missing, invalid, or out of credit. Open Settings → API Keys, click Test on your provider, and re-paste the key if it fails. Every research and debate run uses YOUR key." },
   { q: "\"No API key configured\" error", a: "You haven't added a key yet. Either claim your free starter key (Settings → API Keys) or paste your own from any provider below." },
-  { q: "The page looks frozen mid-research", a: "Research makes several live calls and can take 20–60 seconds. Watch the Live Thought Stream — if lines are still appearing, it's working. If it's silent for over a minute, refresh and try again." },
-  { q: "Knowledge Graph is empty", a: "The graph fills in as you run research — each session adds nodes. A brand-new account starts empty; run a few queries first." },
+  { q: "The page looks frozen mid-research", a: "Research makes several live calls and can take 20-60 seconds. Watch the Live Thought Stream - if lines are still appearing, it's working. If it's silent for over a minute, refresh and try again." },
+  { q: "Knowledge Graph is empty", a: "The graph fills in as you run research - each session adds nodes. A brand-new account starts empty; run a few queries first." },
 ];
 
 function Section({ icon, accent, title, subtitle, children, delay = 0 }) {
@@ -160,19 +160,19 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
           <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.7, maxWidth: 680, margin: 0 }}>
             POLYNOUS runs your questions through a multi-stage research pipeline that searches the live web,
             cross-examines sources, and writes a cited report with an honest, computed confidence score.
-            Everything runs on <strong style={{ color: C.primary }}>your own API key</strong> — here's how to get one, or grab a free starter key.
+            Everything runs on <strong style={{ color: C.primary }}>your own API key</strong> - here's how to get one, or grab a free starter key.
           </p>
         </div>
 
-        {/* Free starter key — claimed inline, no navigation */}
+        {/* Free starter key - claimed inline, no navigation */}
         <Section icon="redeem" accent={C.green} title="Every new user gets one free API key" delay={0.03}
-          subtitle="Just signed up? Claim a free starter key so you can try POLYNOUS immediately — no card, no provider account needed.">
+          subtitle="Just signed up? Claim a free starter key so you can try POLYNOUS immediately - no card, no provider account needed.">
           <FreeKeyClaim />
         </Section>
 
         {/* What each key is used for */}
         <Section icon="help" accent={C.purple} title="What is an API key used for here?" delay={0.05}
-          subtitle="POLYNOUS never charges you — it runs on keys you provide, so the cost and rate limits are yours. Here's exactly what each key powers:">
+          subtitle="POLYNOUS never charges you - it runs on keys you provide, so the cost and rate limits are yours. Here's exactly what each key powers:">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {KEY_ROLES.map(r => (
               <div key={r.title} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "14px 16px",
@@ -189,7 +189,7 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
 
         {/* Where to get keys */}
         <Section icon="vpn_key" accent={C.cyan} title="Or bring your own API key" delay={0.06}
-          subtitle="POLYNOUS supports several providers — pick any one. Groq and Google have the most generous free tiers if you're starting out. Paste your key in Settings → API Keys and hit Test.">
+          subtitle="POLYNOUS supports several providers - pick any one. Groq and Google have the most generous free tiers if you're starting out. Paste your key in Settings → API Keys and hit Test.">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
             {PROVIDERS.map(p => (
               <a key={p.name} href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none",

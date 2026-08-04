@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { motion } from "motion/react";
 
 /**
- * MaskContainer — a cursor-driven spotlight mask. The base layer shows
+ * MaskContainer - a cursor-driven spotlight mask. The base layer shows
  * `children`; wherever the cursor moves, a soft circular hole is cut through it
  * to reveal `revealText` underneath. The hole grows on hover.
  *

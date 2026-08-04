@@ -126,7 +126,7 @@ function ThreeMountain() {
 
       const neonGreen = new THREE.Color(0x00ff47);
 
-      // — Terrain —
+      // - Terrain - 
       const terrainSize     = 120;
       const terrainSegments = 70;
       const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
@@ -151,7 +151,7 @@ function ThreeMountain() {
       terrain.rotation.x = -Math.PI / 2;
       scene.add(terrain);
 
-      // — Discovery Path —
+      // - Discovery Path - 
       const curvePoints = [
         new THREE.Vector3(-35,0,45),new THREE.Vector3(-15,1,35),
         new THREE.Vector3(5,3,25),new THREE.Vector3(0,7,15),
@@ -164,7 +164,7 @@ function ThreeMountain() {
       });
       scene.add(new THREE.Mesh(pathGeo, pathMat));
 
-      // — Peak Beacon —
+      // - Peak Beacon - 
       const beaconGroup = new THREE.Group();
       beaconGroup.position.set(15, 26, 15);
       scene.add(beaconGroup);
@@ -178,7 +178,7 @@ function ThreeMountain() {
       );
       beaconGroup.add(glow);
 
-      // — Particles —
+      // - Particles - 
       const N = 1000;
       const pos = new Float32Array(N * 3);
       for (let i = 0; i < N; i++) {
@@ -193,14 +193,14 @@ function ThreeMountain() {
       }));
       scene.add(particles);
 
-      // — Grid —
+      // - Grid - 
       const grid = new THREE.GridHelper(240, 50, 0x00ff47, 0x002211);
       grid.position.y = -0.1;
       grid.material.transparent = true;
       grid.material.opacity = 0.08;
       scene.add(grid);
 
-      // — Mouse interaction —
+      // - Mouse interaction - 
       let targetRotY = 0, targetRotX = 0.3;
       const onMouse = (e) => {
         const mx = (e.clientX / window.innerWidth)  * 2 - 1;
@@ -210,7 +210,7 @@ function ThreeMountain() {
       };
       window.addEventListener("mousemove", onMouse);
 
-      // — Animation loop —
+      // - Animation loop - 
       let animId;
       const animate = (t) => {
         animId = requestAnimationFrame(animate);
@@ -225,7 +225,7 @@ function ThreeMountain() {
       };
       animate(0);
 
-      // — Resize —
+      // - Resize - 
       const onResize = () => {
         width  = container.offsetWidth;
         height = container.offsetHeight;
@@ -815,7 +815,7 @@ function ShufflingPills({ onSelect }) {
   );
 }
 
-// ─── Suggestion Cards — premium auto-shuffling deck ──────────────────────────
+// ─── Suggestion Cards - premium auto-shuffling deck ──────────────────────────
 // A large pool where every question carries its own topical icon. Six cards are
 // shown at a time and auto-shuffle every 5.5s with a staggered crossfade+lift.
 const SUGG_CARDS = [
@@ -902,7 +902,7 @@ function LandingHero({ query, setQuery, onSearch, loading }) {
   return (
     <div style={{ position:"relative",flex:1,display:"flex",flexDirection:"column",justifyContent:"center",padding:"48px 56px",overflow:"hidden",minHeight:"100vh" }}>
 
-      {/* Three.js mountain — right half */}
+      {/* Three.js mountain - right half */}
       <ThreeMountain />
 
       {/* Floating agent labels */}
@@ -956,7 +956,7 @@ function LandingHero({ query, setQuery, onSearch, loading }) {
           </div>
         </div>
 
-        {/* Sources-to-scrape control — applies to this run */}
+        {/* Sources-to-scrape control - applies to this run */}
         <div style={{ marginBottom:26 }}>
           <ScrapeCountControl accent={C.green} />
         </div>
@@ -1065,7 +1065,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
 
   // ── SINGLE PIPELINE: the NeuralResearchEngine's /ask-visual stream is the
   // ONE research run. The report is fed from its final patch (final_answer +
-  // citations), so what you watch being written IS the published report —
+  // citations), so what you watch being written IS the published report - 
   // no duplicate /ask-stream run, half the cost and latency.
   const startResearch = (q, opts = {}) => {
     const qText = typeof q === "string" ? q : query;
@@ -1107,7 +1107,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
       {/* ── Main pane ── */}
       <div style={{ marginLeft:sidebarW,transition:"margin-left 0.35s cubic-bezier(0.4,0,0.2,1)",position:"relative",zIndex:10,minHeight:"100vh",display:"flex",flexDirection:"column" }}>
 
-        {/* Landing state — full-height Code 1 hero */}
+        {/* Landing state - full-height Code 1 hero */}
         {!loading && !answer && (
           <LandingHero query={query} setQuery={setQuery} onSearch={startResearch} loading={loading} />
         )}
@@ -1179,7 +1179,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
             <div style={{
               display: engineCollapsed ? "none" : "block",
             }}>
-              {/* The engine's stream IS the pipeline — its final patch feeds
+              {/* The engine's stream IS the pipeline - its final patch feeds
                   the report below (single run, single source of truth). */}
               <NeuralResearchEngine
                 key={runNonce}
@@ -1243,9 +1243,9 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
               </div>
             </div>
 
-            {/* Shuffling pills — always shuffling in results view */}
+            {/* Shuffling pills - always shuffling in results view */}
             <div style={{ maxWidth:860,margin:"0 auto 28px" }}>
-              <p style={{ textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.textSecondary,textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:14,opacity:0.6 }}>— try one of these —</p>
+              <p style={{ textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.textSecondary,textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:14,opacity:0.6 }}> -  try one of these - </p>
               <ShufflingPills onSelect={(q)=>{setQuery(q);startResearch(q);}} />
             </div>
 

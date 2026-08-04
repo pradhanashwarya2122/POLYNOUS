@@ -1,7 +1,7 @@
 // Recursive merge used to fold each SSE patch into the live engine state.
 // Objects merge key-by-key; arrays and scalars are replaced wholesale
 // (matches the backend's patch semantics). Extracted verbatim from
-// NeuralResearchEngine/DebateEngine (Phase 7 — shared, no behavior change).
+// NeuralResearchEngine/DebateEngine (Phase 7 - shared, no behavior change).
 export function deepMerge(base, override) {
   if (!override) return base;
   const out = Array.isArray(base) ? [...base] : { ...base };

@@ -64,7 +64,7 @@ function GlobalStyles() {
         box-shadow: 0 0 15px rgba(0,204,255,0.4);
       }
 
-      /* Premium matte green — no neon glow; subtle depth + inset highlight. */
+      /* Premium matte green - no neon glow; subtle depth + inset highlight. */
       .btn-glow-green {
         background: linear-gradient(180deg, #1ecb3a 0%, #14a828 100%);
         color: #04240b;
@@ -301,7 +301,7 @@ function Banner({ type, message }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FALLBACK PAGE — shown when OAuth fails or something goes wrong
+// FALLBACK PAGE - shown when OAuth fails or something goes wrong
 // ─────────────────────────────────────────────────────────────────────────────
 function AuthFallback({ errorMsg, onRetry }) {
   return (
@@ -497,10 +497,12 @@ function LoginCard({ onLogin, oauthError }) {
       <SynapseDot style={{ bottom: 16, left: 16 }} />
       <SynapseDot style={{ bottom: 16, right: 16 }} />
 
-      <div style={{ textAlign: "center", marginBottom: 32 }}>
-        {/* Static logo — no breathing/scale animation; the glow (light) stays. */}
-        <img src="/favicon.png" alt="POLYNOUS" style={{ width: 72, height: 72, marginBottom: 12, borderRadius: 18, objectFit: "cover", boxShadow: "0 0 24px rgba(0,255,15,0.28)", border: "1px solid rgba(0,255,15,0.3)" }} />
-        <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 38, fontWeight: 700, color: C.green, letterSpacing: "-0.03em", marginBottom: 4 }}>POLYNOUS</h1>
+      <div style={{ marginBottom: 32 }}>
+        {/* Logo aligned on the same centered line as the wordmark; static glow, no breathing. */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
+          <img src="/favicon.png" alt="POLYNOUS" style={{ width: 54, height: 54, borderRadius: 14, objectFit: "cover", boxShadow: "0 0 24px rgba(0,255,15,0.28)", border: "1px solid rgba(0,255,15,0.3)" }} />
+          <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 38, fontWeight: 700, color: C.green, letterSpacing: "-0.03em", margin: 0, lineHeight: 1 }}>POLYNOUS</h1>
+        </div>
       </div>
 
       {oauthError && (
@@ -571,7 +573,7 @@ function LoginCard({ onLogin, oauthError }) {
               <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.onSurfaceVariant }}>Keep Synapse Active</span>
             </label>
-            {/* Password reset flow not built yet — shown disabled rather than
+            {/* Password reset flow not built yet - shown disabled rather than
                 as a dead link that silently does nothing. */}
             <span className="forgot-link" title="Password recovery is coming soon" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.onSurfaceVariant, opacity: 0.45, cursor: "default" }}>Lost Cortex Access?</span>
           </div>
@@ -586,7 +588,7 @@ function LoginCard({ onLogin, oauthError }) {
         </div>
 
         {/* Recruiter-friendly: a 60-second demo instead of a guest session
-            (guests can't run research anyway — BYO-key only). */}
+            (guests can't run research anyway - BYO-key only). */}
         <button onClick={() => setOnboarding('demo')} style={{ width: '100%', padding: '13px', background: 'rgba(0,204,255,0.06)', border: `1px solid rgba(0,204,255,0.3)`, borderRadius: 14, color: '#00ccff', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,204,255,0.12)'; e.currentTarget.style.borderColor = '#00ccff' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,204,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,204,255,0.3)' }}>
           <Icon name="play_circle" style={{ fontSize: 18, color: '#00ccff' }} /> Watch a 60-second demo
         </button>
@@ -643,7 +645,7 @@ export default function AuthPage({ onLogin }) {
   }, [])
 
   const handleLogin = (data) => {
-    // ✅ ALWAYS call onLogin — let App.jsx decide what to do
+    // ✅ ALWAYS call onLogin - let App.jsx decide what to do
     if (onLogin) {
         onLogin(data)
     } else {

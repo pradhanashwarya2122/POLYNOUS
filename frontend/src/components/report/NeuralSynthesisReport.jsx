@@ -1,7 +1,7 @@
 // src/components/report/NeuralSynthesisReport.jsx
 //
 // The Neural Synthesis Report and its parsing/render helpers, extracted
-// verbatim from ResearchInterface.jsx (Phase 7, pure refactor — zero visual
+// verbatim from ResearchInterface.jsx (Phase 7, pure refactor - zero visual
 // or behavioral change). Prefers the structured `report` payload (Phase 3),
 // falling back to the legacy emoji-text regex parser.
 import { useState, useRef, useEffect, createContext, useContext } from "react";
@@ -31,7 +31,7 @@ function clean(text) {
 }
 
 // Multi-line body sanitizer for section blocks: the LLM is instructed not
-// to emit markdown, but this guarantees it — stray ##, **, ---, and list
+// to emit markdown, but this guarantees it - stray ##, **, ---, and list
 // dashes are stripped/normalized so the styled components stay clean.
 function cleanBlock(text) {
   if (!text) return "";
@@ -101,7 +101,7 @@ function splitSections(text) {
   return sections;
 }
 
-// Split a section body into bullet items — handles "- item", "• item",
+// Split a section body into bullet items - handles "- item", "• item",
 // "1. item", "1) item", newline-separated, and citation-boundary fallbacks.
 function splitItems(body) {
   if (!body) return [];
@@ -175,7 +175,7 @@ function parseLimitationPoints(text) {
 }
 
 function SynapseDots() {
-  // Retired under the design-restraint pass — decorative corner dots read
+  // Retired under the design-restraint pass - decorative corner dots read
   // as template flourish. Kept as a no-op so existing call sites are safe.
   return null;
 }
@@ -191,7 +191,7 @@ function Linkify({ text }) {
 }
 
 // A single [n] citation chip that reveals the EXACT source it's grounded in on
-// hover — the "it's genuinely not hallucinating" proof. Clicking still scrolls
+// hover - the "it's genuinely not hallucinating" proof. Clicking still scrolls
 // to the full source card.
 function CitationChip({ label, num }) {
   const sourceMap = useContext(SourceMapContext);
@@ -225,7 +225,7 @@ function CitationChip({ label, num }) {
           </span>
           {src.url && <span style={{ display: "block", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.cyan, marginBottom: 8, opacity: 0.85 }}>{domainOf(src.url)}</span>}
           <span style={{ display: "block", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12, lineHeight: 1.6, color: "#c2d4e6", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-            {src.summary ? `“${src.summary.slice(0, 320)}${src.summary.length > 320 ? "…" : ""}”` : "This source was cited here — open it for the full text."}
+            {src.summary ? `“${src.summary.slice(0, 320)}${src.summary.length > 320 ? "…" : ""}”` : "This source was cited here - open it for the full text."}
           </span>
           <span style={{ display: "block", marginTop: 9, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: C.textSecondary }}>
             {src.summary ? "Grounded in this source" : "Cited source"} · click to open
@@ -238,7 +238,7 @@ function CitationChip({ label, num }) {
   );
 }
 
-// Cyan [n] citation chips inside body text — each proves its source on hover.
+// Cyan [n] citation chips inside body text - each proves its source on hover.
 function CitationText({ text }) {
   const parts = String(text).split(/(\[\d{1,2}(?:,\s*\d{1,2})*\])/g);
   return parts.map((p, i) => {
@@ -249,7 +249,7 @@ function CitationText({ text }) {
 }
 
 // ─── Premium report section card (13-section briefing format) ────────────────
-// Headings are HARD-LOCKED here — the LLM's text never carries or styles
+// Headings are HARD-LOCKED here - the LLM's text never carries or styles
 // them. Each section owns a fixed eyebrow + Sora display title; the body is
 // sanitized prose mapped into the card.
 const SECTION_EYEBROWS = {
@@ -260,7 +260,7 @@ const SECTION_EYEBROWS = {
   "Source Quality Assessment": "Credibility review",
   "Coverage Audit": "What's missing",
   "Contradiction Resolution": "Conflict analysis",
-  "Confidence Analysis — Computed": "Measured, not guessed",
+  "Confidence Analysis - Computed": "Measured, not guessed",
   "Research Trajectory": "Where to go next",
 };
 
@@ -275,7 +275,7 @@ function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, li
       animation:`sectionIn 0.5s ${delay}s ease both`,
     }}>
       <SynapseDots color={accent} />
-      {/* Hard-locked heading block — permanent structure, custom typography */}
+      {/* Hard-locked heading block - permanent structure, custom typography */}
       <div style={{ marginBottom:18 }}>
         <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9.5, color:accent, textTransform:"uppercase", letterSpacing:"0.24em", fontWeight:700, marginBottom:7, opacity:0.85 }}>
           {SECTION_EYEBROWS[title] || "Section"}
@@ -300,7 +300,7 @@ function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, li
 // Structured report (Phase 3 JSON contract) -> the same shape parseAnswer
 // produces from text, so the render tree below never needs to know which
 // path it came from. Only used when report is present AND parsing succeeded
-// — a parse_failed or missing/legacy report falls through to the regex
+// - a parse_failed or missing/legacy report falls through to the regex
 // parser untouched.
 function sectionsFromReport(report) {
   return {
@@ -316,7 +316,7 @@ function sectionsFromReport(report) {
   };
 }
 
-// Confidence Analysis — Computed, rendered from the structured factors[]
+// Confidence Analysis - Computed, rendered from the structured factors[]
 // the backend computes from real source data (never from LLM mono text).
 function StructuredConfidenceCard({ analysis, delay = 0 }) {
   if (!analysis) return null;
@@ -335,7 +335,7 @@ function StructuredConfidenceCard({ analysis, delay = 0 }) {
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <Icon name="analytics" style={{ fontSize:19, color:accent }} />
-          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0 }}>Confidence Analysis — Computed</h3>
+          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0 }}>Confidence Analysis - Computed</h3>
         </div>
         <div style={{ height:2, width:44, background:`linear-gradient(90deg, ${accent}, transparent)`, borderRadius:2, marginTop:11 }} />
       </div>
@@ -374,7 +374,7 @@ function StructuredConfidenceCard({ analysis, delay = 0 }) {
 
           {analysis.critic_consensus ? (
             <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11.5, color:C.textSecondary, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
-              CRITIC CONSENSUS SCORE: <span style={{ color:accent, fontWeight:700 }}>{analysis.critic_consensus.score}%</span> — {analysis.critic_consensus.explanation}
+              CRITIC CONSENSUS SCORE: <span style={{ color:accent, fontWeight:700 }}>{analysis.critic_consensus.score}%</span> - {analysis.critic_consensus.explanation}
             </div>
           ) : (
             <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11.5, color:C.textSecondary, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
@@ -388,16 +388,16 @@ function StructuredConfidenceCard({ analysis, delay = 0 }) {
 }
 
 // Run telemetry (Phase 6): REAL token counts + estimated cost + per-stage
-// latency, all straight from the pipeline. "—" wherever a provider's SDK
-// didn't report usage — never a fabricated number.
+// latency, all straight from the pipeline. " - " wherever a provider's SDK
+// didn't report usage - never a fabricated number.
 const PROVIDER_LABEL = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", groq: "Groq", mistral: "Mistral", cohere: "Cohere", together: "Together" };
 
 function RunTelemetryCard({ telemetry, accent = C.cyan }) {
   if (!telemetry) return null;
   const t = telemetry;
   const cost = t.estimated_cost || {};
-  const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : "—");
-  const fmtCost = (usd) => (typeof usd === "number" ? `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : "—");
+  const fmtTok = (n) => (typeof n === "number" ? n.toLocaleString() : " - ");
+  const fmtCost = (usd) => (typeof usd === "number" ? `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(3)}` : " - ");
   const stages = Object.entries(t.by_stage || {});
   const missing = t.missing_usage;
   const STAGE_LABEL = { search: "Search", summarise: "Summarise", critic: "Critic",
@@ -406,7 +406,7 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
     for_rebuttal: "FOR rebuttal", against_rebuttal: "AGAINST rebuttal", judge: "Judge" };
 
   const tiles = [
-    { label: "LLM calls", value: t.calls ?? "—" },
+    { label: "LLM calls", value: t.calls ?? " - " },
     { label: "Total tokens", value: fmtTok(t.total_tokens) },
     { label: "Est. cost", value: fmtCost(cost.usd), sub: "estimate" },
     { label: "Scrape cache", value: t.scrape_cache_hits ? `${t.scrape_cache_hits} hit${t.scrape_cache_hits !== 1 ? "s" : ""}` : "0" },
@@ -435,7 +435,7 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
         <Icon name="payments" style={{ fontSize:22,color:accent,alignSelf:"center" }} />
         <span style={{ fontFamily:"'Sora',sans-serif",fontSize:30,fontWeight:800,color:"#fff",lineHeight:1 }}>{fmtCost(cost.usd)}</span>
         <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:12.5,color:C.textSecondary }}>
-          spent on your key this run{typeof cost.usd === "number" ? " · estimated from list prices" : " — provider didn't report token usage"}
+          spent on your key this run{typeof cost.usd === "number" ? " · estimated from list prices" : " - provider didn't report token usage"}
         </span>
       </div>
 
@@ -465,11 +465,11 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
               {stages.map(([stage, s]) => (
                 <tr key={stage} style={{ borderTop:"1px solid rgba(255,255,255,0.06)",color:"#cfe" }}>
                   <td style={{ padding:"6px 8px",color:"#fff" }}>{STAGE_LABEL[stage] || stage}</td>
-                  <td style={{ padding:"6px 8px",textAlign:"right" }}>{s.calls ?? "—"}</td>
+                  <td style={{ padding:"6px 8px",textAlign:"right" }}>{s.calls ?? " - "}</td>
                   <td style={{ padding:"6px 8px",textAlign:"right" }}>
-                    {(s.input_tokens || s.output_tokens) ? `${fmtTok(s.input_tokens)} / ${fmtTok(s.output_tokens)}` : "—"}
+                    {(s.input_tokens || s.output_tokens) ? `${fmtTok(s.input_tokens)} / ${fmtTok(s.output_tokens)}` : " - "}
                   </td>
-                  <td style={{ padding:"6px 8px",textAlign:"right" }}>{typeof s.latency_s === "number" ? `${s.latency_s.toFixed(1)}s` : "—"}</td>
+                  <td style={{ padding:"6px 8px",textAlign:"right" }}>{typeof s.latency_s === "number" ? `${s.latency_s.toFixed(1)}s` : " - "}</td>
                   <td style={{ padding:"6px 8px",textAlign:"right",color:accent }}>{fmtCost((cost.by_stage || {})[stage])}</td>
                 </tr>
               ))}
@@ -479,8 +479,8 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
       )}
 
       <div style={{ marginTop:12,fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:C.textSecondary,lineHeight:1.6 }}>
-        Costs are estimates from public list prices{cost.priced_all === false ? " (partial — some models have no price entry, shown as —)" : ""}.
-        {missing ? " Some calls' providers did not report token usage (shown as —)." : ""}
+        Costs are estimates from public list prices{cost.priced_all === false ? " (partial - some models have no price entry, shown as - )" : ""}.
+        {missing ? " Some calls' providers did not report token usage (shown as - )." : ""}
       </div>
     </div>
   );
@@ -488,7 +488,7 @@ function RunTelemetryCard({ telemetry, accent = C.cyan }) {
 
 // ── Chat with your report ────────────────────────────────────────────────────
 // A grounded follow-up Q&A: answers come ONLY from the report + the source
-// summaries already fetched for this run (POST /report/chat) — no new web
+// summaries already fetched for this run (POST /report/chat) - no new web
 // search, no new scrape spend. The "not hallucinating" proof: it will say the
 // report doesn't cover something rather than invent an answer.
 const CHAT_SUGGESTIONS = [
@@ -519,7 +519,7 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
     setMessages((m) => [...m, { role: "user", text: question }]);
     setBusy(true);
     try {
-      // Plain fetch with a Bearer token (NOT credentials:'include') — matches
+      // Plain fetch with a Bearer token (NOT credentials:'include') - matches
       // the working /debate-visual stream. Using credentialed CORS here made the
       // browser block the request on deployments whose CORS doesn't allow
       // credentials, surfacing as "Unable to connect to server".
@@ -537,7 +537,7 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // A bare "Not Found" (FastAPI's 404 body) is confusing in a chat bubble —
+        // A bare "Not Found" (FastAPI's 404 body) is confusing in a chat bubble - 
         // map it to something actionable instead of echoing the raw detail.
         if (res.status === 404) {
           throw new Error("Report chat is unavailable on the server right now (404). Please try again shortly.");
@@ -561,7 +561,7 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
         <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff", margin: 0 }}>Chat with this report</h3>
       </div>
       <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
-        Answered only from the {sourceSummaries?.length || sources?.length || 0} sources already fetched — no new web search. It will say if the report doesn't cover something.
+        Answered only from the {sourceSummaries?.length || sources?.length || 0} sources already fetched - no new web search. It will say if the report doesn't cover something.
       </p>
 
       {messages.length > 0 && (
@@ -623,7 +623,7 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
 // ── Confidence provenance modal ──────────────────────────────────────────────
 // Turns the score from a vanity number into a defensible artifact: the exact
 // measured factors (with weights + values), the critic's consensus, and the
-// plain-language explanation — all computed server-side, never LLM-written.
+// plain-language explanation - all computed server-side, never LLM-written.
 function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) {
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -707,7 +707,7 @@ function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) 
 
         <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, margin: 0, lineHeight: 1.6, display: "flex", gap: 7, alignItems: "flex-start" }}>
           <Icon name="verified" style={{ fontSize: 13, color: C.green, flexShrink: 0, marginTop: 1 }} />
-          Every number here is measured from the sources — never written by the model, so it can't be inflated.
+          Every number here is measured from the sources - never written by the model, so it can't be inflated.
         </p>
       </div>
     </div>
@@ -778,7 +778,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
             <p style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.textSecondary }}>Generated: {new Date().toLocaleDateString()} · Sources: {allSources.length} found</p>
           </div>
         </div>
-        {/* Donut — click to see how the score was computed (provenance) */}
+        {/* Donut - click to see how the score was computed (provenance) */}
         <button type="button" onClick={() => canExplainConf && setShowConf(true)} title={canExplainConf ? "See how this score was computed" : ""}
           className={canExplainConf ? "conf-donut" : ""}
           style={{ position:"relative",width:100,height:100,flexShrink:0,background:"none",border:"none",padding:0,cursor:canExplainConf?"pointer":"default" }}>
@@ -806,7 +806,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
           <div style={{ display:"flex",alignItems:"center",gap:10 }}>
             <Icon name="bolt" style={{ fontSize:18,color:C.cyan }} />
             <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13.5,color:"#bfe9ff" }}>
-              Cached result{cacheInfo.age ? ` · ${cacheInfo.age}` : ""} — served instantly, no tokens spent.
+              Cached result{cacheInfo.age ? ` · ${cacheInfo.age}` : ""} - served instantly, no tokens spent.
             </span>
           </div>
           {onRerun && (
@@ -817,15 +817,15 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         </div>
       )}
 
-      {/* Run telemetry (Phase 6) — real token counts + estimated cost */}
+      {/* Run telemetry (Phase 6) - real token counts + estimated cost */}
       <RunTelemetryCard telemetry={telemetry} accent={C.cyan} />
 
-      {/* Confidence-threshold guard — honours the user's Settings preference */}
+      {/* Confidence-threshold guard - honours the user's Settings preference */}
       {confValue > 0 && confValue < confThreshold && (
         <div style={{ display:"flex",alignItems:"center",gap:12,background:"rgba(255,170,0,0.06)",border:"1px solid rgba(255,170,0,0.28)",borderRadius:12,padding:"14px 18px",animation:"sectionIn 0.4s ease both" }}>
           <Icon name="warning" style={{ fontSize:20,color:C.amber,flexShrink:0 }} />
           <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13.5,color:"#e2d0a0",lineHeight:1.5 }}>
-            This answer's confidence (<strong>{confValue}%</strong>) is below your <strong>{confThreshold}%</strong> threshold — the sources were thin or disagreed. Treat it as a lead, not a conclusion, and consider a follow-up query.
+            This answer's confidence (<strong>{confValue}%</strong>) is below your <strong>{confThreshold}%</strong> threshold - the sources were thin or disagreed. Treat it as a lead, not a conclusion, and consider a follow-up query.
           </span>
         </div>
       )}
@@ -846,7 +846,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         </div>
       )}
 
-      {/* Key Findings — every card is a sourced claim from the digest.
+      {/* Key Findings - every card is a sourced claim from the digest.
           (Previously split by index parity into fake "Debate Counter-Args".) */}
       {findings.length>0 && (
         <div style={{ animation:"sectionIn 0.5s 0.16s ease both" }}>
@@ -926,7 +926,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         body={sections.contradiction} delay={0.2} />
       {structured
         ? <StructuredConfidenceCard analysis={confAnalysis} delay={0.2} />
-        : <PremiumSection icon="analytics" title="Confidence Analysis — Computed" accent={C.green}
+        : <PremiumSection icon="analytics" title="Confidence Analysis - Computed" accent={C.green}
             body={sections.confidence} delay={0.2} mono />}
       <PremiumSection icon="explore" title="Research Trajectory" accent={C.green}
         body={sections.trajectory} delay={0.2} />
@@ -945,7 +945,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
           </div>
         </div>
         <div style={{ marginTop:12,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:confColor }}>
-          {confValue>=80?"✓ High Confidence — Research synthesis is reliable":confValue>=60?"△ Moderate — Results are plausible but verify":"⚠ Low Confidence — Treat with caution"}
+          {confValue>=80?"✓ High Confidence - Research synthesis is reliable":confValue>=60?"△ Moderate - Results are plausible but verify":"⚠ Low Confidence - Treat with caution"}
         </div>
       </div>
 
@@ -972,7 +972,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         </div>
       )}
 
-      {/* Source Constellation — structured card grid, real citation objects */}
+      {/* Source Constellation - structured card grid, real citation objects */}
       {(sources?.length > 0 || allSources.length > 0) && (() => {
         const structured = (sources?.length ? sources : allSources).map((s) =>
           typeof s === "string" ? { title: s } : s
@@ -1029,7 +1029,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         );
       })()}
 
-      {/* Chat with your report — grounded follow-up Q&A over the fetched sources */}
+      {/* Chat with your report - grounded follow-up Q&A over the fetched sources */}
       <ReportChat query={query} answer={answer} sources={sources} sourceSummaries={sourceSummaries} />
 
       {/* Footer actions */}
@@ -1050,12 +1050,12 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         <div style={{ display:"flex",gap:10,alignItems:"center" }}>
           {shared && (
             <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10.5,color:C.green,display:"flex",alignItems:"center",gap:5 }}>
-              <Icon name="check_circle" style={{ fontSize:14 }} /> Copied — {allSources.length} clickable source link{allSources.length!==1?"s":""} included
+              <Icon name="check_circle" style={{ fontSize:14 }} /> Copied - {allSources.length} clickable source link{allSources.length!==1?"s":""} included
             </span>
           )}
           <button onClick={()=>{
               const srcLines = (sources||[]).map((s,i)=>{ const o = typeof s==="string"?{title:s}:s; return `[${i+1}] ${o.title||"Source"}${o.url?`\n    ${o.url}`:""}`; }).join("\n");
-              const block = `POLYNOUS — Neural Synthesis Report\nQuery: ${query}\nConfidence: ${confValue}%\n\n${answer}\n\nSources:\n${srcLines}\n\nvia ${window.location.origin}`;
+              const block = `POLYNOUS - Neural Synthesis Report\nQuery: ${query}\nConfidence: ${confValue}%\n\n${answer}\n\nSources:\n${srcLines}\n\nvia ${window.location.origin}`;
               navigator.clipboard.writeText(block).then(()=>{ setShared(true); setTimeout(()=>setShared(false),3000); });
               if(navigator.share){ navigator.share({title:"POLYNOUS Research",text:block}).catch(()=>{}); }
             }}

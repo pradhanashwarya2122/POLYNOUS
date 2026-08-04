@@ -5,7 +5,7 @@ import { useLiveStream } from "./shared/useLiveStream";
 import * as THREE from 'three';
 
 // ============================================================================
-// PATCHES 1–5 APPLIED to NeuralResearchEngine.jsx
+// PATCHES 1-5 APPLIED to NeuralResearchEngine.jsx
 // ============================================================================
 
 const styles = `
@@ -98,7 +98,7 @@ const styles = `
     animation: cursorBlink 0.8s step-end infinite;
   }
 
-  /* ── Anchored info popover — small, near the button ── */
+  /* ── Anchored info popover - small, near the button ── */
   @keyframes popIn { from { opacity:0; transform:translateY(-4px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
   .info-pop {
     position:fixed; width:340px; max-height:56vh; overflow-y:auto; z-index:1000;
@@ -127,7 +127,7 @@ const styles = `
   .thought-dot { width:8px; height:8px; border-radius:50%; background:#00ff47; flex-shrink:0; }
 
   /* ── Premium finish ── */
-  /* Top progress beam — whole-page read on research progress */
+  /* Top progress beam - whole-page read on research progress */
   .progress-beam-wrap { position:fixed; top:0; left:0; right:0; height:2px; z-index:500; background:rgba(255,255,255,0.04); }
   .progress-beam {
     height:100%; background:#00ff47;
@@ -218,48 +218,48 @@ const LEVEL_COLOR = { low:"#4FD1C5", med:"#E8A855", high:"#E0685F" };
 // ── Explainer content for every card's info button ───────────────────────────
 const INFO = {
   Search: {
-    accent: "#4FD1C5", eyebrow: "Agent 01 — Retrieval",
+    accent: "#4FD1C5", eyebrow: "Agent 01 - Retrieval",
     title: "Search Agent",
-    what: "The Search Agent is the pipeline's gateway to the live web. It queries the Tavily search engine in advanced mode, deduplicates the results, then visits each page in parallel and extracts the full article text — not just the search snippet.",
+    what: "The Search Agent is the pipeline's gateway to the live web. It queries the Tavily search engine in advanced mode, deduplicates the results, then visits each page in parallel and extracts the full article text - not just the search snippet.",
     terms: [
       ["Latest sources", "The most recently fetched pages. ARTICLE means the full text was successfully extracted; SNIPPET means only the search-engine preview was available."],
-      ["Score", "Tavily's 0–1 relevance rating of how well the page matches your query."],
-      ["Content depth graph", "One bar per source. Height shows how much usable text was captured — 100% is roughly a full 4,000-character article. Short bars are thin sources the later agents will weigh less."],
+      ["Score", "Tavily's 0-1 relevance rating of how well the page matches your query."],
+      ["Content depth graph", "One bar per source. Height shows how much usable text was captured - 100% is roughly a full 4,000-character article. Short bars are thin sources the later agents will weigh less."],
     ],
   },
   Summarise: {
-    accent: "#00ff47", eyebrow: "Agent 02 — Distillation",
+    accent: "#00ff47", eyebrow: "Agent 02 - Distillation",
     title: "Summarise Agent",
-    what: "The Summarise Agent reads every fetched document in parallel and extracts what each source actually says — the main claim and its key evidence — with no opinion or synthesis. This gives the later agents clean, comparable inputs.",
+    what: "The Summarise Agent reads every fetched document in parallel and extracts what each source actually says - the main claim and its key evidence - with no opinion or synthesis. This gives the later agents clean, comparable inputs.",
     terms: [
       ["Key insights", "The opening of each per-source extraction, tagged with the domain it came from."],
-      ["Compression graph", "One bar per document — the size of its summary relative to the original text. Low bars mean heavy compression (a long article boiled down hard); high bars mean the source was already short."],
+      ["Compression graph", "One bar per document - the size of its summary relative to the original text. Low bars mean heavy compression (a long article boiled down hard); high bars mean the source was already short."],
     ],
   },
   Critic: {
-    accent: "#E8A855", eyebrow: "Agent 03 — Verification",
+    accent: "#E8A855", eyebrow: "Agent 03 - Verification",
     title: "Critic Agent",
-    what: "The Critic Agent cross-examines all the summaries at once. It groups the claims where multiple sources agree, surfaces the points where they conflict, and validates every citation — any claim citing a source that doesn't exist is dropped.",
+    what: "The Critic Agent cross-examines all the summaries at once. It groups the claims where multiple sources agree, surfaces the points where they conflict, and validates every citation - any claim citing a source that doesn't exist is dropped.",
     terms: [
-      ["Agreements / Disagreements", "The number of claim groups where sources concur vs. conflict. Zero disagreements over many sources is itself a finding — the literature is consistent."],
+      ["Agreements / Disagreements", "The number of claim groups where sources concur vs. conflict. Zero disagreements over many sources is itself a finding - the literature is consistent."],
       ["Confidence", "A transparent formula, not an LLM guess: the largest group of agreeing sources divided by total sources (+10 if there are 3+ agreement areas). 8 of 12 sources agreeing ≈ 67%."],
-      ["Sources per claim graph", "One bar per claim group — how many of the sources participate in it. Tall bars are well-supported claims."],
+      ["Sources per claim graph", "One bar per claim group - how many of the sources participate in it. Tall bars are well-supported claims."],
       ["Validation checklist", "Live status of the real checks: agreement grouping, conflict detection, and citation validation."],
     ],
   },
   Writer: {
-    accent: "#a855f7", eyebrow: "Agent 04 — Synthesis",
+    accent: "#a855f7", eyebrow: "Agent 04 - Synthesis",
     title: "Writer Agent",
-    what: "The Writer Agent composes the final research digest from the summaries, the critic's analysis, and the knowledge graph. What you watch being typed here is the genuine draft — the same text that becomes the published report below.",
+    what: "The Writer Agent composes the final research digest from the summaries, the critic's analysis, and the knowledge graph. What you watch being typed here is the genuine draft - the same text that becomes the published report below.",
     terms: [
       ["Current draft", "The full digest, revealed as it's written. The report publishes once the draft finishes."],
-      ["Words per paragraph graph", "One bar per paragraph of the draft (100% ≈ 120 words) — a quick read on the digest's structure and depth."],
+      ["Words per paragraph graph", "One bar per paragraph of the draft (100% ≈ 120 words) - a quick read on the digest's structure and depth."],
     ],
   },
   thoughts: {
     accent: "#00ff47", eyebrow: "Telemetry",
     title: "Live Thought Stream",
-    what: "A real-time feed of every step the agents take — each web page fetched, each document summarised, each analysis phase. Nothing here is simulated; every line corresponds to an actual operation with its timestamp.",
+    what: "A real-time feed of every step the agents take - each web page fetched, each document summarised, each analysis phase. Nothing here is simulated; every line corresponds to an actual operation with its timestamp.",
     terms: [
       ["Timestamp", "Minutes:seconds since the research session started."],
       ["Agent badge", "Which of the four agents performed the step."],
@@ -268,10 +268,10 @@ const INFO = {
   synthesis: {
     accent: "#00ff47", eyebrow: "Visualisation",
     title: "Synthesis Merge Visual",
-    what: "A live picture of knowledge flowing into the answer. Each coloured particle stream is one agent feeding the central synthesis core — streams light up and accelerate while their agent is working, dim when idle, and settle when done.",
+    what: "A live picture of knowledge flowing into the answer. Each coloured particle stream is one agent feeding the central synthesis core - streams light up and accelerate while their agent is working, dim when idle, and settle when done.",
     terms: [
       ["Particle streams", "Speed and brightness track each agent's real progress."],
-      ["Convergence ring", "How far the synthesis has progressed, scaled by the critic's measured confidence — it only approaches 100% when the pipeline is done and the sources genuinely agree."],
+      ["Convergence ring", "How far the synthesis has progressed, scaled by the critic's measured confidence - it only approaches 100% when the pipeline is done and the sources genuinely agree."],
     ],
   },
   metrics: {
@@ -282,17 +282,17 @@ const INFO = {
       ["Sources", "Web pages retrieved and read so far."],
       ["Insights", "Documents successfully distilled by the Summarise Agent."],
       ["Claims", "Distinct claim groups (agreements + disagreements) the Critic identified."],
-      ["Confidence", "The Critic's consensus score — the share of sources backing the most-supported position."],
+      ["Confidence", "The Critic's consensus score - the share of sources backing the most-supported position."],
     ],
   },
   confidence: {
     accent: "#4FD1C5", eyebrow: "Diagnostic 01",
     title: "Confidence Breakdown",
-    what: "Four independently measured factors — computed from the retrieved documents themselves, never invented — that together explain how much to trust this answer.",
+    what: "Four independently measured factors - computed from the retrieved documents themselves, never invented - that together explain how much to trust this answer.",
     terms: [
       ["Source agreement", "Pairwise text overlap between sources: do independent pages actually say the same things?"],
-      ["Domain diversity", "Entropy of the source domains — 12 different sites score high; 12 pages from one site score low."],
-      ["Recency", "Publication-date decay — recent sources score higher; undated ones sit at 50%."],
+      ["Domain diversity", "Entropy of the source domains - 12 different sites score high; 12 pages from one site score low."],
+      ["Recency", "Publication-date decay - recent sources score higher; undated ones sit at 50%."],
       ["Claim grounding", "The share of sentences in the answer that carry a [n] citation back to a source."],
     ],
   },
@@ -301,7 +301,7 @@ const INFO = {
     title: "Source Trust Distribution",
     what: "Every source domain is classified into a trust tier using a curated allowlist: journals, universities, and government sites (nature.com, .edu, .gov, arxiv.org…) rate High; social and user-generated platforms (reddit, quora, medium…) rate Low; everything else is Medium.",
     terms: [
-      ["The bar", "The percentage of distinct domains in each tier — more teal means the answer rests on stronger institutions."],
+      ["The bar", "The percentage of distinct domains in each tier - more teal means the answer rests on stronger institutions."],
       ["Top domains", "The specific sites this research drew from, best tier first."],
     ],
   },
@@ -311,23 +311,23 @@ const INFO = {
     what: "A sentence-level audit of the final answer: a sentence counts as grounded when it carries a [n] citation pointing back to a retrieved source. This catches the answer drifting beyond what the sources support.",
     terms: [
       ["Grounded ratio", "Cited sentences over total sentences. If the writer used no [n] markers at all, the ratio falls back to the measured claim-grounding factor instead of flagging everything."],
-      ["Flagged statements", "Factual-looking sentences with no citation — read these with extra care."],
+      ["Flagged statements", "Factual-looking sentences with no citation - read these with extra care."],
     ],
   },
   contradiction: {
     accent: "#E0685F", eyebrow: "Diagnostic 04",
     title: "Contradiction Analysis",
-    what: "When the Critic finds sources making genuinely conflicting claims, the sharpest conflict is shown here — both positions quoted side by side with the source numbers backing each. No contradiction card means the sources were consistent.",
+    what: "When the Critic finds sources making genuinely conflicting claims, the sharpest conflict is shown here - both positions quoted side by side with the source numbers backing each. No contradiction card means the sources were consistent.",
     terms: [
       ["Position A / B", "The two competing claims, exactly as the sources state them."],
-      ["Trust", "The trust tier of the domains backing each side — a High-trust position usually outweighs a Low-trust one."],
-      ["Nature", "The Critic's classification of the conflict — factual dispute, differing scope, or outdated data."],
+      ["Trust", "The trust tier of the domains backing each side - a High-trust position usually outweighs a Low-trust one."],
+      ["Nature", "The Critic's classification of the conflict - factual dispute, differing scope, or outdated data."],
     ],
   },
   suggestions: {
     accent: "#00ff47", eyebrow: "Next steps",
     title: "Suggested Next Research",
-    what: "Follow-up queries generated from the coverage gaps the Critic found — the aspects of your question the current sources didn't answer. One click starts a new session on that gap.",
+    what: "Follow-up queries generated from the coverage gaps the Critic found - the aspects of your question the current sources didn't answer. One click starts a new session on that gap.",
     terms: [],
   },
 };
@@ -396,7 +396,7 @@ const DEFAULT_DATA = {
     Writer:   { sub:"", status:"" },
   },
   floatingTags: [],
-  metrics: { sources:"—", insights:"—", claims:"—", confidence:"—" },
+  metrics: { sources:" - ", insights:" - ", claims:" - ", confidence:" - " },
   confidenceBreakdown: [],
   sourceTrust: { high:0, med:0, low:0, domains:[] },
   faithfulness:{ grounded:0, total:0, flagged:[] },
@@ -415,10 +415,10 @@ const SIGNAL_MEANING = {
 
 // Per-bar hover tooltips explain WHAT the bar represents, not just its value.
 const BAR_TIP = {
-  "Content depth per source": (i, h) => `Source ${i + 1} — captured ${h}% of a full article (~4,000 chars)`,
-  "Compression ratio per doc": (i, h) => `Document ${i + 1} — summary is ${h}% the size of the original`,
-  "Sources per claim group": (i, h) => `Claim group ${i + 1} — backed by ${h}% of all sources`,
-  "Words per paragraph": (i, h) => `Paragraph ${i + 1} — about ${h}% of a full 120-word paragraph`,
+  "Content depth per source": (i, h) => `Source ${i + 1} - captured ${h}% of a full article (~4,000 chars)`,
+  "Compression ratio per doc": (i, h) => `Document ${i + 1} - summary is ${h}% the size of the original`,
+  "Sources per claim group": (i, h) => `Claim group ${i + 1} - backed by ${h}% of all sources`,
+  "Words per paragraph": (i, h) => `Paragraph ${i + 1} - about ${h}% of a full 120-word paragraph`,
 };
 
 function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, levels, compact = false }) {
@@ -474,7 +474,7 @@ function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, 
           >
             {hoverIdx === i && (
               <div style={{ position:"absolute", bottom:"100%", left: i < 3 ? "0" : i > bars.length - 4 ? "auto" : "50%", right: i > bars.length - 4 ? "0" : "auto", transform: i < 3 || i > bars.length - 4 ? "none" : "translateX(-50%)", marginBottom:"6px", background:"#12141C", border:`1px solid ${v.badge}55`, borderRadius:"6px", padding:"4px 9px", fontSize:"10px", fontFamily:"Hanken Grotesk,sans-serif", color:"#e8eaf2", whiteSpace:"nowrap", zIndex:5 }}>
-                {(BAR_TIP[eyebrow] || ((idx, val) => `Item ${idx + 1} — ${val}%`))(i, Math.round(h))}
+                {(BAR_TIP[eyebrow] || ((idx, val) => `Item ${idx + 1} - ${val}%`))(i, Math.round(h))}
               </div>
             )}
           </div>
@@ -599,7 +599,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
   const { visibleText: queryVisible, typing: queryTyping } = useTypewriter(data.query, 34);
 
   // ── onComplete: fires only after the pipeline finishes AND the Writer's
-  //    draft has fully typed out — the report publishes after the draft.
+  //    draft has fully typed out - the report publishes after the draft.
   const completeFiredRef = useRef(false);
   useEffect(() => {
     if ((data.progress || 0) >= 100 && !draftTyping && !completeFiredRef.current) {
@@ -1269,7 +1269,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                   <InfoBtn k="confidence" onOpen={setInfoOpen} />
                 </div>
                 <div style={{ fontSize:"12px", color:"#8e98a8", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.55, marginTop:"-8px" }}>
-                  Four factors measured from the sources themselves — how much to trust this answer, and why.
+                  Four factors measured from the sources themselves - how much to trust this answer, and why.
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:"14px", flex:1 }}>
                   {data.confidenceBreakdown.length
@@ -1295,7 +1295,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                         </div>
                         );
                       })
-                    : <div className="empty-note">Computed after the draft is written — needs the final answer to measure against.</div>
+                    : <div className="empty-note">Computed after the draft is written - needs the final answer to measure against.</div>
                   }
                 </div>
               </section>
@@ -1307,7 +1307,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                   <InfoBtn k="trust" onOpen={setInfoOpen} />
                 </div>
                 <div style={{ fontSize:"12px", color:"#8e98a8", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.55, marginTop:"-8px" }}>
-                  Share of source domains by credibility tier — journals &amp; institutions rate High, social platforms rate Low.
+                  Share of source domains by credibility tier - journals &amp; institutions rate High, social platforms rate Low.
                 </div>
                 <div>
                   <div style={{ display:"flex", height:"12px", borderRadius:"9999px", overflow:"hidden", marginBottom:"10px" }}>
@@ -1364,7 +1364,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                   <InfoBtn k="contradiction" onOpen={setInfoOpen} />
                 </div>
                 <div style={{ fontSize:"12px", color:"#8e98a8", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.55, marginTop:"-6px" }}>
-                  The sharpest conflict the Critic found — two sources making opposing claims, shown side by side.
+                  The sharpest conflict the Critic found - two sources making opposing claims, shown side by side.
                 </div>
                 {data.contradiction ? (
                   <>
@@ -1428,7 +1428,7 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                         <h3 style={{ fontSize:"15.5px", fontWeight:"600", color:"#dde1e9", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.45 }}>{card.title}</h3>
                         <div style={{ display:"flex", alignItems:"center", gap:"7px", marginTop:"auto", paddingTop:"14px", borderTop:"1px solid rgba(255,255,255,0.06)", fontSize:"10.5px", fontFamily:"JetBrains Mono,monospace", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.05em" }}>
                           <span className="material-symbols-outlined" style={{ fontSize:"14px", color:meta.color }}>arrow_forward</span>
-                          {card.kind === "Coverage gap" ? "Identified by the Critic — tap to research" : "Tap to start a new session"}
+                          {card.kind === "Coverage gap" ? "Identified by the Critic - tap to research" : "Tap to start a new session"}
                         </div>
                       </button>
                     );

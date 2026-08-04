@@ -6,7 +6,7 @@ import "./ScrollReveal.css";
 gsap.registerPlugin(ScrollTrigger);
 
 /**
- * ScrollReveal — word-by-word opacity+blur-in with a subtle container rotation
+ * ScrollReveal - word-by-word opacity+blur-in with a subtle container rotation
  * as the block scrolls through the viewport.
  *
  * `tag` lets you render something other than <h2> as the wrapper (default

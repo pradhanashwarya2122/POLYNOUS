@@ -63,7 +63,7 @@ const GLOBAL_STYLES = `
   .nav-link:hover { color:#00ff0f; }
   .nav-link-active { color:#00ff0f; }
 
-  /* Feature cards — redesigned large format */
+  /* Feature cards - redesigned large format */
   .feat-card { transition:all 0.5s cubic-bezier(0.23,1,0.32,1);position:relative;cursor:pointer;overflow:hidden; }
   .feat-card::before { content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.5s ease;z-index:0;border-radius:inherit; }
   .feat-card:hover { transform:translateY(-6px); }
@@ -123,14 +123,14 @@ const NAV_SECTIONS = [
 ];
 
 const STEPS = [
-  {n:"01", title:"Ask anything", body:"POLYNOUS activates its 7-agent neural mesh instantly. No waiting, no setup — just intent, translated into structured inquiry.", accent:C.green,   icon:"search"},
+  {n:"01", title:"Ask anything", body:"POLYNOUS activates its 7-agent neural mesh instantly. No waiting, no setup - just intent, translated into structured inquiry.", accent:C.green,   icon:"search"},
   {n:"02", title:"Search & synthesize", body:"Dedicated agents scan, retrieve, and distill sources with automatic citation tracking. Every fact traced to origin.", accent:C.cyan,    icon:"manage_search"},
-  {n:"03", title:"Challenge & critique", body:"A dedicated Critic agent stress-tests every claim. Contradictions get flagged before they reach you — rigorous by default.", accent:C.amber,   icon:"balance"},
-  {n:"04", title:"Deliver structured truth", body:"The Writer synthesizes everything into polished, cited, confidence-scored output. Not a response — a document.", accent:C.purple,  icon:"auto_stories"},
+  {n:"03", title:"Challenge & critique", body:"A dedicated Critic agent stress-tests every claim. Contradictions get flagged before they reach you - rigorous by default.", accent:C.amber,   icon:"balance"},
+  {n:"04", title:"Deliver structured truth", body:"The Writer synthesizes everything into polished, cited, confidence-scored output. Not a response - a document.", accent:C.purple,  icon:"auto_stories"},
 ];
 
 const FEATURES = [
-  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"7 specialized agents collaborate in a LangGraph pipeline — delivering cited, confidence-scored answers in real time.", tag:"RESEARCH"},
+  {icon:"biotech",       title:"Neural Research",     color:C.green,   cls:"feat-card-green",   dot:C.green,   route:"/research", desc:"7 specialized agents collaborate in a LangGraph pipeline - delivering cited, confidence-scored answers in real time.", tag:"RESEARCH"},
   {icon:"forum",         title:"Debate Chamber",      color:C.crimson, cls:"feat-card-crimson",  dot:C.crimson, route:"/debate",   desc:"FOR vs AGAINST agents argue opposing sides. An AI Judge evaluates evidence and declares a ruling.", tag:"DEBATE"},
   {icon:"hub",           title:"Knowledge Graph",     color:C.cyan,    cls:"feat-card-cyan",     dot:C.cyan,    route:"/graph",    desc:"Every session builds your Neo4j-powered knowledge graph, connecting topics and entities visually.", tag:"GRAPH"},
   {icon:"manage_search", title:"Semantic Search",     color:"#77ff62", cls:"feat-card-lime",     dot:"#77ff62", route:"/search",   desc:"OpenAI embeddings + Pinecone vector search find past research in milliseconds, by meaning.", tag:"SEARCH"},
@@ -181,9 +181,9 @@ const PLAYGROUND_AGENTS = [
 ];
 
 const AGENT_QUIPS = {
-  search:   ["Scanning 14,000 nodes… hit!","Cross-referencing semantic vectors…","Found 847 relevant chunks — filtering top 12.","Knowledge graph query complete."],
+  search:   ["Scanning 14,000 nodes… hit!","Cross-referencing semantic vectors…","Found 847 relevant chunks - filtering top 12.","Knowledge graph query complete."],
   summarise:["Compressing 4,200 tokens → 180…","Key entities extracted: 6.","Distillation confidence: 94%.","Summary locked and staged."],
-  for:      ["Building affirmative case…","3 strong premises identified.","Constructing syllogism chain…","Case FOR filed — bulletproof."],
+  for:      ["Building affirmative case…","3 strong premises identified.","Constructing syllogism chain…","Case FOR filed - bulletproof."],
   against:  ["Stress-testing every premise…","Identified 2 logical gaps!","Counter-evidence ratio: 67%.","Opposition case finalized."],
   critic:   ["Running fallacy detection…","Ad hominem: 0. Straw man: 1. Flagged.","Source reliability score: 88/100.","Critical review complete."],
   writer:   ["Stitching narrative threads…","Prose coherence index: 97%.","Applying citation layer…","Draft ready for judgment."],
@@ -384,7 +384,7 @@ function HeroSection(){
       <div style={{position:"absolute",top:"38%",right:"12%",width:"280px",height:"280px",borderRadius:"50%",background:"radial-gradient(circle,rgba(168,85,247,0.035) 0%,transparent 68%)",animation:"orb 11s ease-in-out infinite 2s",pointerEvents:"none"}}/>
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,255,15,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.018) 1px,transparent 1px)",backgroundSize:"80px 80px",pointerEvents:"none",maskImage:"radial-gradient(ellipse 80% 70% at 50% 50%,black 30%,transparent 100%)"}}/>
 
-      {/* Title — no live badge */}
+      {/* Title - no live badge */}
       <h1 className="reveal hero-title" ref={useReveal(0.05)} style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(4rem,10.5vw,10rem)",lineHeight:0.86,letterSpacing:"-0.065em",marginBottom:"24px"}}>
         <span style={{background:"linear-gradient(165deg,#ffffff 20%,rgba(0,255,15,0.8) 52%,rgba(0,204,255,0.65) 82%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 0 40px rgba(0,255,15,0.12))"}}>Research</span>
         <br/>
@@ -392,7 +392,7 @@ function HeroSection(){
       </h1>
 
       <p className="reveal" ref={useReveal(0.05)} style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"clamp(16px,1.9vw,20px)",color:"rgba(130,148,168,0.88)",maxWidth:"580px",lineHeight:1.75,marginBottom:"48px",fontWeight:400,transitionDelay:"0.14s"}}>
-        Seven specialized AI agents that search, analyze, debate, and synthesize — delivering comprehensive research, not just responses.
+        Seven specialized AI agents that search, analyze, debate, and synthesize - delivering comprehensive research, not just responses.
       </p>
 
       <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"18px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
@@ -427,7 +427,7 @@ function HeroSection(){
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.crimson,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.gold,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.green,opacity:0.7}}/>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous — neural-mesh</span>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous - neural-mesh</span>
         </div>
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>npm run polynous</div>
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:"rgba(130,148,170,0.5)",marginTop:"10px",lineHeight:2}}>
@@ -499,7 +499,7 @@ function ApiSection(){
         <div style={{borderRadius:"27px",padding:"52px",background:"rgba(8,8,20,0.97)",backdropFilter:"blur(28px)"}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"56px",alignItems:"center"}} className="api-grid">
             <div>
-              <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK — BRING YOUR OWN INTELLIGENCE</span>
+              <span style={{display:"inline-block",padding:"4px 14px",borderRadius:"9999px",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"10px",letterSpacing:"0.14em",marginBottom:"22px"}}>BYOK - BRING YOUR OWN INTELLIGENCE</span>
               <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(1.8rem,3.4vw,2.7rem)",marginBottom:"16px",lineHeight:1.08,letterSpacing:"-0.04em",color:"#fff"}}>Total model<br/><span style={{color:C.green}}>sovereignty.</span></h2>
               <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.82)",lineHeight:1.7,marginBottom:"28px"}}>Model-agnostic by design. Connect your preferred LLMs or run private local instances with zero lock-in.</p>
               <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginBottom:"28px"}}>
@@ -542,7 +542,7 @@ function ApiSection(){
   );
 }
 
-/* ── Features — redesigned large-format cards ─────────────────────────────── */
+/* ── Features - redesigned large-format cards ─────────────────────────────── */
 function FeaturesSection(){
   const headRef=useReveal(0.1),gridRef=useReveal(0.07);
   return(
@@ -734,7 +734,7 @@ function AgentPlayground(){
         <div style={{textAlign:"center",marginBottom:"52px"}}>
           <span style={{display:"inline-block",padding:"4px 16px",borderRadius:"9999px",border:`1px solid ${C.purple}45`,color:C.purple,fontFamily:"JetBrains Mono,monospace",fontSize:"10px",letterSpacing:"0.14em",marginBottom:"14px"}}>✦ AGENT PLAYGROUND</span>
           <h2 style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"clamp(2rem,4.5vw,3.5rem)",letterSpacing:"-0.05em",marginBottom:"10px",color:"#fff"}}>Pick an <span style={{color:C.green}}>Agent.</span> Watch it <span style={{color:C.cyan}}>Think.</span></h2>
-          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"460px",margin:"0 auto",lineHeight:1.7}}>Click any agent tile to simulate its inner monologue — no backend required.</p>
+          <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"16px",color:"rgba(130,148,168,0.78)",maxWidth:"460px",margin:"0 auto",lineHeight:1.7}}>Click any agent tile to simulate its inner monologue - no backend required.</p>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"24px",maxWidth:"940px",margin:"0 auto"}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",alignContent:"start"}}>
@@ -753,7 +753,7 @@ function AgentPlayground(){
             <div style={{padding:"20px 22px",background:"rgba(7,7,18,0.96)",borderBottom:"1px solid rgba(255,255,255,0.04)",minHeight:"90px"}}>
               {active?(
                 <div style={{animation:"fadeUp 0.3s ease"}} key={active.id}>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em"}}>{active.emoji} {active.name} — ROLE BRIEFING</div>
+                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:active.color,marginBottom:"7px",letterSpacing:"0.1em"}}>{active.emoji} {active.name} - ROLE BRIEFING</div>
                   <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(185,200,175,0.75)",lineHeight:1.65,margin:0}}>{active.desc}</p>
                 </div>
               ):(

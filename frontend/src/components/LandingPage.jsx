@@ -214,7 +214,7 @@ function LandingPage() {
             <span className="bg-gradient-to-r from-[#00ff0f] via-[#00ccff] to-[#ff2040] bg-clip-text text-transparent">Thinks Like a Brain</span>
           </h1>
           <p className="max-w-2xl mx-auto text-xl text-[#8899aa] font-['Hanken_Grotesk'] leading-relaxed opacity-80">
-            5-layer cognitive architecture. Zero-LLM ingestion pipeline. Self-improving memory that decays, consolidates, and reasons — like a real brain. The memory OS that every other system forgot to build.
+            5-layer cognitive architecture. Zero-LLM ingestion pipeline. Self-improving memory that decays, consolidates, and reasons - like a real brain. The memory OS that every other system forgot to build.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">

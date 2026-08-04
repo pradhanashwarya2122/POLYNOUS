@@ -1,5 +1,5 @@
 // ─── Enhanced AuthFallback ────────────────────────────────────
-// Drop-in replacement — assumes C, SynapseDot, Icon are in scope
+// Drop-in replacement - assumes C, SynapseDot, Icon are in scope
 
 const fallbackStyles = `
   @keyframes errorPulse {
@@ -79,7 +79,7 @@ const fallbackStyles = `
     animation: traceLeft 1.2s ease-out 0.2s both;
   }
 
-  /* Corner brackets — red-tinted */
+  /* Corner brackets - red-tinted */
   .fallback-corner {
     position: absolute;
     width: 14px; height: 14px;
@@ -257,13 +257,13 @@ const fallbackStyles = `
 const LOG_LINES = [
   "ERR  oauth/google → 404 Not Found",
   "WARN callback route missing on api server",
-  "ERR  token exchange failed — no response",
+  "ERR  token exchange failed - no response",
   "INFO retrying connection... timeout 5000ms",
   "ERR  ECONNREFUSED polynous-api.railway.app:443",
-  "WARN session invalidated — clearing tokens",
+  "WARN session invalidated - clearing tokens",
   "ERR  oauth/google → 404 Not Found",
   "WARN callback route missing on api server",
-  "ERR  token exchange failed — no response",
+  "ERR  token exchange failed - no response",
   "INFO retrying connection... timeout 5000ms",
 ];
 

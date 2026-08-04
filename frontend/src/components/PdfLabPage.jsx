@@ -1,4 +1,4 @@
-// PDF Neural Lab — fully enhanced with security validation
+// PDF Neural Lab - fully enhanced with security validation
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL } from '../config';
 
@@ -71,7 +71,7 @@ button{cursor:pointer;font-family:'Inter',sans-serif}
 .cta-primary:hover{filter:brightness(1.12);transform:translateY(-3px);box-shadow:0 10px 36px rgba(255,214,10,0.38)!important}
 .cta-secondary{transition:background 0.2s,border-color 0.2s,transform 0.2s,color 0.2s}
 .cta-secondary:hover{background:rgba(255,214,10,0.09)!important;border-color:rgba(255,214,10,0.4)!important;color:${T.gold}!important;transform:translateY(-3px)}
-/* "How PDF RAG works" — stack on narrow screens so the live-preview viz never squishes to nothing */
+/* "How PDF RAG works" - stack on narrow screens so the live-preview viz never squishes to nothing */
 @media (max-width: 760px){
   .rag-steps-grid{grid-template-columns:repeat(2,1fr)!important}
   .rag-viz-grid{grid-template-columns:1fr!important}
@@ -163,7 +163,7 @@ function NeuralBg() {
   return <canvas ref={ref} style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />;
 }
 
-// ─── 3D Document Canvas Visual — enhanced ────────────────────────────────────
+// ─── 3D Document Canvas Visual - enhanced ────────────────────────────────────
 function DocCanvas3D({ uploading }) {
   const ref = useRef(null);
   const mouse = useRef({ x: 240, y: 240 });
@@ -384,13 +384,13 @@ function useTypewriter(text, speed = 9) {
   return out;
 }
 
-// ─── How It Works — interactive pipeline (FIXED) ──────────────────────────────
+// ─── How It Works - interactive pipeline (FIXED) ──────────────────────────────
 const PIPELINE = [
   {
     id: 0, col: T.purple, colBg: "rgba(168,85,247,0.07)", colBorder: "rgba(168,85,247,0.22)",
     icon: "upload_file", label: "Upload & Chunk",
     tagline: "PDF → index cards",
-    detail: "Your PDF is parsed page by page, then split into overlapping ~500-word chunks. Overlap keeps ideas whole — no concept gets cut mid-sentence.",
+    detail: "Your PDF is parsed page by page, then split into overlapping ~500-word chunks. Overlap keeps ideas whole - no concept gets cut mid-sentence.",
     tech: "PyMuPDF · Recursive text splitter · 500-token chunks, 50-token overlap",
     visual: "chunks",
   },
@@ -398,7 +398,7 @@ const PIPELINE = [
     id: 1, col: T.cyan, colBg: "rgba(0,212,255,0.06)", colBorder: "rgba(0,212,255,0.22)",
     icon: "hub", label: "Vector Embedding",
     tagline: "Meaning → numbers",
-    detail: "A transformer model converts each chunk into a 384-dimensional vector — a fingerprint of meaning. Similar ideas cluster nearby in this mathematical space.",
+    detail: "A transformer model converts each chunk into a 384-dimensional vector - a fingerprint of meaning. Similar ideas cluster nearby in this mathematical space.",
     tech: "sentence-transformers · all-MiniLM-L6 · 384-dim vectors",
     visual: "vectors",
   },
@@ -406,7 +406,7 @@ const PIPELINE = [
     id: 2, col: T.gold, colBg: "rgba(255,214,10,0.06)", colBorder: "rgba(255,214,10,0.22)",
     icon: "travel_explore", label: "Semantic Retrieval",
     tagline: "Query finds its cousins",
-    detail: "Your question is embedded the same way, then we find the top-K chunks closest in meaning — not just keywords. 'heart stopped' matches 'cardiac arrest'.",
+    detail: "Your question is embedded the same way, then we find the top-K chunks closest in meaning - not just keywords. 'heart stopped' matches 'cardiac arrest'.",
     tech: "FAISS index · top-5 retrieval · cosine similarity · cross-encoder rerank",
     visual: "retrieval",
   },
@@ -414,7 +414,7 @@ const PIPELINE = [
     id: 3, col: T.green, colBg: "rgba(0,255,106,0.05)", colBorder: "rgba(0,255,106,0.18)",
     icon: "auto_awesome", label: "LLM Synthesis",
     tagline: "Grounded, cited answer",
-    detail: "Retrieved chunks are passed to the LLM as the only context. It answers strictly from your document — no web, no hallucination, with chunk citations.",
+    detail: "Retrieved chunks are passed to the LLM as the only context. It answers strictly from your document - no web, no hallucination, with chunk citations.",
     tech: "Claude API · system-prompt grounding · source citation · confidence score",
     visual: "synthesis",
   },
@@ -542,7 +542,7 @@ function SynthesisViz() {
   );
 }
 
-// Map step visual to component — each mounts fresh when active changes
+// Map step visual to component - each mounts fresh when active changes
 const VIZ_MAP = { chunks: ChunksViz, vectors: VectorsViz, retrieval: RetrievalViz, synthesis: SynthesisViz };
 
 function HowItWorks() {
@@ -577,7 +577,7 @@ function HowItWorks() {
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:22, gap:16 }}>
         <div>
           <h3 style={{ fontFamily:T.display, fontWeight:800, fontSize:20, color:"#fff", marginBottom:5 }}>How PDF RAG works</h3>
-          <p style={{ fontFamily:T.mono, fontSize:12, color:T.textDim }}>Click each step — or hit Play to watch the pipeline run</p>
+          <p style={{ fontFamily:T.mono, fontSize:12, color:T.textDim }}>Click each step - or hit Play to watch the pipeline run</p>
         </div>
         <button onClick={() => setPlaying(p => !p)} style={{
           padding:"8px 18px", borderRadius:20,
@@ -1087,7 +1087,7 @@ function RagAnswer({ text, confidence, sources, onCopy }) {
 function ModeBanner({ mode }) {
   const cfg = {
     ask:   { col:T.gold, bg:"rgba(255,214,10,0.05)", border:T.borderGold, icon:"auto_awesome", title:"Retrieval-Augmented Generation", desc:"Finds the most relevant passages in your PDFs, then passes them to an LLM for a grounded, cited answer. Nothing from the web." },
-    search:{ col:T.cyan, bg:"rgba(0,212,255,0.05)", border:"rgba(0,212,255,0.2)", icon:"travel_explore", title:"Semantic Vector Search", desc:"Converts your query to a vector and finds the closest matching chunks by meaning — not just keywords. Fast, no LLM overhead." },
+    search:{ col:T.cyan, bg:"rgba(0,212,255,0.05)", border:"rgba(0,212,255,0.2)", icon:"travel_explore", title:"Semantic Vector Search", desc:"Converts your query to a vector and finds the closest matching chunks by meaning - not just keywords. Fast, no LLM overhead." },
   }[mode];
   return (
     <div style={{ background:cfg.bg, border:`1px solid ${cfg.border}`, borderRadius:13, padding:"14px 18px", marginBottom:18, display:"flex", gap:13, alignItems:"flex-start" }}>
@@ -1191,7 +1191,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       await fetchPdfs();
     } catch (err) {
       if (poll) clearInterval(poll);
-      setUploadMsg("Upload failed — is the server running?");
+      setUploadMsg("Upload failed - is the server running?");
       setUploadError("Connection error. Is backend running?");
       notify("✗ Upload failed");
     } finally {
@@ -1213,7 +1213,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       setAskAnswer(res);
       setConversation(prev => [...prev, { role:"assistant", ...res }]);
     } catch {
-      const res = { text:"Failed to get answer — is the server running?", sources:[], confidence:0 };
+      const res = { text:"Failed to get answer - is the server running?", sources:[], confidence:0 };
       setAskAnswer(res);
     } finally { setAskLoading(false); }
   };
@@ -1226,7 +1226,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       const chunks = data.results || data.chunks || [];
       setSearchResults(chunks);
       if (!chunks.length) setSearchError("No results found for that query.");
-    } catch { setSearchError("Search failed — is the server running?"); }
+    } catch { setSearchError("Search failed - is the server running?"); }
     finally { setSearchLoading(false); }
   };
 

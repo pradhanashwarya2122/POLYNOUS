@@ -1,4 +1,4 @@
-/* KineticText — per-character weight/stroke on hover, spreading to neighbours.
+/* KineticText - per-character weight/stroke on hover, spreading to neighbours.
    Forward spread uses adjacent-sibling selectors; backward spread uses :has(). */
 .kinetic-text {
   display: inline-flex;
@@ -11,7 +11,7 @@
     -webkit-text-stroke-width 0.4s ease, -webkit-text-stroke-color 0.4s ease;
   will-change: font-weight;
 }
-/* hovered letter — heaviest + inked outline */
+/* hovered letter - heaviest + inked outline */
 .kinetic-text > span:hover {
   font-weight: 900;
   padding-inline: 0.08em;

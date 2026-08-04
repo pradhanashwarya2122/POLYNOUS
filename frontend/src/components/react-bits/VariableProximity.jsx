@@ -12,7 +12,7 @@ function parseSettings(str) {
 }
 
 /**
- * VariableProximity — interpolates variable-font axes (wght/opsz) per
+ * VariableProximity - interpolates variable-font axes (wght/opsz) per
  * character based on distance from the cursor within `containerRef`.
  * Falls back gracefully to a static weight on fonts without real axes.
  */

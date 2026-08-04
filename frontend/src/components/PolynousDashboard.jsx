@@ -794,7 +794,7 @@ function StatCard({ icon, color, label, value, trend }) {
 
 // ─── EVALUATION CARD ─────────────────────────────────────────
 // Renders the latest eval-harness summary from GET /evals/summary. Honest
-// empty state when no runs exist; every number comes from the endpoint —
+// empty state when no runs exist; every number comes from the endpoint - 
 // nothing is fabricated or interpolated here.
 function EvaluationCard({ summary, onReloaded }) {
   const shell = {
@@ -898,10 +898,10 @@ function EvaluationCard({ summary, onReloaded }) {
 
   const t = summary.totals || {};
   const tiles = [
-    { label: "Grounded ratio", value: t.avg_grounded_ratio != null ? t.avg_grounded_ratio.toFixed(2) : "—", color: C.green },
-    { label: "Avg confidence", value: t.avg_computed_confidence != null ? Math.round(t.avg_computed_confidence) + "%" : "—", color: C.cyan },
-    { label: "Cite density /100w", value: t.avg_citation_density != null ? t.avg_citation_density.toFixed(1) : "—", color: C.purple },
-    { label: "Hallucinated cites", value: t.total_hallucinated_citations != null ? t.total_hallucinated_citations : "—", color: (t.total_hallucinated_citations || 0) > 0 ? C.crimson : C.green },
+    { label: "Grounded ratio", value: t.avg_grounded_ratio != null ? t.avg_grounded_ratio.toFixed(2) : " - ", color: C.green },
+    { label: "Avg confidence", value: t.avg_computed_confidence != null ? Math.round(t.avg_computed_confidence) + "%" : " - ", color: C.cyan },
+    { label: "Cite density /100w", value: t.avg_citation_density != null ? t.avg_citation_density.toFixed(1) : " - ", color: C.purple },
+    { label: "Hallucinated cites", value: t.total_hallucinated_citations != null ? t.total_hallucinated_citations : " - ", color: (t.total_hallucinated_citations || 0) > 0 ? C.crimson : C.green },
   ];
   const cats = Object.entries(summary.by_category || {});
 
@@ -935,7 +935,7 @@ function EvaluationCard({ summary, onReloaded }) {
                 <div style={{ flex: 1, height: 6, borderRadius: 4, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${pct}%`, background: C.green, borderRadius: 4 }} />
                 </div>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, width: 30, textAlign: "right" }}>{typeof g === "number" ? g.toFixed(2) : "—"}</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, width: 30, textAlign: "right" }}>{typeof g === "number" ? g.toFixed(2) : " - "}</span>
               </div>
             );
           })}
@@ -1154,7 +1154,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
     setLoading(true);
     try {
         const token = localStorage.getItem('polynous_token');
-        if (!token) { console.warn('No auth token — analytics will be empty'); setLoading(false); return; }
+        if (!token) { console.warn('No auth token - analytics will be empty'); setLoading(false); return; }
         const base = API_BASE_URL || 'http://localhost:8000';
         const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
         const [sRes, hRes, dRes] = await Promise.all([
@@ -1168,7 +1168,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
         setStats({ totalQueries: statsData.total_research || 0, totalDebates: statsData.total_debates || 0, avgConfidence: statsData.avg_confidence || 0, uniqueTopics: statsData.unique_topics || 0 });
         setHistory(historyData.history || []);
         setDebates(debatesData.debates || []);
-        // Evaluation-harness summary — separate, non-blocking; explicit empty
+        // Evaluation-harness summary - separate, non-blocking; explicit empty
         // state when no runs exist. Never fabricates numbers.
         try {
           const eRes = await fetch(`${base}/evals/summary`, { headers });
@@ -1197,7 +1197,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
       if (activityData[date] !== undefined) activityData[date]++;
     }
   });
-  // Honest data only — no fabricated activity/topics. Empty history → empty
+  // Honest data only - no fabricated activity/topics. Empty history → empty
   // charts (the components show their own "no data yet" state).
   const topicFreq = {};
   history.forEach(h => {
@@ -1211,7 +1211,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
   const lowCount = history.filter(h => (h.confidence || 0) < 60).length;
   const confDist = useMemo(() => ({ high: highCount || 0, medium: mediumCount || 0, low: lowCount || 0 }), [highCount, mediumCount, lowCount]);
 
-  // Real per-day-hour activity from history only — never hardcoded.
+  // Real per-day-hour activity from history only - never hardcoded.
   const hourlyData = {};
   history.forEach(h => {
     if (h.timestamp) {
@@ -1365,7 +1365,7 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
               </div>
             </div>
 
-            {/* Row 3 — Evaluation harness summary (real data or empty state) */}
+            {/* Row 3 - Evaluation harness summary (real data or empty state) */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, paddingBottom: 40 }}>
               <EvaluationCard summary={evalSummary} onReloaded={setEvalSummary} />
             </div>

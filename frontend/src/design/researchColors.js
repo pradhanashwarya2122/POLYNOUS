@@ -1,4 +1,4 @@
-// Research surface palette (Phase 7 — extracted verbatim from
+// Research surface palette (Phase 7 - extracted verbatim from
 // ResearchInterface; identical hex values, shared with the report module).
 export const C = {
   green:              "#00ff47",

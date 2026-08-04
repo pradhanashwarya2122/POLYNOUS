@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 // Character-by-character reveal driven by requestAnimationFrame at `cps`
 // characters/second. Appending to existing text continues the reveal;
 // brand-new text restarts it. Extracted verbatim from the two engines
-// (Phase 7 — shared, no behavior change). All call sites pass an explicit
+// (Phase 7 - shared, no behavior change). All call sites pass an explicit
 // cps, so the default is only a fallback.
 export function useTypewriter(fullText, cps = 110) {
   const [revealed, setRevealed] = useState(0);

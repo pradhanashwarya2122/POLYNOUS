@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-// magicui SmoothCursor — a spring-following arrow that rotates toward the
+// magicui SmoothCursor - a spring-following arrow that rotates toward the
 // direction of travel and replaces the native pointer. Implemented with rAF
 // springs (no motion/framer-motion dependency) but matching magicui's default
 // behaviour: stiffness/damping-style smoothing on position + rotation, a slight

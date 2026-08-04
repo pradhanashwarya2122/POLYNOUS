@@ -5,7 +5,7 @@ import { useLiveStream } from "./shared/useLiveStream";
 import { DEBATE_C } from "../design/tokens";
 
 // ============================================================================
-// ADVERSARIAL DEBATE ENGINE — crimson-themed live visualization of the
+// ADVERSARIAL DEBATE ENGINE - crimson-themed live visualization of the
 // 6-stage debate pipeline (evidence → openings → rebuttals → verdict).
 // Every number shown is real: rubric metrics, source stats, judge scores.
 // ============================================================================
@@ -99,7 +99,7 @@ const styles = `
   }
   .de-info-btn:hover { color:#e2e0fc; border-color:rgba(255,255,255,0.35); transform:scale(1.08); }
 
-  /* Anchored info popover — small, near the button, never full-screen */
+  /* Anchored info popover - small, near the button, never full-screen */
   @keyframes dePopIn { from { opacity:0; transform:translateY(-4px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
   .de-pop {
     position:fixed; width:340px; max-height:56vh; overflow-y:auto; z-index:1000;
@@ -124,29 +124,29 @@ const styles = `
 // ── Explainers ───────────────────────────────────────────────────────────────
 const INFO = {
   FOR: {
-    accent: C.green, eyebrow: "Advocate — Supporting",
+    accent: C.green, eyebrow: "Advocate - Supporting",
     title: "FOR Advocate",
-    what: "Argues in favour of the proposition using only the shared evidence pool. It delivers an opening argument, then a rebuttal that must directly counter at least two of the opponent's specific points — restating its opening scores poorly.",
+    what: "Argues in favour of the proposition using only the shared evidence pool. It delivers an opening argument, then a rebuttal that must directly counter at least two of the opponent's specific points - restating its opening scores poorly.",
     terms: [
       ["Rubric stats", "Computed, not opinions: distinct real sources cited, sentences grounded by valid citations, and hallucinated citations (which score zero)."],
-      ["Citations graph", "One bar per paragraph — how many [n] citations each paragraph carries."],
+      ["Citations graph", "One bar per paragraph - how many [n] citations each paragraph carries."],
     ],
   },
   AGAINST: {
-    accent: C.crimson, eyebrow: "Advocate — Opposing",
+    accent: C.crimson, eyebrow: "Advocate - Opposing",
     title: "AGAINST Advocate",
-    what: "Argues against the proposition from the same evidence pool as FOR — neither side gets private sources. Its rebuttal reads FOR's opening and must engage its specific claims.",
+    what: "Argues against the proposition from the same evidence pool as FOR - neither side gets private sources. Its rebuttal reads FOR's opening and must engage its specific claims.",
     terms: [
-      ["Rubric stats", "Same computed metrics as FOR — the two sides are measured identically."],
-      ["Citations graph", "One bar per paragraph — citation density of the argument."],
+      ["Rubric stats", "Same computed metrics as FOR - the two sides are measured identically."],
+      ["Citations graph", "One bar per paragraph - citation density of the argument."],
     ],
   },
   evidence: {
     accent: C.purple, eyebrow: "Shared ground",
     title: "Evidence Pool",
-    what: "The web sources both advocates argue from, gathered live by the search agent and scraped in full where possible. Every citation [n] in either argument must point at one of these — invented citations earn nothing.",
+    what: "The web sources both advocates argue from, gathered live by the search agent and scraped in full where possible. Every citation [n] in either argument must point at one of these - invented citations earn nothing.",
     terms: [
-      ["Content depth graph", "One bar per source — how much full text was captured."],
+      ["Content depth graph", "One bar per source - how much full text was captured."],
     ],
   },
   clash: {
@@ -160,16 +160,16 @@ const INFO = {
   judge: {
     accent: C.gold, eyebrow: "Adjudication",
     title: "Judge",
-    what: "Scores both sides after all four turns. The evidence dimension is pre-measured by the rubric (the judge cannot be fooled by invented citations); the judge adds a quality score for logic and how directly each rebuttal engaged the opponent. If the judge's evaluation fails, the verdict is explicitly UNSCORED — never a fabricated tie.",
+    what: "Scores both sides after all four turns. The evidence dimension is pre-measured by the rubric (the judge cannot be fooled by invented citations); the judge adds a quality score for logic and how directly each rebuttal engaged the opponent. If the judge's evaluation fails, the verdict is explicitly UNSCORED - never a fabricated tie.",
     terms: [
-      ["Checklist", "The real pipeline stages — each item flips when that turn is genuinely delivered."],
+      ["Checklist", "The real pipeline stages - each item flips when that turn is genuinely delivered."],
       ["UNSCORED", "The judge LLM failed; only the computed rubric scores are shown, clearly labelled."],
     ],
   },
   thoughts: {
     accent: C.crimson, eyebrow: "Telemetry",
     title: "Live Thought Stream",
-    what: "Every real step of the debate as it happens — each page fetched, each argument drafted with its measured citation stats, the verdict. Nothing simulated.",
+    what: "Every real step of the debate as it happens - each page fetched, each argument drafted with its measured citation stats, the verdict. Nothing simulated.",
     terms: [],
   },
 };
@@ -227,7 +227,7 @@ const DEFAULT_DATA = {
   },
   clash: { forShare: 50, forScore: null, againstScore: null, live: false },
   logs: [],
-  metrics: { sources: 0, forScore: "—", againstScore: "—", winner: "—" },
+  metrics: { sources: 0, forScore: " - ", againstScore: " - ", winner: " - " },
   floatingTags: [],
   verdict: null,
 };
@@ -236,15 +236,15 @@ const DEFAULT_DATA = {
 // ── Small building blocks ────────────────────────────────────────────────────
 // Per-bar hover tooltips explain WHAT each bar is, not just its value.
 const BAR_TOOLTIPS = {
-  "Citations per paragraph": (i, h) => `Paragraph ${i + 1} — ${h}% of this argument's densest paragraph`,
-  "Content depth per source": (i, h) => `Source ${i + 1} — captured ${h}% of a full article`,
+  "Citations per paragraph": (i, h) => `Paragraph ${i + 1} - ${h}% of this argument's densest paragraph`,
+  "Content depth per source": (i, h) => `Source ${i + 1} - captured ${h}% of a full article`,
 };
 
 const Bars = ({ signal, accent, meaning }) => {
   if (!signal || !signal.levels || !signal.levels.length) {
     return <div className="de-empty" style={{ padding:"6px 0" }}>No signal data yet</div>;
   }
-  const tip = BAR_TOOLTIPS[signal.eyebrow] || ((i, h) => `Item ${i + 1} — ${h}%`);
+  const tip = BAR_TOOLTIPS[signal.eyebrow] || ((i, h) => `Item ${i + 1} - ${h}%`);
   return (
     <div>
       <div className="de-eyebrow" style={{ marginBottom:"8px" }}>{signal.eyebrow}</div>
@@ -305,7 +305,7 @@ function AdvocatePanel({ side, panel, accent, topClass, delayClass, onInfo, regi
       <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:"11px", color:C.secondary }}>{panel.phase?.sub}</div>
       {panel.error && (
         <div style={{ fontSize:"11.5px", fontFamily:"JetBrains Mono,monospace", color:C.crimson, background:"rgba(255,32,64,0.07)", border:"1px solid rgba(255,32,64,0.25)", borderRadius:"9px", padding:"10px 12px" }}>
-          Degraded — {panel.error}
+          Degraded - {panel.error}
         </div>
       )}
       <StatRows stats={panel.stats} />
@@ -392,14 +392,14 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
       <div className="de-beam-wrap"><div className="de-beam" style={{ width:`${data.progress}%` }} /></div>
       {infoOpen && <InfoPopover open={infoOpen} onClose={() => setInfoOpen(null)} />}
 
-      {/* ── Header — full-bleed hero band spanning the entire page ── */}
+      {/* ── Header - full-bleed hero band spanning the entire page ── */}
       <header className="de-header-band" style={{ position:"relative", zIndex:2 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", gap:"40px", flexWrap:"wrap" }}>
           <div style={{ flex:"1 1 480px", minWidth:0 }}>
             <h1 className="de-hero">Debate <span className="accent">Engine</span></h1>
             <div style={{ marginTop:"26px" }}>
               <span className="de-eyebrow" style={{ fontSize:"10.5px", letterSpacing:"0.26em" }}>Proposition under review</span>
-              {/* Formal serif for the case being tried — editorial register,
+              {/* Formal serif for the case being tried - editorial register,
                   distinct from the punchy Sora hero above it. */}
               <div style={{ color:"#efeefc", marginTop:"10px", fontSize:"clamp(21px, 2vw, 27px)", fontFamily:"'Cormorant Garamond',serif", fontStyle:"italic", fontWeight:600, lineHeight:1.4, maxWidth:"640px", letterSpacing:"0.005em" }}>
                 “{data.query || query}”
@@ -420,7 +420,7 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
               <div className="de-eyebrow" style={{ marginBottom:"9px", fontSize:"11px" }}>{isDone ? "Status" : "Arena activity"}</div>
               {isDone
                 ? <div style={{ fontFamily:"Sora,sans-serif", fontSize:"19px", fontWeight:700, color: verdictUnscored ? C.gold : C.crimson }}>
-                    {verdictUnscored ? "Verdict unscored" : `Verdict: ${data.metrics?.winner || "—"}`}
+                    {verdictUnscored ? "Verdict unscored" : `Verdict: ${data.metrics?.winner || " - "}`}
                   </div>
                 : <span key={phrase} className="de-shimmer de-phrase" style={{ fontSize:"15.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>{phrase}</span>}
             </div>

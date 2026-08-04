@@ -1164,7 +1164,7 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
           {/* ✅ FIX 6: Demo data indicator */}
           {isDemoData && (
             <div style={{ fontSize: 9, color: '#ffaa00', fontFamily: T.fontMono, marginTop: 6, padding: '4px 8px', background: 'rgba(255,170,0,0.1)', borderRadius: 6, border: '1px solid rgba(255,170,0,0.2)' }}>
-              ⚠️ Demo data — log in to see your research graph
+              ⚠️ Demo data - log in to see your research graph
             </div>
           )}
         </GlassPanel>
@@ -1378,7 +1378,7 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
                           const res = await fetch(`${API_BASE_URL}/knowledge/connections?${params}`, { headers: getAuthHeaders() })
                           if (res.ok) {
                             const data = await res.json()
-                            // API returns { paths: [[id, id, ...], ...] } — use first path
+                            // API returns { paths: [[id, id, ...], ...] } - use first path
                             const apiPath = data?.paths?.[0]
                             if (apiPath?.length) { setHighlightedPath(apiPath); setPathStart(null); return }
                           }

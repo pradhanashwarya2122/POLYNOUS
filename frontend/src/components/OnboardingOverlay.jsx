@@ -100,11 +100,11 @@ export default function OnboardingOverlay({ mode = "demo", onClose }) {
         </h1>
         <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15, color: "#b9c4d6", marginTop: 10, marginBottom: 24, lineHeight: 1.6, maxWidth: 560, marginLeft: "auto", marginRight: "auto" }}>
           {mode === "signup"
-            ? "You're in. Here's a 60-second look at how many minds reach one answer — search, critique, and synthesis, all with your own keys."
+            ? "You're in. Here's a 60-second look at how many minds reach one answer - search, critique, and synthesis, all with your own keys."
             : "See POLYNOUS run a real multi-agent research pass in about a minute."}
         </p>
 
-        {/* Video / placeholder — 16:9 */}
+        {/* Video / placeholder - 16:9 */}
         <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: 16, overflow: "hidden",
           border: "1px solid rgba(0,204,255,0.25)", background: "#060612", marginBottom: 26 }}>
           {!videoError ? (

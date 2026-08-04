@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import "./CursorGrid.css";
 
 /**
- * CursorGrid — a mousemove-reactive grid of cells that glow near the cursor.
+ * CursorGrid - a mousemove-reactive grid of cells that glow near the cursor.
  *
  * ⚠ Per the integration guide: do NOT mount this globally/full-viewport
  * alongside NeuralCanvas (already a full-page animated particle canvas).
