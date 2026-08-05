@@ -1,3 +1,5 @@
+import ActiveModelBadge from "./ActiveModelBadge";
+
 // ─── Icon Component (defined locally) ────────────────────────
 function Icon({ name, style }) {
   return (
@@ -161,6 +163,8 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
           <Icon name="chevron_left" style={{ fontSize: 20 }} />
         </button>
       </div>
+
+      <div style={{ marginBottom: 24 }}><ActiveModelBadge /></div>
 
       {/* Navigation */}
       <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>

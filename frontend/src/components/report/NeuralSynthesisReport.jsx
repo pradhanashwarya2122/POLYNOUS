@@ -321,6 +321,43 @@ function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, li
   );
 }
 
+// ─── Research Trajectory ("Where to go next") - a numbered roadmap of the next
+//     research moves instead of a plain paragraph. ─────────────────────────────
+function ResearchTrajectory({ body, accent = C.green, delay = 0.2 }) {
+  const cleaned = cleanBlock(body);
+  if (!cleaned) return null;
+  const parsed = splitItems(cleaned).map(clean).filter((s) => s.length > 8);
+  const steps = parsed.length ? parsed.slice(0, 6) : [cleaned];
+  return (
+    <div style={{
+      background:"rgba(5,20,36,0.7)", backdropFilter:"blur(20px)",
+      border:"1px solid rgba(255,255,255,0.08)", borderLeft:`4px solid ${accent}`,
+      borderRadius:14, padding:"26px 30px", position:"relative",
+      animation:`sectionIn 0.5s ${delay}s ease both`,
+    }}>
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9.5, color:accent, textTransform:"uppercase", letterSpacing:"0.24em", fontWeight:700, marginBottom:7, opacity:0.85 }}>Where to go next</div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <Icon name="explore" style={{ fontSize:19, color:accent }} />
+          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0 }}>Research Trajectory</h3>
+        </div>
+        <div style={{ height:2, width:44, background:`linear-gradient(90deg, ${accent}, transparent)`, borderRadius:2, marginTop:11 }} />
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{ display:"flex", gap:16, alignItems:"flex-start", position:"relative", paddingBottom: i < steps.length - 1 ? 18 : 0 }}>
+            {i < steps.length - 1 && <div style={{ position:"absolute", left:15, top:32, bottom:0, width:2, background:`linear-gradient(to bottom, ${accent}55, ${accent}12)` }} />}
+            <div style={{ flexShrink:0, width:32, height:32, borderRadius:"50%", background:`${accent}18`, border:`1.5px solid ${accent}`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Sora',sans-serif", fontSize:13, fontWeight:800, color:accent, zIndex:1 }}>{i + 1}</div>
+            <div style={{ flex:1, paddingTop:4, fontFamily:"'Inter',sans-serif", fontSize:14, lineHeight:1.7, color:C.onSurface }}>
+              <CitationText text={s} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Neural Synthesis Report ──────────────────────────────────────────────────
 // Structured report (Phase 3 JSON contract) -> the same shape parseAnswer
 // produces from text, so the render tree below never needs to know which
@@ -980,26 +1017,65 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         ? <StructuredConfidenceCard analysis={confAnalysis} delay={0.2} />
         : <PremiumSection icon="analytics" title="Confidence Analysis - Computed" accent={C.green}
             body={sections.confidence} delay={0.2} mono />}
-      <PremiumSection icon="explore" title="Research Trajectory" accent={C.green}
-        body={sections.trajectory} delay={0.2} />
+      <ResearchTrajectory body={sections.trajectory} accent={C.green} delay={0.2} />
 
-      {/* Confidence Matrix */}
-      <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"18px 26px",animation:"sectionIn 0.5s 0.24s ease both" }}>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14 }}>
-          <div style={{ maxWidth:300 }}>
-            <h3 style={{ fontFamily:"'Sora',sans-serif",fontWeight:700,fontSize:"1.1rem",color:C.cyan,marginBottom:6 }}>Confidence Matrix</h3>
-            <p style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.textSecondary }}>Measured from source agreement, domain diversity, recency, and citation grounding.</p>
+      {/* Confidence Matrix - per-dimension breakdown, color-coded with tooltips */}
+      {(() => {
+        const src = (sources?.length ? sources : (allSources || [])).map(s => typeof s === "string" ? { title: s } : s);
+        const n = src.length || 1;
+        const domainOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+        const yearOf = (d) => { const m = String(d || "").match(/\b(19|20)\d{2}\b/); return m ? +m[0] : 0; };
+        const domains = new Set(src.map(s => domainOf(s.url || "")).filter(Boolean));
+        const years = src.map(s => yearOf(s.date || s.published || s.title || "")).filter(Boolean);
+        const nowY = new Date().getFullYear();
+        const agreement = Math.round(confValue);
+        const diversity = domains.size ? Math.min(100, Math.round((domains.size / n) * 100)) : null;
+        const recency = years.length ? Math.max(5, Math.min(100, Math.round(100 - (nowY - (years.reduce((a, b) => a + b, 0) / years.length)) * 12))) : null;
+        const grounding = Math.min(100, Math.round((Math.min(n, 8) / 8) * 100));
+        const dims = [
+          { k: "Source agreement", v: agreement, tip: "How strongly the sources concur on the core claims. This is the main driver of the headline confidence score." },
+          { k: "Domain diversity", v: diversity, tip: "Share of distinct publishers/domains among the sources. Higher means less single-source bias." },
+          { k: "Recency", v: recency, tip: "How recent the cited sources are, inferred from dates in the material. Higher means more up-to-date evidence." },
+          { k: "Citation grounding", v: grounding, tip: "Breadth of retrieved sources backing the answer. Higher means the synthesis rests on more independent evidence." },
+        ];
+        const dcol = (v) => v == null ? "rgba(255,255,255,0.25)" : v >= 75 ? C.green : v >= 50 ? C.amber : C.crimson;
+        return (
+          <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${confColor}`,borderRadius:14,padding:"22px 26px",animation:"sectionIn 0.5s 0.24s ease both" }}>
+            <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:14,marginBottom:18 }}>
+              <div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:confColor,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,marginBottom:7,opacity:0.85 }}>Confidence provenance</div>
+                <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                  <Icon name="grid_view" style={{ fontSize:19,color:confColor }} />
+                  <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Confidence Matrix</h3>
+                </div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontFamily:"'Sora',sans-serif",fontSize:30,fontWeight:800,color:confColor,lineHeight:1 }}>{agreement}%</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:C.textSecondary,letterSpacing:"0.1em",marginTop:4,textTransform:"uppercase" }}>Overall</div>
+              </div>
+            </div>
+            <div style={{ display:"grid",gap:13 }}>
+              {dims.map(d => (
+                <div key={d.k} title={d.tip} style={{ cursor:"help" }}>
+                  <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
+                    <span style={{ display:"inline-flex",alignItems:"center",gap:6,fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13,color:"rgba(210,222,236,0.88)" }}>
+                      {d.k}
+                      <Icon name="info" style={{ fontSize:13,color:"rgba(150,165,185,0.5)" }} />
+                    </span>
+                    <span style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,color:dcol(d.v) }}>{d.v == null ? "n/a" : `${d.v}%`}</span>
+                  </div>
+                  <div style={{ height:8,borderRadius:5,background:"rgba(255,255,255,0.05)",overflow:"hidden" }}>
+                    <div style={{ height:"100%",width:`${d.v == null ? 0 : d.v}%`,borderRadius:5,background:`linear-gradient(90deg, ${dcol(d.v)}aa, ${dcol(d.v)})`,boxShadow:`0 0 8px ${dcol(d.v)}55`,transition:"width 0.9s cubic-bezier(0.22,1,0.36,1)" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop:16,padding:"10px 14px",borderRadius:10,background:`${confColor}0d`,border:`1px solid ${confColor}25`,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:confColor }}>
+              {confValue>=80?"✓ High confidence - synthesis is well-supported across dimensions":confValue>=60?"△ Moderate - plausible, but verify weaker dimensions above":"⚠ Low confidence - treat as a lead, not a conclusion"}
+            </div>
           </div>
-          <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
-            {Array.from({length:10}).map((_,i)=>(
-              <div key={i} style={{ width:20,height:20,borderRadius:"50%",background:i<filled?C.green:"rgba(255,255,255,0.07)",boxShadow:i<filled?`0 0 10px ${C.green}`:"none",border:i>=filled?"1px solid rgba(255,255,255,0.13)":"none",transition:"all 0.3s" }} />
-            ))}
-          </div>
-        </div>
-        <div style={{ marginTop:12,fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:confColor }}>
-          {confValue>=80?"✓ High Confidence - Research synthesis is reliable":confValue>=60?"△ Moderate - Results are plausible but verify":"⚠ Low Confidence - Treat with caution"}
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Limitations */}
       {limitations && (

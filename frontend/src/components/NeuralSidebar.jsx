@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ActiveModelBadge from './ActiveModelBadge'
 
 export default function NeuralSidebar({ user, onLogout, currentPage, onNavigate }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -52,6 +53,7 @@ export default function NeuralSidebar({ user, onLogout, currentPage, onNavigate 
           </div>
           <button onClick={() => setCollapsed(true)} style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px' }}>◀</button>
         </div>
+        <div style={{ marginTop: 14 }}><ActiveModelBadge /></div>
       </div>
 
       {/* User Info */}

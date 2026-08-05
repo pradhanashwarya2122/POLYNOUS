@@ -1014,8 +1014,25 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
 // ─── API layer ────────────────────────────────────────────────────────────────
 const BASE = API_BASE_URL;
 const apiFetch = async (path, opts = {}) => {
-  const r = await fetch(BASE + path, opts);
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  // Every /pdfs/* endpoint is auth-gated; the old call sent no token, so ask /
+  // search / upload all 401'd and surfaced as "is the server running?". Attach
+  // the JWT (and refresh once on 401) so authenticated requests actually work.
+  const tok = () => localStorage.getItem("polynous_token") || window.__POLYNOUS_ACCESS_TOKEN__ || "";
+  const send = (t) => fetch(BASE + path, { ...opts, headers: { ...(opts.headers || {}), ...(t ? { Authorization: `Bearer ${t}` } : {}) }, credentials: "include" });
+  let r = await send(tok());
+  if (r.status === 401) {
+    try {
+      const rr = await fetch(BASE + "/auth/refresh", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } });
+      if (rr.ok) { const d = await rr.json().catch(() => ({})); if (d.access_token) { localStorage.setItem("polynous_token", d.access_token); r = await send(d.access_token); } }
+    } catch (_) { /* fall through */ }
+  }
+  if (!r.ok) {
+    let detail = "";
+    try { const j = await r.json(); detail = j.detail || j.message || ""; } catch (_) {}
+    const err = new Error(detail || `${r.status} ${r.statusText}`);
+    err.status = r.status;
+    throw err;
+  }
   return r.json();
 };
 const apiUpload = file => { const f = new FormData(); f.append("file", file); return apiFetch("/pdfs/upload", { method:"POST", body:f }); };
@@ -1047,18 +1064,39 @@ function SkeletonLines({ n = 4 }) {
 }
 
 // ─── RAG answer ───────────────────────────────────────────────────────────────
-function RagAnswer({ text, confidence, sources, onCopy }) {
+function RagAnswer({ text, confidence, sources, onCopy, error }) {
   const displayed = useTypewriter(text, 7);
   const confCol = confidence >= 80 ? T.green : confidence >= 55 ? T.gold : T.crimson;
+  const accent = error ? T.crimson : T.gold;
+
+  // Render the (progressively typed) answer with paragraphs, bullets, **bold**,
+  // and [n] citation chips instead of a raw pre-wrap dump.
+  const blocks = displayed.split(/\n{2,}|\n/).map(l => l).filter(l => l.trim().length > 0);
 
   return (
     <div style={{ animation:"fadeUp 0.35s ease", marginTop:20 }}>
-      <div style={{ background:"rgba(255,214,10,0.04)", border:`1px solid ${T.borderGold}`, borderRadius:14, padding:"18px 20px", marginBottom:16 }}>
+      <div style={{ background: error ? "rgba(255,32,64,0.05)" : "rgba(255,214,10,0.04)", border:`1px solid ${error ? "rgba(255,32,64,0.3)" : T.borderGold}`, borderRadius:14, padding:"18px 20px", marginBottom:16 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:13 }}>
-          <div style={{ width:7, height:7, borderRadius:"50%", background:T.gold, boxShadow:`0 0 8px ${T.gold}`, animation:"pulse 2s infinite" }} />
-          <span style={{ fontFamily:T.mono, fontSize:10, color:T.gold, fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase" }}>AI Response</span>
+          <div style={{ width:7, height:7, borderRadius:"50%", background:accent, boxShadow:`0 0 8px ${accent}`, animation:"pulse 2s infinite" }} />
+          <span style={{ fontFamily:T.mono, fontSize:10, color:accent, fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase" }}>{error ? "Couldn't answer" : "AI Response"}</span>
         </div>
-        <p style={{ fontFamily:T.body, fontSize:15, color:"#d4e0ec", lineHeight:1.82, whiteSpace:"pre-wrap" }}>{displayed}</p>
+        <div style={{ fontFamily:T.body, fontSize:15, color: error ? "#ffc0c8" : "#d4e0ec", lineHeight:1.82 }}>
+          {blocks.map((line, bi) => {
+            const isBullet = /^\s*(?:[-•*·]|\d+[.)])\s+/.test(line);
+            const clean = line.replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "");
+            const parts = clean.split(/(\*\*[^*]+\*\*|\[\d{1,2}\])/g).filter(p => p !== "");
+            return (
+              <p key={bi} style={{ margin:"0 0 10px", paddingLeft: isBullet ? 18 : 0, position:"relative" }}>
+                {isBullet && <span style={{ position:"absolute", left:2, top:0, color:accent }}>•</span>}
+                {parts.map((p, i) => {
+                  if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color:"#fff", fontWeight:700 }}>{p.slice(2,-2)}</strong>;
+                  if (/^\[\d{1,2}\]$/.test(p)) return <span key={i} style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", minWidth:17, height:16, padding:"0 5px", margin:"0 2px", borderRadius:5, background:"rgba(255,214,10,0.14)", border:"1px solid rgba(255,214,10,0.4)", color:T.gold, fontFamily:T.mono, fontSize:9.5, fontWeight:700, verticalAlign:"1px" }}>{p.slice(1,-1)}</span>;
+                  return <span key={i}>{p}</span>;
+                })}
+              </p>
+            );
+          })}
+        </div>
       </div>
 
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
@@ -1224,9 +1262,16 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       const res = { text: data.answer || "No answer found.", sources: data.sources || [], confidence: data.confidence || 0 };
       setAskAnswer(res);
       setConversation(prev => [...prev, { role:"assistant", ...res }]);
-    } catch {
-      const res = { text:"Failed to get answer - is the server running?", sources:[], confidence:0 };
+    } catch (e) {
+      const status = e?.status;
+      const msg = status === 401 ? "Please sign in again to ask about your PDFs."
+        : status === 400 && /api key/i.test(e?.message || "") ? "No API key configured. Add one in Settings to ask questions."
+        : status === 404 ? "No indexed PDF found. Upload and process a PDF first."
+        : (e?.message && !/^\d+ /.test(e.message)) ? e.message
+        : "Could not reach the answer service. Please try again in a moment.";
+      const res = { text: msg, sources:[], confidence:0, error:true };
       setAskAnswer(res);
+      setConversation(prev => [...prev, { role:"assistant", ...res }]);
     } finally { setAskLoading(false); }
   };
 
@@ -1543,7 +1588,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
 
                 {askLoading && <><LoadingDots label="Retrieving and synthesising…" /><SkeletonLines n={5} /></>}
                 {!askLoading && askAnswer && (
-                  <RagAnswer text={askAnswer.text} confidence={askAnswer.confidence} sources={askAnswer.sources} onCopy={() => { navigator.clipboard.writeText(askAnswer.text); notify("Copied to clipboard"); }} />
+                  <RagAnswer text={askAnswer.text} confidence={askAnswer.confidence} sources={askAnswer.sources} error={askAnswer.error} onCopy={() => { navigator.clipboard.writeText(askAnswer.text); notify("Copied to clipboard"); }} />
                 )}
               </div>
 

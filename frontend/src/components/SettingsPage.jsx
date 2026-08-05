@@ -1533,9 +1533,21 @@ function ApiKeysSection({ push }) {
   const [savedModels, setSavedModels] = useState({});
   const [preferred,  setPreferred]  = useState("anthropic");
   const [prefOpen,   setPrefOpen]   = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState(null);  // which provider's key card is expanded
   const [loading,    setLoading]    = useState(true);
   const [loadErr,    setLoadErr]    = useState(null);
   const [savingPref, setSavingPref] = useState(false);
+
+  // Publish the active provider·model into shared localStorage (+ a custom
+  // event) so every page's sidebar reflects the user's chosen AI everywhere.
+  const persistActive = (provider, models) => {
+    try {
+      const model = (models || {})[provider] || (PROVIDERS[provider]?.models?.[0]) || "";
+      localStorage.setItem("polynous_active_provider", provider);
+      localStorage.setItem("polynous_active_model", model);
+      window.dispatchEvent(new CustomEvent("polynous:model-changed", { detail: { provider, model } }));
+    } catch (_) { /* ignore */ }
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setLoadErr(null);
@@ -1545,6 +1557,7 @@ function ApiKeysSection({ push }) {
       setPreviews(Object.fromEntries(providerIds.map(id => [id, data?.[id]?.preview || null])));
       setSavedModels(data?.models || {});
       setPreferred(data?.preferred_provider || "anthropic");
+      persistActive(data?.preferred_provider || "anthropic", data?.models || {});
     } catch (err) {
       setLoadErr(err.message);
     } finally {
@@ -1556,6 +1569,7 @@ function ApiKeysSection({ push }) {
 
   const setPreferredAndSave = async (id) => {
     setPreferred(id);
+    persistActive(id, savedModels);
     setSavingPref(true);
     try {
       // Writes the real user.preferred_provider COLUMN (the one the research
@@ -1648,7 +1662,7 @@ function ApiKeysSection({ push }) {
                   items={ids}
                   displayScrollbar={ids.length > 5}
                   enableArrowNavigation={prefOpen}
-                  onItemSelect={(id) => { setPreferredAndSave(id); setPrefOpen(false); }}
+                  onItemSelect={(id) => { setPreferredAndSave(id); setSelectedProvider(id); setPrefOpen(false); }}
                   renderItem={(id, i, isSel) => {
                     const p = PROVIDERS[id]; const active = preferred === id;
                     return (
@@ -1677,14 +1691,54 @@ function ApiKeysSection({ push }) {
       {loading ? <Spinner /> : loadErr ? (
         <ErrorBanner msg={loadErr} onRetry={load} />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {Object.keys(PROVIDERS).map(id => (
-            <KeyCard key={id} providerId={id} connected={connected[id]} preview={previews[id]} savedModel={savedModels[id]}
-              onSave={savedId => { setConnected(prev => ({ ...prev, [savedId]: true })); load(); }}
-              onRemove={rid => { setConnected(prev => ({ ...prev, [rid]: false })); setPreviews(prev => ({ ...prev, [rid]: null })); }}
-              push={push}
-            />
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Saved keys — a compact list of providers you've already configured.
+              Clicking one opens ONLY its key card below (never all at once). */}
+          {(() => {
+            const savedIds = Object.keys(PROVIDERS).filter(id => connected[id]);
+            if (!savedIds.length) return null;
+            const sel = selectedProvider || preferred;
+            return (
+              <div>
+                <Label>Your saved keys</Label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {savedIds.map(id => {
+                    const p = PROVIDERS[id]; const active = sel === id;
+                    return (
+                      <button key={id} onClick={() => setSelectedProvider(id)} style={{
+                        display: "flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 9999, cursor: "pointer",
+                        border: `1px solid ${active ? p.color + "66" : C.white10}`,
+                        background: active ? `${p.color}12` : "rgba(255,255,255,0.02)",
+                        color: active ? p.color : C.onSurfaceVariant, fontFamily: C.fontHead, fontWeight: 600, fontSize: 13,
+                        transition: "all 0.18s",
+                      }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 15, color: p.color }}>{p.icon}</span>
+                        {p.label.split(" ")[0]}
+                        <span className="material-symbols-outlined" style={{ fontSize: 14, color: p.color }}>check_circle</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Only the selected provider's key-entry / management card is expanded. */}
+          {(() => {
+            const sel = selectedProvider || preferred;
+            if (!PROVIDERS[sel]) return null;
+            return (
+              <div>
+                <Label>{connected[sel] ? "Manage key" : "Add key"} · {PROVIDERS[sel].label}</Label>
+                <KeyCard key={sel} providerId={sel} connected={connected[sel]} preview={previews[sel]} savedModel={savedModels[sel]}
+                  onSave={savedId => { setConnected(prev => ({ ...prev, [savedId]: true })); setSelectedProvider(savedId); load(); }}
+                  onRemove={rid => { setConnected(prev => ({ ...prev, [rid]: false })); setPreviews(prev => ({ ...prev, [rid]: null })); }}
+                  push={push}
+                />
+              </div>
+            );
+          })()}
+
           <CustomKeyTester push={push} />
         </div>
       )}
@@ -1805,11 +1859,15 @@ function PreferencesSection({ push }) {
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
-  const ToggleRow = ({ label, sub, on, onFlip }) => (
+  const ToggleRow = ({ label, sub, on, onFlip, info }) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: `1px solid ${C.white5}` }}>
       <div>
-        <div style={{ fontFamily: C.fontHead, fontSize: 15, fontWeight: 500, color: C.onSurface }}>{label}</div>
-        {sub && <div style={{ fontFamily: C.fontMono, fontSize: 12, color: C.textSecondary, marginTop: 3 }}>{sub}</div>}
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 600, color: C.onSurface, letterSpacing: "-0.01em" }}>{label}</div>
+          {info && <InfoDot text={info} />}
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: on ? C.silver : C.textSecondary, background: on ? C.silverFaint : "transparent", border: `1px solid ${on ? C.silverBorder : "transparent"}`, borderRadius: 9999, padding: "2px 8px", textTransform: "uppercase" }}>{on ? "On" : "Off"}</span>
+        </div>
+        {sub && <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 12.5, color: C.textSecondary, marginTop: 4, letterSpacing: "0.005em" }}>{sub}</div>}
       </div>
       <Toggle on={on} onToggle={onFlip} disabled={saving} />
     </div>
@@ -1850,8 +1908,10 @@ function PreferencesSection({ push }) {
       </div>
 
       <ToggleRow label="Streaming" sub="Progressive token output" on={streaming}
+        info="When ON, answers render token-by-token as the model writes them, so you watch the report build live. When OFF, the finished answer appears all at once. This is purely a display choice; it doesn't change what gets generated."
         onFlip={() => { const n = !streaming; setStreaming(n); scheduleSave({ streaming_enabled: n }); }} />
       <ToggleRow label="Auto-save" sub="Persist sessions automatically" on={autoSave}
+        info="When ON, every completed research run and debate is saved to your history, knowledge graph and semantic memory automatically, so you can revisit and search it later. When OFF, runs are not stored unless you save them manually."
         onFlip={() => { const n = !autoSave; setAutoSave(n); scheduleSave({ auto_save: n }); }} />
 
       <div style={{ paddingTop: 18 }}>
