@@ -431,14 +431,43 @@ async function testApiKey(provider, apiKey, token) {
 }
 
 function ApiKeysSection({ keys, visibility, statuses, onKeyChange, onToggleVisibility, onTestKey, onSaveKey, token, saving }) {
+  // Optional at signup, so it starts collapsed as a premium "expandable card"
+  // (matches the report / Settings treatment) instead of a wall of 8 rows.
+  const [open, setOpen] = useState(false)
+  const enteredCount = API_KEY_CONFIGS.reduce((n, cfg) => n + ((keys[cfg.stateKey] || '').trim() ? 1 : 0), 0)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.16em', color: '#444', textTransform: 'uppercase' }}>API Keys (Optional)</span>
-        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+      {/* Clickable header: expands or collapses the key list */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        role="button" tabIndex={0} aria-expanded={open}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o) } }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none',
+          padding: '13px 16px', borderRadius: 14,
+          border: `1px solid ${open ? 'rgba(0,255,15,0.28)' : 'rgba(255,255,255,0.08)'}`,
+          background: open ? 'rgba(0,255,15,0.04)' : 'rgba(255,255,255,0.02)',
+          transition: 'all 0.25s cubic-bezier(0.23,1,0.32,1)',
+        }}
+      >
+        <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, background: 'rgba(0,255,15,0.08)', border: '1px solid rgba(0,255,15,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 17, color: '#00ff0f' }}>key</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 13.5, fontWeight: 700, color: '#fff', letterSpacing: '0.01em' }}>Connect API keys</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.08em', color: '#6a7a86', textTransform: 'uppercase', marginTop: 2 }}>
+            {enteredCount ? `${enteredCount} entered · optional` : 'Optional · add later in Settings'}
+          </div>
+        </div>
+        <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#00ff0f', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.23,1,0.32,1)' }}>expand_more</span>
       </div>
 
+      <div style={{
+        overflow: 'hidden', maxHeight: open ? 900 : 0, opacity: open ? 1 : 0,
+        marginTop: open ? 14 : 0,
+        transition: 'max-height 0.5s cubic-bezier(0.23,1,0.32,1), opacity 0.35s ease, margin-top 0.3s ease',
+      }}>
       <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden', background: 'rgba(6,6,20,0.5)' }}>
         {API_KEY_CONFIGS.map((cfg, idx) => {
           const val       = keys[cfg.stateKey] || ''
@@ -488,6 +517,7 @@ function ApiKeysSection({ keys, visibility, statuses, onKeyChange, onToggleVisib
       <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.08em', color: '#333', textTransform: 'uppercase', textAlign: 'center', marginTop: 10 }}>
         Keys are encrypted with Fernet · Never stored in plaintext
       </p>
+      </div>
     </div>
   )
 }

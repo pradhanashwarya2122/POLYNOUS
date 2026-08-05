@@ -92,12 +92,17 @@ async def debate_rejudge(request: Request, db: Session = Depends(get_db)):
     user, provider, api_key, model = _resolve(request, db)
     _guard(user, api_key)
 
-    verdict = judge_debate(
-        for_arg=for_opening, against_arg=against_opening, query=query,
-        api_key=api_key, provider=provider,
-        for_rebuttal=for_rebuttal, against_rebuttal=against_rebuttal,
-        total_sources=total_sources, model=model, persona=persona,
-    )
+    try:
+        verdict = judge_debate(
+            for_arg=for_opening, against_arg=against_opening, query=query,
+            api_key=api_key, provider=provider,
+            for_rebuttal=for_rebuttal, against_rebuttal=against_rebuttal,
+            total_sources=total_sources, model=model, persona=persona,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Re-judge failed: {e}")
     return {"verdict": verdict, "persona": persona, "provider": provider}
 
 
@@ -214,12 +219,17 @@ async def debate_respond(request: Request, db: Session = Depends(get_db)):
 
     total_sources = int(body.get("total_sources") or 0) or _sources_from(
         for_opening, against_opening, for_rebuttal, against_rebuttal)
-    verdict = judge_debate(
-        for_arg=for_opening, against_arg=against_opening, query=query,
-        api_key=api_key, provider=provider,
-        for_rebuttal=for_rebuttal, against_rebuttal=against_rebuttal,
-        total_sources=total_sources, model=model, persona=persona,
-    )
+    try:
+        verdict = judge_debate(
+            for_arg=for_opening, against_arg=against_opening, query=query,
+            api_key=api_key, provider=provider,
+            for_rebuttal=for_rebuttal, against_rebuttal=against_rebuttal,
+            total_sources=total_sources, model=model, persona=persona,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Re-judge after your argument failed: {e}")
     return {
         "opponent_response": (opponent_response or "").strip(),
         "opponent_side": opp_side,

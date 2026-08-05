@@ -421,10 +421,12 @@ const BAR_TIP = {
   "Words per paragraph": (i, h) => `Paragraph ${i + 1} - about ${h}% of a full 120-word paragraph`,
 };
 
-function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, levels, compact = false }) {
+function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, levels, barLinks, compact = false }) {
   const v    = NLI_VARIANTS[variant] || NLI_VARIANTS.neutral;
   const bars = levels && levels.length ? levels : [];
   const [hoverIdx, setHoverIdx] = useState(null);
+  const linkFor = (i) => (Array.isArray(barLinks) && barLinks[i]) ? barLinks[i] : null;
+  const openBar = (i) => { const u = linkFor(i); if (u) window.open(u, "_blank", "noopener,noreferrer"); };
 
   if (!bars.length) {
     return (
@@ -461,20 +463,25 @@ function SignalBars({ eyebrow, variant = "entailment", promptLabel, promptText, 
             className="signal-bar"
             onMouseEnter={() => setHoverIdx(i)}
             onMouseLeave={() => setHoverIdx((c) => c === i ? null : c)}
+            onClick={() => openBar(i)}
+            role={linkFor(i) ? "link" : undefined}
+            title={linkFor(i) ? "Open source in a new tab" : undefined}
             style={{
               height:`${Math.max(4, Math.min(100, h))}%`,
               background:`linear-gradient(180deg,${v.from},${v.to})`,
               opacity: hoverIdx === i ? 1 : 0.82,
-              cursor:"pointer",
+              cursor: linkFor(i) ? "pointer" : "default",
               transform: hoverIdx === i ? "scaleY(1.04)" : "scaleY(1)",
               transformOrigin:"bottom",
               position:"relative",
               zIndex: hoverIdx === i ? 2 : 1,
+              boxShadow: (hoverIdx === i && linkFor(i)) ? `0 0 0 1px ${v.badge}` : "none",
             }}
           >
             {hoverIdx === i && (
               <div style={{ position:"absolute", bottom:"100%", left: i < 3 ? "0" : i > bars.length - 4 ? "auto" : "50%", right: i > bars.length - 4 ? "0" : "auto", transform: i < 3 || i > bars.length - 4 ? "none" : "translateX(-50%)", marginBottom:"6px", background:"#12141C", border:`1px solid ${v.badge}55`, borderRadius:"6px", padding:"4px 9px", fontSize:"10px", fontFamily:"Hanken Grotesk,sans-serif", color:"#e8eaf2", whiteSpace:"nowrap", zIndex:5 }}>
                 {(BAR_TIP[eyebrow] || ((idx, val) => `Item ${idx + 1} - ${val}%`))(i, Math.round(h))}
+                {linkFor(i) && <span style={{ color:v.badge, marginLeft:6, fontFamily:"JetBrains Mono,monospace" }}>↗ open</span>}
               </div>
             )}
           </div>
@@ -1031,8 +1038,12 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                 <div className="type-section" style={{ color:"#4FD1C5" }}>Latest sources</div>
                 {(search.recentSources && search.recentSources.length) ? (
                   <div style={{ display:"flex", flexDirection:"column", gap:"7px" }}>
-                    {search.recentSources.map((src, i) => (
-                      <div key={`${src.domain}-${i}`} className="fade-in hover-row" style={{ display:"flex", alignItems:"center", gap:"10px", background:"rgba(255,255,255,0.03)", padding:"9px 11px", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)" }}>
+                    {search.recentSources.map((src, i) => {
+                      const Row = src.url ? "a" : "div";
+                      return (
+                      <Row key={`${src.domain}-${i}`} {...(src.url ? { href: src.url, target: "_blank", rel: "noopener noreferrer" } : {})}
+                        className="fade-in hover-row" title={src.url ? "Open source in a new tab" : undefined}
+                        style={{ display:"flex", alignItems:"center", gap:"10px", background:"rgba(255,255,255,0.03)", padding:"9px 11px", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)", textDecoration:"none", cursor: src.url ? "pointer" : "default" }}>
                         <img
                           src={`https://www.google.com/s2/favicons?domain=${src.domain}&sz=32`}
                           alt=""
@@ -1050,20 +1061,29 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                           <div style={{ fontSize:"10.5px", color:"#8e98a8", marginTop:"2px", lineHeight:"1.35", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{src.title}</div>
                         </div>
                         <span style={{ color:"#4FD1C5", fontSize:"11.5px", fontFamily:"JetBrains Mono,monospace", fontWeight:600, flexShrink:0 }}>{src.score}</span>
-                      </div>
-                    ))}
+                        {src.url && <span className="material-symbols-outlined" style={{ fontSize:"15px", color:"#4FD1C5", flexShrink:0, opacity:0.75 }}>open_in_new</span>}
+                      </Row>
+                      );
+                    })}
                   </div>
                 ) : search.lastSource ? (
-                  <div className="fade-in hover-row" style={{ display:"flex", alignItems:"flex-start", gap:"11px", background:"rgba(255,255,255,0.03)", padding:"11px", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)" }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <div style={{ fontSize:"12.5px", fontWeight:"600", fontFamily:"Hanken Grotesk,sans-serif", color:"#dde1e9" }}>{search.lastSource.id}</div>
-                        <div style={{ fontSize:"9.5px", color:"#8e98a8", fontFamily:"JetBrains Mono,monospace" }}>{search.lastSource.time}</div>
-                      </div>
-                      <div style={{ fontSize:"11.5px", color:"#8e98a8", marginTop:"4px", lineHeight:"1.4" }}>{search.lastSource.title || search.lastSource.description}</div>
-                    </div>
-                    {search.lastSource.score && <div style={{ color:"#4FD1C5", fontSize:"13px", fontFamily:"JetBrains Mono,monospace", alignSelf:"center", fontWeight:"600" }}>{search.lastSource.score}</div>}
-                  </div>
+                  (() => {
+                    const LS = search.lastSource; const Row = LS.url ? "a" : "div";
+                    return (
+                      <Row {...(LS.url ? { href: LS.url, target: "_blank", rel: "noopener noreferrer" } : {})}
+                        className="fade-in hover-row" title={LS.url ? "Open source in a new tab" : undefined}
+                        style={{ display:"flex", alignItems:"flex-start", gap:"11px", background:"rgba(255,255,255,0.03)", padding:"11px", borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)", textDecoration:"none", cursor: LS.url ? "pointer" : "default" }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                            <div style={{ fontSize:"12.5px", fontWeight:"600", fontFamily:"Hanken Grotesk,sans-serif", color:"#dde1e9", display:"flex", alignItems:"center", gap:"6px" }}>{LS.id}{LS.url && <span className="material-symbols-outlined" style={{ fontSize:"14px", color:"#4FD1C5", opacity:0.75 }}>open_in_new</span>}</div>
+                            <div style={{ fontSize:"9.5px", color:"#8e98a8", fontFamily:"JetBrains Mono,monospace" }}>{LS.time}</div>
+                          </div>
+                          <div style={{ fontSize:"11.5px", color:"#8e98a8", marginTop:"4px", lineHeight:"1.4" }}>{LS.title || LS.description}</div>
+                        </div>
+                        {LS.score && <div style={{ color:"#4FD1C5", fontSize:"13px", fontFamily:"JetBrains Mono,monospace", alignSelf:"center", fontWeight:"600" }}>{LS.score}</div>}
+                      </Row>
+                    );
+                  })()
                 ) : <div className="empty-note">No sources yet</div>}
                 <SignalBars {...(search.signal || { eyebrow:"Content depth per source", variant:"cyan" })} />
               </div>
@@ -1086,9 +1106,9 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                 <div className="hover-row" style={{ background:"rgba(0,255,71,0.05)", border:"1px solid rgba(0,255,71,0.15)", borderRadius:"10px", padding:"14px" }}>
                   <div className="type-section" style={{ color:"#00ff47", marginBottom:"7px" }}>Key insights extracted</div>
                   {summarise.insights && summarise.insights.length
-                    ? <ul style={{ fontSize:"11.5px", color:"#8e98a8", display:"flex", flexDirection:"column", gap:"7px", fontFamily:"JetBrains Mono,monospace", listStyle:"disc", paddingLeft:"15px" }}>
+                    ? <ul style={{ fontSize:"11.5px", color:"#8e98a8", display:"flex", flexDirection:"column", gap:"7px", fontFamily:"JetBrains Mono,monospace", listStyle:"disc", paddingLeft:"15px", margin:0, maxWidth:"100%", boxSizing:"border-box" }}>
                         {summarise.insights.map((ins,i)=>(
-                          <li key={i}>{ins.text}{ins.tag && <span style={{ display:"inline-block", marginLeft:"4px", padding:"0 4px", background:"rgba(255,255,255,0.08)", borderRadius:"4px", fontSize:"8.5px" }}>{ins.tag}</span>}</li>
+                          <li key={i} style={{ overflowWrap:"anywhere", wordBreak:"break-word", lineHeight:1.55, minWidth:0 }}>{ins.text}{ins.tag && <span style={{ display:"inline-block", marginLeft:"4px", padding:"0 4px", background:"rgba(255,255,255,0.08)", borderRadius:"4px", fontSize:"8.5px", whiteSpace:"nowrap" }}>{ins.tag}</span>}</li>
                         ))}
                       </ul>
                     : <div className="empty-note">No insights yet</div>
@@ -1351,8 +1371,12 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                 <div style={{ flex:1, display:"flex", flexDirection:"column", gap:"10px", overflow:"hidden" }}>
                   <div className="type-section" style={{ marginBottom:"1px" }}>Flagged statements</div>
                   {data.faithfulness.flagged.length
-                    ? data.faithfulness.flagged.map((f,i)=><SignalBars key={i} eyebrow={f.eyebrow} variant={f.variant} promptText={f.text} compact />)
-                    : <div className="empty-note">No flags yet</div>
+                    ? data.faithfulness.flagged.map((f,i)=><SignalBars key={i} eyebrow={f.eyebrow || "Uncited claim"} variant={f.variant || "neutral"} promptText={f.promptText || f.text} compact />)
+                    : <div className="empty-note">{
+                        data.faithfulness.total > 0
+                          ? `All ${data.faithfulness.total} sentence${data.faithfulness.total === 1 ? "" : "s"} trace back to a cited source — no unsupported claims.`
+                          : "Awaiting the final answer…"
+                      }</div>
                   }
                 </div>
               </section>
@@ -1387,7 +1411,16 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                       {data.contradiction.resolution}
                     </div>
                   </>
-                ) : <div className="empty-note">No contradictions detected yet</div>}
+                ) : (
+                  <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"9px", textAlign:"center", padding:"18px 12px" }}>
+                    <div style={{ width:38, height:38, borderRadius:"50%", background:"rgba(79,209,197,0.1)", border:"1px solid rgba(79,209,197,0.3)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span className="material-symbols-outlined" style={{ fontSize:"19px", color:"#4FD1C5" }}>handshake</span>
+                    </div>
+                    <div style={{ fontSize:"12.5px", color:"#C7CBD6", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.5, maxWidth:260 }}>
+                      No direct contradictions surfaced — the sources were broadly consistent on this question.
+                    </div>
+                  </div>
+                )}
               </section>
             </div>
           </div>

@@ -289,8 +289,9 @@ const SECTION_EYEBROWS = {
   "Research Trajectory": "Where to go next",
 };
 
-function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, linkify = false }) {
+function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, linkify = false, collapsible = false, defaultOpen = true }) {
   const cleaned = cleanBlock(body);
+  const [open, setOpen] = useState(defaultOpen);
   if (!cleaned) return null;
   return (
     <div style={{
@@ -298,24 +299,51 @@ function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, li
       border:"1px solid rgba(255,255,255,0.08)", borderLeft:`4px solid ${accent}`,
       borderRadius:14, padding:"26px 30px", position:"relative",
       animation:`sectionIn 0.5s ${delay}s ease both`,
+      transition:"border-color 0.25s ease",
     }}>
       <SynapseDots color={accent} />
-      {/* Hard-locked heading block - permanent structure, custom typography */}
-      <div style={{ marginBottom:18 }}>
+      {/* Hard-locked heading block - permanent structure, custom typography.
+          When `collapsible`, the whole heading becomes a click target that
+          expands / collapses the body (chevron mirrors the state). */}
+      <div
+        onClick={collapsible ? () => setOpen(o => !o) : undefined}
+        role={collapsible ? "button" : undefined}
+        tabIndex={collapsible ? 0 : undefined}
+        aria-expanded={collapsible ? open : undefined}
+        onKeyDown={collapsible ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } } : undefined}
+        style={{
+          marginBottom: open ? 18 : 0, cursor: collapsible ? "pointer" : "default",
+          userSelect: "none", transition:"margin-bottom 0.4s cubic-bezier(0.23,1,0.32,1)",
+        }}
+      >
         <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9.5, color:accent, textTransform:"uppercase", letterSpacing:"0.24em", fontWeight:700, marginBottom:7, opacity:0.85 }}>
           {SECTION_EYEBROWS[title] || "Section"}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <Icon name={icon} style={{ fontSize:19, color:accent }} />
-          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0 }}>{title}</h3>
+          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0, flex:1 }}>{title}</h3>
+          {collapsible && (
+            <Icon name="expand_more" style={{
+              fontSize:22, color:accent, flexShrink:0,
+              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+              transition:"transform 0.35s cubic-bezier(0.23,1,0.32,1)",
+            }} />
+          )}
         </div>
         <div style={{ height:2, width:44, background:`linear-gradient(90deg, ${accent}, transparent)`, borderRadius:2, marginTop:11 }} />
       </div>
       <div style={{
-        fontFamily: mono ? "'JetBrains Mono',monospace" : "'Inter',sans-serif",
-        fontSize: mono ? 12 : 14, lineHeight:1.85, color:C.onSurface, whiteSpace:"pre-wrap",
+        overflow:"hidden",
+        maxHeight: collapsible ? (open ? 6000 : 0) : "none",
+        opacity: collapsible ? (open ? 1 : 0) : 1,
+        transition:"max-height 0.5s cubic-bezier(0.23,1,0.32,1), opacity 0.35s ease",
       }}>
-        {linkify ? <Linkify text={cleaned} /> : <CitationText text={cleaned} />}
+        <div style={{
+          fontFamily: mono ? "'JetBrains Mono',monospace" : "'Inter',sans-serif",
+          fontSize: mono ? 12 : 14, lineHeight:1.85, color:C.onSurface, whiteSpace:"pre-wrap",
+        }}>
+          {linkify ? <Linkify text={cleaned} /> : <CitationText text={cleaned} />}
+        </div>
       </div>
     </div>
   );
@@ -575,7 +603,16 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
   const [err, setErr] = useState("");
   const scrollRef = useRef(null);
 
-  const grounded = (sourceSummaries && sourceSummaries.length) || (sources && sources.length);
+  // Chat is grounded if we have ANY context to constrain it to: source
+  // summaries, cited sources, OR the report answer itself. The backend's
+  // _build_context accepts the report answer alone, so requiring sources here
+  // wrongly disabled chat on every report that didn't ship a separate sources
+  // array (the "chat is disabled and does nothing" bug).
+  const grounded = !!(
+    (sourceSummaries && sourceSummaries.length) ||
+    (sources && sources.length) ||
+    (answer && String(answer).trim())
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -643,20 +680,30 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
     }
   };
 
+  const srcCount = sourceSummaries?.length || sources?.length || 0;
+  const canSend = !busy && input.trim().length > 0;
+
   return (
     <div style={{ background: "rgba(5,20,36,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: `4px solid ${C.green}`, borderRadius: 14, padding: "22px 26px", animation: "sectionIn 0.5s ease both" }}>
+      <style>{`
+        @keyframes chatDot { 0%,80%,100%{ transform:scale(0.6); opacity:0.4 } 40%{ transform:scale(1); opacity:1 } }
+        @keyframes chatMsgIn { from{ opacity:0; transform:translateY(6px) } to{ opacity:1; transform:translateY(0) } }
+        @keyframes chatSpin { to { transform:rotate(360deg) } }
+      `}</style>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
         <Icon name="forum" style={{ fontSize: 19, color: C.green }} />
         <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff", margin: 0 }}>Chat with this report</h3>
       </div>
       <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
-        Answered only from the {sourceSummaries?.length || sources?.length || 0} sources already fetched - no new web search. It will say if the report doesn't cover something.
+        {srcCount > 0
+          ? `Answered only from this report and its ${srcCount} source${srcCount === 1 ? "" : "s"} - no new web search. It will say if the report doesn't cover something.`
+          : "Answered only from this report - no new web search. It will say if the report doesn't cover something."}
       </p>
 
       {messages.length > 0 && (
         <div ref={scrollRef} style={{ maxHeight: 340, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, marginBottom: 16, paddingRight: 4 }}>
           {messages.map((m, i) => (
-            <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "86%" }}>
+            <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "86%", animation: "chatMsgIn 0.28s cubic-bezier(0.16,1,0.3,1) both" }}>
               <div style={{
                 fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.65, whiteSpace: "pre-wrap",
                 padding: "11px 15px", borderRadius: 14,
@@ -669,8 +716,13 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
             </div>
           ))}
           {busy && (
-            <div style={{ alignSelf: "flex-start", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.green, opacity: 0.8, padding: "4px 6px" }}>
-              reading the sources…
+            <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 9, padding: "9px 14px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", animation: "chatMsgIn 0.28s ease both" }}>
+              <span style={{ display: "flex", gap: 4 }}>
+                {[0, 1, 2].map((d) => (
+                  <span key={d} style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, animation: `chatDot 1.2s ${d * 0.16}s infinite ease-in-out` }} />
+                ))}
+              </span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.green, opacity: 0.85 }}>reading the sources…</span>
             </div>
           )}
         </div>
@@ -679,9 +731,10 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
       {messages.length === 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
           {CHAT_SUGGESTIONS.map((s) => (
-            <button key={s} onClick={() => send(s)} disabled={busy || !grounded} style={{
-              fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12, color: "#bfe9ff", cursor: grounded ? "pointer" : "not-allowed",
+            <button key={s} onClick={() => send(s)} disabled={busy} style={{
+              fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12, color: "#bfe9ff", cursor: busy ? "wait" : "pointer",
               background: "rgba(0,204,255,0.06)", border: "1px solid rgba(0,204,255,0.22)", borderRadius: 9999, padding: "7px 14px",
+              opacity: busy ? 0.6 : 1, transition: "all 0.18s",
             }}>{s}</button>
           ))}
         </div>
@@ -692,16 +745,19 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder={grounded ? "Ask a follow-up about this report…" : "No sources available to ground a chat"}
-          disabled={busy || !grounded}
-          style={{ flex: 1, background: "rgba(1,15,31,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9999, padding: "12px 18px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, outline: "none" }}
+          placeholder="Ask a follow-up about this report…"
+          disabled={busy}
+          style={{ flex: 1, background: "rgba(1,15,31,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9999, padding: "12px 18px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, outline: "none", opacity: busy ? 0.7 : 1 }}
         />
-        <button onClick={() => send()} disabled={busy || !grounded || !input.trim()} style={{
+        <button onClick={() => send()} disabled={!canSend} style={{
           display: "flex", alignItems: "center", gap: 7, padding: "11px 20px", background: C.green, color: "#000", fontWeight: 700,
-          borderRadius: 9999, border: "none", cursor: busy || !input.trim() ? "default" : "pointer", opacity: busy || !input.trim() ? 0.55 : 1,
-          fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12.5, whiteSpace: "nowrap",
+          borderRadius: 9999, border: "none", cursor: canSend ? "pointer" : "default", opacity: canSend ? 1 : 0.55,
+          fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12.5, whiteSpace: "nowrap", transition: "opacity 0.18s",
         }}>
-          <Icon name="send" style={{ fontSize: 15, color: "#000" }} /> Ask
+          {busy
+            ? <span style={{ width: 15, height: 15, border: "2px solid rgba(0,0,0,0.35)", borderTopColor: "#000", borderRadius: "50%", animation: "chatSpin 0.7s linear infinite" }} />
+            : <Icon name="send" style={{ fontSize: 15, color: "#000" }} />}
+          {busy ? "Asking…" : "Ask"}
         </button>
       </div>
       {err && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, margin: "10px 0 0" }}>{err}</p>}
@@ -909,15 +965,23 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
       {/* Run telemetry (Phase 6) - real token counts + estimated cost */}
       <RunTelemetryCard telemetry={telemetry} accent={C.cyan} />
 
-      {/* Confidence-threshold guard - honours the user's Settings preference */}
-      {confValue > 0 && confValue < confThreshold && (
-        <div style={{ display:"flex",alignItems:"center",gap:12,background:"rgba(255,170,0,0.06)",border:"1px solid rgba(255,170,0,0.28)",borderRadius:12,padding:"14px 18px",animation:"sectionIn 0.4s ease both" }}>
-          <Icon name="warning" style={{ fontSize:20,color:C.amber,flexShrink:0 }} />
-          <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13.5,color:"#e2d0a0",lineHeight:1.5 }}>
-            This answer's confidence (<strong>{confValue}%</strong>) is below your <strong>{confThreshold}%</strong> threshold - the sources were thin or disagreed. Treat it as a lead, not a conclusion, and consider a follow-up query.
-          </span>
-        </div>
-      )}
+      {/* Low-confidence guard. Previously this fired on ANY near-miss below the
+          user's personal threshold, so a solid 70% answer nagged an 86% setting
+          every time. It now only warns when confidence is genuinely LOW in
+          absolute terms (capped at a 55% floor), so the notice is rare and
+          meaningful instead of constant. */}
+      {(() => {
+        const guardFloor = Math.min(confThreshold, 55);
+        if (!(confValue > 0 && confValue < guardFloor)) return null;
+        return (
+          <div style={{ display:"flex",alignItems:"center",gap:12,background:"rgba(255,170,0,0.06)",border:"1px solid rgba(255,170,0,0.28)",borderRadius:12,padding:"14px 18px",animation:"sectionIn 0.4s ease both" }}>
+            <Icon name="warning" style={{ fontSize:20,color:C.amber,flexShrink:0 }} />
+            <span style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontSize:13.5,color:"#e2d0a0",lineHeight:1.5 }}>
+              This answer's confidence is low (<strong>{confValue}%</strong>) - the sources were thin or disagreed. Treat it as a lead, not a conclusion, and consider a follow-up query.
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Summary */}
       {summary && (
@@ -999,9 +1063,9 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
       {(sections.consensus || sections.divergence) && (
         <div style={{ display:"grid", gridTemplateColumns: sections.consensus && sections.divergence ? "1fr 1fr" : "1fr", gap:18 }}>
           <PremiumSection icon="handshake" title="Consensus Map" accent={C.green}
-            body={sections.consensus} delay={0.2} />
+            body={sections.consensus} delay={0.2} collapsible />
           <PremiumSection icon="bolt" title="Divergence Map" accent={C.crimson}
-            body={sections.divergence} delay={0.14} />
+            body={sections.divergence} delay={0.14} collapsible />
         </div>
       )}
 
@@ -1010,7 +1074,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
       <PremiumSection icon="fact_check" title="Source Quality Assessment" accent={C.cyan}
         body={sections.quality} delay={0.18} />
       <PremiumSection icon="search_off" title="Coverage Audit" accent={C.amber}
-        body={sections.coverage} delay={0.18} />
+        body={sections.coverage} delay={0.18} collapsible />
       <PremiumSection icon="balance" title="Contradiction Resolution" accent={C.crimson}
         body={sections.contradiction} delay={0.2} />
       {structured

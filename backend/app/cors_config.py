@@ -22,6 +22,7 @@ the host (no code change / redeploy of code needed), and a regex that accepts an
 subdomain of the known preview hosts.
 """
 import os
+import re
 
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",
@@ -55,3 +56,36 @@ ALLOWED_ORIGINS = list(dict.fromkeys([o for o in (_DEFAULT_ORIGINS + _env_origin
 # extend via CORS_ALLOWED_ORIGIN_REGEX.
 _DEFAULT_ORIGIN_REGEX = r"https://([a-z0-9-]+\.)*(pages\.dev|vercel\.app|netlify\.app|onrender\.com)$"
 ALLOWED_ORIGIN_REGEX = os.getenv("CORS_ALLOWED_ORIGIN_REGEX", _DEFAULT_ORIGIN_REGEX)
+
+_ORIGIN_RE = re.compile(ALLOWED_ORIGIN_REGEX) if ALLOWED_ORIGIN_REGEX else None
+
+
+def is_allowed_origin(origin: str) -> bool:
+    """True if `origin` is in the explicit allow-list or matches the preview
+    regex — the same decision CORSMiddleware makes for normal responses."""
+    if not origin:
+        return False
+    if origin in ALLOWED_ORIGINS:
+        return True
+    return bool(_ORIGIN_RE and _ORIGIN_RE.match(origin))
+
+
+def cors_headers_for(origin: str) -> dict:
+    """CORS headers to attach to ERROR responses.
+
+    WHY THIS EXISTS: Starlette generates unhandled-500 responses (and runs the
+    base-`Exception` handler) inside ServerErrorMiddleware, which sits OUTSIDE
+    CORSMiddleware. Such responses never pass back through CORSMiddleware, so
+    they carry no Access-Control-Allow-Origin header — the browser then blocks
+    the response and the frontend reports a false "can't reach the server"
+    network error (Judge's Lens, Join the Debate, Chat-with-report, etc.).
+    Attaching these headers ourselves makes every error response CORS-safe, so
+    the real 4xx/5xx message reaches the UI instead of a phantom outage.
+    """
+    if is_allowed_origin(origin):
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Vary": "Origin",
+        }
+    return {}

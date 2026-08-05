@@ -1064,68 +1064,207 @@ function SkeletonLines({ n = 4 }) {
 }
 
 // ─── RAG answer ───────────────────────────────────────────────────────────────
+// Inline renderer: **bold** + [n] citation chips inside a single text run.
+function RagInline({ text, accent }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\[\d{1,2}\])/g).filter(p => p !== "");
+  return parts.map((p, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(p))
+      return <strong key={i} style={{ color:"#fff", fontWeight:700 }}>{p.slice(2,-2)}</strong>;
+    if (/^\[\d{1,2}\]$/.test(p))
+      return (
+        <sup key={i} style={{
+          display:"inline-flex", alignItems:"center", justifyContent:"center",
+          minWidth:18, height:18, padding:"0 5px", margin:"0 3px", borderRadius:6,
+          background:`${accent}22`, border:`1px solid ${accent}66`, color:accent,
+          fontFamily:T.mono, fontSize:10, fontWeight:700, verticalAlign:"top",
+          lineHeight:1, position:"relative", top:-1,
+        }}>{p.slice(1,-1)}</sup>
+      );
+    return <span key={i}>{p}</span>;
+  });
+}
+
+// Group the raw answer into structured blocks (heading / ordered-list /
+// bullet-list / paragraph) so it reads like a designed document, not a dump.
+function parseRagBlocks(src) {
+  const lines = src.split(/\r?\n/);
+  const blocks = [];
+  let list = null; // { type:'ol'|'ul', items:[] }
+  const flush = () => { if (list) { blocks.push(list); list = null; } };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+
+    const numbered = line.match(/^(\d+)[.)]\s+(.*)$/);
+    const bulleted = line.match(/^[-•*·]\s+(.*)$/);
+    const mdHeading = line.match(/^#{1,3}\s+(.*)$/);
+    // A short, colon-terminated line with no inner sentence is a section label.
+    const labelHeading = /^[^.!?]{2,60}:$/.test(line) && line.split(" ").length <= 8;
+
+    if (mdHeading) { flush(); blocks.push({ type:"h", text: mdHeading[1].replace(/[:：]$/,"") }); continue; }
+    if (labelHeading) { flush(); blocks.push({ type:"h", text: line.replace(/[:：]$/,"") }); continue; }
+    if (numbered) {
+      if (!list || list.type !== "ol") { flush(); list = { type:"ol", items:[] }; }
+      list.items.push(numbered[2]); continue;
+    }
+    if (bulleted) {
+      if (!list || list.type !== "ul") { flush(); list = { type:"ul", items:[] }; }
+      list.items.push(bulleted[1]); continue;
+    }
+    flush(); blocks.push({ type:"p", text: line });
+  }
+  flush();
+  return blocks;
+}
+
 function RagAnswer({ text, confidence, sources, onCopy, error }) {
   const displayed = useTypewriter(text, 7);
   const confCol = confidence >= 80 ? T.green : confidence >= 55 ? T.gold : T.crimson;
   const accent = error ? T.crimson : T.gold;
-
-  // Render the (progressively typed) answer with paragraphs, bullets, **bold**,
-  // and [n] citation chips instead of a raw pre-wrap dump.
-  const blocks = displayed.split(/\n{2,}|\n/).map(l => l).filter(l => l.trim().length > 0);
+  const blocks = parseRagBlocks(displayed);
 
   return (
-    <div style={{ animation:"fadeUp 0.35s ease", marginTop:20 }}>
-      <div style={{ background: error ? "rgba(255,32,64,0.05)" : "rgba(255,214,10,0.04)", border:`1px solid ${error ? "rgba(255,32,64,0.3)" : T.borderGold}`, borderRadius:14, padding:"18px 20px", marginBottom:16 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:13 }}>
-          <div style={{ width:7, height:7, borderRadius:"50%", background:accent, boxShadow:`0 0 8px ${accent}`, animation:"pulse 2s infinite" }} />
-          <span style={{ fontFamily:T.mono, fontSize:10, color:accent, fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase" }}>{error ? "Couldn't answer" : "AI Response"}</span>
-        </div>
-        <div style={{ fontFamily:T.body, fontSize:15, color: error ? "#ffc0c8" : "#d4e0ec", lineHeight:1.82 }}>
-          {blocks.map((line, bi) => {
-            const isBullet = /^\s*(?:[-•*·]|\d+[.)])\s+/.test(line);
-            const clean = line.replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "");
-            const parts = clean.split(/(\*\*[^*]+\*\*|\[\d{1,2}\])/g).filter(p => p !== "");
-            return (
-              <p key={bi} style={{ margin:"0 0 10px", paddingLeft: isBullet ? 18 : 0, position:"relative" }}>
-                {isBullet && <span style={{ position:"absolute", left:2, top:0, color:accent }}>•</span>}
-                {parts.map((p, i) => {
-                  if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color:"#fff", fontWeight:700 }}>{p.slice(2,-2)}</strong>;
-                  if (/^\[\d{1,2}\]$/.test(p)) return <span key={i} style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", minWidth:17, height:16, padding:"0 5px", margin:"0 2px", borderRadius:5, background:"rgba(255,214,10,0.14)", border:"1px solid rgba(255,214,10,0.4)", color:T.gold, fontFamily:T.mono, fontSize:9.5, fontWeight:700, verticalAlign:"1px" }}>{p.slice(1,-1)}</span>;
-                  return <span key={i}>{p}</span>;
-                })}
-              </p>
-            );
-          })}
-        </div>
-      </div>
+    <div style={{ animation:"fadeUp 0.4s cubic-bezier(0.16,1,0.3,1)", marginTop:22 }}>
+      {/* ── Answer card ─────────────────────────────────────── */}
+      <div style={{
+        position:"relative", overflow:"hidden", borderRadius:20, marginBottom:18,
+        background: error
+          ? "linear-gradient(180deg, rgba(255,51,85,0.06), rgba(14,14,36,0.55))"
+          : "linear-gradient(180deg, rgba(255,214,10,0.055), rgba(14,14,36,0.55))",
+        border:`1px solid ${error ? "rgba(255,51,85,0.28)" : T.borderGold}`,
+        boxShadow: error
+          ? "0 24px 60px -30px rgba(255,51,85,0.35)"
+          : "0 24px 60px -30px rgba(255,214,10,0.32)",
+        backdropFilter:"blur(18px)",
+      }}>
+        {/* top accent hairline */}
+        <div style={{ height:2, background:`linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity:0.8 }} />
 
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-        <span style={{ fontFamily:T.mono, fontSize:11, color:T.textDim }}>Relevance</span>
-        <div style={{ width:100, height:5, borderRadius:3, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
-          <div style={{ width:`${confidence}%`, height:"100%", background:confCol, borderRadius:3, transition:"width 0.6s ease" }} />
-        </div>
-        <span style={{ fontFamily:T.mono, fontSize:11, color:confCol, fontWeight:700 }}>{Math.round(confidence)}%</span>
-        <button onClick={onCopy} className="btn-ghost" style={{
-          marginLeft:"auto", padding:"5px 14px", borderRadius:20, border:`1px solid ${T.border}`,
-          background:"transparent", color:T.textMid, fontFamily:T.mono, fontSize:11,
-        }}>📋 Copy</button>
-      </div>
-
-      {sources?.length > 0 && (
-        <div style={{ background:"rgba(0,0,0,0.18)", borderRadius:12, border:`1px solid ${T.border}`, padding:"13px 15px" }}>
-          <div style={{ fontFamily:T.mono, fontSize:10, color:T.gold, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:9 }}>
-            Source chunks · {sources.length}
-          </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            {sources.map((s, i) => (
-              <div key={i} style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 11px", borderRadius:8, background:"rgba(255,255,255,0.025)" }}>
-                <span style={{ fontFamily:T.mono, fontSize:10, color:T.gold, background:"rgba(255,214,10,0.1)", padding:"1px 9px", borderRadius:5, flexShrink:0 }}>
-                  #{s.chunk_id !== undefined ? s.chunk_id : s.chunk_index ?? i+1}
-                </span>
-                <span style={{ fontFamily:T.body, fontSize:12, color:T.textMid, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.pdf_name}</span>
-                <span style={{ fontFamily:T.mono, fontSize:11, fontWeight:700, color: s.relevance >= 70 ? T.green : T.textDim }}>{s.relevance}%</span>
+        <div style={{ padding:"22px 26px 24px" }}>
+          {/* header */}
+          <div style={{ display:"flex", alignItems:"center", gap:13, marginBottom:18 }}>
+            <div style={{
+              width:38, height:38, borderRadius:12, flexShrink:0,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              background:`radial-gradient(circle at 30% 30%, ${accent}, ${accent}33)`,
+              boxShadow:`0 0 18px ${accent}66, inset 0 0 8px rgba(255,255,255,0.25)`,
+            }}>
+              <Icon name={error ? "error_outline" : "auto_awesome"} size={20} color="#0A0A1E" />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:T.display, fontSize:15, fontWeight:700, color:"#fff", letterSpacing:"-0.01em" }}>
+                {error ? "Couldn't answer that" : "Answer"}
               </div>
-            ))}
+              <div style={{ fontFamily:T.mono, fontSize:10, color:T.textDim, letterSpacing:"0.06em", textTransform:"uppercase", marginTop:2 }}>
+                {error ? "Nothing generated" : "Grounded in your documents"}
+              </div>
+            </div>
+            {!error && (
+              <div style={{
+                display:"flex", alignItems:"center", gap:7, flexShrink:0,
+                padding:"6px 13px", borderRadius:20,
+                background:`${confCol}18`, border:`1px solid ${confCol}55`,
+              }}>
+                <span style={{ width:6, height:6, borderRadius:"50%", background:confCol, boxShadow:`0 0 7px ${confCol}` }} />
+                <span style={{ fontFamily:T.mono, fontSize:11.5, fontWeight:700, color:confCol }}>{Math.round(confidence)}% match</span>
+              </div>
+            )}
+          </div>
+
+          {/* body */}
+          <div style={{ fontFamily:T.body, fontSize:15.5, color: error ? "#ffd0d6" : "#dbe6f2", lineHeight:1.85 }}>
+            {blocks.map((b, bi) => {
+              if (b.type === "h") return (
+                <div key={bi} style={{ display:"flex", alignItems:"center", gap:10, margin: bi===0 ? "0 0 12px" : "22px 0 12px" }}>
+                  <span style={{ width:3, height:16, borderRadius:2, background:accent, flexShrink:0 }} />
+                  <span style={{ fontFamily:T.display, fontSize:14.5, fontWeight:700, color:"#fff", letterSpacing:"-0.01em" }}>{b.text}</span>
+                </div>
+              );
+              if (b.type === "ol") return (
+                <div key={bi} style={{ display:"flex", flexDirection:"column", gap:11, margin:"6px 0 16px" }}>
+                  {b.items.map((it, i) => (
+                    <div key={i} style={{ display:"flex", gap:13, alignItems:"flex-start" }}>
+                      <span style={{
+                        flexShrink:0, width:24, height:24, borderRadius:8, marginTop:1,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        background:`${accent}18`, border:`1px solid ${accent}44`,
+                        fontFamily:T.mono, fontSize:11.5, fontWeight:700, color:accent,
+                      }}>{i+1}</span>
+                      <span style={{ flex:1 }}><RagInline text={it} accent={accent} /></span>
+                    </div>
+                  ))}
+                </div>
+              );
+              if (b.type === "ul") return (
+                <div key={bi} style={{ display:"flex", flexDirection:"column", gap:9, margin:"6px 0 16px" }}>
+                  {b.items.map((it, i) => (
+                    <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+                      <span style={{ flexShrink:0, width:6, height:6, borderRadius:2, marginTop:9, transform:"rotate(45deg)", background:accent, boxShadow:`0 0 6px ${accent}88` }} />
+                      <span style={{ flex:1 }}><RagInline text={it} accent={accent} /></span>
+                    </div>
+                  ))}
+                </div>
+              );
+              return <p key={bi} style={{ margin:"0 0 13px" }}><RagInline text={b.text} accent={accent} /></p>;
+            })}
+          </div>
+        </div>
+
+        {/* footer actions */}
+        <div style={{
+          display:"flex", alignItems:"center", gap:12, padding:"12px 26px",
+          borderTop:`1px solid ${error ? "rgba(255,51,85,0.14)" : "rgba(255,214,10,0.12)"}`,
+          background:"rgba(0,0,0,0.15)",
+        }}>
+          <Icon name="verified_user" size={13} color={T.textDim} />
+          <span style={{ fontFamily:T.mono, fontSize:10.5, color:T.textDim, letterSpacing:"0.04em" }}>
+            {error ? "Retrieval-augmented · no answer" : `Retrieval-augmented · ${sources?.length || 0} source chunk${(sources?.length||0)===1?"":"s"}`}
+          </span>
+          <button onClick={onCopy} className="btn-ghost" style={{
+            marginLeft:"auto", display:"flex", alignItems:"center", gap:6,
+            padding:"6px 15px", borderRadius:20, border:`1px solid ${T.border}`,
+            background:"transparent", color:T.textMid, fontFamily:T.mono, fontSize:11, cursor:"pointer",
+          }}>
+            <Icon name="content_copy" size={12} color={T.textMid} /> Copy
+          </button>
+        </div>
+      </div>
+
+      {/* ── Source chunks ───────────────────────────────────── */}
+      {sources?.length > 0 && (
+        <div style={{ background:"rgba(0,0,0,0.2)", borderRadius:16, border:`1px solid ${T.border}`, padding:"16px 18px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+            <Icon name="dataset" size={13} color={T.gold} />
+            <span style={{ fontFamily:T.mono, fontSize:10, color:T.gold, textTransform:"uppercase", letterSpacing:"0.12em", fontWeight:600 }}>
+              Retrieved passages
+            </span>
+            <span style={{ fontFamily:T.mono, fontSize:10, color:T.textDim }}>· {sources.length}</span>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {sources.map((s, i) => {
+              const rel = Number(s.relevance) || 0;
+              const relCol = rel >= 70 ? T.green : rel >= 45 ? T.gold : T.textDim;
+              return (
+                <div key={i} style={{
+                  display:"flex", alignItems:"center", gap:12, padding:"10px 13px", borderRadius:11,
+                  background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.05)",
+                }}>
+                  <span style={{
+                    fontFamily:T.mono, fontSize:10, fontWeight:700, color:T.gold,
+                    background:"rgba(255,214,10,0.1)", border:"1px solid rgba(255,214,10,0.25)",
+                    padding:"3px 9px", borderRadius:7, flexShrink:0,
+                  }}>
+                    #{s.chunk_id !== undefined ? s.chunk_id : s.chunk_index ?? i+1}
+                  </span>
+                  <span style={{ fontFamily:T.body, fontSize:12.5, color:"#c8d8e8", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.pdf_name}</span>
+                  <div style={{ width:64, height:5, borderRadius:3, background:"rgba(255,255,255,0.06)", overflow:"hidden", flexShrink:0 }}>
+                    <div style={{ width:`${Math.min(100,rel)}%`, height:"100%", background:relCol, borderRadius:3, transition:"width 0.6s ease" }} />
+                  </div>
+                  <span style={{ fontFamily:T.mono, fontSize:11, fontWeight:700, color:relCol, minWidth:34, textAlign:"right" }}>{rel}%</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1609,7 +1748,14 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
                           {msg.role==="user" ? "You" : "Polynous"}
                         </div>
                         <p style={{ fontFamily:T.body, fontSize:14, color:"#c8d8e8", lineHeight:1.78 }}>
-                          {msg.content.slice(0,500)}{msg.content.length>500?"…":""}
+                          {(() => {
+                            // User rows store the prompt in `content`; assistant rows
+                            // are spread from the answer object and store it in `text`.
+                            // Reading msg.content unconditionally made assistant rows
+                            // throw (undefined.slice) and blanked the whole page.
+                            const body = (msg.role === "user" ? msg.content : msg.text) || "";
+                            return <>{body.slice(0,500)}{body.length>500?"…":""}</>;
+                          })()}
                         </p>
                       </div>
                     ))}

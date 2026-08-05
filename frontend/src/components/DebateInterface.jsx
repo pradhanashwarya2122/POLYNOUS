@@ -753,16 +753,23 @@ function Reveal({ children, animation = "fadeUp", delay = 0, style }) {
 
 // ─── Argument text formatter — strips leading bullets, renders **bold**, and
 //     turns [n] citations into small colored chips so points read cleanly. ────
-function ArgText({ text, accent }) {
+function ArgText({ text, accent, citeUrl }) {
   const cleaned = String(text || "").replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "").trim();
   const parts = cleaned.split(/(\*\*[^*]+\*\*|\[\d{1,2}\])/g).filter((p) => p !== "");
   return (
     <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14.5, lineHeight: 1.8, color: "#d3dbe6", margin: 0, fontWeight: 400 }}>
       {parts.map((p, i) => {
         if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color: "#fff", fontWeight: 700 }}>{p.slice(2, -2)}</strong>;
-        if (/^\[\d{1,2}\]$/.test(p)) return (
-          <span key={i} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 17, height: 16, padding: "0 5px", margin: "0 2px", borderRadius: 5, background: `${accent}1e`, border: `1px solid ${accent}55`, color: accent, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 700, verticalAlign: "1px" }}>{p.slice(1, -1)}</span>
-        );
+        if (/^\[\d{1,2}\]$/.test(p)) {
+          const n = parseInt(p.slice(1, -1), 10);
+          const url = citeUrl ? citeUrl(n) : null;
+          const chipStyle = { display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 17, height: 16, padding: "0 5px", margin: "0 2px", borderRadius: 5, background: `${accent}1e`, border: `1px solid ${accent}55`, color: accent, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 700, verticalAlign: "1px", textDecoration: "none" };
+          // DBT-02: a [n] chip becomes a clickable link to the source it cites,
+          // opening in a new tab. Chips with no known URL stay plain.
+          return url
+            ? <a key={i} href={url} target="_blank" rel="noopener noreferrer" title="Open cited source in a new tab" style={{ ...chipStyle, cursor: "pointer" }}>{n}</a>
+            : <span key={i} style={chipStyle}>{n}</span>;
+        }
         return <span key={i}>{p}</span>;
       })}
     </p>
@@ -771,7 +778,7 @@ function ArgText({ text, accent }) {
 
 // ─── PointCard (result side) ──────────────────────────────────────────────────
 
-function PointCard({ text, index, side }) {
+function PointCard({ text, index, side, citeUrl }) {
   const isFor = side === "for";
   const accent = isFor ? C.green : C.crimson;
   const bg = isFor ? "rgba(0,230,77,0.03)" : "rgba(255,32,64,0.03)";
@@ -801,7 +808,7 @@ function PointCard({ text, index, side }) {
               {isFor ? "Supporting" : "Counter"} · {index + 1}
             </span>
           </div>
-          <ArgText text={text} accent={accent} />
+          <ArgText text={text} accent={accent} citeUrl={citeUrl} />
         </div>
       </div>
     </div>
@@ -994,6 +1001,39 @@ function DebateTelemetryCard({ telemetry }) {
         Costs are estimates from public list prices{cost.priced_all === false ? " (partial - some models have no price entry)" : ""}.
         {t.missing_usage ? " Some calls' providers did not report token usage (shown as - )." : ""}
       </div>
+    </div>
+  );
+}
+
+// ── Advocate Evidence Ledger (DBT-01) ────────────────────────────────────────
+// Renders the REAL, computed per-advocate rubric (verdict.rubric_for /
+// rubric_against): distinct sources cited, grounded-sentence coverage,
+// hallucinated citations, and the 0-10 evidence score. Nothing here is
+// hard-coded or random - it all comes from compute_argument_rubric on the
+// backend, where citations are verified against the real source list.
+function AdvocateEvidence({ rubric, color }) {
+  if (!rubric) return null;
+  const sources   = rubric.distinct_sources_cited ?? 0;
+  const grounded  = rubric.grounded_sentences ?? 0;
+  const sentences = rubric.sentences ?? 0;
+  const hall      = rubric.hallucinated_citations ?? 0;
+  const score     = rubric.computed_score ?? 0;
+  const cov = sentences ? Math.round((grounded / sentences) * 100) : 0;
+  const covColor = cov >= 60 ? C.green : cov >= 30 ? C.gold : C.crimson;
+
+  const Cell = ({ label, value, valColor, tip }) => (
+    <div title={tip} style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minWidth: 0, alignItems: "center", textAlign: "center" }}>
+      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSecondary, whiteSpace: "nowrap" }}>{label}</span>
+      <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 800, color: valColor || "#dfe6f2" }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", gap: 8, padding: "12px 14px", borderBottom: `1px solid ${color}18`, background: "rgba(255,255,255,0.015)" }}>
+      <Cell label="Evidence" value={`${score}/10`} valColor={color} tip="Computed evidence score (breadth + grounding), 0-10" />
+      <Cell label="Sources" value={sources} tip="Distinct REAL sources cited (invalid [n] ignored)" />
+      <Cell label="Grounded" value={`${grounded}/${sentences}`} valColor={covColor} tip={`${cov}% of sentences carry a valid citation`} />
+      <Cell label="Fabricated" value={hall} valColor={hall > 0 ? C.crimson : C.green} tip="Citations to sources that don't exist (hallucinated)" />
     </div>
   );
 }
@@ -1271,18 +1311,34 @@ function DebateExtras({ result, activeTopic, onNewDebate }) {
   const minority = verdict?.minority_report;
   const [voted, setVoted] = useState(null);
   const [voteStats, setVoteStats] = useState(null);
+  const [voteErr, setVoteErr] = useState("");
 
   const castVote = async (agree) => {
+    if (voted) return;
+    // The backend only accepts FOR / AGAINST / TIE. Sending an unscored or
+    // lower-cased winner silently 400'd, so the vote (and therefore the Track
+    // Record it feeds) appeared to "do nothing." Normalize + validate first.
+    const winner = String(verdict?.winner || "").toUpperCase();
+    if (!["FOR", "AGAINST", "TIE"].includes(winner)) {
+      setVoteErr("The verdict isn't scored yet, so there's nothing to vote on.");
+      return;
+    }
     setVoted(agree ? "agree" : "disagree");
+    setVoteErr("");
     try {
       const token = window.__POLYNOUS_ACCESS_TOKEN__ || localStorage.getItem('polynous_token') || '';
       const res = await fetch(`${API_BASE_URL}/debate-vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ topic: activeTopic, judge_winner: verdict.winner, agree }),
+        body: JSON.stringify({ topic: activeTopic, judge_winner: winner, agree }),
       });
-      if (res.ok) setVoteStats(await res.json());
-    } catch { /* vote is best-effort */ }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.detail || `Vote failed (${res.status})`);
+      setVoteStats(data);   // fresh sample_size + agreement_rate updates the Track Record live
+    } catch (e) {
+      setVoted(null);       // allow a retry instead of leaving a dead "voted" state
+      setVoteErr(String(e.message || e));
+    }
   };
 
   const exportCaseFile = () => {
@@ -1345,8 +1401,6 @@ ${sources.map(s => `  [${s.id}] ${s.title} - ${s.domain} · trust ${s.trust_scor
 
   return (
     <div style={{ marginTop: 22 }}>
-      {/* Run telemetry (Phase 6) - real tokens/cost for the debate run */}
-      <DebateTelemetryCard telemetry={result?.telemetry} />
       {/* Minority report */}
       {minority && !unscored && (
         <TribunalCard icon="balance" iconColor="#e0a458" title="Minority Report" accent="rgba(224,164,88,0.25)" delay={0.05}>
@@ -1385,6 +1439,9 @@ ${sources.map(s => `  [${s.id}] ${s.title} - ${s.domain} · trust ${s.trust_scor
             </div>
           )}
         </div>
+        {voteErr && (
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.crimson, margin: "10px 0 0", letterSpacing: "0.02em" }}>{voteErr}</p>
+        )}
       </TribunalCard>
 
       {/* Analytics */}
@@ -1436,6 +1493,10 @@ ${sources.map(s => `  [${s.id}] ${s.title} - ${s.domain} · trust ${s.trust_scor
           </div>
         </TribunalCard>
       )}
+
+      {/* DBT-14: run telemetry (real tokens/cost) sits at the END of the
+          analysis, immediately before the follow-up questions. */}
+      <DebateTelemetryCard telemetry={result?.telemetry} />
 
       {/* Follow-ups + case file */}
       {(followUps.length > 0 || true) && (
@@ -1569,7 +1630,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
 
         {/* Scrollable content */}
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "0 52px 64px", position: "relative", zIndex: 5, scrollbarWidth: "none" }}>
-          <div style={{ maxWidth: 920, paddingTop: 52 }}>
+          <div style={{ maxWidth: sidebarCollapsed ? "100%" : 1180, width: "100%", margin: "0 auto", paddingTop: 52, transition: "max-width 0.35s cubic-bezier(0.4,0,0.2,1)" }}>
 
             {/* ─── HERO ─────────────────────────────────────────────── */}
             <Reveal animation="fadeUp" delay={0}>
@@ -1690,6 +1751,14 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
               const againstScore = verdict.against_score || 0;
               const forPts = result.for_points || [];
               const againstPts = result.against_points || [];
+              // DBT-02: resolve a citation number [n] to its source URL so the
+              // [n] chips inside argument points are clickable. Sources may be
+              // keyed by id/number or fall back to positional order.
+              const citeSources = result?.debate?.sources || result?.citations || [];
+              const citeUrl = (n) => {
+                const s = citeSources.find((x) => (x?.id ?? x?.number) === n) || citeSources[n - 1];
+                return (s && s.url) ? s.url : null;
+              };
 
               return (
                 <div style={{ animation: "fadeUp 0.5s ease both" }}>
@@ -1734,8 +1803,9 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                         </div>
                         <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.green, fontWeight: 700, fontSize: 13, background: "rgba(0,230,77,0.08)", padding: "4px 12px", borderRadius: 14 }}>{forScore}/10</span>
                       </div>
+                      <AdvocateEvidence rubric={verdict.rubric_for} color={C.green} />
                       <div style={{ padding: "16px 14px", overflowY: "auto", maxHeight: 480, scrollbarWidth: "thin" }}>
-                        {forPts.length > 0 ? forPts.map((pt, i) => <PointCard key={i} text={pt} index={i} side="for" />) : <p style={{ color: C.textSecondary, textAlign: "center", padding: 32, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>No arguments found.</p>}
+                        {forPts.length > 0 ? forPts.map((pt, i) => <PointCard key={i} text={pt} index={i} side="for" citeUrl={citeUrl} />) : <p style={{ color: C.textSecondary, textAlign: "center", padding: 32, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>No arguments found.</p>}
                       </div>
                     </div>
 
@@ -1756,8 +1826,9 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                         </div>
                         <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.crimson, fontWeight: 700, fontSize: 13, background: "rgba(255,32,64,0.08)", padding: "4px 12px", borderRadius: 14 }}>{againstScore}/10</span>
                       </div>
+                      <AdvocateEvidence rubric={verdict.rubric_against} color={C.crimson} />
                       <div style={{ padding: "16px 14px", overflowY: "auto", maxHeight: 480, scrollbarWidth: "thin" }}>
-                        {againstPts.length > 0 ? againstPts.map((pt, i) => <PointCard key={i} text={pt} index={i} side="against" />) : <p style={{ color: C.textSecondary, textAlign: "center", padding: 32, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>No arguments found.</p>}
+                        {againstPts.length > 0 ? againstPts.map((pt, i) => <PointCard key={i} text={pt} index={i} side="against" citeUrl={citeUrl} />) : <p style={{ color: C.textSecondary, textAlign: "center", padding: 32, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>No arguments found.</p>}
                       </div>
                     </div>
                   </div>

@@ -1634,7 +1634,7 @@ function ApiKeysSection({ push }) {
           const cur = PROVIDERS[preferred] || PROVIDERS[ids[0]];
           const curCol = cur?.color || C.green;
           return (
-            <div style={{ position: "relative", maxWidth: 460 }}>
+            <div style={{ position: "relative", width: "100%" }}>
               {/* Trigger */}
               <button onClick={() => setPrefOpen(o => !o)} disabled={savingPref} style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,

@@ -11,6 +11,15 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 
+from app.cors_config import cors_headers_for
+
+
+def _cors(request: Request) -> dict:
+    """CORS headers for an error response, keyed off the request Origin. Without
+    these, a 500 raised outside CORSMiddleware reaches the browser without an
+    Access-Control-Allow-Origin header and is reported as a network failure."""
+    return cors_headers_for(request.headers.get("origin", ""))
+
 
 def register_exception_handlers(app):
     # 1. Handle HTTP exceptions (400, 401, 403, 404, 500 etc.)
@@ -24,6 +33,7 @@ def register_exception_handlers(app):
                 "message": str(exc.detail),
                 "status_code": exc.status_code,
             },
+            headers=_cors(request),
         )
 
     # 2. Handle validation errors (422 – missing fields, bad types)
@@ -44,6 +54,7 @@ def register_exception_handlers(app):
                 "message": "Validation error",
                 "detail": {"errors": errors[:5]},
             },
+            headers=_cors(request),
         )
 
     # 3. Catch ALL unhandled exceptions (500 – internal server errors)
@@ -60,4 +71,5 @@ def register_exception_handlers(app):
                 "message": "An internal error occurred" if is_production else str(exc),
                 "status_code": 500,
             },
+            headers=_cors(request),
         )

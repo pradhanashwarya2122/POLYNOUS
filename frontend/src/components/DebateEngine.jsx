@@ -334,6 +334,8 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
 
   const data = useMemo(() => deepMerge(DEFAULT_DATA, liveData || {}), [liveData]);
   const isDone = (data.progress || 0) >= 100;
+  // Progress at 100% but the judge hasn't returned a verdict yet — still working.
+  const finalizing = isDone && (data.verdict == null) && !data.metrics?.winner;
 
   // typewriter completion tracking for onComplete gating
   const typingRef = useRef({});
@@ -389,7 +391,7 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
     <div className="de-root" style={{ position:"relative", minHeight:"100vh", background:C.void, padding:"52px 64px", display:"flex", flexDirection:"column", gap:"32px", zIndex:1 }}>
       <style>{styles}</style>
       <div className="de-ambient" />
-      <div className="de-beam-wrap"><div className="de-beam" style={{ width:`${data.progress}%` }} /></div>
+      <div className="de-beam-wrap"><div className="de-beam" style={{ width:`${data.progress}%`, animation: finalizing ? "deSoftPulse 1.2s infinite ease-in-out" : "none" }} /></div>
       {infoOpen && <InfoPopover open={infoOpen} onClose={() => setInfoOpen(null)} />}
 
       {/* ── Header - full-bleed hero band spanning the entire page ── */}
@@ -417,12 +419,22 @@ export default function DebateEngine({ apiUrl, query, responseStyle, onComplete,
               <div style={{ fontSize:"38px", fontFamily:"Sora,sans-serif", color:"#fff", fontWeight:800, lineHeight:1 }}>{data.progress}<span style={{ fontSize:"17px", color:C.secondary }}>%</span></div>
             </div>
             <div style={{ minWidth:"210px" }}>
-              <div className="de-eyebrow" style={{ marginBottom:"9px", fontSize:"11px" }}>{isDone ? "Status" : "Arena activity"}</div>
-              {isDone
-                ? <div style={{ fontFamily:"Sora,sans-serif", fontSize:"19px", fontWeight:700, color: verdictUnscored ? C.gold : C.crimson }}>
-                    {verdictUnscored ? "Verdict unscored" : `Verdict: ${data.metrics?.winner || " - "}`}
+              <div className="de-eyebrow" style={{ marginBottom:"9px", fontSize:"11px" }}>{finalizing ? "Status" : isDone ? "Status" : "Arena activity"}</div>
+              {/* DBT-04: progress can reach 100% while the judge is still scoring
+                  the debate. Show an explicit "scoring" loader so the user never
+                  wonders whether it stalled at 100%. */}
+              {finalizing
+                ? <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+                    <span style={{ display:"inline-flex", gap:"4px" }}>
+                      {[0,1,2].map(d => <span key={d} style={{ width:"7px", height:"7px", borderRadius:"50%", background:C.crimson, animation:`deSoftPulse 1.1s ${d*0.16}s infinite ease-in-out` }} />)}
+                    </span>
+                    <span style={{ fontFamily:"Sora,sans-serif", fontSize:"15.5px", fontWeight:700, color:C.crimson }}>Scoring the debate…</span>
                   </div>
-                : <span key={phrase} className="de-shimmer de-phrase" style={{ fontSize:"15.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>{phrase}</span>}
+                : isDone
+                  ? <div style={{ fontFamily:"Sora,sans-serif", fontSize:"19px", fontWeight:700, color: verdictUnscored ? C.gold : C.crimson }}>
+                      {verdictUnscored ? "Verdict unscored" : `Verdict: ${data.metrics?.winner || " - "}`}
+                    </div>
+                  : <span key={phrase} className="de-shimmer de-phrase" style={{ fontSize:"15.5px", fontFamily:"Hanken Grotesk,sans-serif", fontWeight:600, whiteSpace:"nowrap" }}>{phrase}</span>}
             </div>
           </div>
         </div>

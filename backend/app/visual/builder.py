@@ -145,6 +145,12 @@ def _content_depth_levels(docs: list) -> list:
             for d in docs[:16]]
 
 
+def _bar_links(docs: list) -> list:
+    """URLs aligned 1:1 with _content_depth_levels bars so the frontend can make
+    each bar a clickable link to the source it represents (RES-02)."""
+    return [(d.get("url") or "") for d in docs[:16]]
+
+
 def _age_str(fetched_at) -> str:
     if not fetched_at:
         return "—"
@@ -159,6 +165,7 @@ def _recent_sources(docs: list) -> list:
         rows.append({
             "domain": urlparse(url).netloc or url[:40],
             "title": (d.get("title") or "Untitled")[:70],
+            "url": url,
             "score": round(d.get("score") or 0, 2),
             "badge": "ARTICLE" if d.get("content_source") == "scraped" else "SNIPPET",
             "chars": d.get("content_length") or 0,
@@ -178,6 +185,7 @@ def _search_panel(docs: list, scraped: int) -> dict:
             "id": f"Source {len(docs)}",
             "badge": "ARTICLE" if (last or {}).get("content_source") == "scraped" else "SNIPPET",
             "title": ((last or {}).get("title") or "Unknown")[:60],
+            "url": (last or {}).get("url") or "",
             "description": (((last or {}).get("content") or "")[:120] + "...") if last else "",
             "time": _age_str((last or {}).get("fetched_at")),
             "score": str((last or {}).get("score", "--")),
@@ -185,7 +193,8 @@ def _search_panel(docs: list, scraped: int) -> dict:
         "recentSources": _recent_sources(docs),
         "signal": {"eyebrow": "Content depth per source", "variant": "cyan",
                    "promptText": f"Scanned {len(docs)} sources",
-                   "levels": _content_depth_levels(docs)},
+                   "levels": _content_depth_levels(docs),
+                   "barLinks": _bar_links(docs)},
     }
 
 
@@ -213,7 +222,8 @@ def _summarise_panel(summaries: list, docs: Optional[list] = None) -> dict:
                       "tag": _doc_domain(docs[i]) if i < len(docs) else "key"}
                      for i, s in enumerate(summaries[:3])],
         "signal": {"eyebrow": "Compression ratio per doc", "variant": "blue",
-                   "promptText": "Key points extracted", "levels": levels},
+                   "promptText": "Key points extracted", "levels": levels,
+                   "barLinks": _bar_links(docs)},
     }
 
 
@@ -423,6 +433,30 @@ def _position_trust(source_nums: list, docs: list) -> str:
     return {"high": "High", "med": "Med", "low": "Low"}[best]
 
 
+# Raw `nature` enum -> a plain-English sentence. The frontend used to render
+# the machine value directly ("different_scope"), which read as gibberish.
+_NATURE_HUMAN = {
+    "factual_dispute": "The sources report conflicting facts on this point.",
+    "different_interpretation": "The sources interpret the same evidence differently.",
+    "different_scope": "The sources are answering at different scopes, so they aren't strictly comparable.",
+    "conflicting_data": "The sources cite conflicting data or measurements.",
+}
+
+
+def _humanize_nature(nature: str, topic: str) -> str:
+    key = (nature or "").strip().lower().replace(" ", "_")
+    sentence = _NATURE_HUMAN.get(key, "The sources take genuinely opposing positions here.")
+    topic = (topic or "").strip()
+    return f"Disagreement over {topic} — {sentence}" if topic else sentence
+
+
+def _fmt_sources(nums) -> str:
+    nums = [n for n in (nums or []) if isinstance(n, int)]
+    if not nums:
+        return "unattributed"
+    return "Source " + ", ".join(str(n) for n in nums) if len(nums) == 1 else "Sources " + ", ".join(str(n) for n in nums)
+
+
 def _contradiction(state: dict) -> Optional[dict]:
     dis = (state.get("critique") or {}).get("disagreement_groups") or []
     if not dis:
@@ -430,12 +464,16 @@ def _contradiction(state: dict) -> Optional[dict]:
     docs = state.get("retrieved_docs") or []
     first = dis[0] or {}
     a, b = first.get("position_a") or {}, first.get("position_b") or {}
+    ca, cb = (a.get("claim") or "").strip(), (b.get("claim") or "").strip()
+    # Both positions need a real claim, else there's nothing meaningful to show.
+    if not ca or not cb:
+        return None
     return {
         "claimA": {"label": "Position A", "trust": _position_trust(a.get("sources"), docs),
-                   "text": (a.get("claim") or "N/A")[:100], "source": f"Sources {a.get('sources', [])}"},
+                   "text": ca[:240], "source": _fmt_sources(a.get("sources"))},
         "claimB": {"label": "Position B", "trust": _position_trust(b.get("sources"), docs),
-                   "text": (b.get("claim") or "N/A")[:100], "source": f"Sources {b.get('sources', [])}"},
-        "resolution": first.get("nature") or "Disputed",
+                   "text": cb[:240], "source": _fmt_sources(b.get("sources"))},
+        "resolution": _humanize_nature(first.get("nature"), first.get("topic")),
     }
 
 
