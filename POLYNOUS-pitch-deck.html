@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>POLYNOUS · Ashwarya Pradhan</title>
+<link rel="icon" type="image/png" href="/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800;900&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green:#00ff0f; --cyan:#00ccff; --crimson:#ff2040; --gold:#ffd700;
+    --purple:#a855f7; --indigo:#5878d4; --amber:#ffaa00; --teal:#00e6b8; --coral:#ff6b6b;
+    --void:#060610; --surface:#0d0d1f; --line:rgba(255,255,255,0.08);
+    --dim:rgba(140,158,178,0.85); --dimmer:rgba(130,148,168,0.6);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-snap-type:y mandatory;font-size:16px}
+  body{background:var(--void);color:#fff;font-family:'Hanken Grotesk',sans-serif;overflow-x:hidden}
+  ::selection{background:rgba(0,255,15,0.25)}
+  ::-webkit-scrollbar{width:0}
+  .msym{font-family:'Material Symbols Outlined';line-height:1;user-select:none}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .sora{font-family:'Sora',sans-serif}
+
+  /* neural canvas + ambient glows */
+  #neural{position:fixed;inset:0;z-index:0;pointer-events:none}
+  .noise{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.03;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* fixed chrome */
+  header.bar{position:fixed;top:0;left:0;right:0;height:58px;z-index:50;display:flex;align-items:center;justify-content:space-between;
+    padding:0 28px;background:linear-gradient(180deg,rgba(6,6,16,0.85),rgba(6,6,16,0));backdrop-filter:blur(14px)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand img{width:26px;height:26px;border-radius:7px;border:1px solid rgba(0,255,15,0.35);box-shadow:0 0 12px rgba(0,255,15,0.35)}
+  .brand b{font-family:'Sora',sans-serif;font-weight:900;font-size:15px;letter-spacing:0.08em}
+  .counter{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dimmer);letter-spacing:0.14em}
+  .counter b{color:var(--green)}
+  #progress{position:fixed;top:0;left:0;height:2px;z-index:60;background:linear-gradient(90deg,var(--green),var(--cyan),var(--purple));box-shadow:0 0 10px rgba(0,255,15,0.6);width:0;transition:width .25s}
+
+  /* dot nav */
+  nav.dots{position:fixed;right:22px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:11px}
+  nav.dots a{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.16);transition:all .3s;cursor:pointer;text-decoration:none}
+  nav.dots a.on{background:var(--green);box-shadow:0 0 10px var(--green);transform:scale(1.25)}
+
+  /* slides */
+  section.slide{min-height:100vh;scroll-snap-align:start;position:relative;z-index:2;
+    display:flex;flex-direction:column;justify-content:center;padding:96px clamp(28px,7vw,110px) 84px;max-width:1400px;margin:0 auto}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--green);opacity:0.85;margin-bottom:18px;display:inline-flex;align-items:center;gap:9px}
+  .eyebrow .num{color:var(--dimmer)}
+  h1.mega{font-family:'Sora',sans-serif;font-weight:900;font-size:clamp(3.6rem,12vw,10rem);line-height:0.86;letter-spacing:-0.06em}
+  h2.big{font-family:'Sora',sans-serif;font-weight:900;font-size:clamp(2.2rem,5.2vw,4.4rem);line-height:0.98;letter-spacing:-0.05em;margin-bottom:20px}
+  .grad-g{background:linear-gradient(150deg,#fff 18%,rgba(0,255,15,0.85) 60%,rgba(0,204,255,0.7) 92%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 40px rgba(0,255,15,0.14))}
+  .lead{font-size:clamp(16px,1.9vw,20px);color:var(--dim);line-height:1.7;max-width:760px}
+  .rule{width:66px;height:2px;background:linear-gradient(90deg,var(--green),transparent);border-radius:2px;margin:22px 0}
+
+  .card{background:rgba(13,13,31,0.72);backdrop-filter:blur(22px);border:1px solid var(--line);border-radius:18px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s}
+  .card:hover{transform:translateY(-4px);box-shadow:0 30px 70px rgba(0,0,0,0.45)}
+  .card .topline{position:absolute;top:0;left:14%;right:14%;height:2px;border-radius:2px}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:9999px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.04em}
+  .grid{display:grid;gap:14px}
+  .fadeslot{opacity:0;transform:translateY(22px);transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1)}
+  .slide.vis .fadeslot{opacity:1;transform:none}
+  .slide.vis .d1{transition-delay:.08s}.slide.vis .d2{transition-delay:.16s}.slide.vis .d3{transition-delay:.24s}
+  .slide.vis .d4{transition-delay:.32s}.slide.vis .d5{transition-delay:.4s}.slide.vis .d6{transition-delay:.48s}
+
+  .hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:50;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.14em;color:rgba(255,255,255,0.22);text-transform:uppercase}
+  @media (max-width:820px){ .two{grid-template-columns:1fr!important} nav.dots{display:none} }
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes ropeShimmer{0%{background-position:0 0}100%{background-position:40px 0}}
+</style>
+</head>
+<body>
+<canvas id="neural"></canvas>
+<div class="noise"></div>
+<div id="progress"></div>
+
+<nav class="dots" id="dots"></nav>
+
+<!-- 01 · TITLE -->
+<section class="slide" id="s1" style="align-items:center;text-align:center">
+  <div class="eyebrow fadeslot d1" style="justify-content:center"><span class="msym" style="font-size:14px">bolt</span> Incubation Pitch · 2026</div>
+  <h1 class="mega grad-g fadeslot d2">POLYNOUS</h1>
+  <div class="fadeslot d3 sora" style="font-size:clamp(1.1rem,2.4vw,1.7rem);font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:-0.02em;margin-top:10px">Many Minds, One Answer.</div>
+  <p class="lead fadeslot d4" style="margin:20px auto 0">A multi-agent AI that searches, debates, and cites its work, delivering research, not just responses.</p>
+  <div class="fadeslot d5" style="margin-top:40px;display:inline-flex;align-items:center;gap:24px;padding:14px 30px;border:1px solid rgba(255,255,255,0.09);border-radius:16px;background:rgba(255,255,255,0.025);backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,0.35)">
+    <span style="display:flex;align-items:center;gap:9px"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 9px var(--green)"></span><span class="sora" style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.85);letter-spacing:0.005em">Live in production</span></span>
+    <span style="width:1px;height:15px;background:rgba(255,255,255,0.12)"></span>
+    <span class="sora" style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.85)">7 specialized agents</span>
+    <span style="width:1px;height:15px;background:rgba(255,255,255,0.12)"></span>
+    <span class="sora" style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.85)">Cited &amp; confidence-scored</span>
+  </div>
+  <div class="fadeslot d6" style="margin-top:50px;display:flex;flex-direction:column;align-items:center;gap:11px">
+    <div class="mono" style="font-size:10px;letter-spacing:0.34em;color:var(--dimmer);text-transform:uppercase">Presented by</div>
+    <div class="sora" style="font-size:clamp(1.35rem,2.7vw,2rem);font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1">Ashwarya <span class="grad-g">Pradhan</span></div>
+  </div>
+</section>
+
+<!-- 02 · PROBLEM -->
+<section class="slide" id="s2">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 02</span> · The Problem</div>
+  <h2 class="big fadeslot d2">A single model will always<br><span style="color:var(--crimson)">tell you it's right.</span></h2>
+  <div class="rule fadeslot d2"></div>
+  <p class="lead fadeslot d3">Ask a single LLM a hard question and you get one voice: polished, self-assured, and impossible to audit. No sources you can open, no sense of what it got wrong.</p>
+  <div class="grid two fadeslot d4" style="grid-template-columns:repeat(3,1fr);margin-top:34px">
+    <div class="card" style="border-left:3px solid var(--crimson)"><div class="msym" style="font-size:26px;color:var(--crimson);margin-bottom:12px">psychology_alt</div><div class="sora" style="font-weight:800;margin-bottom:6px">One confident guess</div><div style="color:var(--dim);font-size:14px;line-height:1.6">Unsourced, unverifiable, and never says how sure it is.</div></div>
+    <div class="card" style="border-left:3px solid var(--amber)"><div class="msym" style="font-size:26px;color:var(--amber);margin-bottom:12px">warning</div><div class="sora" style="font-weight:800;margin-bottom:6px">Hallucination &amp; bias</div><div style="color:var(--dim);font-size:14px;line-height:1.6">A black box you can't trust for high-stakes research.</div></div>
+    <div class="card" style="border-left:3px solid var(--purple)"><div class="msym" style="font-size:26px;color:var(--purple);margin-bottom:12px">visibility_off</div><div class="sora" style="font-weight:800;margin-bottom:6px">No way to check</div><div style="color:var(--dim);font-size:14px;line-height:1.6">It never disagrees with itself, so you never see the uncertainty.</div></div>
+  </div>
+</section>
+
+<!-- 03 · SOLUTION -->
+<section class="slide" id="s3">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 03</span> · The Solution</div>
+  <h2 class="big fadeslot d2 grad-g">Research beyond answers.</h2>
+  <div class="rule fadeslot d2"></div>
+  <p class="lead fadeslot d3">POLYNOUS is a <b style="color:#fff">7-agent AI research &amp; debate platform</b> that turns any question into a cited, confidence-scored report (or a rubric-judged debate) instead of one unverifiable answer.</p>
+  <div class="grid two fadeslot d4" style="grid-template-columns:1fr 1fr;margin-top:34px">
+    <div class="card"><div class="topline" style="background:linear-gradient(90deg,transparent,var(--green),transparent)"></div>
+      <div class="eyebrow" style="margin-bottom:12px">Neural Research</div>
+      <div class="sora" style="font-size:18px;font-weight:800;margin-bottom:8px">A cited report, not a guess</div>
+      <div style="color:var(--dim);font-size:14px;line-height:1.65">Streamed live with inline citations, per-claim confidence, contradiction flags, and honest cost telemetry.</div>
+    </div>
+    <div class="card"><div class="topline" style="background:linear-gradient(90deg,transparent,var(--crimson),transparent)"></div>
+      <div class="eyebrow" style="color:var(--crimson);margin-bottom:12px">Debate Chamber</div>
+      <div class="sora" style="font-size:18px;font-weight:800;margin-bottom:8px">A rubric-scored verdict</div>
+      <div style="color:var(--dim);font-size:14px;line-height:1.65">FOR vs AGAINST argue it out; an impartial Judge scores each side 1–10 with transparent reasoning.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 · HOW IT WORKS -->
+<section class="slide" id="s4">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 04</span> · How It Works</div>
+  <h2 class="big fadeslot d2">A team, not a guess.</h2>
+  <p class="lead fadeslot d3" style="margin-bottom:40px">A live 5-stage pipeline, streamed token-by-token. Each stage checks the last.</p>
+  <div class="fadeslot d4" style="display:flex;align-items:stretch;gap:0;flex-wrap:wrap;justify-content:center">
+    <!-- pipeline nodes -->
+    <div id="pipe" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center"></div>
+  </div>
+  <div class="grid fadeslot d5" style="grid-template-columns:repeat(3,1fr);gap:12px;margin-top:40px">
+    <div class="card" style="padding:16px 18px"><div class="mono" style="font-size:10px;color:var(--amber);letter-spacing:0.1em">CRITIC</div><div style="color:var(--dim);font-size:13.5px;margin-top:6px;line-height:1.55">Cross-references sources &amp; flags contradictions.</div></div>
+    <div class="card" style="padding:16px 18px"><div class="mono" style="font-size:10px;color:var(--crimson);letter-spacing:0.1em">DEEPEN</div><div style="color:var(--dim);font-size:13.5px;margin-top:6px;line-height:1.55">Auto-runs follow-up searches on coverage gaps.</div></div>
+    <div class="card" style="padding:16px 18px"><div class="mono" style="font-size:10px;color:var(--green);letter-spacing:0.1em">WRITER</div><div style="color:var(--dim);font-size:13.5px;margin-top:6px;line-height:1.55">Synthesizes a cited, confidence-scored report.</div></div>
+  </div>
+</section>
+
+<!-- 05 · DEBATE -->
+<section class="slide" id="s5">
+  <div class="eyebrow fadeslot d1" style="color:var(--crimson)"><span class="num">↓ 05</span> · The Differentiator</div>
+  <h2 class="big fadeslot d2">Two sides.<br>One rubric-scored verdict.</h2>
+  <p class="lead fadeslot d3">For contested questions, FOR and AGAINST build evidence-backed cases; an impartial Judge delivers a 1–10 verdict you can re-weight, re-frame, cross-examine, or <b style="color:#fff">join yourself.</b></p>
+  <!-- clash meter -->
+  <div class="fadeslot d4 card" style="margin-top:30px;max-width:840px">
+    <div class="mono" style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:11px">
+      <span style="color:var(--green)">◀ SUPPORTING</span><span style="color:var(--gold)">JUDGE · RUBRIC-SCORED</span><span style="color:var(--crimson)">COUNTER ▶</span>
+    </div>
+    <div style="position:relative;height:18px;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--line);overflow:hidden">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:62%;background:linear-gradient(90deg,rgba(0,230,77,0.35),var(--green));box-shadow:0 0 14px rgba(0,255,15,0.4)"></div>
+      <div style="position:absolute;right:0;top:0;bottom:0;width:38%;background:linear-gradient(270deg,rgba(255,32,64,0.35),var(--crimson));box-shadow:0 0 14px rgba(255,32,64,0.4)"></div>
+      <div style="position:absolute;top:50%;left:62%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:var(--green);border:2px solid #0a0a1e;box-shadow:0 0 12px var(--green);z-index:2"></div>
+    </div>
+    <div class="mono" style="text-align:center;font-size:11px;color:var(--green);margin-top:12px;letter-spacing:0.06em">SUPPORTING LEADS · 7.5 / 10 vs 5.5 / 10 · MARGIN: CLEAR</div>
+  </div>
+  <div class="fadeslot d5" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:22px">
+    <span class="chip" style="border:1px solid rgba(255,32,64,0.28);background:rgba(255,32,64,0.05);color:var(--crimson)"><span class="msym" style="font-size:12px">gavel</span> Judge's Lens</span>
+    <span class="chip" style="border:1px solid rgba(255,32,64,0.28);background:rgba(255,32,64,0.05);color:var(--crimson)"><span class="msym" style="font-size:12px">forum</span> Cross-Examine</span>
+    <span class="chip" style="border:1px solid rgba(255,32,64,0.28);background:rgba(255,32,64,0.05);color:var(--crimson)"><span class="msym" style="font-size:12px">tune</span> Re-weight the verdict</span>
+    <span class="chip" style="border:1px solid rgba(255,32,64,0.28);background:rgba(255,32,64,0.05);color:var(--crimson)"><span class="msym" style="font-size:12px">group_add</span> Join the debate</span>
+  </div>
+</section>
+
+<!-- 06 · PLATFORM -->
+<section class="slide" id="s6">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 06</span> · Full Platform</div>
+  <h2 class="big fadeslot d2 grad-g">One surface, many powers.</h2>
+  <div class="grid fadeslot d3" id="featgrid" style="grid-template-columns:repeat(3,1fr);margin-top:28px"></div>
+</section>
+
+<!-- 07 · TRUST -->
+<section class="slide" id="s7">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 07</span> · Why It's Trustworthy</div>
+  <h2 class="big fadeslot d2">Every claim, traceable.</h2>
+  <div class="grid two fadeslot d3" style="grid-template-columns:1fr 1fr;margin-top:30px">
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div class="sora" style="font-weight:800;font-size:18px;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span class="msym" style="color:var(--green)">verified</span> Nothing fabricated</div>
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div style="color:var(--dim);font-size:14px;display:flex;gap:9px"><span class="msym" style="font-size:17px;color:var(--green)">format_quote</span> Inline citations on every claim</div>
+        <div style="color:var(--dim);font-size:14px;display:flex;gap:9px"><span class="msym" style="font-size:17px;color:var(--green)">speed</span> Per-claim confidence scores</div>
+        <div style="color:var(--dim);font-size:14px;display:flex;gap:9px"><span class="msym" style="font-size:17px;color:var(--green)">flag</span> Named limitations &amp; contradiction flags</div>
+        <div style="color:var(--dim);font-size:14px;display:flex;gap:9px"><span class="msym" style="font-size:17px;color:var(--green)">receipt_long</span> Honest token &amp; USD cost telemetry</div>
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--teal)">
+      <div class="sora" style="font-weight:800;font-size:18px;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span class="msym" style="color:var(--teal)">key</span> Model-agnostic BYOK</div>
+      <div style="color:var(--dim);font-size:14px;line-height:1.7;margin-bottom:14px">Bring your own key for <b style="color:#fff">7 providers</b>. Fernet-encrypted, zero-knowledge, zero vendor lock-in, near-zero cost of goods.</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <span class="chip" style="border:1px solid var(--line);color:var(--dim)">Anthropic</span>
+        <span class="chip" style="border:1px solid var(--line);color:var(--dim)">OpenAI</span>
+        <span class="chip" style="border:1px solid var(--line);color:var(--dim)">Gemini</span>
+        <span class="chip" style="border:1px solid var(--line);color:var(--dim)">Mistral</span>
+        <span class="chip" style="border:1px solid var(--line);color:var(--dim)">Groq</span>
+        <span class="chip" style="border:1px solid var(--line);color:var(--dim)">NVIDIA</span>
+        <span class="chip" style="border:1px solid var(--line);color:var(--dim)">DeepSeek</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 · LIVE + TECH -->
+<section class="slide" id="s8">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 08</span> · Live &amp; Working</div>
+  <h2 class="big fadeslot d2">Not a mockup.<br><span class="grad-g">a running product.</span></h2>
+  <p class="lead fadeslot d3">Deployed and functional in production, built end-to-end by one student. Streaming research, decisive debates, PDF RAG, knowledge graph, analytics. All working.</p>
+  <div class="fadeslot d4" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:30px;max-width:900px">
+    <!-- tech chips injected -->
+    <div id="tech" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+  <div class="grid fadeslot d5" style="grid-template-columns:repeat(3,1fr);gap:12px;margin-top:26px;max-width:900px">
+    <div class="card" style="padding:16px 18px;text-align:center"><div class="mono" style="font-size:9.5px;color:var(--cyan);letter-spacing:0.1em">FRONTEND</div><div class="sora" style="font-weight:800;font-size:14px;margin-top:6px">React + Vite</div></div>
+    <div class="card" style="padding:16px 18px;text-align:center"><div class="mono" style="font-size:9.5px;color:var(--green);letter-spacing:0.1em">BACKEND</div><div class="sora" style="font-weight:800;font-size:14px;margin-top:6px">FastAPI + LangGraph</div></div>
+    <div class="card" style="padding:16px 18px;text-align:center"><div class="mono" style="font-size:9.5px;color:var(--purple);letter-spacing:0.1em">DATA LAYER</div><div class="sora" style="font-weight:800;font-size:14px;margin-top:6px">Neo4j · Pinecone · Postgres</div></div>
+  </div>
+</section>
+
+<!-- 09 · MARKET + MODEL -->
+<section class="slide" id="s9">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 09</span> · Market &amp; Model</div>
+  <h2 class="big fadeslot d2 grad-g">Big market, lean model.</h2>
+  <div class="grid two fadeslot d3" style="grid-template-columns:1fr 1fr;margin-top:30px">
+    <div class="card">
+      <div class="eyebrow" style="color:var(--cyan);margin-bottom:12px">Who it's for</div>
+      <div style="color:var(--dim);font-size:14.5px;line-height:1.75">Students, researchers, analysts, journalists, and R&amp;D teams who need <b style="color:#fff">cited, auditable answers.</b><br><br>Market: AI in education + knowledge-work tools. Fast-growing, multi-billion-dollar.</div>
+    </div>
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:12px">How it earns</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:11px;align-items:flex-start"><span class="msym" style="color:var(--green)">redeem</span><div><b style="color:#fff">BYOK Freemium</b><div style="color:var(--dim);font-size:13px">Users pay their own model cost → near-zero COGS.</div></div></div>
+        <div style="display:flex;gap:11px;align-items:flex-start"><span class="msym" style="color:var(--cyan)">workspace_premium</span><div><b style="color:#fff">Pro / Team subscriptions</b><div style="color:var(--dim);font-size:13px">Higher limits, shared graphs, exports.</div></div></div>
+        <div style="display:flex;gap:11px;align-items:flex-start"><span class="msym" style="color:var(--purple)">school</span><div><b style="color:#fff">Institutional (B2B2C)</b><div style="color:var(--dim);font-size:13px">Campus &amp; department licenses.</div></div></div>
+      </div>
+    </div>
+  </div>
+  <!-- Future evolution of the model -->
+  <div class="fadeslot d4 card" style="margin-top:22px;border-left:3px solid var(--gold)">
+    <div class="eyebrow" style="color:var(--gold);margin-bottom:12px"><span class="msym" style="font-size:13px">trending_up</span> Where the model goes at scale</div>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:14px">
+      <div><div class="sora" style="font-weight:800;font-size:14.5px;margin-bottom:5px;color:#fff">Managed credits</div><div style="color:var(--dim);font-size:13px;line-height:1.6">Once we have the user base, we buy model credits in bulk and hand each user a set number of questions per plan. BYOK stops being required.</div></div>
+      <div><div class="sora" style="font-weight:800;font-size:14.5px;margin-bottom:5px;color:#fff">Metered tiers</div><div style="color:var(--dim);font-size:13px;line-height:1.6">Simple quotas (e.g. 50 / 300 / unlimited questions per month) at fixed rates. No API keys, no setup, one bill.</div></div>
+      <div><div class="sora" style="font-weight:800;font-size:14.5px;margin-bottom:5px;color:#fff">BYOK + platform fee</div><div style="color:var(--dim);font-size:13px;line-height:1.6">Power users can still bring their own key, but pay a small platform fee on top for the orchestration, agents &amp; graph.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · ROADMAP + ASK -->
+<section class="slide" id="s10">
+  <div class="eyebrow fadeslot d1"><span class="num">↓ 10</span> · Roadmap &amp; The Ask</div>
+  <h2 class="big fadeslot d2">Where we go next.</h2>
+  <div class="grid two fadeslot d3" style="grid-template-columns:1fr 1fr;margin-top:26px">
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:12px">Roadmap</div>
+      <div style="color:var(--dim);font-size:14px;line-height:1.9">
+        › Mobile-optimized UI<br>› Collaborative knowledge graphs<br>› Citation export (BibTeX)<br>› Institutional SSO<br>› Eval-based quality benchmarks
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div class="eyebrow" style="margin-bottom:12px">The ask</div>
+      <div style="color:var(--dim);font-size:14px;line-height:1.9">
+        › Mentorship &amp; incubation support<br>› Cloud / compute credits<br>› Pilot access to student cohorts<br>› Seed funding to grow the team
+      </div>
+    </div>
+  </div>
+  <div class="fadeslot d4 card" style="margin-top:26px;text-align:center;border:1px solid rgba(0,255,15,0.2);background:rgba(0,255,15,0.03)">
+    <div class="sora" style="font-size:clamp(1.1rem,2.4vw,1.7rem);font-weight:800;letter-spacing:-0.02em;line-height:1.35">"A single model will always tell you it's right.<br><span class="grad-g">POLYNOUS shows you how sure it is, and why."</span></div>
+  </div>
+  <div class="fadeslot d5" style="text-align:center;margin-top:26px;display:flex;flex-direction:column;align-items:center;gap:9px">
+    <div class="mono" style="font-size:10px;letter-spacing:0.34em;color:var(--dimmer);text-transform:uppercase">Presented by</div>
+    <div class="sora" style="font-size:clamp(1.2rem,2.4vw,1.7rem);font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1">Ashwarya <span class="grad-g">Pradhan</span></div>
+  </div>
+</section>
+
+<div class="hint">↑ / ↓ or scroll to navigate · press F for fullscreen</div>
+
+<script>
+  // ── slide data injected ──────────────────────────────────────────
+  const C={green:'#00ff0f',cyan:'#00ccff',crimson:'#ff2040',gold:'#ffd700',purple:'#a855f7',indigo:'#5878d4',amber:'#ffaa00',teal:'#00e6b8',coral:'#ff6b6b'};
+
+  // pipeline nodes (slide 4)
+  const stages=[['search','Search',C.cyan],['summarize','Summarise',C.indigo],['balance','Critic',C.amber],['repeat','Deepen',C.crimson],['edit_note','Writer',C.green]];
+  const pipe=document.getElementById('pipe');
+  stages.forEach((s,i)=>{
+    const node=document.createElement('div');
+    node.style.cssText='display:flex;flex-direction:column;align-items:center;gap:8px;width:118px';
+    node.innerHTML=`<div style="width:64px;height:64px;border-radius:18px;background:${s[2]}12;border:1.6px solid ${s[2]}77;display:flex;align-items:center;justify-content:center;box-shadow:0 0 22px ${s[2]}22;animation:floaty 4s ${i*0.3}s ease-in-out infinite"><span class="msym" style="font-size:27px;color:${s[2]};filter:drop-shadow(0 0 6px ${s[2]}88)">${s[0]}</span></div><div class="sora" style="font-weight:700;font-size:12px;color:${s[2]};letter-spacing:0.05em">${s[1]}</div><div class="mono" style="font-size:8.5px;color:rgba(220,228,240,0.4)">AG-0${i+1}</div>`;
+    pipe.appendChild(node);
+    if(i<stages.length-1){const a=document.createElement('div');a.className='msym';a.style.cssText=`font-size:22px;color:rgba(255,255,255,0.22);margin-top:-24px`;a.textContent='chevron_right';pipe.appendChild(a);}
+  });
+
+  // feature grid (slide 6)
+  const feats=[
+    ['hub','Knowledge Graph',C.cyan,'Neo4j-powered, auto-built each session. Pathfinder traces links between any two ideas.'],
+    ['manage_search','Semantic Search',C.green,'Pinecone + embeddings find past research by meaning, not keywords.'],
+    ['description','PDF Intelligence Lab',C.gold,'Signature, malware &amp; embedded-JS screening, then grounded, cited RAG Q&amp;A across docs.'],
+    ['neurology','Memory Bank',C.purple,'Stats, interest graph, debate history, and AI-generated topic suggestions.'],
+    ['query_stats','Analytics Dashboard',C.amber,'Activity heatmaps, confidence distribution, top topics, and real spend.'],
+    ['receipt_long','Run Telemetry',C.coral,'Real tokens, LLM calls &amp; estimated USD cost per run, never fabricated.'],
+  ];
+  const fg=document.getElementById('featgrid');
+  feats.forEach(f=>{
+    const d=document.createElement('div');d.className='card';d.style.minHeight='150px';
+    d.innerHTML=`<div class="topline" style="background:linear-gradient(90deg,transparent,${f[2]}88,transparent)"></div>
+      <div style="width:46px;height:46px;border-radius:12px;background:${f[2]}12;border:1px solid ${f[2]}30;display:flex;align-items:center;justify-content:center;margin-bottom:14px"><span class="msym" style="font-size:23px;color:${f[2]}">${f[0]}</span></div>
+      <div class="sora" style="font-weight:800;font-size:15.5px;margin-bottom:7px">${f[1]}</div>
+      <div style="color:var(--dim);font-size:13px;line-height:1.6">${f[3]}</div>`;
+    fg.appendChild(d);
+  });
+
+  // tech chips (slide 8)
+  const tech=['React','FastAPI','LangGraph','Neo4j','Pinecone','PostgreSQL','Tavily','Docker','SSE Streaming','JWT + OAuth','Fernet Encryption'];
+  const tc=document.getElementById('tech');
+  tech.forEach(t=>{const s=document.createElement('span');s.className='chip mono';s.style.cssText='border:1px solid rgba(0,255,15,0.22);background:rgba(0,255,15,0.04);color:rgba(190,205,220,0.85)';s.textContent=t;tc.appendChild(s);});
+
+  // dot nav
+  const slides=[...document.querySelectorAll('section.slide')];
+  const dots=document.getElementById('dots');
+  slides.forEach((s,i)=>{const a=document.createElement('a');a.href='#'+s.id;a.title='Slide '+(i+1);dots.appendChild(a);});
+  const dotEls=[...dots.children];
+
+  // scroll spy + progress + reveal
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('vis');
+      const idx=slides.indexOf(e.target);
+      dotEls.forEach((d,i)=>d.classList.toggle('on',i===idx));
+      document.getElementById('progress').style.width=((idx)/(slides.length-1)*100)+'%';
+    }
+  })},{threshold:0.55});
+  slides.forEach(s=>io.observe(s));
+  slides[0].classList.add('vis');
+
+  // keyboard nav
+  let cur=0;
+  const go=(i)=>{cur=Math.max(0,Math.min(slides.length-1,i));slides[cur].scrollIntoView({behavior:'smooth'});};
+  addEventListener('keydown',(e)=>{
+    if(['ArrowDown','ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(cur+1);}
+    else if(['ArrowUp','ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(cur-1);}
+    else if(e.key==='Home'){go(0);} else if(e.key==='End'){go(slides.length-1);}
+    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
+  });
+  // track current for keyboard
+  const io2=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting)cur=slides.indexOf(e.target);}),{threshold:0.6});
+  slides.forEach(s=>io2.observe(s));
+
+  // ── neural canvas background ─────────────────────────────────────
+  const cv=document.getElementById('neural'),ctx=cv.getContext('2d');
+  let W,H,parts;
+  const COUNT=Math.min(120,Math.floor(innerWidth/12)), LINK=120;
+  function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;parts=Array.from({length:COUNT},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*0.25,vy:(Math.random()-.5)*0.25,c:Math.random()<0.6?C.green:Math.random()<0.8?C.cyan:C.purple,r:Math.random()*1.5+0.4}));}
+  resize();addEventListener('resize',resize);
+  function loop(){
+    ctx.clearRect(0,0,W,H);
+    for(let i=0;i<parts.length;i++){const p=parts[i];
+      for(let j=i+1;j<parts.length;j++){const q=parts[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.hypot(dx,dy);
+        if(d<LINK){ctx.strokeStyle=p.c;ctx.globalAlpha=(LINK-d)/LINK*0.06;ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();}}
+      ctx.globalAlpha=0.85;ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
+      p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+    }
+    ctx.globalAlpha=1;requestAnimationFrame(loop);
+  }
+  loop();
+</script>
+</body>
+</html>

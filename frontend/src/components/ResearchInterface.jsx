@@ -1048,21 +1048,6 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
 
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
 
-  // Show a subtle loading state until fonts are ready
-  if (!fontsLoaded) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#0a0a1e',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{ color: '#00ff0f', fontSize: '24px' }}>🧠</div>
-      </div>
-    );
-  }
-
   // ── SINGLE PIPELINE: the NeuralResearchEngine's /ask-visual stream is the
   // ONE research run. The report is fed from its final patch (final_answer +
   // citations), so what you watch being written IS the published report - 
@@ -1107,6 +1092,25 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Show a subtle loading state until fonts are ready.
+  // NOTE: this early return MUST stay below every hook above - placing it
+  // higher skipped the autoRanRef useRef/useEffect on the first (fonts not
+  // ready) render, changing hook order once fonts loaded and crashing the
+  // whole research page to a blank screen.
+  if (!fontsLoaded) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#0a0a1e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ color: '#00ff0f', fontSize: '24px' }}>🧠</div>
+      </div>
+    );
+  }
 
   const handleNew  = () => { setAnswer(""); setQuery(""); setActiveQuery(""); setSources([]); setConfidence(0); setEngineCollapsed(false); setEngineDone(false); };
   const handleCopy = () => { navigator.clipboard.writeText(answer); };
