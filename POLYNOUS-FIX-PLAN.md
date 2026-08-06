@@ -1,6 +1,51 @@
 # POLYNOUS — Fix & Enhancement Plan
 
-> Master task list compiled from the walkthrough. Hand me tasks **by ID** (e.g. "do DBT-03, DBT-04") and I'll implement them one batch at a time. Nothing here is implemented yet — this is the spec.
+> Master task list compiled from the walkthrough. Hand me tasks **by ID** (e.g. "do DBT-03, DBT-04") and I'll implement them one batch at a time.
+
+## ✅ IMPLEMENTATION STATUS — ALL PHASES COMPLETE
+
+Every task below is implemented and builds clean. Scoring/confidence/critic logic was verified against the real OpenAI key and deterministic tests.
+
+| ID | Task | Status |
+|----|------|--------|
+| DBT-01 | Advocate real scores + grounded/fabricated | ✅ Evidence Ledger; verified live |
+| DBT-02 | Citation chips clickable → source | ✅ |
+| DBT-03 | Full-width on sidebar collapse | ✅ |
+| DBT-04 | 100% finalizing loader | ✅ (debate + research) |
+| DBT-05 | Framing alternatives clickable → re-run | ✅ |
+| DBT-06 | Steelman font enlarged | ✅ |
+| DBT-07 | Supporting/Counter sizing normalized | ✅ |
+| DBT-08 | Split oversized points | ✅ unit-tested |
+| DBT-09 | Clash Meter redesign | ✅ |
+| DBT-10 | Judge's Lens works | ✅ CORS root-cause fix |
+| DBT-11 | "What flips this" slider real | ✅ |
+| DBT-12 | Cross-examination works | ✅ |
+| DBT-13 | Join the Debate works | ✅ |
+| DBT-14 | Telemetry before follow-ups | ✅ |
+| DBT-15 | Judge Track Record | ✅ wired end-to-end |
+| DBT-16 | Agree/Disagree vote | ✅ wired end-to-end |
+| DBT-17 | Global debate typography | ✅ |
+| RES-01 | Latest sources openable | ✅ |
+| RES-02 | Context-depth graph clickable | ✅ |
+| RES-03 | Key Insights overflow | ✅ |
+| RES-04 | Source-backed graphs clickable | ✅ |
+| RES-05 | Critique completeness | ✅ landscape/insight/gap; verified |
+| RES-06 | Draft ↔ report parity | ✅ verified same source (presentational only) |
+| RES-07 | Contradiction analysis | ✅ |
+| RES-08 | different_scope humanized | ✅ |
+| RES-09 | Faithfulness flagged | ✅ |
+| RPT-01 | Low-confidence nag rare | ✅ |
+| RPT-02 | Trajectory formatting | ✅ (bold render) |
+| RPT-03 | Chat with report works | ✅ never-disabled + premium |
+| RPT-04 | Confidence provenance premium | ✅ interactive |
+| RPT-05 | Confidence computation | ✅ calibration-tested |
+| RPT-06 | Contradiction resolution structure | ✅ unit-tested |
+| RPT-07 | Source Quality detailed | ✅ per-source cards + tiers |
+| RPT-08 | Consensus/Divergence | ✅ collapsible + formatted |
+| RPT-09 | Source Intelligence detailed | ✅ per-source rows + links |
+| RPT-10 | Executive Summary hero | ✅ |
+
+Original spec follows below.
 
 ## Global principles (apply to every task below)
 - **G1 — Real, not fake:** Every score, count, and metric must be computed from actual data (sources, LLM output, retrieval). No hard-coded, random, or "for-show" values anywhere.

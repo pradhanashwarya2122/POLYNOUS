@@ -1,3 +1,12 @@
+<!--
+  POLYNOUS README
+  Notes to self:
+  - Keep this in first person. It's my project, I want it to read like I wrote it.
+  - No em-dashes anywhere. Commas, colons, parentheses, periods only.
+  - "Shipped" = actually in the code. "Building next" = roadmap, do not claim as done.
+  - Screenshots go in /screenshots. Update the badges/URLs if I move hosts.
+-->
+
 ```
         ✦               ✧                    ✦          ✧              ✦
    ✧         ██████╗  ██████╗ ██╗  ██╗   ██╗███╗   ██╗ ██████╗ ██╗   ██╗███████╗        ✦
@@ -13,7 +22,7 @@
 
 ### Many Minds. One Answer.
 
-*A production-grade neural research OS — seven specialized agents that search, debate, reason, and synthesize in real time.*
+*A multi-agent research platform I built: seven specialized agents that search, debate, reason, and synthesize in real time.*
 
 <br/>
 
@@ -27,12 +36,12 @@
 
 <br/>
 
-**[→ Live Demo](https://polynous.pages.dev)** &nbsp;·&nbsp; **[→ API Docs](https://polynous-api-production.up.railway.app/docs)** &nbsp;·&nbsp; **[→ Report Bug](https://github.com/pradhanashwarya2122/POLYNOUS/issues)**
+**[Live Demo](https://polynous.pages.dev)** &nbsp;·&nbsp; **[API Docs](https://polynous-api-production.up.railway.app/docs)** &nbsp;·&nbsp; **[Report a Bug](https://github.com/pradhanashwarya2122/POLYNOUS/issues)**
 
 <br/>
 
-![Railway](https://img.shields.io/badge/Backend-Railway-0B0D0E?style=flat-square&logo=railway&logoColor=white)
-![Cloudflare](https://img.shields.io/badge/Frontend-Cloudflare_Pages-F38020?style=flat-square&logo=cloudflare&logoColor=white)
+![Backend](https://img.shields.io/badge/Backend-Railway-0B0D0E?style=flat-square&logo=railway&logoColor=white)
+![Frontend](https://img.shields.io/badge/Frontend-Cloudflare_Pages-F38020?style=flat-square&logo=cloudflare&logoColor=white)
 ![Neo4j](https://img.shields.io/badge/Graph-Neo4j_AuraDB-4581C3?style=flat-square&logo=neo4j&logoColor=white)
 ![Pinecone](https://img.shields.io/badge/Vectors-Pinecone-6366f1?style=flat-square&logo=pinecone&logoColor=white)
 ![Claude](https://img.shields.io/badge/AI-Anthropic_Claude-d97706?style=flat-square&logo=anthropic&logoColor=white)
@@ -42,9 +51,23 @@
 
 ---
 
+## What I built
+
+POLYNOUS is not a chatbot wrapper. It's a multi-agent research platform where seven specialized agents run in sequence to produce research that is more thorough, more cited, and more honest about uncertainty than any single model reply.
+
+The idea is simple. A single model gives you one confident guess with no sources you can open and no sense of what it got wrong. I wanted the opposite. So I assembled a research team: one agent searches the live web, one condenses each source, one challenges the findings for contradictions, and one writes a structured report with citations, a computed confidence score, and honest limitations. For contested topics, three more agents run a formal adversarial debate where an AI judge scores both sides on a real rubric and delivers a verdict I can actually inspect.
+
+It's fully multi-user with cryptographic data isolation, bring-your-own API keys across seven providers, a live per-user knowledge graph, semantic memory, PDF analysis, and an analytics dashboard. All of it ships in one deployable codebase.
+
+<!-- The honest pitch: I care that the numbers are real. Scores are computed from citations
+     verified against the source list, confidence is computed from the sources, and telemetry
+     is the actual token spend on your own key. Nothing here is decorative or hard-coded. -->
+
+---
+
 ## Interface
 
-> Screenshots live in `/screenshots/`. Take them from [polynous.pages.dev](https://polynous.pages.dev) and drop them in — the grid is ready.
+> Screenshots live in `/screenshots/`. I take them from [polynous.pages.dev](https://polynous.pages.dev) and drop them into the grid.
 
 <div align="center">
 
@@ -64,30 +87,21 @@
 
 ---
 
-## What is POLYNOUS?
-
-POLYNOUS is not a chatbot wrapper. It is a **neural research operating system** — a multi-agent AI platform where seven specialized agents orchestrate in sequence to produce research that is more thorough, more cited, and more honest about uncertainty than any single model response.
-
-Where a single model gives you its best guess, POLYNOUS assembles a research team: one agent searches the live web, one condenses each source, one challenges findings for contradictions, and one synthesizes a structured report — with citations, confidence scores, and identified limitations. For contested topics, three additional agents run a formal adversarial debate with an AI judge that scores both sides and delivers a verdict.
-
-Fully multi-user. Cryptographic data isolation. Bring-your-own API keys. Live knowledge graph. Semantic memory. PDF analysis. Neural analytics dashboard. All in a single deployable codebase.
-
----
-
-## Why POLYNOUS?
+## Why I think it's different
 
 | Capability | ChatGPT | Perplexity | POLYNOUS |
 |:-----------|:-------:|:----------:|:--------:|
-| Multi-agent pipeline | — | — | 7 agents |
-| Real-time web search | Plus only | ✓ | ✓ |
-| Per-claim confidence scoring | — | — | 0–100% |
-| Adversarial debate with judge | — | — | FOR / AGAINST / VERDICT |
-| Persistent knowledge graph | — | — | Neo4j, per-user |
-| Semantic memory search | — | — | Pinecone namespaces |
-| Bring-your-own API keys | — | — | Anthropic + OpenAI |
-| Per-user data isolation | — | — | Cryptographic |
-| Neural analytics dashboard | — | — | Patterns · Heatmaps · Trends |
-| PDF RAG analysis | — | — | With security scanning |
+| Multi-agent pipeline | No | No | 7 agents |
+| Real-time web search | Plus only | Yes | Yes |
+| Per-claim confidence, computed from sources | No | No | 0 to 100% |
+| Adversarial debate with a rubric judge | No | No | FOR / AGAINST / VERDICT |
+| Grounded vs fabricated citation counting | No | No | Per advocate, verified |
+| Persistent knowledge graph | No | No | Neo4j, per user |
+| Semantic memory search | No | No | Pinecone namespaces |
+| Bring-your-own keys, 7 providers | No | No | Yes |
+| Per-user cryptographic isolation | No | No | Yes |
+| Honest run telemetry (your real spend) | No | No | Tokens, cost, per stage |
+| PDF RAG with security scanning | No | No | Yes |
 
 ---
 
@@ -107,45 +121,41 @@ Fully multi-user. Cryptographic data isolation. Bring-your-own API keys. Live kn
 - [Security Model](#security-model)
 - [Testing](#testing)
 - [Deployment](#deployment)
-- [Roadmap](#roadmap)
-- [The Compounding Loop](#the-compounding-loop)
-- [Contributing](#contributing)
+- [Intelligence Roadmap](#intelligence-roadmap)
 - [License](#license)
 
 ---
 
 ## Onboarding
 
-New users don't land in a blank chat. They walk through a guided setup:
+I didn't want new users to land in a blank chat, so I built a guided setup:
 
 ```
-Landing Page → Auth (Email / Google / GitHub) → OAuth Callback → Profile Setup → Research
-                                                                       │
-                                                         ┌─────────────┘
-                                                         ▼
-                                               ┌──────────────────────┐
-                                               │   PROFILE SETUP      │
-                                               │                      │
-                                               │  @ neural_handle     │
-                                               │  [████████░░] 8/24   │
-                                               │                      │
-                                               │  Response Style      │
-                                               │   Academic  ● Tech   │
-                                               │   ELI5      ○ Casual │
-                                               │                      │
-                                               │  API Keys (optional) │
-                                               │  Anthropic: sk-ant-. │
-                                               │  OpenAI:    sk-..... │
-                                               │  Tavily:    tvly-... │
-                                               │                      │
-                                               │   [ INITIALIZE → ]   │
-                                               └──────────────────────┘
+Landing Page  ->  Auth (Email / Google / GitHub)  ->  OAuth Callback  ->  Profile Setup  ->  Research
+                                                                              │
+                                                                ┌─────────────┘
+                                                                ▼
+                                                      ┌──────────────────────┐
+                                                      │   PROFILE SETUP      │
+                                                      │                      │
+                                                      │  @ neural_handle     │
+                                                      │  [████████░░] 8/24   │
+                                                      │                      │
+                                                      │  Response Style      │
+                                                      │   Academic  ● Tech   │
+                                                      │   ELI5      ○ Casual │
+                                                      │                      │
+                                                      │  Connect API keys    │
+                                                      │  (optional, collapsed)│
+                                                      │                      │
+                                                      │   [ INITIALIZE ]     │
+                                                      └──────────────────────┘
 ```
 
-- **New users** are routed through Profile Setup to choose a neural handle, pick a default response style, and optionally provide their own API keys
-- **Returning users** skip directly to the research interface
-- **OAuth users** are merged by email — no duplicate accounts created on repeat login
-- **BYO keys** entered during setup are validated live before saving, then encrypted at rest
+- New users pick a neural handle, choose a default response style, and can optionally connect their own API keys. The keys section is a collapsible card so first-run isn't a wall of eight inputs.
+- Returning users skip straight to research. Their saved preferences (default mode, response style, streaming, autosave, confidence threshold) load on mount, so the app doesn't silently fall back to defaults on a reload.
+- OAuth users are merged by email, so repeat logins never create a duplicate account.
+- Keys entered during setup are validated with a live call before saving, then encrypted at rest.
 
 ---
 
@@ -153,24 +163,24 @@ Landing Page → Auth (Email / Google / GitHub) → OAuth Callback → Profile S
 
 POLYNOUS doesn't look like a SaaS dashboard. It looks like a neural interface.
 
-| Element | Description |
+| Element | What I did |
 |:--------|:------------|
-| **Deep void background** | `#0a0a1e` base — dark enough that neon accents genuinely glow against it |
-| **Bioluminescent green** | Primary accent `#00ff0f` pulses and throbs; never used as flat fill |
-| **Three.js particle canvases** | Floating strand networks animate behind every page — no static backgrounds anywhere |
-| **Loading as narrative** | Spinning dual-ring for OAuth handshake → pulsing dots for search → per-agent orbit tracker for research |
-| **Knowledge as constellation** | Semantic search renders results as a star map — brighter stars mean higher similarity scores |
-| **Glassmorphic cards** | Research reports and debate verdicts use translucent blurred containers with synapse-dot corner accents |
-| **Typography** | JetBrains Mono for data and code; Sora for display — deliberately technical, not rounded SaaS |
-| **Route skeletons** | Full-page navigations paint a per-route skeleton that mirrors the destination layout (sidebar + content), theme-tinted per page — on the app's own dark background, never a white flash |
-| **Smooth cursor** | A spring-following arrow pointer that rotates toward motion and replaces the native cursor on fine-pointer devices; auto-disabled for touch and reduced-motion |
-| **Living suggestions** | Research and Debate topic decks auto-shuffle through a large pool with a staggered crossfade, each suggestion carrying its own topical icon |
+| Deep void background | `#0a0a1e` base, dark enough that the neon accents actually glow |
+| Bioluminescent green | Primary accent `#00ff0f`, used as a glow and pulse, never a flat fill |
+| Three.js particle canvases | Floating strand networks animate behind every page, no static backgrounds |
+| Loading as narrative | A dual ring for the OAuth handshake, pulsing dots for search, a per-agent orbit tracker for research, and an explicit "finalizing" state at 100% so you never wonder whether it stalled |
+| Knowledge as constellation | Semantic search renders results as a star map where brighter stars mean higher similarity |
+| Glassmorphic cards | Reports and verdicts use translucent blurred containers with synapse-dot corners |
+| Typography | JetBrains Mono for data and code, Sora for display, deliberately technical, not rounded SaaS |
+| Route skeletons | Full-page navigations paint a per-route skeleton that mirrors the destination, theme-tinted per page, on the dark background, never a white flash |
+| Smooth cursor | A spring-following pointer that rotates toward motion, auto-disabled for touch and reduced-motion |
+| Living suggestions | Research and Debate topic decks auto-shuffle through a large pool with a staggered crossfade |
 
 ---
 
 ## The Seven Agents
 
-POLYNOUS runs two distinct pipelines — a four-agent **Research Pipeline** and a three-agent **Debate Pipeline** — orchestrated via LangGraph state machines.
+I run two pipelines: a four-agent Research pipeline and a three-agent Debate pipeline, both orchestrated with LangGraph state machines.
 
 ### Research Pipeline
 
@@ -184,12 +194,12 @@ POLYNOUS runs two distinct pipelines — a four-agent **Research Pipeline** and 
 └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
-| Agent | Job | Model |
-|:------|:----|:------|
-| **Search** | Queries Tavily; extracts URLs, titles, body text | Tavily API |
-| **Summariser** | Reads each source; extracts 3–5 key insight points | Claude / GPT-4o-mini |
-| **Critic** | Cross-references claims; flags contradictions; assigns confidence | Claude / GPT-4o-mini |
-| **Writer** | Synthesizes all summaries into a `Summary → Findings → Limitations → Confidence` report | Claude / GPT-4o-mini |
+| Agent | Job |
+|:------|:----|
+| Search | Queries Tavily, extracts URLs, titles, and body text |
+| Summariser | Reads each source and pulls out the key insight points |
+| Critic | Cross-references claims, flags contradictions, produces the agreement and disagreement groups |
+| Writer | Synthesizes everything into a structured, cited report |
 
 ### Debate Pipeline
 
@@ -197,17 +207,20 @@ POLYNOUS runs two distinct pipelines — a four-agent **Research Pipeline** and 
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │     FOR      │────▶│   AGAINST    │────▶│    JUDGE     │
 │              │     │              │     │              │
-│ Evidence-    │     │ Counter-     │     │ Scores 1–10  │
-│ backed case  │     │ evidence     │     │ declares     │
-│ for the prop │     │ against prop │     │ winner       │
+│ Evidence-    │     │ Counter-     │     │ Rubric score │
+│ backed case  │     │ evidence     │     │ + verdict    │
 └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
 | Agent | Job |
 |:------|:----|
-| **FOR** | Constructs supporting arguments with cited evidence |
-| **AGAINST** | Constructs opposing arguments with counter-evidence |
-| **Judge** | Scores each side 1–10; delivers structured reasoning; declares winner |
+| FOR | Builds the supporting case with cited evidence |
+| AGAINST | Builds the opposing case with counter-evidence |
+| Judge | Scores each side, blends a computed evidence rubric with its own quality read, and declares a winner |
+
+<!-- The judge score is not vibes. It's 0.5 * computed_evidence_rubric + 0.5 * judge_quality.
+     The rubric is computed from citations verified against the real source list, so an argument
+     that cites [9] when only 6 sources exist earns nothing for that citation. -->
 
 ---
 
@@ -215,105 +228,97 @@ POLYNOUS runs two distinct pipelines — a four-agent **Research Pipeline** and 
 
 ### Research Mode
 
-Seven-agent pipeline with a live agent progress tracker. Streaming via Server-Sent Events — answers arrive token-by-token as agents complete.
+Seven-agent pipeline with a live agent progress tracker, streamed over Server-Sent Events so the answer arrives as each agent completes. Every report ships in a structured, formatted layout, not a wall of text:
 
-Every report ships in a structured format:
+- **Executive Summary** as the hero of the page, in a gradient-framed card with bold and citation rendering.
+- **Key Findings** with inline, clickable citation chips that open the source in a new tab.
+- **Source Intelligence** as a per-source table: numbered badge, favicon, title, domain, a type badge (ACADEMIC, NEWS, OPINION, SNIPPET), and a click-through link.
+- **Source Quality Assessment** as per-source credibility cards with a computed trust tier (High trust, Moderate, Verify) and the factual note.
+- **Consensus Map** and **Divergence Map** as collapsible cards.
+- **Contradiction Resolution** parsed into Claim A, Claim B, and Resolution blocks instead of a dumped paragraph.
+- **Confidence Matrix** where the overall score opens a full provenance modal showing exactly how it was computed.
+- **Research Trajectory**, a numbered roadmap of what to look at next.
+- **Chat with this report**, always enabled, grounded only in the sources already fetched, with an animated typing state. No new web search, so it stays cheap and fast.
 
-```
-📋 Summary
-🔑 Key Findings
-⚠️  Limitations
-🎯 Confidence Score  (animated donut chart, 0–100%)
-🔗 Inline source citations
-```
+Confidence is computed mechanically from the sources, not written by the model: source agreement (salient-term overlap across sources), domain diversity (entropy of the domain distribution, trust-weighted), recency (half-life decay on publish dates), and claim grounding (share of sentences carrying a valid citation). Faithfulness shows how many answer sentences trace back to a real citation and flags any uncited factual claims.
 
-Response style selector — Academic / Technical / ELI5 / Casual — persisted per user and applied to all future research.
+Response style (Academic, Technical, ELI5, Casual) is chosen at setup, persisted per user, and applied to every future run.
 
 ### Debate Mode
 
-Formal proposition input with concise / detailed depth toggle. Side-by-side FOR (green) and AGAINST (red) argument panels with per-side scoring, animated comparison bars, and a structured judge verdict. Full JSON export of debate results.
+A formal proposition input with a concise or detailed depth toggle, side-by-side FOR (green) and AGAINST (red) panels, and a judge verdict I can actually inspect. What makes it more than two columns of text:
+
+- **Evidence Ledger per advocate.** Each side shows its computed evidence score, distinct real sources cited, grounded-sentence coverage, and the count of fabricated citations (citations pointing at sources that do not exist), all in red when they show up. These are computed, never hard-coded.
+- **Clash Meter.** A gradient clash track with a glowing seam sitting at the true balance point, driven by the real scores.
+- **Judge's Lens.** Re-score the same debate through a different value frame (impartial, economist, ethicist, pragmatist) and watch who wins change.
+- **Cross-examination.** Each side puts its sharpest question to the other and has to answer honestly, generated from the completed debate.
+- **Join the Debate.** I can add my own argument for a side. The opposing advocate replies, then the judge re-scores with my point folded in. It reuses the existing sources, so there is no re-scrape, just a small LLM cost.
+- **What flips this.** A slider that live-recomputes the winner as I shift the weight between evidence and argument quality. It's real math on the verdict components, not a for-show animation.
+- **Judge Track Record** plus an agree or disagree vote that records to the database and updates the historical agreement rate.
+- **Run telemetry** sits at the end, right before the follow-up questions, and a full JSON export of the case file.
 
 ### Knowledge Graph
 
-Interactive 2D force-directed visualization built on Three.js and Canvas. Supports 70+ node types — concepts, entities, claims, sources, relationships. Features include:
+An interactive force-directed graph built on Three.js and Canvas, per user, with everything filtered by `user_id` at the Cypher level. It supports concepts, entities, claims, sources, and relationships, with a pathfinder for the shortest conceptual connection between two entities, a centrality highlight for the most-connected nodes, and a timeline of when each node was added. The sidebar stays visible on the start screen so the page never feels empty.
 
-- **Pathfinder** — shortest conceptual connection between any two entities
-- **Centrality analysis** — highlights most-connected nodes
-- **Timeline playback** — growth animation showing when each node was added
-- **Full per-user isolation** — every node carries a `user_id`; all Cypher queries filter by it
-
-### Neural Memory Bank
-
-Research statistics dashboard covering total queries, debates, average confidence, and most active topics. Includes an interactive interest graph (Canvas), debate history with FOR/AGAINST score bars, and AI-generated topic suggestions based on your past research patterns.
+<!-- Honest note for interviewers: today entity extraction is regex-based and edge scores are
+     simple. The Intelligence Roadmap below is exactly how I'm turning this into real graph ML
+     (PageRank, Louvain, node2vec, link prediction, GraphRAG). I'd rather flag it than fake it. -->
 
 ### Semantic Search
 
-Meaning-based search using Pinecone vector embeddings with Voyage AI. Results rendered as an interactive neural constellation — a star map where similarity determines proximity. Real-time autocomplete. Scoped exclusively to the authenticated user's research.
+Meaning-based search over my own research history using real OpenAI embeddings (`text-embedding-3-small`, 1536 dimensions) and Pinecone cosine similarity, scoped to my user namespace. Results render as an interactive constellation where similarity sets proximity, with real-time autocomplete and a keyword fallback if the vector path is unavailable.
 
 ### PDF Lab
 
-Drag-and-drop upload with a multi-stage security validation pipeline: file signature check → embedded JavaScript detection → malware pattern scan. Full RAG question-answering against uploaded content, with multi-PDF cross-referencing.
+Drag-and-drop upload with a multi-stage security pipeline (file signature check, embedded JavaScript detection, malware pattern scan), then chunking, embedding with my own key, and Pinecone storage. Ask questions against the content and get a grounded, premium-formatted answer: a header with a confidence pill, headings and numbered steps, bold and superscript citation chips, and a "retrieved passages" panel with per-chunk relevance bars. There's an animated explainer of how the RAG flow works, and a semantic vector search mode that returns the closest chunks by meaning with no LLM overhead.
 
-### Settings & Key Vault
+### Settings and Key Vault
 
-Bring-your-own API keys for Anthropic, OpenAI, and Tavily — POLYNOUS uses them instead of system keys. Keys encrypted at rest with Fernet (AES-128-CBC), live-validated before saving, displayed as masked previews (`sk-ant-****-abcd`). Full data export, password change, session revocation, and account reset.
+Bring-your-own keys for Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, and DeepSeek, plus Tavily and Voyage. The whole app is provider-agnostic: whichever key I set as preferred is the one every agent uses and the one the telemetry attributes cost to. Keys are Fernet-encrypted at rest, live-validated before saving, shown as masked previews, and managed one provider at a time behind a collapsible picker. There's a usage and credits view, streaming, autosave and confidence toggles with tooltips, full data export, password change, session revocation, and account reset.
 
-### Run Telemetry & Cost Awareness
+<!-- Provider quirk I had to handle: OpenAI's newer models reject max_tokens (they want
+     max_completion_tokens) and non-default temperature. I wrote a small self-healing wrapper
+     (openai_compat) that retries with the corrected params, so every provider "just works". -->
 
-Every research and debate run reports **honest, real usage** — never fabricated. When a provider's SDK returns token counts, POLYNOUS folds them into a per-run telemetry card:
+### Run Telemetry and Cost Awareness
 
-- **Real token spend** (input / output) and **LLM call count** for the run
-- **Estimated cost** in USD from a per-model price table — always labelled an estimate, `—` when a model has no price entry
-- **Per-stage breakdown** — tokens, latency, and cost for each agent (search, summarise, critic, writer / FOR, AGAINST, judge)
-- **Provider · model badge** — names the exact key that was billed (e.g. `OpenAI · gpt-4o-mini`), so the cost is attributed to *whatever provider you actually used*
-- **Scrape-cache hits** — how many source fetches were served from cache
-
-Because keys are BYO, this is *your* spend on *your* key — surfaced transparently rather than hidden.
+Every run reports real usage, never fabricated. When a provider returns token counts I fold them into a per-run card: real input and output tokens, the LLM call count, an estimated USD cost from a per-model price table (always labelled an estimate, shown as a dash when a model has no price), a per-stage breakdown, a provider and model badge naming the exact key that was billed, and scrape-cache hits. Because the keys are mine, this is my spend on my key, surfaced honestly.
 
 ### Research Caching
 
-Identical research within a freshness window is served from a per-user **research cache** instead of re-running the full agent pipeline — cutting latency and token cost to near zero on repeats, with the cache status surfaced in the report.
+Identical research inside a freshness window is served from a per-user cache instead of re-running the whole pipeline, cutting latency and token cost to near zero on repeats, with the cache status shown in the report.
 
 ### Owner Admin View
 
-An `ADMIN_EMAILS`-gated overview of the user base — user counts, tiers, join / last-active timestamps, and which providers each account has configured. **Never** exposes passwords (one-way hashed) or API-key values (encrypted). Self-hides for non-admin accounts.
+An `ADMIN_EMAILS`-gated overview of the user base (counts, tiers, join and last-active timestamps, configured providers) that never exposes passwords (one-way hashed) or key values (encrypted), and hides itself for non-admin accounts.
 
 ---
 
 ## Neural Analytics
 
-> **Your research intelligence, decoded.**
+> My research history, decoded.
 
-The analytics dashboard transforms your research history into actionable patterns. Built with Canvas-native rendering — no chart library dependencies.
+The analytics dashboard turns history into patterns, rendered on Canvas with no chart-library dependency.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  NEURAL ANALYTICS            7D  30D  90D   ↺ Refresh              │
-├──────────────┬──────────────┬──────────────┬──────────────┐        │
-│  Total       │  Debates     │  Avg Conf.   │  Topics      │        │
-│  Queries     │              │              │  Mapped      │        │
-│              │              │              │              │        │
-│    2         │    1         │    60%       │    3         │        │
-└──────────────┴──────────────┴──────────────┴──────────────┘        │
-│                                                                     │
-│  Research Activity          Top Topics                              │
-│  ─────────────              ───────────                             │
-│  2 sessions                 psychology · ai · systems               │
-│                                                                     │
-│  Confidence Distribution    Activity Heatmap                        │
-│  ───────────────────────    ────────────────                        │
-│  High   ████░░░░░░   0%     Mon ░░▓▓░░░░░░░░░                      │
-│  Medium ██████████ 100%     Tue ░░░░▓▓▓░░░░░                       │
-│  Low    ░░░░░░░░░░   0%     Wed ░░░░░░░░░░░░░    less ░ ▒ ▓ more   │
+│  NEURAL ANALYTICS            7D  30D  90D   ↺ Refresh                 │
+├──────────────┬──────────────┬──────────────┬──────────────┐          │
+│  Total       │  Debates     │  Avg Conf.   │  Topics      │          │
+│  Queries     │              │              │  Mapped      │          │
+│    2         │    1         │    60%       │    3         │          │
+└──────────────┴──────────────┴──────────────┴──────────────┘          │
+│  Research Activity          Top Topics                               │
+│  2 sessions                 psychology · ai · systems                │
+│  Confidence Distribution    Activity Heatmap                         │
+│  High   ████░░░░░░   0%     Mon ░░▓▓░░░░░░░░░                        │
+│  Medium ██████████ 100%     Tue ░░░░▓▓▓░░░░░                         │
+│  Low    ░░░░░░░░░░   0%     Wed ░░░░░░░░░░░░   less ░ ▒ ▓ more        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-The dashboard surfaces:
-
-- **Research Activity** — session counts and query volume over selectable windows (7D / 30D / 90D)
-- **Top Topics** — most researched concepts extracted from your query history
-- **Confidence Distribution** — answer quality breakdown across High / Medium / Low bands
-- **Activity Heatmap** — day-of-week and time-of-day research patterns, GitHub-style
+It surfaces research activity over 7, 30, and 90 day windows, top topics from my query history, a confidence distribution across high, medium, and low bands, and a GitHub-style activity heatmap by day and time.
 
 ---
 
@@ -321,55 +326,57 @@ The dashboard surfaces:
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║  CLIENT                                                          ║
-║  React 18 + Vite · Three.js · Canvas API · React Router        ║
-║  polynous.pages.dev  (Cloudflare Pages — Global CDN)            ║
+║  CLIENT                                                           ║
+║  React 18 + Vite · Three.js · Canvas API · React Router          ║
+║  polynous.pages.dev  (Cloudflare Pages, Global CDN)              ║
 ╚════════════════════════════╤═════════════════════════════════════╝
                              │  HTTPS / SSE
 ╔════════════════════════════▼═════════════════════════════════════╗
 ║  API                                                             ║
-║  FastAPI 0.115+ · Python 3.11                                   ║
-║  polynous-api-production.up.railway.app  (Railway)              ║
+║  FastAPI 0.115+ · Python 3.11                                    ║
 ║                                                                  ║
-║  ┌────────────────┐  ┌────────────────┐  ┌────────────────────┐ ║
-║  │ Auth Middleware│  │Input Sanitizer │  │  Security Headers  │ ║
-║  │ JWT + bcrypt   │  │XSS/SQLi/CMDi   │  │  CSP·HSTS·X-Frame  │ ║
-║  └────────────────┘  └────────────────┘  └────────────────────┘ ║
+║  ┌────────────────┐  ┌────────────────┐  ┌────────────────────┐  ║
+║  │ Auth Middleware│  │Input Sanitizer │  │  Security Headers   │  ║
+║  │ JWT + bcrypt   │  │XSS/SQLi/CMDi   │  │  CSP·HSTS·X-Frame    │  ║
+║  └────────────────┘  └────────────────┘  └────────────────────┘  ║
 ║                                                                  ║
 ║  ┌──────────────────────────────────────────────────────────┐   ║
 ║  │  LANGGRAPH ORCHESTRATOR                                   │   ║
-║  │  Research:  Search → Summariser → Critic → Writer        │   ║
-║  │  Debate:    FOR → AGAINST → Judge                        │   ║
+║  │  Research:  Search -> Summariser -> Critic -> Writer      │   ║
+║  │  Debate:    FOR -> AGAINST -> Judge                       │   ║
 ║  └──────────────────────────────────────────────────────────┘   ║
 ╚══════════╤═══════════════════╤══════════════════╤═══════════════╝
            │                   │                  │
   ┌────────▼───────┐  ┌────────▼───────┐  ┌──────▼───────────┐
   │  PostgreSQL    │  │    Neo4j        │  │    Pinecone      │
-  │                │  │                │  │                  │
-  │ Users          │  │ Knowledge graph│  │ Vector embeddings│
-  │ Sessions       │  │ Entity linking │  │ Semantic search  │
-  │ Preferences    │  │ Relationships  │  │ Per-user scoped  │
-  │ Encrypted keys │  │ Per-user nodes │  │ user_{uuid} ns   │
-  │ Railway managed│  │ Neo4j AuraDB   │  │ Pinecone Svrless │
+  │ Users          │  │ Knowledge graph │  │ Vector embeddings│
+  │ Sessions       │  │ Entity linking  │  │ Semantic search  │
+  │ Preferences    │  │ Relationships   │  │ Per-user scoped  │
+  │ Encrypted keys │  │ Per-user nodes  │  │ user_{uuid} ns   │
   └────────────────┘  └────────────────┘  └──────────────────┘
 ```
 
-### Request Lifecycle
+### Request lifecycle
 
 ```
-1.  User submits query
-2.  POST /ask-stream  ←  Bearer token
-3.  Auth middleware validates JWT → attaches user_id
-4.  BYO key resolver decrypts stored keys (or falls back to system keys)
-5.  LangGraph initializes AgentState → begins pipeline
-6.  Search Agent  →  Tavily API  →  sources with URLs and body text
-7.  Summariser    →  Claude/GPT  →  condenses each source to key points
-8.  Critic        →  Claude/GPT  →  cross-references claims → confidence score
-9.  Writer        →  Claude/GPT  →  synthesizes structured cited report
-10. SSE streams:  start → progress (per agent) → tokens → citations → end
-11. On completion: stored in Neo4j (graph) + Pinecone (vectors) + PostgreSQL (history)
-12. Frontend renders Neural Synthesis Report with donut chart + findings + citations
+1.  I submit a query
+2.  POST /ask-visual  with a Bearer token
+3.  Auth middleware validates the JWT and attaches user_id
+4.  The BYO key resolver decrypts my stored key for the preferred provider
+5.  LangGraph initializes AgentState and starts the pipeline
+6.  Search  ->  Tavily  ->  sources with URLs and body text
+7.  Summariser  ->  my chosen model  ->  key points per source
+8.  Critic  ->  agreement and disagreement groups
+9.  Writer  ->  the structured, cited report
+10. SSE streams: start, per-agent progress, the visual patches, the final report
+11. On completion: stored in Neo4j, Pinecone, and PostgreSQL
+12. The frontend renders the report with the executive summary, findings, and confidence
 ```
+
+<!-- CORS gotcha I fixed: Starlette generates unhandled-500 responses OUTSIDE the CORS
+     middleware, so an error had no Access-Control-Allow-Origin header and the browser
+     reported a false "can't reach the server". I attach CORS headers in the exception
+     handlers now, so real error messages actually reach the UI. -->
 
 ---
 
@@ -377,40 +384,39 @@ The dashboard surfaces:
 
 ### Backend
 
-| Technology | Version | Purpose |
-|:-----------|:-------:|:--------|
-| FastAPI | 0.115+ | Async HTTP framework; native async, auto OpenAPI docs |
-| LangGraph | 0.2+ | Agent pipeline orchestration via state machine graphs |
-| Anthropic Claude | Latest | Primary LLM for all agents |
-| OpenAI GPT-4o-mini | Latest | User-selectable alternative LLM and embeddings |
-| Tavily | 0.5+ | Real-time web search optimized for LLM consumption |
-| Voyage AI | 0.2+ | High-quality text embeddings |
-| Neo4j AuraDB | 5.x | Relationship-native graph database; Cypher traversal |
-| Pinecone Serverless | 5.x | Auto-scaling vector database with namespace isolation |
-| PostgreSQL | 15+ | ACID-compliant relational database; Railway-managed |
-| SQLAlchemy | 2.0+ | ORM with parameterized queries; migration via Alembic |
-| python-jose | 3.3+ | JWT tokens with HMAC-SHA256 signing |
-| bcrypt | 4.1+ | Adaptive password hashing; salt-per-password |
-| cryptography (Fernet) | 41+ | AES-128-CBC API key encryption; per-user key derivation |
+| Technology | Purpose |
+|:-----------|:--------|
+| FastAPI | Async HTTP framework, auto OpenAPI docs |
+| LangGraph | Agent pipeline orchestration via state-machine graphs |
+| Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, DeepSeek | User-selectable LLM providers (bring your own key) |
+| OpenAI embeddings | `text-embedding-3-small`, 1536 dimensions, for search and RAG |
+| Tavily | Real-time web search tuned for LLM consumption |
+| Neo4j AuraDB | Relationship-native graph database, Cypher traversal |
+| Pinecone Serverless | Vector database with per-user namespace isolation |
+| PostgreSQL | Relational store for users, sessions, preferences, encrypted keys |
+| SQLAlchemy + Alembic | ORM with parameterized queries and migrations |
+| python-jose | JWT with HMAC-SHA256 |
+| bcrypt | Adaptive password hashing, salt per password |
+| cryptography (Fernet) | Per-user API key encryption |
 
 ### Frontend
 
-| Technology | Version | Purpose |
-|:-----------|:-------:|:--------|
-| React | 18+ | UI component framework with concurrent rendering |
-| Vite | 5+ | Sub-second HMR; ESBuild compilation |
-| React Router | 6+ | Declarative client-side routing |
-| Three.js | r128 | 3D WebGL rendering for knowledge graph and particles |
-| Canvas API | Native | 2D animations; neural backgrounds; interest graphs |
+| Technology | Purpose |
+|:-----------|:--------|
+| React 18 + Vite | UI with sub-second HMR |
+| React Router 6 | Client-side routing |
+| Three.js | WebGL for the knowledge graph and particle canvases |
+| Canvas API | 2D animations, neural backgrounds, interest graphs |
+| motion / GSAP | Reveal animations and micro-interactions |
 
 ### Infrastructure
 
-| Service | Role | Tier |
-|:--------|:-----|:-----|
-| Railway | Backend hosting + PostgreSQL managed database | Hobby |
-| Cloudflare Pages | Frontend with global CDN | Free |
-| Neo4j AuraDB | Managed graph database | Free (100k nodes) |
-| Pinecone Serverless | Managed vector database | Free (5M vectors) |
+| Service | Role |
+|:--------|:-----|
+| Railway | Backend hosting and managed PostgreSQL |
+| Cloudflare Pages | Frontend on a global CDN |
+| Neo4j AuraDB | Managed graph database (free tier) |
+| Pinecone Serverless | Managed vector database (free tier) |
 
 ---
 
@@ -418,58 +424,44 @@ The dashboard surfaces:
 
 ### Prerequisites
 
-| Tool | Min Version |
+| Tool | Min version |
 |:-----|:-----------:|
 | Python | 3.11 |
 | Node.js | 18 LTS |
 | Git | 2.30 |
-| PostgreSQL | 15 *(local dev only)* |
+| PostgreSQL | 15 (local dev only) |
 
-### Required API Keys
+### Environment variables
 
-| Key | Source | Free Tier |
-|:----|:-------|:----------|
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | $5 credit on signup |
-| `TAVILY_API_KEY` | [tavily.com](https://tavily.com) | 1,000 searches/month |
-| `PINECONE_API_KEY` | [app.pinecone.io](https://app.pinecone.io) | 5M vectors |
-| `NEO4J_URI` + credentials | [console.neo4j.io](https://console.neo4j.io) | 1 free AuraDB instance |
-| `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) | Optional — fallback LLM |
-| `VOYAGE_API_KEY` | [dash.voyageai.com](https://dash.voyageai.com) | Optional — embeddings |
-
-### Environment Variables
-
-Create `/backend/.env` from this reference:
+Create `backend/.env` from this reference:
 
 ```env
-# ── LLMs ───────────────────────────────────────────────────────────
+# LLMs (bring your own; at least one)
 ANTHROPIC_API_KEY=sk-ant-api03-...
-OPENAI_API_KEY=sk-...                     # Optional
+OPENAI_API_KEY=sk-...
 
-# ── Search ─────────────────────────────────────────────────────────
+# Search
 TAVILY_API_KEY=tvly-...
 
-# ── Embeddings ─────────────────────────────────────────────────────
-VOYAGE_API_KEY=vo-...                     # Optional
-
-# ── Databases ──────────────────────────────────────────────────────
+# Databases
 PINECONE_API_KEY=pcsk-...
 PINECONE_ENVIRONMENT=gcp-starter
 NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
-NEO4J_USER=neo4j
+NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your-aura-password
 DATABASE_URL=postgresql://user:pass@localhost:5432/polynous
 
-# ── Auth & Encryption ──────────────────────────────────────────────
-JWT_SECRET=                               # openssl rand -hex 32
-ENCRYPTION_KEY=                           # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Auth and encryption
+JWT_SECRET=                 # openssl rand -hex 32
+ENCRYPTION_KEY=             # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
-# ── CORS ───────────────────────────────────────────────────────────
+# CORS
 FRONTEND_URL=http://localhost:5174
 
-# ── Environment ────────────────────────────────────────────────────
+# Environment
 ENVIRONMENT=development
 
-# ── OAuth (Optional) ───────────────────────────────────────────────
+# OAuth (optional)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GITHUB_CLIENT_ID=
@@ -490,25 +482,25 @@ source venv/bin/activate           # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env               # fill in your keys
 uvicorn app.main:app --reload --port 8000
-# → http://localhost:8000  |  docs at /docs
+# http://localhost:8000, docs at /docs
 
 # 3. Frontend (new terminal)
 cd frontend
 npm install
 npm run dev
-# → http://localhost:5174
+# http://localhost:5174
 ```
 
-### Common Issues
+### Common issues
 
 | Error | Cause | Fix |
 |:------|:------|:----|
 | `ModuleNotFoundError: magic` | Missing binary on Windows | `pip install python-magic-bin` |
-| `Neo4j connection refused` | Wrong URI scheme | Ensure URI starts with `neo4j+s://` |
-| `Pinecone index not found` | Index auto-creates on first use | Wait 5–10s after first request |
-| `CORS error` | `FRONTEND_URL` mismatch | Confirm env var matches exact frontend URL + port |
-| `401 Unauthorized` | Token expired (15 min TTL) | Log in again |
-| `422 Validation Error` | Malformed request body | Check `/docs` for exact schema |
+| `Neo4j connection refused` | Wrong URI scheme | The URI must start with `neo4j+s://` |
+| `Pinecone index not found` | Index auto-creates on first use | Wait 5 to 10 seconds after the first request |
+| `CORS error` | `FRONTEND_URL` mismatch | Match the env var to the exact frontend URL and port |
+| `401 Unauthorized` | Access token expired (15 min TTL) | Log in again, or let the proactive refresh handle it |
+| `422 Validation Error` | Malformed request body | Check `/docs` for the exact schema |
 
 ---
 
@@ -518,411 +510,246 @@ npm run dev
 POLYNOUS/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                     # FastAPI entrypoint; CORS; middleware; router mounts
-│   │   ├── database.py                 # SQLAlchemy async engine; session factory
-│   │   ├── llm_client.py               # Multi-provider abstraction: Claude or GPT routing
-│   │   ├── state.py                    # AgentState TypedDict shared across pipeline
+│   │   ├── main.py                     # FastAPI entrypoint, CORS, middleware, router mounts
+│   │   ├── cors_config.py              # Env-driven allowlist + preview-host regex + error CORS
+│   │   ├── errors.py                   # Exception handlers (CORS-safe error responses)
+│   │   ├── llm_client.py               # Multi-provider LLM + embedding abstraction
+│   │   ├── llm_providers.py            # Provider registry and model resolution
+│   │   ├── embeddings.py               # OpenAI text-embedding-3-small (BYO key)
+│   │   ├── semantic_search.py          # Pinecone cosine search, user-namespaced
 │   │   │
 │   │   ├── agents/
 │   │   │   ├── summariser_agent.py
 │   │   │   ├── critic_agent.py
 │   │   │   ├── writer_agent.py
-│   │   │   └── debate_agents.py        # FOR, AGAINST, and Judge definitions
+│   │   │   └── debate_agents.py        # FOR, AGAINST, Judge + compute_argument_rubric
 │   │   │
 │   │   ├── graph/
 │   │   │   ├── orchestrator.py         # Research pipeline: 4-node StateGraph
 │   │   │   └── debate_graph.py         # Debate pipeline: 3-node StateGraph
 │   │   │
 │   │   ├── knowledge_graph/
-│   │   │   ├── graph_manager.py        # Neo4j CRUD; entity linking; pathfinder
-│   │   │   ├── user_memory.py          # User-scoped memory storage
+│   │   │   ├── graph_manager.py        # Neo4j CRUD, entity linking, pathfinder
+│   │   │   ├── user_memory.py          # User-scoped memory
 │   │   │   └── hybrid_search.py        # Combined vector + graph search
 │   │   │
-│   │   ├── memory/
-│   │   │   └── vector_store.py         # Namespace-scoped Pinecone operations
+│   │   ├── visual/
+│   │   │   ├── builder.py              # Research live-view patches (agents, faithfulness, contradiction, source panels)
+│   │   │   └── debate_builder.py       # Debate live-view patches
 │   │   │
-│   │   ├── routes/
-│   │   │   ├── auth.py                 # Register, login, refresh, /me, password, sessions
-│   │   │   ├── oauth.py                # Google + GitHub OAuth 2.0 PKCE
-│   │   │   ├── api_keys.py             # BYO key CRUD: save (encrypted), retrieve (masked)
-│   │   │   ├── memory.py               # Memory bank: stats, interests, history, suggestions
-│   │   │   ├── knowledge.py            # Knowledge graph: data, pathfinder, connections
-│   │   │   ├── semantic_search.py      # Vector search + autocomplete
-│   │   │   ├── pdfs.py                 # PDF upload with security validation + RAG
-│   │   │   └── settings_extended.py    # Preferences, export, reset, notifications
+│   │   ├── utils/
+│   │   │   ├── computed_confidence.py  # Source-derived confidence (agreement, diversity, recency, grounding)
+│   │   │   ├── openai_compat.py        # Self-healing max_tokens / temperature wrapper
+│   │   │   ├── encryption.py           # Fernet encrypt/decrypt, per-user keys
+│   │   │   └── pdf_security.py         # Header validation, embedded JS detection, malware sigs
 │   │   │
-│   │   ├── middleware/
-│   │   │   ├── auth_middleware.py       # JWT extraction; attaches user to request
-│   │   │   ├── input_sanitizer.py      # XSS, SQLi, command injection, path traversal
-│   │   │   └── security_headers.py     # CSP, HSTS, X-Frame, X-Content-Type on every response
-│   │   │
-│   │   ├── models/
-│   │   │   └── user.py                 # ORM: User, Conversation, Message, UserPreferences
-│   │   │
-│   │   └── utils/
-│   │       ├── encryption.py           # Fernet encrypt/decrypt; per-user key derivation
-│   │       ├── sanitizer.py            # Pure-function sanitization helpers
-│   │       ├── pdf_security.py         # Header validation; embedded JS detection; malware sigs
-│   │       └── key_resolver.py         # BYO key or system key resolver
+│   │   └── routes/
+│   │       ├── auth.py, oauth.py, api_keys.py, settings_extended.py
+│   │       ├── research_stream.py       # /ask, /ask-stream, /ask-visual, /debate-visual, /debate-vote
+│   │       ├── debate_followup.py       # /debate/rejudge, /debate/cross-exam, /debate/respond
+│   │       ├── report_chat.py           # Chat with a finished report
+│   │       ├── knowledge.py, semantic_search.py, memory.py, pdfs.py
 │   │
 │   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env.example
+│   └── Dockerfile
 │
 └── frontend/
-    ├── src/
-    │   ├── App.jsx                     # Auth state machine; route protection; profile gate
-    │   ├── main.jsx
-    │   ├── config.js                   # VITE_API_URL with localhost fallback
-    │   │
-    │   └── components/
-    │       ├── AuthPage.jsx
-    │       ├── OAuthCallback.jsx
-    │       ├── ProfileSetup.jsx
-    │       ├── ResearchInterface.jsx    # Search; agent orbit; Neural Synthesis Report
-    │       ├── DebateInterface.jsx      # FOR/AGAINST panels; judge verdict; score bars
-    │       ├── KnowledgeGraphPage.jsx   # Force-directed graph; pathfinder; centrality
-    │       ├── SemanticSearchPage.jsx   # Constellation UI; similarity scores
-    │       ├── MemoryBank.jsx           # Stats; interest graph; timeline; debate history
-    │       ├── AnalyticsDashboard.jsx   # Research patterns; heatmap; confidence distribution
-    │       ├── SettingsPage.jsx         # BYO keys; preferences; danger zone
-    │       ├── PdfLabPage.jsx           # Drop zone; security status; RAG interface
-    │       └── LandingPage.jsx
-    │
-    ├── package.json
-    ├── vite.config.js
-    └── Dockerfile
+    └── src/
+        ├── App.jsx                     # Auth state, route protection, proactive token refresh
+        └── components/
+            ├── ResearchInterface.jsx    # Search, agent orbit, report
+            ├── NeuralResearchEngine.jsx # Live research engine (SSE patches, clickable source graphs)
+            ├── DebateInterface.jsx      # Podiums, evidence ledger, clash meter, follow-ups
+            ├── DebateEngine.jsx         # Live debate engine with finalizing state
+            ├── report/NeuralSynthesisReport.jsx  # Executive hero, source cards, confidence matrix, chat
+            ├── KnowledgeGraphPage.jsx, SemanticSearchPage.jsx
+            ├── PdfLabPage.jsx, MemoryBank.jsx, SettingsPage.jsx
+            └── ...
 ```
 
 ---
 
 ## API Reference
 
-Full interactive documentation at [`/docs`](https://polynous-api-production.up.railway.app/docs).
+Full interactive docs at `/docs`.
 
 ### Authentication
 
 | Method | Endpoint | Description | Auth |
 |:------:|:---------|:------------|:----:|
-| `POST` | `/auth/register` | Register with email and password | — |
-| `POST` | `/auth/login` | Authenticate; receive access + refresh tokens | — |
-| `POST` | `/auth/refresh` | Exchange refresh token for new access token | Cookie |
-| `GET` | `/auth/me` | Current user profile | Bearer |
-| `PUT` | `/auth/me` | Update username | Bearer |
-| `PUT` | `/auth/change-password` | Change password | Bearer |
-| `POST` | `/auth/revoke-sessions` | Invalidate all active sessions | Bearer |
-| `GET` | `/oauth/google` | Initiate Google OAuth 2.0 PKCE | — |
-| `GET` | `/oauth/github` | Initiate GitHub OAuth 2.0 | — |
+| POST | `/auth/register` | Register with email and password | none |
+| POST | `/auth/login` | Authenticate, receive access and refresh tokens | none |
+| POST | `/auth/refresh` | Exchange the refresh token for a new access token | Cookie |
+| GET | `/auth/me` | Current user profile | Bearer |
+| PUT | `/auth/me` | Update username | Bearer |
+| POST | `/auth/revoke-sessions` | Invalidate all sessions | Bearer |
+| GET | `/oauth/google`, `/oauth/github` | Start OAuth 2.0 | none |
 
-### Research & Debate
+### Research and Debate
 
 | Method | Endpoint | Description | Auth |
 |:------:|:---------|:------------|:----:|
-| `POST` | `/ask` | Run pipeline; returns complete JSON on completion | Bearer |
-| `POST` | `/ask-stream` | Run pipeline with SSE streaming; streams agent events live | Bearer |
+| POST | `/ask` | Run the pipeline, return complete JSON | Bearer |
+| POST | `/ask-stream` | Run with SSE streaming | Bearer |
+| POST | `/ask-visual` | Run with the rich per-agent visual stream | Bearer |
+| POST | `/debate-visual` | Run the debate pipeline with the visual stream | Bearer |
+| POST | `/debate-vote` | Record an agree or disagree vote, get the track record | Bearer |
+| POST | `/debate/rejudge` | Re-score through a persona lens | Bearer |
+| POST | `/debate/cross-exam` | Generate a cross-examination round | Bearer |
+| POST | `/debate/respond` | Fold in a user argument, opponent replies, re-judge | Bearer |
+| POST | `/report/chat` | Ask a follow-up grounded in a finished report | Bearer |
 
-**Request body:**
+**Request body (`/ask-visual`):**
 ```json
-{
-  "query": "How does CRISPR gene editing work?",
-  "debate_mode": false,
-  "response_style": "academic"
-}
+{ "query": "How does CRISPR gene editing work?", "debate_mode": false, "response_style": "academic" }
 ```
 
-**SSE event types (`/ask-stream`):**
-```
-{"type": "start"}
-{"type": "progress", "agent": "Search", "message": "Searching web..."}
-{"type": "token", "content": "CRISPR (Clustered Regularly..."}
-{"type": "citations", "citations": ["https://...", "https://..."]}
-{"type": "confidence", "score": 87}
-{"type": "end"}
-```
-
-**Completed response shape (`/ask`):**
-```json
-{
-  "answer": "📋 Summary\nCRISPR is a gene-editing technology derived from a bacterial immune system...\n\n🔑 Key Findings\n• Cas9 protein acts as molecular scissors, guided by a synthetic RNA sequence [1]\n• Off-target edits remain the primary safety concern in therapeutic applications [2]\n• FDA approved first CRISPR therapy (Casgevy) for sickle cell disease in 2023 [3]\n\n⚠️ Limitations\n• Sources focus on therapeutic use — industrial/agricultural applications not covered\n• Pre-2024 clinical trial data only\n\n🎯 Confidence: 87%",
-  "sources": [
-    { "number": 1, "title": "Nature — CRISPR-Cas9 mechanism review", "url": "https://..." },
-    { "number": 2, "title": "Science — Off-target editing analysis", "url": "https://..." },
-    { "number": 3, "title": "FDA — Casgevy approval announcement", "url": "https://..." }
-  ],
-  "confidence": 87,
-  "contradictions": ["Source 1 claims 95% specificity; Source 2 reports 78% in vivo"],
-  "debate_verdict": {}
-}
-```
-
-### Memory, Knowledge Graph & Analytics
+### Memory, Knowledge Graph, Search
 
 | Method | Endpoint | Description | Auth |
 |:------:|:---------|:------------|:----:|
-| `GET` | `/memory/stats` | Research statistics | Bearer |
-| `GET` | `/memory/interests` | Top topics by frequency | Bearer |
-| `GET` | `/memory/history` | Full research timeline | Bearer |
-| `GET` | `/memory/debates` | Debate history | Bearer |
-| `GET` | `/memory/suggestions` | AI-generated topic suggestions | Bearer |
-| `GET` | `/analytics/dashboard` | Aggregated analytics: activity, heatmap, confidence | Bearer |
-| `GET` | `/knowledge/graph` | Full user knowledge graph | Bearer |
-| `GET` | `/knowledge/connections` | Shortest path between entities | Bearer |
-
-### Semantic Search
-
-| Method | Endpoint | Description | Auth |
-|:------:|:---------|:------------|:----:|
-| `GET` | `/search?q={query}` | Semantic search over research history | Bearer |
-| `GET` | `/search/suggestions?q={partial}` | Autocomplete from past queries | Bearer |
+| GET | `/memory/stats`, `/memory/history`, `/memory/debates`, `/memory/suggestions` | Memory bank data | Bearer |
+| GET | `/analytics/dashboard` | Activity, heatmap, confidence distribution | Bearer |
+| GET | `/knowledge/graph`, `/knowledge/connections` | Graph data and pathfinding | Bearer |
+| GET | `/search?q={query}` | Semantic search over my research | Bearer |
 
 ### Settings
 
 | Method | Endpoint | Description | Auth |
 |:------:|:---------|:------------|:----:|
-| `GET` | `/settings/api-keys` | Retrieve key statuses (masked) | Bearer |
-| `PUT` | `/settings/api-keys` | Save encrypted API key | Bearer |
-| `DELETE` | `/settings/api-keys/{provider}` | Delete key by provider | Bearer |
-| `POST` | `/settings/api-keys/test` | Validate key via live call | Bearer |
-| `GET/PUT` | `/settings/preferences` | Read/write user preferences | Bearer |
-| `GET` | `/settings/export` | Export all data as JSON | Bearer |
-| `DELETE` | `/settings/memory/clear` | Clear research history | Bearer |
-| `POST` | `/settings/reset` | Full account reset | Bearer |
-
-### Error Codes
-
-| Status | Meaning |
-|:------:|:--------|
-| `400` | Bad request |
-| `401` | Unauthorized |
-| `403` | Forbidden |
-| `404` | Not found |
-| `409` | Email already registered |
-| `422` | Request body validation failure |
-| `423` | Account locked — brute force protection (15 min) |
-| `429` | Rate limited |
-| `500` | Internal server error |
-| `503` | Upstream database or API unreachable |
+| GET / PUT / DELETE | `/settings/api-keys` | Manage encrypted keys (masked on read) | Bearer |
+| POST | `/settings/api-keys/test` | Validate a key with a live call | Bearer |
+| GET / PUT | `/settings/preferences` | Read or write preferences | Bearer |
+| GET | `/settings/export` | Export all my data as JSON | Bearer |
+| POST | `/settings/reset` | Full account reset | Bearer |
 
 ---
 
 ## Security Model
 
-POLYNOUS was built with the assumption that it handles sensitive research data across many users. Every layer of the stack includes explicit isolation and defense.
+I built this assuming it handles sensitive research across many users, so every layer has explicit isolation and defense.
 
-| Layer | Mechanism | Detail |
-|:------|:----------|:-------|
-| Password storage | bcrypt adaptive hashing | Work factor 12; unique salt per password |
-| Session tokens | Dual-token JWT model | Access: 15 min · Refresh: 7 days, HttpOnly cookie, rotation on use |
-| Brute force | Exponential lockout | 5 failures → 15 min lock; counter resets on success |
-| API key encryption | Per-user Fernet keys | Unique key per user at registration; encrypted before PostgreSQL write |
-| API key validation | Live test before save | Real minimal API call validates key before persisting |
-| Input sanitization | Multi-pattern middleware | XSS, SQL injection, shell injection, path traversal on every request |
-| CORS | Whitelist-based | Explicit origin list; no wildcard |
-| Security headers | Middleware-injected | CSP, HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff |
-| Neo4j isolation | Property-level filtering | Every node has `user_id`; every read: `WHERE n.user_id = $user_id` |
-| Pinecone isolation | Namespace scoping | Each user assigned `user_{uuid}`; all operations namespace-scoped |
-| SQL injection | ORM parameterization | 100% of queries via SQLAlchemy — no raw SQL string construction |
-| PDF security | Multi-stage validation | Magic bytes → embedded JS detection → malware signature scan |
-| Error handling | Safe production messages | Stack traces never surfaced to clients in production |
-| Dependencies | Automated CVE scanning | `pip-audit` + `Safety` against all Python packages |
+| Layer | Mechanism |
+|:------|:----------|
+| Password storage | bcrypt, work factor 12, unique salt per password |
+| Session tokens | Access JWT 15 min, refresh token 30 days in an HttpOnly cookie, rotated on use |
+| Brute force | Exponential lockout: 5 failures give a 15 min lock, reset on success |
+| API key encryption | Per-user Fernet key, encrypted before the PostgreSQL write |
+| API key validation | A real minimal call validates a key before it is saved |
+| Input sanitization | Middleware for XSS, SQL injection, shell injection, path traversal on every request |
+| CORS | Env-driven allowlist plus a preview-host regex, no wildcard, and CORS headers on error responses |
+| Security headers | CSP, HSTS, X-Frame-Options DENY, X-Content-Type-Options nosniff |
+| Neo4j isolation | Every node carries `user_id`, every read filters `WHERE n.user_id = $user_id` |
+| Pinecone isolation | Each user gets `user_{uuid}`, all operations are namespace-scoped |
+| SQL injection | Every query goes through SQLAlchemy, no raw string SQL |
+| PDF security | Magic bytes, embedded JS detection, malware signature scan |
+| Error handling | Safe production messages, stack traces never reach clients in production |
 
 ---
 
 ## Testing
 
-All test scripts target a running local server. Start the backend before executing.
+The scripts target a running local server. Start the backend first.
 
 ```bash
 cd backend && source venv/bin/activate
 
-python test_auth.py               # Auth flow + brute force lockout behavior
-python test_multi_user.py         # Multi-user registration; UUID and email collision checks
-python test_data_isolation.py     # Confirm User A cannot access User B's data
-python test_settings_endpoints.py # Preferences, notifications, export, clear, reset
-python test_byo_keys.py           # BYO key lifecycle: save, mask, validate, delete
-python check_dependencies.py      # CVE scan against known vulnerability databases
+python test_auth.py               # Auth flow + brute-force lockout
+python test_multi_user.py         # Registration, UUID and email collision checks
+python test_data_isolation.py     # Confirm User A cannot read User B's data
+python test_byo_keys.py           # Key lifecycle: save, mask, validate, delete
 ```
 
 ---
 
 ## Deployment
 
-### Backend → Railway
+### Backend
 
 ```bash
-# 1. Push to GitHub
 git push origin main
-
-# 2. Railway → New Project → Deploy from GitHub repo
-#    Set Root Directory: /backend
-#    Add environment variables (see table above)
-#    Railway auto-detects Python via Dockerfile
-#    Add PostgreSQL: New → Database → PostgreSQL (DATABASE_URL set automatically)
+# New project from the GitHub repo, root directory /backend
+# Add the environment variables from the table above
+# Add a managed PostgreSQL; DATABASE_URL is wired automatically
 ```
 
-Railway redeploys automatically on every push to `main`.
-
-### Frontend → Cloudflare Pages
+### Frontend (Cloudflare Pages)
 
 ```
-1. pages.cloudflare.com → Create application → Connect to Git
-2. Build settings:
-   Framework preset:       Vite
-   Build command:          npm run build
-   Build output directory: dist
-   Root directory:         frontend
-3. Environment variable:
-   VITE_API_URL = https://polynous-api-production.up.railway.app
-4. Deploy
+Framework preset:       Vite
+Build command:          npm run build
+Build output directory: dist
+Root directory:         frontend
+Environment variable:   VITE_API_URL = <your backend URL>
 ```
 
-### Docker (Local Full Stack)
+### Docker (local full stack)
 
 ```bash
 docker-compose up --build
-# Backend:   http://localhost:8000
-# Frontend:  http://localhost:5174
-# PostgreSQL is included in the compose — no separate database setup needed
+# Backend  http://localhost:8000
+# Frontend http://localhost:5174
 ```
 
 ---
 
-## Roadmap
+## Intelligence Roadmap
 
-```
-SHIPPED
-  ✓  7-agent research pipeline with SSE streaming
-  ✓  Debate mode: FOR / AGAINST / Judge with rubric scoring + corrective-retry judge
-  ✓  Per-user Neo4j knowledge graph with pathfinder
-  ✓  Pinecone semantic memory with constellation UI
-  ✓  Neural analytics dashboard: heatmaps, confidence trends, topic patterns
-  ✓  PDF Lab with security validation and RAG
-  ✓  BYO API keys with Fernet encryption and live validation
-  ✓  Run telemetry — real token spend + estimated cost, per-stage + per-provider·model
-  ✓  Research caching — repeats served from a per-user freshness-windowed cache
-  ✓  Owner admin view — user-base overview, gated, no secrets exposed
-  ✓  Single unified User model + Alembic migrations (auto-adopt on boot)
-  ✓  Route skeletons, spring smooth-cursor, auto-shuffling topic decks
-  ✓  Google + GitHub OAuth 2.0 · brute-force lockout · export + reset
-  ✓  Railway + Cloudflare Pages production deployment
+<!-- This is the part I care most about long-term. Right now the knowledge graph stores nodes;
+     the goal is to actually run math, ML, DL, and GenAI on top of it. Everything below is
+     planned, not shipped. I keep the line clear on purpose. -->
 
-IN PROGRESS
-  ⬡  Multi-PDF cross-referencing in PDF Lab
-  ⬡  Knowledge graph timeline playback animation
+The honest state today: semantic search and PDF RAG use real embeddings and cosine similarity, but the knowledge graph is still mostly storage (regex entity extraction, simple edge scores, no graph algorithms). Here's how I'm closing that gap. All of this runs on my current stack (Neo4j GDS, scikit-learn, CPU, plus bring-your-own model keys), no GPU required.
 
-NEXT — THE COMPOUNDING LOOP  (see section below)
-  ◇  Phase A · Typed, LLM-extracted graph relationships (kills regex co-occurrence)
-  ◇  Phase B · Belief model + memory that feeds future answers
-  ◇  Phase C · Contradiction Sentinel (signature feature)
-  ◇  Phase D · Graph-grounded answering + temporal knowledge scrubber
+### Credibility fixes first
 
-LATER
-  ○  Team workspaces — shared knowledge graphs across accounts
-  ○  Scheduled research — recurring queries on a cron schedule
-  ○  Citation verification — auto-check if source URLs are still live
-  ○  Browser extension · Self-hosted LLM via Ollama · Slack/Notion webhooks
-```
+- Replace the regex entity extraction with an LLM triple extractor that returns typed relations (`{subject, relation, object, confidence}`, relations like CAUSES, SUPPORTS, REFUTES, PART_OF, CONTRADICTS). An edge then reads "mRNA vaccines ENABLES rapid pandemic response (0.82)" instead of a bare co-occurrence.
+- Replace hard-coded edge weights with computed node similarity.
+- Route the hybrid search through the real embedding function everywhere.
 
----
+### Real graph ML (Neo4j GDS, runs in the database)
 
-## The Compounding Loop
+- **PageRank** to rank which concepts are load-bearing in my knowledge.
+- **Betweenness centrality** to find the bridge ideas that connect otherwise-separate clusters.
+- **Louvain community detection** so the graph self-organizes into themes, each auto-labelled.
+- **node2vec** structural embeddings, so I can find concepts that are topologically similar, not just semantically similar.
+- **Link prediction** (Adamic-Adar, then node2vec) as a recommendation engine over my own knowledge: "you researched X and Y separately, they are probably related."
 
-> The next chapter of POLYNOUS turns six capable-but-independent components into **one loop that gets smarter the more you use it.** Today every component is a *viewer*; the work below makes them *reason* and *feed each other*. No new pages — every addition lands inside an existing screen.
+### GraphRAG, the headline
 
-### 1 · Knowledge Graph — from co-occurrence toy → reasoning graph
+Answer a question by embedding it, finding entry nodes, expanding a multi-hop subgraph, feeding that structured subgraph to the model, and showing the exact reasoning path as the citation. This is personal GraphRAG over a graph I built myself, which is rarer than doing it over a static corpus.
 
-Today, entities are extracted with a capitalized-word regex and linked by `MENTIONED_WITH` / `CO_OCCURS_WITH` — a word co-occurrence graph with a Neo4j skin. Three upgrades make it defensible:
+### Retrieval quality (PDF and Search)
 
-- **(a) Typed, LLM-extracted relationships.** Replace `extract_and_link_entities`'s regex with one structured LLM extraction call at the end of each research run — `{subject, relation, object, confidence}` where `relation ∈ CAUSES · REFUTES · SUPPORTS · PART_OF · ENABLES · PRECEDED_BY · CONTRADICTS`. Same Neo4j, same viewer, 100× more credible: an edge now reads *"mRNA vaccines — ENABLES → rapid pandemic response (conf 0.82)"* instead of `MENTIONED_WITH`.
-- **(b) GraphRAG — "Ask your own graph."** A mode toggle on the existing graph page / search bar: traverse the user's Neo4j subgraph, pull connected typed claims plus their `Evidence` nodes (already stored with `source_url`), and **answer from the graph — with the traversal path as the citation.** `find_connections` already returns paths; this is ~60% there.
-- **(c) Contradiction edges.** When new extraction opposes an existing claim (same subject, opposing relation, or an LLM "do these conflict?" check), write a `CONTRADICTS` edge and surface it — the substrate for the Sentinel below.
+- Semantic chunking on embedding-similarity boundaries instead of fixed characters.
+- Two-stage retrieval with a cross-encoder reranker (bi-encoder recall, cross-encoder precision).
+- Hybrid BM25 plus dense retrieval with reciprocal rank fusion.
+- Page-anchored citations that scroll the PDF to the highlight.
+- Table and figure extraction, and multi-document synthesis.
 
-### 2 · Memory Bank — from log → active belief model
+### Visual intelligence
 
-- **(a) Beliefs, not entries.** A `Belief` = a claim + current confidence + reinforced/challenged counts + a confidence **timeline**. Reinforcing research raises confidence; contradiction lowers it. The page becomes *"What you believe, and how sure you are"* — with confidence sparklines. A Bayesian-flavored personal knowledge model.
-- **(b) Memory that changes answers.** Before each run, retrieve the user's top relevant beliefs and inject them into the writer's context: *"You previously concluded X (conf 0.7). New sources say…"*. The vector store + per-user isolation already support this retrieval — this is what makes the system feel alive.
-- **(c) Knowledge diff.** *"Since you last researched climate policy: 2 beliefs strengthened, 1 overturned."* A literal changelog of your own understanding.
+- A UMAP projection of all my research as an interactive 2D constellation, HDBSCAN-clustered and auto-labelled.
+- Analytics upgrades: topic-trend forecasting (time series), anomaly detection on unusual sessions (Isolation Forest), and a coverage heatmap over embedding space.
 
-### 3 · Semantic Search — from retrieval → synthesis across your past
+### Per-page ML, DL, and GenAI
 
-`hybrid_search.py` already blends Pinecone vectors with KG paths. Push it to:
+- **Research:** a novelty score (how far a run pushes my knowledge frontier) and an NLI entailment check for real faithfulness.
+- **Debate:** an argument-quality regressor trained on my rubric data, stance and contradiction detection via NLI, and a fallacy classifier.
+- **Memory Bank:** semantic dedup and auto-merge of near-duplicate memories, and spaced-repetition resurfacing ranked by recency, centrality, and novelty.
+- **Contradiction radar:** NLI across all my stored claims to surface where my own sources disagree across sessions.
 
-- **Connect the dots** — pick two past sessions; it finds the bridging concepts via the graph and explains the link.
-- **Search that cites *you*** — results distinguish *"from the web"* vs *"from your own prior research,"* making your accumulated corpus a first-class source.
-
-### The three flagship features — the *"no one has this"* list
-
-Ranked by wow-per-effort, all on infrastructure that already exists, all inside existing pages:
-
-| | Feature | Why it wins |
-|:--|:--|:--|
-| 🥇 | **Contradiction Sentinel** *(signature)* | When a new finding or debate verdict contradicts something in your graph / memory, it raises a flagged alert with **both evidence trails and timestamps** — *"Today's sources claim X; on July 2 you concluded ¬X, cited from [source]."* Cross-temporal, cross-session self-contradiction detection is genuinely hard and almost nobody ships it. Every piece already exists: claims with confidence, evidence nodes, per-user graph, an LLM to judge conflict. |
-| 🥈 | **Graph-Grounded Answering** *(Personal GraphRAG)* | Answer from the user's own accumulated typed graph, with the traversal path as citation. "GraphRAG" is a term recruiters recognize; doing it over a *personal, self-built* graph is rarer than over a static corpus. Reuses `find_connections` / `get_related_topics`. |
-| 🥉 | **Temporal Knowledge Evolution** | A scrubber on the graph page that replays how the graph *grew* — nodes/edges appearing, beliefs shifting color as confidence changed. Pure polish on data already timestamped (`created_at = datetime()`): massive visual payoff for near-zero backend cost. |
-
-### Delivery plan
-
-```
-PHASE A — Make the graph real  (the credibility fix · ~1–2 focused sessions)
-  1. Structured relationship extractor  →  one LLM JSON call post-research  →  typed edges
-  2. Graph viewer: legend + colors for relation types; confidence on edges
-  3. Backfill: "re-extract my graph" over existing sessions
-  ▸ Outcome: the KG stops being a word-cloud and becomes defensible
-
-PHASE B — Close the loop  (the "it compounds" fix)
-  4. Belief model + confidence timeline in the Memory Bank
-  5. Inject relevant beliefs into the writer context before each run
-  ▸ Outcome: answers visibly build on your history; the system gets smarter
-
-PHASE C — The flagship
-  6. Contradiction Sentinel: conflict detection, CONTRADICTS edges,
-     a flagged panel on Memory + an inline banner on Research reports
-  ▸ Outcome: the one feature you lead the demo with
-
-PHASE D — The polish that photographs well
-  7. Graph-grounded "Ask your graph" mode
-  8. Temporal scrubber on the graph page
-```
-
-**Explicitly *not* doing:** more pages, more providers, more chart types. The entire win is turning six silos into one compounding loop.
-
-> **Non-negotiable:** Phase A first. The regex entity extraction undercuts everything else the moment the graph is shown to anyone technical — fix that even if nothing else ships.
-
----
-
-## Contributing
-
-> Before contributing, read the [License](#license) section. POLYNOUS is source-available, not open-source. Pull request submissions constitute agreement that your contribution becomes the exclusive intellectual property of the project.
-
-```bash
-# 1. Fork and clone
-git clone https://github.com/your-username/POLYNOUS.git
-
-# 2. Branch
-git checkout -b feat/semantic-caching
-
-# 3. Commit with a prefix
-git commit -m "feat: add semantic caching for repeated queries"
-
-# 4. Push and open a PR with a clear description of what changed and why
-git push origin feat/semantic-caching
-```
-
-**Commit prefixes:** `feat` · `fix` · `docs` · `refactor` · `test` · `chore` · `perf` · `security`
-
-For significant changes, open an issue first to align on approach before writing code.
+The delivery order I'm committing to: credibility fixes, then graph ML, then GraphRAG. That trio is the biggest single jump from "a RAG demo" to "understands graph ML and retrieval systems."
 
 ---
 
 ## License
 
-**Copyright © 2024–2025 Ashwarya Pradhan. All rights reserved.**
+**Copyright 2024 to 2025 Ashwarya Pradhan. All rights reserved.**
 
-This repository is source-available for learning and reference. Viewing it does not grant rights to use, copy, modify, distribute, or deploy any portion of its contents — including source code, architecture, agent pipeline design, prompt engineering, database schemas, or documentation.
+This repository is source-available for learning and reference. Viewing it does not grant rights to use, copy, modify, distribute, or deploy any part of it, including source code, the agent pipeline design, prompts, database schemas, or documentation.
 
-Contributions via pull request are accepted subject to the contributor agreement above.
-
-For licensing inquiries, enterprise pilots, or commercial use: **[pradhanashwarya2122@gmail.com](mailto:pradhanashwarya2122@gmail.com)**
+For licensing, pilots, or commercial use: **[pradhanashwarya2122@gmail.com](mailto:pradhanashwarya2122@gmail.com)**
 
 ---
 
@@ -936,6 +763,7 @@ For licensing inquiries, enterprise pilots, or commercial use: **[pradhanashwary
 ![Neo4j](https://img.shields.io/badge/-Neo4j-4581C3?style=flat-square&logo=neo4j&logoColor=white)
 ![Pinecone](https://img.shields.io/badge/-Pinecone-6366f1?style=flat-square&logo=databricks&logoColor=white)
 
-**[⭐ Star](https://github.com/pradhanashwarya2122/POLYNOUS)** · **[🐛 Bug](https://github.com/pradhanashwarya2122/POLYNOUS/issues)** · **[💡 Feature](https://github.com/pradhanashwarya2122/POLYNOUS/issues)** · **[📖 Docs](https://polynous-api-production.up.railway.app/docs)**
+**Built by Ashwarya Pradhan**
 
 </div>
+<!-- end of README -->

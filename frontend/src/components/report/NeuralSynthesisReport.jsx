@@ -131,6 +131,20 @@ function splitItems(body) {
     .filter((s) => s.length > 20);
 }
 
+// RPT-06: pull a "Claim A / Claim B / Resolution" shape out of the freeform
+// contradiction-resolution prose so it renders as two opposed claim cards plus
+// a resolution line instead of a dumped paragraph. Returns null (and the caller
+// falls back to plain prose) whenever the labelled shape isn't present.
+function parseContradiction(text) {
+  const t = String(text || "");
+  const grab = (re) => { const m = t.match(re); return m ? m[1].trim().replace(/\s+/g, " ") : null; };
+  const a = grab(/claim\s*a\s*[:\-–]\s*([\s\S]*?)(?=claim\s*b\s*[:\-–]|resolution\s*[:\-–]|reconcil|$)/i);
+  const b = grab(/claim\s*b\s*[:\-–]\s*([\s\S]*?)(?=resolution\s*[:\-–]|reconcil|verdict\s*[:\-–]|$)/i);
+  const res = grab(/(?:resolution|reconciliation|verdict)\s*[:\-–]\s*([\s\S]*)$/i);
+  if (a && b) return { a, b, res };
+  return null;
+}
+
 function parseAnswer(text) {
   if (!text) return { summary: "", findings: [], limitations: "", parsedConf: 0, parsedSources: [], sections: {} };
 
@@ -265,11 +279,19 @@ function CitationChip({ label, num }) {
 
 // Cyan [n] citation chips inside body text - each proves its source on hover.
 function CitationText({ text }) {
-  const parts = String(text).split(/(\[\d{1,2}(?:,\s*\d{1,2})*\])/g);
+  // Render **bold** in addition to [n] citation chips. Without the bold pass,
+  // section prose (trajectory, contradiction resolution, consensus, etc.)
+  // showed literal "**Claim A:**" asterisks and read like dumped text.
+  const parts = String(text)
+    .split(/(\*\*[^*]+\*\*|\[\d{1,2}(?:,\s*\d{1,2})*\])/g)
+    .filter((p) => p !== "");
   return parts.map((p, i) => {
-    if (!/^\[\d/.test(p)) return <span key={i}>{p}</span>;
-    const first = parseInt((p.match(/\d{1,2}/) || [])[0], 10);
-    return <CitationChip key={i} label={p} num={first} />;
+    if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color: "#fff", fontWeight: 700 }}>{p.slice(2, -2)}</strong>;
+    if (/^\[\d/.test(p)) {
+      const first = parseInt((p.match(/\d{1,2}/) || [])[0], 10);
+      return <CitationChip key={i} label={p} num={first} />;
+    }
+    return <span key={i}>{p}</span>;
   });
 }
 
@@ -289,10 +311,11 @@ const SECTION_EYEBROWS = {
   "Research Trajectory": "Where to go next",
 };
 
-function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, linkify = false, collapsible = false, defaultOpen = true }) {
+function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, linkify = false, collapsible = false, defaultOpen = true, claimStructured = false }) {
   const cleaned = cleanBlock(body);
   const [open, setOpen] = useState(defaultOpen);
   if (!cleaned) return null;
+  const claims = claimStructured ? parseContradiction(cleaned) : null;
   return (
     <div style={{
       background:"rgba(5,20,36,0.7)", backdropFilter:"blur(20px)",
@@ -338,12 +361,29 @@ function PremiumSection({ icon, title, accent, body, delay = 0, mono = false, li
         opacity: collapsible ? (open ? 1 : 0) : 1,
         transition:"max-height 0.5s cubic-bezier(0.23,1,0.32,1), opacity 0.35s ease",
       }}>
-        <div style={{
-          fontFamily: mono ? "'JetBrains Mono',monospace" : "'Inter',sans-serif",
-          fontSize: mono ? 12 : 14, lineHeight:1.85, color:C.onSurface, whiteSpace:"pre-wrap",
-        }}>
-          {linkify ? <Linkify text={cleaned} /> : <CitationText text={cleaned} />}
-        </div>
+        {claims ? (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            {[["Claim A", claims.a, C.cyan], ["Claim B", claims.b, C.crimson]].map(([label, txt, col]) => (
+              <div key={label} style={{ background:"rgba(255,255,255,0.025)", border:`1px solid ${col}33`, borderLeft:`3px solid ${col}`, borderRadius:11, padding:"13px 16px" }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:col, marginBottom:7 }}>{label}</div>
+                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, lineHeight:1.75, color:C.onSurface }}><CitationText text={txt} /></div>
+              </div>
+            ))}
+            {claims.res && (
+              <div style={{ background:`${accent}0f`, border:`1px solid ${accent}33`, borderRadius:11, padding:"13px 16px" }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:accent, marginBottom:7 }}>Resolution</div>
+                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, lineHeight:1.75, color:C.onSurface }}><CitationText text={claims.res} /></div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{
+            fontFamily: mono ? "'JetBrains Mono',monospace" : "'Inter',sans-serif",
+            fontSize: mono ? 12 : 14, lineHeight:1.85, color:C.onSurface, whiteSpace:"pre-wrap",
+          }}>
+            {linkify ? <Linkify text={cleaned} /> : <CitationText text={cleaned} />}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -859,6 +899,138 @@ function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) 
   );
 }
 
+// ── Shared section shell (same chrome as PremiumSection) so custom-rendered
+//    sections match the rest of the briefing. ──────────────────────────────────
+function ReportSectionShell({ icon, title, accent, delay = 0, children }) {
+  return (
+    <div style={{ background:"rgba(5,20,36,0.7)", backdropFilter:"blur(20px)", border:"1px solid rgba(255,255,255,0.08)", borderLeft:`4px solid ${accent}`, borderRadius:14, padding:"26px 30px", position:"relative", animation:`sectionIn 0.5s ${delay}s ease both` }}>
+      <SynapseDots color={accent} />
+      <div style={{ marginBottom:18 }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9.5, color:accent, textTransform:"uppercase", letterSpacing:"0.24em", fontWeight:700, marginBottom:7, opacity:0.85 }}>{SECTION_EYEBROWS[title] || "Section"}</div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <Icon name={icon} style={{ fontSize:19, color:accent }} />
+          <h3 style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:800, letterSpacing:"-0.02em", color:"#fff", margin:0 }}>{title}</h3>
+        </div>
+        <div style={{ height:2, width:44, background:`linear-gradient(90deg, ${accent}, transparent)`, borderRadius:2, marginTop:11 }} />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Source trust helpers (client-side mirror of the backend domain tiers) ─────
+const _HIGH_TRUST = [".edu", ".gov", ".ac.", "nature.com", "science.org", "arxiv.org", "ieee.org", "nih.gov", "nasa.gov", "who.int", "acm.org", "springer.com", "sciencedirect.com", "britannica.com", "reuters.com", "apnews.com", "cell.com", "pnas.org"];
+const _LOW_TRUST = ["quora.com", "reddit.com", "youtube.com", "medium.com", "pinterest.", "facebook.com", "twitter.com", "x.com", "tiktok.com", "fandom.com", "blogspot.", "wordpress.", "substack.com"];
+function trustTier(url, text = "") {
+  const hay = ((domainOf(url) || "") + " " + text).toLowerCase();
+  if (_HIGH_TRUST.some((h) => hay.includes(h)) || /peer.?review|academic|journal|government|official|encyclopedia|\.gov|\.edu/.test(hay)) return "high";
+  if (_LOW_TRUST.some((h) => hay.includes(h)) || /\bblog\b|opinion|personal|forum|unverified|self.?published/.test(hay)) return "low";
+  return "med";
+}
+const TIER_META = { high: { label: "High trust", color: C.green }, med: { label: "Moderate", color: C.cyan }, low: { label: "Verify", color: C.crimson } };
+function sourceTypeColor(t) {
+  const s = (t || "").toUpperCase();
+  if (/ACADEMIC|FULL/.test(s)) return C.green;
+  if (/NEWS/.test(s)) return C.cyan;
+  if (/OPINION/.test(s)) return C.crimson;
+  return C.amber;
+}
+function IdxBadge({ n, color }) {
+  return <span style={{ flexShrink:0, width:24, height:24, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center", background:`${color}18`, border:`1px solid ${color}44`, color, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:700 }}>{n}</span>;
+}
+
+// RPT-09: parse "[n] \"Title\" — domain (year) — TYPE" into structured rows.
+function parseSourceIntel(body) {
+  return String(body || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
+    const m = line.match(/^\[(\d+)\]\s*(.*)$/);
+    const idx = m ? parseInt(m[1], 10) : null;
+    const rest = m ? m[2] : line;
+    const segs = rest.split(/\s+[—–-]\s+/).map((s) => s.trim()).filter(Boolean);
+    let type = "";
+    if (segs.length > 1 && /^[A-Z][A-Z /]{2,}$/.test(segs[segs.length - 1])) type = segs.pop();
+    const title = (segs.shift() || "").replace(/^["“]|["”]$/g, "");
+    const domain = segs.join(" · ");
+    return { idx, title, domain, type };
+  });
+}
+
+function SourceIntelligenceSection({ body, delay = 0.18 }) {
+  const cleaned = cleanBlock(body);
+  const sourceMap = useContext(SourceMapContext);
+  if (!cleaned) return null;
+  const rows = parseSourceIntel(cleaned).filter((r) => r.idx || r.title);
+  if (rows.length < 1) return <PremiumSection icon="travel_explore" title="Source Intelligence" accent={C.cyan} body={body} delay={delay} mono />;
+  return (
+    <ReportSectionShell icon="travel_explore" title="Source Intelligence" accent={C.cyan} delay={delay}>
+      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+        {rows.map((r, i) => {
+          const url = (r.idx && sourceMap[r.idx]?.url) || "";
+          const host = domainOf(url) || r.domain;
+          const tcol = sourceTypeColor(r.type);
+          const Row = url ? "a" : "div";
+          return (
+            <Row key={i} {...(url ? { href: url, target: "_blank", rel: "noopener noreferrer" } : {})}
+              title={url ? "Open source in a new tab" : undefined}
+              style={{ textDecoration:"none", display:"flex", alignItems:"center", gap:12, padding:"11px 14px", borderRadius:11, background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.06)", cursor:url ? "pointer" : "default" }}>
+              <IdxBadge n={r.idx ?? i + 1} color={C.cyan} />
+              {url && <img src={`https://www.google.com/s2/favicons?domain=${host}&sz=32`} alt="" width="16" height="16" style={{ borderRadius:4, flexShrink:0 }} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:13.5, fontWeight:600, color:"#e6eef7", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.title || host}</div>
+                {host && <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:C.textSecondary, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{host}</div>}
+              </div>
+              {r.type && <span style={{ flexShrink:0, fontFamily:"'JetBrains Mono',monospace", fontSize:8.5, fontWeight:700, letterSpacing:"0.04em", color:tcol, background:`${tcol}14`, border:`1px solid ${tcol}44`, borderRadius:6, padding:"3px 8px", textTransform:"uppercase" }}>{r.type}</span>}
+              {url && <Icon name="open_in_new" style={{ fontSize:15, color:C.cyan, opacity:0.75, flexShrink:0 }} />}
+            </Row>
+          );
+        })}
+      </div>
+    </ReportSectionShell>
+  );
+}
+
+// RPT-07: parse the source-quality lines and render per-source credibility
+// cards with a computed trust tier + the model's factual note.
+function parseSourceQuality(body) {
+  return String(body || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
+    const m = line.match(/^\[?(\d+)\]?[.:)]?\s+(.*)$/);
+    return { idx: m ? parseInt(m[1], 10) : null, text: m ? m[2].trim() : line };
+  }).filter((r) => r.text && r.text.length > 4);
+}
+
+function SourceQualitySection({ body, delay = 0.18 }) {
+  const cleaned = cleanBlock(body);
+  const sourceMap = useContext(SourceMapContext);
+  if (!cleaned) return null;
+  const rows = parseSourceQuality(cleaned);
+  if (rows.length < 1) return <PremiumSection icon="fact_check" title="Source Quality Assessment" accent={C.cyan} body={body} delay={delay} />;
+  return (
+    <ReportSectionShell icon="fact_check" title="Source Quality Assessment" accent={C.cyan} delay={delay}>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {rows.map((r, i) => {
+          const url = (r.idx && sourceMap[r.idx]?.url) || "";
+          const host = domainOf(url);
+          const tier = trustTier(url, r.text);
+          const meta = TIER_META[tier];
+          return (
+            <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", padding:"13px 15px", borderRadius:11, background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.06)", borderLeft:`3px solid ${meta.color}` }}>
+              <IdxBadge n={r.idx ?? i + 1} color={meta.color} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:5, flexWrap:"wrap" }}>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:8.5, fontWeight:700, letterSpacing:"0.06em", color:meta.color, background:`${meta.color}16`, border:`1px solid ${meta.color}44`, borderRadius:6, padding:"3px 9px", textTransform:"uppercase" }}>{meta.label}</span>
+                  {host && (url
+                    ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:C.cyan, textDecoration:"none" }}>{host} ↗</a>
+                    : <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:C.textSecondary }}>{host}</span>)}
+                </div>
+                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:13.5, lineHeight:1.65, color:C.onSurface }}><CitationText text={r.text} /></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ReportSectionShell>
+  );
+}
+
 export function NeuralSynthesisReport({ query, answer, report, sources, confidence, confThreshold = 70, telemetry, sourceSummaries = [], cacheInfo, onRerun, onCopy, onNew, onDeepen }) {
   const structured = !!report && !report.parse_failed;
   const legacy = parseAnswer(answer);
@@ -984,20 +1156,34 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
       })()}
 
       {/* Summary */}
-      {summary && (
-        <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${C.green}`,borderRadius:14,padding:28,position:"relative",animation:"sectionIn 0.5s 0.08s ease both" }}>
-          <SynapseDots color={C.green} />
-          <div style={{ marginBottom:16 }}>
-            <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:C.green,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,marginBottom:7,opacity:0.85 }}>The briefing in brief</div>
-            <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-              <Icon name="auto_awesome" style={{ fontSize:19,color:C.green }} />
-              <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Executive Summary</h3>
+      {summary && (() => {
+        // RPT-10: the Executive Summary is the hero of the report - a gradient-
+        // framed, glowing card with larger type and formatted (bold + citation)
+        // prose split into paragraphs, not a plain dumped block.
+        const paras = cleanBlock(summary).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+        const blocks = paras.length ? paras : [cleanBlock(summary)];
+        return (
+          <div style={{ position:"relative", borderRadius:22, padding:"1.5px", background:`linear-gradient(135deg, ${C.green}77, transparent 42%, ${C.cyan}44)`, boxShadow:`0 30px 70px -34px ${C.green}55`, animation:"sectionIn 0.5s 0.05s ease both" }}>
+            <div style={{ position:"relative", overflow:"hidden", borderRadius:20.5, padding:"34px 38px", background:"linear-gradient(180deg, rgba(7,26,20,0.93), rgba(5,15,27,0.95))", backdropFilter:"blur(22px)" }}>
+              <div style={{ position:"absolute", top:-90, right:-70, width:280, height:280, background:`radial-gradient(circle, ${C.green}26, transparent 70%)`, pointerEvents:"none" }} />
+              <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20, position:"relative" }}>
+                <div style={{ width:46, height:46, borderRadius:14, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:`radial-gradient(circle at 30% 30%, ${C.green}, ${C.green}33)`, boxShadow:`0 0 24px ${C.green}66, inset 0 0 10px rgba(255,255,255,0.25)` }}>
+                  <Icon name="auto_awesome" style={{ fontSize:24, color:"#04120b" }} />
+                </div>
+                <div>
+                  <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.green,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700 }}>The briefing in brief</div>
+                  <h2 style={{ fontFamily:"'Sora',sans-serif",fontSize:"clamp(1.5rem,3vw,1.85rem)",fontWeight:900,letterSpacing:"-0.03em",color:"#fff",margin:"3px 0 0",lineHeight:1.05 }}>Executive Summary</h2>
+                </div>
+              </div>
+              <div style={{ position:"relative", fontFamily:"'Inter',sans-serif", fontSize:16.5, lineHeight:1.85, color:"#e7eff8" }}>
+                {blocks.map((p, i) => (
+                  <p key={i} style={{ margin: i === blocks.length - 1 ? 0 : "0 0 14px" }}><CitationText text={p} /></p>
+                ))}
+              </div>
             </div>
-            <div style={{ height:2,width:44,background:`linear-gradient(90deg, ${C.green}, transparent)`,borderRadius:2,marginTop:11 }} />
           </div>
-          <p style={{ fontFamily:"'Inter',sans-serif",fontSize:14.5,lineHeight:1.9,color:C.onSurface,whiteSpace:"pre-wrap" }}>{cleanBlock(summary)}</p>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Key Findings - every card is a sourced claim from the digest.
           (Previously split by index parity into fake "Debate Counter-Args".) */}
@@ -1057,8 +1243,7 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
       )}
 
       {/* ── Premium 13-section briefing ── */}
-      <PremiumSection icon="travel_explore" title="Source Intelligence" accent={C.cyan}
-        body={sections.sourceIntel} delay={0.18} mono />
+      <SourceIntelligenceSection body={sections.sourceIntel} delay={0.18} />
 
       {(sections.consensus || sections.divergence) && (
         <div style={{ display:"grid", gridTemplateColumns: sections.consensus && sections.divergence ? "1fr 1fr" : "1fr", gap:18 }}>
@@ -1071,12 +1256,11 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
 
       <PremiumSection icon="lightbulb" title="Unique Insights" accent={C.amber}
         body={sections.unique} delay={0.16} />
-      <PremiumSection icon="fact_check" title="Source Quality Assessment" accent={C.cyan}
-        body={sections.quality} delay={0.18} />
+      <SourceQualitySection body={sections.quality} delay={0.18} />
       <PremiumSection icon="search_off" title="Coverage Audit" accent={C.amber}
         body={sections.coverage} delay={0.18} collapsible />
       <PremiumSection icon="balance" title="Contradiction Resolution" accent={C.crimson}
-        body={sections.contradiction} delay={0.2} />
+        body={sections.contradiction} delay={0.2} claimStructured />
       {structured
         ? <StructuredConfidenceCard analysis={confAnalysis} delay={0.2} />
         : <PremiumSection icon="analytics" title="Confidence Analysis - Computed" accent={C.green}
@@ -1104,7 +1288,8 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         ];
         const dcol = (v) => v == null ? "rgba(255,255,255,0.25)" : v >= 75 ? C.green : v >= 50 ? C.amber : C.crimson;
         return (
-          <div style={{ background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${confColor}`,borderRadius:14,padding:"22px 26px",animation:"sectionIn 0.5s 0.24s ease both" }}>
+          <div style={{ position:"relative",overflow:"hidden",background:"rgba(5,20,36,0.7)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)",borderLeft:`4px solid ${confColor}`,borderRadius:14,padding:"22px 26px",animation:"sectionIn 0.5s 0.24s ease both" }}>
+            <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg, ${confColor}, transparent 70%)`,opacity:0.7 }} />
             <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:14,marginBottom:18 }}>
               <div>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:confColor,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700,marginBottom:7,opacity:0.85 }}>Confidence provenance</div>
@@ -1113,10 +1298,14 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
                   <h3 style={{ fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0 }}>Confidence Matrix</h3>
                 </div>
               </div>
-              <div style={{ textAlign:"right" }}>
+              {/* RPT-04: the overall score opens the full computed provenance. */}
+              <button onClick={() => canExplainConf && setShowConf(true)} disabled={!canExplainConf}
+                title={canExplainConf ? "See exactly how this score was computed" : undefined}
+                style={{ textAlign:"right",background:"transparent",border:"none",padding:0,cursor:canExplainConf?"pointer":"default",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2 }}>
                 <div style={{ fontFamily:"'Sora',sans-serif",fontSize:30,fontWeight:800,color:confColor,lineHeight:1 }}>{agreement}%</div>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:C.textSecondary,letterSpacing:"0.1em",marginTop:4,textTransform:"uppercase" }}>Overall</div>
-              </div>
+                {canExplainConf && <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:confColor,letterSpacing:"0.06em",display:"flex",alignItems:"center",gap:3 }}>how computed <Icon name="arrow_forward" style={{ fontSize:11 }} /></div>}
+              </button>
             </div>
             <div style={{ display:"grid",gap:13 }}>
               {dims.map(d => (

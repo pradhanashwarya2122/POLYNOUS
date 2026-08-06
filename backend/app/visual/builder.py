@@ -285,6 +285,15 @@ def _critic_panel(critique: dict, n_summaries: int = 0) -> dict:
             {"label": "Disagreement detection", "status": "done" if ran else "pending"},
             {"label": "Citation validation", "status": "done" if critique.get("citations_validated") else "pending"},
         ],
+        # RES-05: surface the critic's actual read so the panel is substantive
+        # (was just a checklist). All real critique output, error-filtered.
+        "landscape": (critique.get("overall_landscape") or "").strip()[:260],
+        "topInsight": next((i.get("insight", "").strip()[:170]
+                            for i in (critique.get("unique_insights") or [])
+                            if isinstance(i, dict) and i.get("insight")), ""),
+        "topGap": next((g.strip()[:170]
+                        for g in (critique.get("coverage_gaps") or [])
+                        if isinstance(g, str) and not any(m in g.lower() for m in _GAP_ERROR_MARKERS)), ""),
         "signal": {"eyebrow": "Sources per claim group", "variant": "entailment",
                    "promptText": f"Agreement groups: {agreements}",
                    "levels": _critic_levels(critique)},

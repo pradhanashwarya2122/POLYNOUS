@@ -597,6 +597,10 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
   // "Streaming / progressive token output" preference: on = typewriter reveal,
   // off = the draft appears instantly (near-infinite chars/sec).
   const { visibleText: draftVisible, typing: draftTyping } = useTypewriter(data.agents.Writer.draftText, streaming ? 110 : 100000);
+  // Progress can hit 100% while the Writer draft is still typing out (the
+  // report publishes only after it finishes). Show an explicit "finalizing"
+  // loader in that window instead of a premature "Complete".
+  const finalizing = isDone && draftTyping;
   const draftRef = useRef(null);
   useEffect(() => {
     if (draftRef.current) draftRef.current.scrollTop = draftRef.current.scrollHeight;
@@ -1005,9 +1009,16 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
               </div>
               <div style={{ minWidth:"190px" }}>
                 <div style={{ fontSize:"10.5px", color:"#8e98a8", textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:"JetBrains Mono,monospace", marginBottom:"6px" }}>
-                  {isDone ? "Status" : "Neural activity"}
+                  {finalizing ? "Status" : isDone ? "Status" : "Neural activity"}
                 </div>
-                {isDone ? (
+                {finalizing ? (
+                  <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+                    <span style={{ display:"inline-flex", gap:"4px" }}>
+                      {[0,1,2].map(d => <span key={d} style={{ width:"7px", height:"7px", borderRadius:"50%", background:"#00ff47", animation:`dotWave 1.1s ${d*0.16}s infinite ease-in-out` }} />)}
+                    </span>
+                    <span style={{ fontSize:"14px", fontFamily:"Sora,sans-serif", color:"#00ff47", fontWeight:700 }}>Finalizing report…</span>
+                  </div>
+                ) : isDone ? (
                   <div style={{ display:"flex", alignItems:"center", gap:"9px", fontSize:"16px", fontFamily:"Sora,sans-serif", color:"#00ff47", fontWeight:700 }}>
                     <CheckGlyph color="#00ff47" /> Complete
                   </div>
@@ -1133,6 +1144,31 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
                     : <div className="empty-note">No checks yet</div>
                   }
                 </div>
+                {/* RES-05: the critic's actual read - landscape, sharpest unique
+                    finding, and the biggest coverage gap - so the card is
+                    substantive, not just a checklist. */}
+                {(critic.landscape || critic.topInsight || critic.topGap) && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+                    {critic.landscape && (
+                      <div style={{ background:"rgba(232,168,85,0.05)", border:"1px solid rgba(232,168,85,0.18)", borderRadius:"10px", padding:"12px 14px" }}>
+                        <div className="type-section" style={{ color:"#E8A855", marginBottom:"6px" }}>Critic's read</div>
+                        <div style={{ fontSize:"12px", color:"#c8d0dc", fontFamily:"Hanken Grotesk,sans-serif", lineHeight:1.6, overflowWrap:"anywhere" }}>{critic.landscape}</div>
+                      </div>
+                    )}
+                    {critic.topInsight && (
+                      <div style={{ display:"flex", gap:"9px", alignItems:"flex-start", padding:"0 2px" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize:"15px", color:"#00ff47", flexShrink:0, marginTop:"1px" }}>lightbulb</span>
+                        <div style={{ fontSize:"11.5px", color:"#8e98a8", fontFamily:"JetBrains Mono,monospace", lineHeight:1.55, overflowWrap:"anywhere" }}><span style={{ color:"#00ff47" }}>Unique: </span>{critic.topInsight}</div>
+                      </div>
+                    )}
+                    {critic.topGap && (
+                      <div style={{ display:"flex", gap:"9px", alignItems:"flex-start", padding:"0 2px" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize:"15px", color:"#E8A855", flexShrink:0, marginTop:"1px" }}>search_off</span>
+                        <div style={{ fontSize:"11.5px", color:"#8e98a8", fontFamily:"JetBrains Mono,monospace", lineHeight:1.55, overflowWrap:"anywhere" }}><span style={{ color:"#E8A855" }}>Gap: </span>{critic.topGap}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </section>
 

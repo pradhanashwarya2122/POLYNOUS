@@ -757,7 +757,7 @@ function ArgText({ text, accent, citeUrl }) {
   const cleaned = String(text || "").replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "").trim();
   const parts = cleaned.split(/(\*\*[^*]+\*\*|\[\d{1,2}\])/g).filter((p) => p !== "");
   return (
-    <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14.5, lineHeight: 1.8, color: "#d3dbe6", margin: 0, fontWeight: 400 }}>
+    <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15.5, lineHeight: 1.75, color: "#dbe3ee", margin: 0, fontWeight: 400 }}>
       {parts.map((p, i) => {
         if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color: "#fff", fontWeight: 700 }}>{p.slice(2, -2)}</strong>;
         if (/^\[\d{1,2}\]$/.test(p)) {
@@ -777,6 +777,24 @@ function ArgText({ text, accent, citeUrl }) {
 }
 
 // ─── PointCard (result side) ──────────────────────────────────────────────────
+
+// DBT-08: split a very long argument point into digestible sub-points. Long
+// blocks are broken on sentence boundaries; tiny fragments merge into their
+// neighbour so we never orphan a 3-word "sentence". Short points pass through
+// untouched (single paragraph).
+function splitIntoSubPoints(text) {
+  const cleaned = String(text || "").replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "").trim();
+  if (!cleaned) return [];
+  const sentences = (cleaned.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [cleaned])
+    .map((s) => s.trim()).filter(Boolean);
+  const parts = [];
+  for (const s of sentences) {
+    const prev = parts[parts.length - 1];
+    if (prev && (s.length < 45 || prev.length < 45)) parts[parts.length - 1] = `${prev} ${s}`;
+    else parts.push(s);
+  }
+  return parts;
+}
 
 function PointCard({ text, index, side, citeUrl }) {
   const isFor = side === "for";
@@ -808,7 +826,21 @@ function PointCard({ text, index, side, citeUrl }) {
               {isFor ? "Supporting" : "Counter"} · {index + 1}
             </span>
           </div>
-          <ArgText text={text} accent={accent} citeUrl={citeUrl} />
+          {(() => {
+            const subs = splitIntoSubPoints(text);
+            const shouldSplit = subs.length >= 2 && String(text || "").length > 180;
+            if (!shouldSplit) return <ArgText text={text} accent={accent} citeUrl={citeUrl} />;
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                {subs.map((s, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <span style={{ flexShrink: 0, width: 6, height: 6, borderRadius: 2, marginTop: 9, transform: "rotate(45deg)", background: accent, boxShadow: `0 0 6px ${accent}88` }} />
+                    <span style={{ flex: 1 }}><ArgText text={s} accent={accent} citeUrl={citeUrl} /></span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -817,24 +849,54 @@ function PointCard({ text, index, side, citeUrl }) {
 
 // ─── ClashMeter — live head-to-head bar; the knot slides toward the leader and
 //     animates whenever the scores change (re-judge / lens / join). ───────────
+// DBT-09: premium clash visualization. Two opposed scores drive a single
+// gradient "clash" track whose seam sits at the real balance point; the seam
+// glows and the leading side's fill carries a soft sheen. Everything is
+// derived from forScore/againstScore - no decorative randomness.
 function ClashMeter({ forScore, againstScore }) {
-  const total = (forScore + againstScore) || 1;
-  const forShare = Math.max(6, Math.min(94, (forScore / total) * 100));
-  const lead = forScore === againstScore ? "tie" : forScore > againstScore ? "for" : "against";
+  const f = Number(forScore) || 0, a = Number(againstScore) || 0;
+  const total = (f + a) || 1;
+  const forShare = Math.max(6, Math.min(94, (f / total) * 100));
+  const lead = f === a ? "tie" : f > a ? "for" : "against";
   const leadColor = lead === "for" ? C.green : lead === "against" ? C.crimson : C.purple;
-  const gap = Math.abs(forScore - againstScore).toFixed(1);
-  const ease = "left 0.9s cubic-bezier(0.34,1.56,0.64,1), width 0.9s cubic-bezier(0.34,1.56,0.64,1)";
+  const gap = Math.abs(f - a).toFixed(1);
+  const ease = "width 1s cubic-bezier(0.22,1,0.36,1), left 1s cubic-bezier(0.22,1,0.36,1)";
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 11 }}>
-        <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16, color: C.green }}>{Number(forScore).toFixed(1)}<span style={{ fontSize: 10, color: C.textSecondary, fontWeight: 600 }}> FOR</span></span>
-        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: leadColor, letterSpacing: "0.06em", textTransform: "uppercase" }}>{lead === "tie" ? "Dead heat" : `${lead === "for" ? "Supporting" : "Counter"} leads by ${gap}`}</span>
-        <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16, color: C.crimson }}><span style={{ fontSize: 10, color: C.textSecondary, fontWeight: 600 }}>AGAINST </span>{Number(againstScore).toFixed(1)}</span>
+      {/* Scores + verdict headline */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 14 }}>
+        <div style={{ textAlign: "left" }}>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 30, lineHeight: 1, color: C.green, textShadow: `0 0 22px ${C.green}44` }}>{f.toFixed(1)}</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "0.18em", color: C.textSecondary, textTransform: "uppercase", marginTop: 5 }}>Supporting</div>
+        </div>
+        <div style={{ textAlign: "center", paddingBottom: 3 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 13px", borderRadius: 9999, background: `${leadColor}14`, border: `1px solid ${leadColor}44` }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: leadColor, boxShadow: `0 0 8px ${leadColor}` }} />
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: leadColor, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 700, whiteSpace: "nowrap" }}>
+              {lead === "tie" ? "Dead heat" : `${lead === "for" ? "Supporting" : "Counter"} +${gap}`}
+            </span>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 30, lineHeight: 1, color: C.crimson, textShadow: `0 0 22px ${C.crimson}44` }}>{a.toFixed(1)}</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "0.18em", color: C.textSecondary, textTransform: "uppercase", marginTop: 5 }}>Counter</div>
+        </div>
       </div>
-      <div style={{ position: "relative", height: 16, borderRadius: 9, background: "rgba(255,255,255,0.04)", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${forShare}%`, background: `linear-gradient(90deg, rgba(0,230,77,0.35), ${C.green})`, transition: ease, boxShadow: `0 0 14px ${C.green}55` }} />
-        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: `${100 - forShare}%`, background: `linear-gradient(270deg, rgba(255,32,64,0.35), ${C.crimson})`, transition: ease, boxShadow: `0 0 14px ${C.crimson}55` }} />
-        <div style={{ position: "absolute", top: "50%", left: `${forShare}%`, transform: "translate(-50%,-50%)", width: 18, height: 18, borderRadius: "50%", background: leadColor, border: "2px solid #0a0a1e", boxShadow: `0 0 12px ${leadColor}`, transition: ease, zIndex: 2 }} />
+      {/* Clash track */}
+      <div style={{ position: "relative", height: 22, borderRadius: 11, background: "rgba(255,255,255,0.03)", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+        {/* subtle center ticks */}
+        {[25, 50, 75].map((t) => (
+          <div key={t} style={{ position: "absolute", left: `${t}%`, top: 4, bottom: 4, width: 1, background: "rgba(255,255,255,0.06)" }} />
+        ))}
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${forShare}%`, background: `linear-gradient(90deg, rgba(0,230,77,0.28), ${C.green})`, transition: ease, boxShadow: lead === "for" ? `inset 0 0 20px ${C.green}55` : "none" }} />
+        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: `${100 - forShare}%`, background: `linear-gradient(270deg, rgba(255,32,64,0.28), ${C.crimson})`, transition: ease, boxShadow: lead === "against" ? `inset 0 0 20px ${C.crimson}55` : "none" }} />
+        {/* glowing seam at the true balance point */}
+        <div style={{ position: "absolute", top: -1, bottom: -1, left: `${forShare}%`, width: 3, transform: "translateX(-50%)", background: "#fff", boxShadow: `0 0 12px ${leadColor}, 0 0 4px #fff`, transition: ease, zIndex: 2, animation: "orbPulse 2.4s ease-in-out infinite" }} />
+      </div>
+      {/* share footnote */}
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary }}>
+        <span>{Math.round(forShare)}% share of weight</span>
+        <span>{Math.round(100 - forShare)}% share of weight</span>
       </div>
     </div>
   );
@@ -884,35 +946,57 @@ function TribunalCard({ icon, iconColor, title, right, children, delay = 0, acce
 }
 
 // Shown between the topic banner and the podiums
-function PreVerdictStrips({ verdict, debate }) {
+function PreVerdictStrips({ verdict, debate, onReframe }) {
   const [framingOpen, setFramingOpen] = useState(true);
   const framing = verdict?.framing_check;
   const steel = debate?.steelman;
   const hasSteel = steel && (steel.for_restates_against || steel.against_restates_for);
   if (!framing && !hasSteel) return null;
+  const alts = (framing?.alternatives || []).filter(Boolean);
   return (
     <div style={{ marginBottom: 22 }}>
       {framing && framingOpen && (
         <TribunalCard icon="explore" iconColor={C.purple} title="Framing Check" accent="rgba(168,85,247,0.22)"
           right={<button onClick={() => setFramingOpen(false)} style={{ background: "none", border: "none", color: C.textSecondary, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>dismiss ▾</button>}>
-          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.7, color: C.onSurface }}>
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15, lineHeight: 1.75, color: C.onSurface, margin: 0 }}>
             This debate assumes a <span style={{ color: C.purple, fontWeight: 700 }}>{framing.assumed_frame}</span> frame.
-            {(framing.alternatives || []).length > 0 && <> Alternative framings: <span style={{ color: C.onSurfaceVariant }}>{framing.alternatives.join(" · ")}</span>.</>}
           </p>
+          {/* DBT-05: each alternative framing is a clickable chip that re-runs
+              the debate reframed through that lens. */}
+          {alts.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: C.textSecondary, marginBottom: 9 }}>
+                Re-run through a different lens
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                {alts.map((alt, i) => (
+                  <button key={i} onClick={() => onReframe?.(alt)} title={`Re-run this debate through a ${alt} lens`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 9999, cursor: "pointer",
+                      background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.3)", color: "#d8c9f5",
+                      fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, fontWeight: 600, transition: "all 0.18s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.16)"; e.currentTarget.style.borderColor = C.purple; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.07)"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.3)"; }}>
+                    <Icon name="restart_alt" style={{ fontSize: 15, color: C.purple }} />
+                    {alt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </TribunalCard>
       )}
       {hasSteel && (
         <TribunalCard icon="handshake" iconColor="#10e0a0" title="Steelman Check" accent="rgba(16,224,160,0.2)">
-          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+          <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, color: C.onSurfaceVariant, lineHeight: 1.65 }}>
             Before arguing, each side was required to restate the opponent's strongest point fairly.
           </p>
           {(
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
               {[["FOR restates AGAINST", steel.for_restates_against, C.green],
                 ["AGAINST restates FOR", steel.against_restates_for, C.crimson]].map(([label, text, col]) => (
-                <div key={label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${col}30`, borderRadius: 11, padding: "13px 15px" }}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: col, textTransform: "uppercase", marginBottom: 7 }}>{label}</div>
-                  <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, lineHeight: 1.65, color: C.onSurface, fontStyle: "italic" }}>{text ? `"${text}"` : "Not delivered this round."}</p>
+                <div key={label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${col}30`, borderRadius: 12, padding: "16px 18px" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.1em", color: col, textTransform: "uppercase", marginBottom: 9 }}>{label}</div>
+                  <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14.5, lineHeight: 1.72, color: "#dbe3ee", fontStyle: "italic" }}>{text ? `"${text}"` : "Not delivered this round."}</p>
                 </div>
               ))}
             </div>
@@ -1789,7 +1873,8 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                   </div>
 
                   {/* Framing + Steelman checks (tribunal integrity strip) */}
-                  <PreVerdictStrips verdict={verdict} debate={result.debate} />
+                  <PreVerdictStrips verdict={verdict} debate={result.debate}
+                    onReframe={(alt) => fireDebate(`${activeTopic} — reframed through a ${alt} lens`)} />
 
                   {/* Two-column podiums */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 64px 1fr", gap: 18, alignItems: "start", marginBottom: 28 }}>
