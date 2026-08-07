@@ -1,6 +1,8 @@
 // PDF Neural Lab - fully enhanced with security validation
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL } from '../config';
+import ConstellationExplorer from "./react-bits/ConstellationExplorer";
+import { makeTile } from "./react-bits/constellationTiles";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -866,6 +868,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
 
       {/* Navigation */}
       <nav
+        className="pn-stagger"
         style={{
           flex: 1,
           display: "flex",
@@ -1314,6 +1317,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
   const [uploadMsg, setUploadMsg] = useState("");
   const [pdfs, setPdfs] = useState([]);
   const [selectedPdf, setSelectedPdf] = useState(null);
+  const [galaxyOpen, setGalaxyOpen] = useState(false);   // PDF document globe (idea #5)
   const [uploadError, setUploadError] = useState("");
   const [uploadWarnings, setUploadWarnings] = useState([]);
 
@@ -1434,6 +1438,29 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       <style>{GLOBAL_CSS}</style>
       <NeuralBg />
       <Sidebar user={user} onNavigate={onNavigate} onLogout={onLogout} collapsed={sbCollapsed} setCollapsed={setSbCollapsed} />
+
+      {/* PDF "document globe" (idea #5): browse many docs as an InfiniteMenu sphere. */}
+      {pdfs.length > 1 && (
+        <button onClick={() => setGalaxyOpen(true)}
+          style={{ position:"fixed", right:24, bottom:88, zIndex:60, display:"flex", alignItems:"center", gap:9, padding:"10px 16px", borderRadius:9999, cursor:"pointer",
+            background:"rgba(20,16,4,0.75)", border:`1px solid ${T.goldBorder}`, color:"#f5ecd0", backdropFilter:"blur(18px)",
+            fontFamily:T.mono, fontSize:11.5, fontWeight:700, letterSpacing:"0.04em", boxShadow:`0 0 20px -6px rgba(255,214,10,0.4)` }}>
+          <span className="material-symbols-outlined" style={{ fontSize:17, color:T.gold }}>hub</span>
+          Browse as globe
+        </button>
+      )}
+      <ConstellationExplorer
+        open={galaxyOpen}
+        onClose={() => setGalaxyOpen(false)}
+        accent={T.gold}
+        heading="Your document galaxy"
+        subheading="Spin to browse your uploaded PDFs. Tap the arrow to make one active."
+        items={pdfs.map((p) => ({
+          image: makeTile({ title: p.pdf_name, tag: `${p.total_chunks ?? "?"} chunks`, accent: T.gold, glyph: "📄" }),
+          title: p.pdf_name, description: `${p.total_chunks ?? "?"} indexed chunks`, pdf_name: p.pdf_name,
+        }))}
+        onSelect={(it) => { setSelectedPdf(it.pdf_name); setGalaxyOpen(false); notify(`Active document: ${it.pdf_name}`); }}
+      />
 
       <main style={{
         marginLeft:sidebarW, padding:"28px 36px 80px",

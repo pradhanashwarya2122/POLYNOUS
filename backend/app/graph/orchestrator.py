@@ -380,11 +380,19 @@ def search_node(state: AgentState) -> AgentState:
     print(". Running hybrid search...")
     emit("Running knowledge-graph hybrid search…")
     try:
-        hybrid_results = hybrid.hybrid_search(state['query'])
-        entities = hybrid._extract_entities(state['query'])
-        if entities:
-            print(f"    Detected entities: {entities}")
-            kg.extract_and_link_entities(state['query'], user_id=user_id)
+        hybrid_results = hybrid.hybrid_search(state['query'], user=state.get('user'))
+        # Phase A2: build a typed, LLM-extracted graph from the query + the top
+        # retrieved snippets (real relationships, not capitalized-word regex).
+        # extract_and_link_triples falls back to the regex extractor on any
+        # failure, so this never breaks the run.
+        kg_text = state['query'] + "\n" + "\n".join(
+            (d.get('content') or '')[:600] for d in (results[:3] if results else [])
+        )
+        kg.extract_and_link_triples(
+            kg_text, user=state.get('user'),
+            provider=state.get('preferred_provider', 'anthropic'),
+            model=state.get('model'), user_id=user_id,
+        )
         state['graph_context'] = hybrid_results.get('enhanced_context', '')
         state['graph_results'] = hybrid_results.get('graph_results', [])
         graph_count = len(state['graph_results'])

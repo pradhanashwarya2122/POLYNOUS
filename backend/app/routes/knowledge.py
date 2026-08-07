@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Depends
+from sqlalchemy.orm import Session
 from typing import Optional
 from app.knowledge_graph.graph_manager import kg
 from app.knowledge_graph.hybrid_search import hybrid
+from app.database import get_db
+from app.models.user import User
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
@@ -232,10 +235,33 @@ async def find_connections(
 
 
 @router.get("/hybrid-search")
-async def hybrid_search(query: str = Query(...)):
-    """Perform hybrid search."""
-    results = hybrid.hybrid_search(query)
+async def hybrid_search(request: Request, query: str = Query(...), db: Session = Depends(get_db)):
+    """Perform hybrid search (vector + knowledge graph), scoped to the user."""
+    pub = get_current_user(request)
+    user = None
+    if pub and pub not in ("guest", "unknown"):
+        user = db.query(User).filter(User.public_id == pub).first()
+    results = hybrid.hybrid_search(query, user=user)
     return results
+
+
+@router.get("/graph-metrics")
+async def graph_metrics(request: Request):
+    """Phase B: real graph ML over the user's graph (PageRank influence,
+    Louvain communities, degree). Powers node sizing/coloring."""
+    return kg.compute_graph_metrics(get_current_user(request))
+
+
+@router.get("/graph-rag")
+async def graph_rag(request: Request, query: str = Query(...), db: Session = Depends(get_db)):
+    """Phase C: GraphRAG. Answer a question over the user's own typed knowledge
+    graph, expanding a multi-hop subgraph and reasoning over the relationships."""
+    pub = get_current_user(request)
+    user = None
+    if pub and pub not in ("guest", "unknown"):
+        user = db.query(User).filter(User.public_id == pub).first()
+    provider = getattr(user, "preferred_provider", "anthropic") or "anthropic" if user else "anthropic"
+    return kg.graph_rag_answer(query, user=user, provider=provider, user_id=pub)
 
 
 @router.get("/entities")

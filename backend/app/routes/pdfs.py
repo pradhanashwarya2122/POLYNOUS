@@ -1,5 +1,7 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.orm import Session
 import tempfile
 import os
 import shutil
@@ -7,8 +9,22 @@ from typing import Optional
 
 from app.utils.pdf_security import validate_pdf_upload
 from app.utils.sanitizer import sanitize_filename
+from app.database import get_db
+from app.models.user import User
+from app.data_sources.pdf_processor import (
+    process_pdf, get_progress, search_pdf, rag_answer_from_pdf, get_uploaded_pdfs,
+)
 
 router = APIRouter(prefix="/pdfs", tags=["pdfs"])
+
+
+def _resolve_user(req: Request, db: Session):
+    """The authenticated User (or None for guests), from the auth middleware's
+    request.state.user_public_id."""
+    pub = getattr(req.state, "user_public_id", None)
+    if not pub or pub in ("guest", "unknown"):
+        return None
+    return db.query(User).filter(User.public_id == pub).first()
 
 # ============================================================
 # CONFIGURATION
@@ -38,7 +54,7 @@ def format_size(bytes_val: int) -> str:
 # ============================================================
 
 @router.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(file: UploadFile = File(...), req: Request = None, db: Session = Depends(get_db)):
     """
     Upload and validate a PDF file.
     
@@ -183,27 +199,32 @@ async def upload_pdf(file: UploadFile = File(...)):
             print(f"⚠️  Warnings: {warnings}")
         
         # ── PDF Processing ──────────────────────────
-        # Here you would call your actual PDF processing function.
-        # For example:
-        #   from app.pdf_processor import process_pdf
-        #   extracted_text = process_pdf(temp_path)
-        #   # Save to database, index in Pinecone, etc.
-        
-        # For now, return success with file metadata
+        # Extract text, chunk, embed with the user's own key, and store the
+        # vectors in Pinecone (scoped to this user). Runs in a threadpool so the
+        # /pdfs/progress polling stays responsive during the upload.
+        user = _resolve_user(req, db) if req is not None else None
+        if user is None:
+            raise HTTPException(status_code=401, detail="Sign in to upload and index PDFs.")
+
         checks_passed = validation_result.get('checks_passed', [])
-        
+        result = await run_in_threadpool(process_pdf, temp_path, safe_filename, user)
+
+        if result.get('status') == 'error':
+            raise HTTPException(status_code=400, detail=result.get('message', 'PDF processing failed.'))
+
         return {
             'status': 'success',
             'filename': safe_filename,
             'original_filename': file.filename,
             'file_size': len(content),
             'file_size_formatted': file_size_str,
-            'file_hash': validation_result.get('file_hash', ''),
+            'file_hash': result.get('file_hash', validation_result.get('file_hash', '')),
+            'total_chunks': result.get('total_chunks', 0),
             'metadata': validation_result.get('metadata', {}),
             'warnings': warnings,
             'checks_passed': checks_passed,
             'checks_count': len(checks_passed),
-            'message': 'PDF uploaded and validated successfully. Ready for processing.'
+            'message': result.get('message') or f"Indexed {result.get('total_chunks', 0)} chunks.",
         }
     
     except HTTPException:
@@ -295,7 +316,7 @@ async def validate_filename(filename: str):
 async def upload_limits():
     """
     Get current upload limits and restrictions.
-    
+
     Useful for client-side validation before upload.
     """
     return {
@@ -305,3 +326,51 @@ async def upload_limits():
         'allowed_mime_types': ALLOWED_MIME_TYPES,
         'max_files_per_batch': 10,
     }
+
+
+# ============================================================
+# PROCESSING / RETRIEVAL ENDPOINTS
+# These back the PDF Lab UI (progress, list, ask, search). Previously missing,
+# so every one of these calls 404'd and the page "always showed an error".
+# ============================================================
+
+@router.get("/progress")
+async def pdf_progress(filename: str):
+    """Live processing progress for an in-flight upload (polled by the UI)."""
+    return get_progress(sanitize_filename(filename))
+
+
+@router.get("/list")
+async def list_pdfs(req: Request, db: Session = Depends(get_db)):
+    """The signed-in user's indexed PDFs."""
+    user = _resolve_user(req, db)
+    if user is None:
+        return {"pdfs": []}
+    return {"pdfs": await run_in_threadpool(get_uploaded_pdfs, user)}
+
+
+@router.post("/ask")
+async def ask_pdf(query: str, req: Request, pdf_name: Optional[str] = None, db: Session = Depends(get_db)):
+    """RAG answer grounded in the user's PDFs (optionally a specific one)."""
+    query = (query or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="A question is required.")
+    user = _resolve_user(req, db)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in to ask about your PDFs.")
+    result = await run_in_threadpool(rag_answer_from_pdf, query, pdf_name, 5, user)
+    return result
+
+
+@router.get("/search")
+async def search_pdfs(query: str, req: Request, pdf_name: Optional[str] = None,
+                      top_k: int = 5, db: Session = Depends(get_db)):
+    """Semantic vector search over the user's PDF chunks (no LLM)."""
+    query = (query or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="A search query is required.")
+    user = _resolve_user(req, db)
+    if user is None:
+        return {"results": []}
+    chunks = await run_in_threadpool(search_pdf, query, pdf_name, top_k, user)
+    return {"results": chunks}

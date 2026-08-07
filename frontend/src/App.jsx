@@ -19,6 +19,7 @@ import PdfLabPage from './components/PdfLabPage';
 import PolynousDashboard from './components/PolynousDashboard';
 import InfoPage from './components/InfoPage';
 import { PrivacyPage, TermsPage, DocsPage } from './components/StaticPages';
+import NavDock from './components/NavDock';
 import { API_BASE_URL } from './config';
 
 // ═══════════════════════════════════════════════════════════════
@@ -274,6 +275,9 @@ export default function App() {
   return (
     <Router>
       <PageTransition />
+      {/* Global premium dock: floats over every authenticated page, hidden on
+          landing / auth / static pages (handled inside NavDock). */}
+      {isLoggedIn && <NavDock />}
       <Routes>
         {/* ── PUBLIC ROUTES ─────────────────────────────── */}
         <Route 

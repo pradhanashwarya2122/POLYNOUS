@@ -16,6 +16,20 @@ import { MaskContainer } from "./react-bits/MaskContainer";
 import Lenis from "lenis";
 import ResearchChamberSection from "./ResearchChamberSection";
 import DebateChamberSection from "./DebateChamberSection";
+import ConstellationExplorer from "./react-bits/ConstellationExplorer";
+import { makeTile } from "./react-bits/constellationTiles";
+
+// The 8 chambers, used by the "Explore Chambers" InfiniteMenu hero.
+const CHAMBERS = [
+  { path: "/research",  title: "Neural Research",  tag: "Chamber", accent: "#00ff0f", desc: "Seven agents search, cross-check, and synthesize a cited report." },
+  { path: "/debate",    title: "Debate Chamber",   tag: "Chamber", accent: "#ff2040", desc: "FOR and AGAINST advocates, a rubric judge, a real verdict." },
+  { path: "/graph",     title: "Knowledge Graph",  tag: "Chamber", accent: "#a855f7", desc: "Your concepts and claims, linked and explorable." },
+  { path: "/search",    title: "Semantic Search",  tag: "Chamber", accent: "#00ccff", desc: "Meaning-based search across your own research." },
+  { path: "/memory",    title: "Memory Bank",      tag: "Chamber", accent: "#00e6b8", desc: "Every session, statistic, and interest in one place." },
+  { path: "/pdf-lab",   title: "PDF Lab",          tag: "Chamber", accent: "#ffd700", desc: "Upload a document and ask it grounded questions." },
+  { path: "/analytics", title: "Neural Analytics", tag: "Chamber", accent: "#5878d4", desc: "Your research patterns, heatmaps, and trends." },
+  { path: "/settings",  title: "Settings & Keys",  tag: "Chamber", accent: "#ffaa00", desc: "Bring your own keys across seven providers." },
+];
 
 // Served from /frontend/public - anything dropped there is available at the site root.
 const PHOTO_SRC = "/profilepic.jpg";
@@ -2929,6 +2943,15 @@ function StorySection(){
    ROOT APP
 ══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage(){
+  // "Explore Chambers" InfiniteMenu hero (idea #2). Tiles are generated once.
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const chamberItems = useRef(null);
+  if (!chamberItems.current) {
+    chamberItems.current = CHAMBERS.map(c => ({
+      image: makeTile({ title: c.title, tag: c.tag, accent: c.accent }),
+      title: c.title, description: c.desc, path: c.path,
+    }));
+  }
   useEffect(()=>{
     const el=document.createElement("style");
     el.setAttribute("data-polynous","1");
@@ -2964,6 +2987,24 @@ export default function LandingPage(){
       <div className="noise-overlay"/>
       <NeuralCanvas/>
       <ScrollProgressBar/>
+      {/* Explore Chambers: floating trigger + InfiniteMenu overlay */}
+      <button
+        onClick={()=>setExploreOpen(true)}
+        style={{position:"fixed",left:24,bottom:24,zIndex:60,display:"flex",alignItems:"center",gap:9,padding:"11px 18px",borderRadius:9999,cursor:"pointer",
+          background:"rgba(10,10,26,0.72)",border:"1px solid rgba(0,255,15,0.3)",color:"#eaf7ee",backdropFilter:"blur(18px)",
+          fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.04em",boxShadow:"0 0 22px -6px rgba(0,255,15,0.4)"}}
+      >
+        <span className="material-symbols-outlined" style={{fontSize:18,color:"#00ff0f"}}>hub</span>
+        Explore Chambers
+      </button>
+      <ConstellationExplorer
+        open={exploreOpen}
+        onClose={()=>setExploreOpen(false)}
+        items={chamberItems.current}
+        heading="Explore the Chambers"
+        subheading="Spin the sphere. Release to focus a chamber. Tap the arrow to enter."
+        onSelect={(it)=>{ window.location.href = it.path; }}
+      />
       <main style={{position:"relative",zIndex:10,minHeight:"100vh"}}>
         <Header/>
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>

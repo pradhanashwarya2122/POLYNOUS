@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { API_BASE_URL } from '../config';
 import { useState, useEffect, useRef, useCallback } from "react";
+import ConstellationExplorer from "./react-bits/ConstellationExplorer";
+import { makeTile } from "./react-bits/constellationTiles";
 
 /* ─────────────────────────────────────────────
    DESIGN TOKENS  (HTML file palette)
@@ -504,6 +506,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
 
       {/* Navigation */}
       <nav
+        className="pn-stagger"
         style={{
           flex: 1,
           display: "flex",
@@ -729,6 +732,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
   const [interests,   setInterests]   = useState([]);
   const [history,     setHistory]     = useState([]);
   const [debates,     setDebates]     = useState([]);
+  const [galaxyOpen,  setGalaxyOpen]  = useState(false);   // Research Galaxy (idea #3)
   const [suggestions, setSuggestions] = useState(getRandomSuggestions());
   const [loading,     setLoading]     = useState(true);
   const [activeTab,   setActiveTab]   = useState("All Activity");
@@ -887,6 +891,36 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
         onLogout={onLogout}
         collapsed={collapsed}
         setCollapsed={setCollapsed}
+      />
+
+      {/* Research Galaxy (idea #3): past sessions as an InfiniteMenu sphere. */}
+      {history.length > 1 && (
+        <button onClick={() => setGalaxyOpen(true)}
+          style={{ position:"fixed", right:24, bottom:88, zIndex:60, display:"flex", alignItems:"center", gap:9, padding:"10px 16px", borderRadius:9999, cursor:"pointer",
+            background:"rgba(10,10,26,0.75)", border:"1px solid rgba(0,230,184,0.3)", color:"#dff7f1", backdropFilter:"blur(18px)",
+            fontFamily:C.fontMono, fontSize:11.5, fontWeight:700, letterSpacing:"0.04em", boxShadow:"0 0 20px -6px rgba(0,230,184,0.4)" }}>
+          <span className="material-symbols-outlined" style={{ fontSize:17, color:"#00e6b8" }}>hub</span>
+          Research Galaxy
+        </button>
+      )}
+      <ConstellationExplorer
+        open={galaxyOpen}
+        onClose={() => setGalaxyOpen(false)}
+        accent="#00e6b8"
+        heading="Your research galaxy"
+        subheading="Spin through past sessions. Tap the arrow to revisit one."
+        items={history.slice(0, 42).map((h) => {
+          const isDebate = (h.mode || h.kind) === "debate";
+          const accent = isDebate ? "#ff2040" : "#00e6b8";
+          const q = h.query || "Untitled";
+          return {
+            image: makeTile({ title: q, tag: isDebate ? "Debate" : "Research", accent }),
+            title: q.length > 60 ? q.slice(0, 60) + "…" : q,
+            description: `${isDebate ? "Debate" : "Research"} · ${Math.round(h.confidence || 0)}% confidence`,
+            query: q, mode: h.mode || "research",
+          };
+        })}
+        onSelect={(it) => { setGalaxyOpen(false); handleTopicClick(it.query, it.mode); }}
       />
 
       <main style={{

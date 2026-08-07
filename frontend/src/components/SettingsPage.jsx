@@ -502,6 +502,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona 
       </div>
 
       <nav
+        className="pn-stagger"
         style={{
           flex: 1,
           display: "flex",

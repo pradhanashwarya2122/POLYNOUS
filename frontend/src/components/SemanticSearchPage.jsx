@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { API_BASE_URL } from '../config';
+import ConstellationExplorer from "./react-bits/ConstellationExplorer";
+import { makeTile } from "./react-bits/constellationTiles";
 
 // ═══════════════════════════════════════════════════════════════
 // DESIGN TOKENS
@@ -1319,7 +1321,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
               <Icon name="chevron_left" style={{ fontSize: 20 }} />
             </button>
           </div>
-          <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
+          <nav className="pn-stagger" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
             {NAV_ITEMS.map(item => <NavItem key={item.label} {...item} collapsed={false} onNavigate={onNavigate} />)}
           </nav>
           <div style={{ borderTop: `1px solid ${C.white5}`, paddingTop: 24, marginTop: 24 }}>
@@ -1857,6 +1859,7 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
   const [loading,          setLoading]          = useState(false)
   const [searched,         setSearched]         = useState(false)
   const [selectedResult,   setSelectedResult]   = useState(null)
+  const [globeOpen,        setGlobeOpen]        = useState(false)   // results globe (idea #4)
   const [filter,           setFilter]           = useState('all')
   const [showSuggestions,  setShowSuggestions]  = useState(false)
   const [suggestions,      setSuggestions]      = useState([])
@@ -1961,6 +1964,35 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
       <Sidebar
         onNavigate={onNavigate} user={user} onLogout={onLogout}
         collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed}
+      />
+
+      {/* Results globe (idea #4): top matches as an InfiniteMenu sphere. */}
+      {results.length > 1 && (
+        <button onClick={() => setGlobeOpen(true)}
+          style={{ position:'fixed', right:24, bottom:88, zIndex:60, display:'flex', alignItems:'center', gap:9, padding:'10px 16px', borderRadius:9999, cursor:'pointer',
+            background:'rgba(10,10,26,0.75)', border:'1px solid rgba(0,204,255,0.32)', color:'#dcf3ff', backdropFilter:'blur(18px)',
+            fontFamily:"'JetBrains Mono',monospace", fontSize:11.5, fontWeight:700, letterSpacing:'0.04em', boxShadow:'0 0 20px -6px rgba(0,204,255,0.4)' }}>
+          <span className="material-symbols-outlined" style={{ fontSize:17, color:'#00ccff' }}>hub</span>
+          View as globe
+        </button>
+      )}
+      <ConstellationExplorer
+        open={globeOpen}
+        onClose={() => setGlobeOpen(false)}
+        accent="#00ccff"
+        heading="Search constellation"
+        subheading="Spin your top matches. Tap the arrow to open one."
+        items={results.slice(0, 42).map((r) => {
+          const q = r.query || 'Untitled'
+          const score = Math.round(r.score || 0)
+          return {
+            image: makeTile({ title: q, tag: `${score}% match`, accent: '#00ccff' }),
+            title: q.length > 60 ? q.slice(0, 60) + '…' : q,
+            description: (r.answer || '').slice(0, 90) || `${score}% similarity`,
+            query: q,
+          }
+        })}
+        onSelect={(it) => { setGlobeOpen(false); onStartResearch?.(it.query); }}
       />
 
       {/* ── Layer 3: main content ── */}

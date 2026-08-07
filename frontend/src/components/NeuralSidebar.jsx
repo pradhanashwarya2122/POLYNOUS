@@ -72,7 +72,7 @@ export default function NeuralSidebar({ user, onLogout, currentPage, onNavigate 
       </div>
 
       {/* Navigation */}
-      <div style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
+      <div className="pn-stagger" style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
         <div style={{ color: '#555', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 8px', marginBottom: '8px' }}>
           Navigation
         </div>

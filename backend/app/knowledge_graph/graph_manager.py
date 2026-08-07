@@ -2,10 +2,19 @@ from neo4j import GraphDatabase
 from typing import List, Dict, Optional
 import os
 import re
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Phase A2: the controlled relation vocabulary for LLM-extracted triples. Any
+# relation the model returns outside this set is coerced to RELATED_TO, so an
+# edge is always a real, typed relationship (never a raw co-occurrence).
+TRIPLE_RELATIONS = {
+    "CAUSES", "SUPPORTS", "REFUTES", "PART_OF", "ENABLES",
+    "PRECEDED_BY", "CONTRADICTS", "RELATED_TO",
+}
 
 class KnowledgeGraph:
     def __init__(self):
@@ -311,9 +320,352 @@ class KnowledgeGraph:
             print(f"✅ Linked {len(unique_entities)} entities for user {safe_user_id}")
         except Exception as e:
             print(f"❌ Entity linking error: {e}")
-        
+
         return unique_entities
-    
+
+    def extract_and_link_triples(self, text: str, user=None, provider: str = "anthropic",
+                                 model: str = None, user_id: str = "guest") -> List[str]:
+        """
+        Phase A2 — replace the capitalized-word regex with real, TYPED relations.
+
+        Asks the LLM for {subject, relation, object, confidence} triples (relation
+        constrained to TRIPLE_RELATIONS) and writes them as typed Concept edges,
+        so an edge reads "mRNA vaccines ENABLES rapid pandemic response (0.82)"
+        instead of a bare MENTIONED_WITH co-occurrence. Falls back to the regex
+        extractor whenever the LLM is unavailable or returns nothing, so the
+        research pipeline never breaks.
+        """
+        if not self.driver or user is None:
+            return self.extract_and_link_entities(text, user_id=user_id)
+
+        try:
+            from app.llm_client import ask_llm
+            system = (
+                "Extract the key factual relationships from the text as a JSON array. "
+                "Each item: {\"subject\": str, \"relation\": one of "
+                "[CAUSES, SUPPORTS, REFUTES, PART_OF, ENABLES, PRECEDED_BY, CONTRADICTS, RELATED_TO], "
+                "\"object\": str, \"confidence\": 0..1}. Subjects and objects are short noun "
+                "phrases (2-4 words), specific, not pronouns. Return 3-8 of the most important, "
+                "non-trivial relationships. Return ONLY the raw JSON array, no prose."
+            )
+            raw = ask_llm(user=user, provider=provider, system_prompt=system,
+                          messages=[{"role": "user", "content": text[:4000]}],
+                          max_tokens=700, temperature=0.2)
+            triples = self._parse_triples(raw)
+            if not triples:
+                return self.extract_and_link_entities(text, user_id=user_id)
+
+            uid = self._sanitize(user_id)
+            names = set()
+            with self.driver.session() as session:
+                for t in triples:
+                    subj = self._sanitize(t["subject"])[:80]
+                    obj = self._sanitize(t["object"])[:80]
+                    rel = t["relation"] if t["relation"] in TRIPLE_RELATIONS else "RELATED_TO"
+                    conf = t["confidence"]
+                    if not subj or not obj or subj.lower() == obj.lower():
+                        continue
+                    names.add(subj); names.add(obj)
+                    # rel is whitelisted against TRIPLE_RELATIONS, so interpolating
+                    # it into the query is safe (Neo4j can't parameterize rel types).
+                    session.run(
+                        f"""
+                        MERGE (a:Concept {{name: $s, user_id: $uid}})
+                        MERGE (b:Concept {{name: $o, user_id: $uid}})
+                        MERGE (a)-[r:{rel} {{user_id: $uid}}]->(b)
+                        SET r.type = $rel, r.count = coalesce(r.count, 0) + 1,
+                            r.confidence = $conf, r.updated_at = datetime()
+                        """,
+                        s=subj, o=obj, uid=uid, rel=rel, conf=conf,
+                    )
+            print(f"✅ Linked {len(triples)} typed triples for user {uid}")
+            return list(names)
+        except Exception as e:
+            print(f"⚠️ Triple extraction failed ({e}); falling back to regex entities")
+            return self.extract_and_link_entities(text, user_id=user_id)
+
+    def _parse_triples(self, raw: str) -> List[Dict]:
+        """Best-effort parse of an LLM triple array into validated dicts."""
+        if not raw:
+            return []
+        s = raw.strip()
+        m = re.search(r"\[.*\]", s, re.DOTALL)
+        if m:
+            s = m.group(0)
+        try:
+            data = json.loads(s)
+        except Exception:
+            return []
+        out = []
+        for item in data if isinstance(data, list) else []:
+            if not isinstance(item, dict):
+                continue
+            subj = str(item.get("subject", "")).strip()
+            obj = str(item.get("object", "")).strip()
+            rel = str(item.get("relation", "RELATED_TO")).strip().upper()
+            if not subj or not obj:
+                continue
+            try:
+                conf = float(item.get("confidence", 0.6))
+            except (TypeError, ValueError):
+                conf = 0.6
+            out.append({"subject": subj, "object": obj, "relation": rel,
+                        "confidence": max(0.0, min(1.0, round(conf, 2)))})
+        return out[:8]
+
+    # ═══════════════════════════════════════════════════════════
+    # PHASE B — GRAPH ML (pure Python, runs without the Neo4j GDS plugin)
+    # ═══════════════════════════════════════════════════════════
+
+    def compute_graph_metrics(self, user_id: str = "guest") -> Dict:
+        """Real graph algorithms over the user's graph, no GDS dependency:
+          - PageRank        -> which concepts are load-bearing (influence)
+          - Label propagation -> emergent topic communities (clusters)
+          - Degree          -> raw connectivity
+        Returns per-node metrics plus a summary. Safe/empty on any failure."""
+        if not self.driver:
+            return {"nodes": {}, "communities": 0, "summary": {}}
+        uid = self._sanitize(user_id)
+        node_ids, edges = [], []
+        try:
+            with self.driver.session() as session:
+                res = session.run(
+                    """
+                    MATCH (a {user_id: $uid})-[r {user_id: $uid}]->(b {user_id: $uid})
+                    RETURN coalesce(a.name, a.text, toString(id(a))) AS s,
+                           coalesce(b.name, b.text, toString(id(b))) AS t
+                    LIMIT 5000
+                    """,
+                    uid=uid,
+                )
+                seen = set()
+                for rec in res:
+                    s, t = rec["s"], rec["t"]
+                    if not s or not t or s == t:
+                        continue
+                    edges.append((s, t))
+                    for n in (s, t):
+                        if n not in seen:
+                            seen.add(n); node_ids.append(n)
+        except Exception as e:
+            print(f"⚠️ graph metrics fetch failed: {e}")
+            return {"nodes": {}, "communities": 0, "summary": {}}
+
+        if not node_ids:
+            return {"nodes": {}, "communities": 0, "summary": {"nodes": 0, "edges": 0}}
+
+        pr = self._pagerank(node_ids, edges)
+        comm = self._louvain(node_ids, edges)
+        deg = {n: 0 for n in node_ids}
+        for s, t in edges:
+            deg[s] += 1; deg[t] += 1
+
+        # Normalize PageRank to 0..1 for easy node sizing on the client.
+        mx = max(pr.values()) if pr else 1.0
+        nodes = {
+            n: {"pagerank": round(pr[n] / mx, 4) if mx else 0.0,
+                "community": comm.get(n, 0), "degree": deg.get(n, 0)}
+            for n in node_ids
+        }
+        top = sorted(node_ids, key=lambda n: pr[n], reverse=True)[:5]
+        return {
+            "nodes": nodes,
+            "communities": len(set(comm.values())),
+            "summary": {
+                "nodes": len(node_ids), "edges": len(edges),
+                "top_concepts": [{"name": n, "pagerank": round(pr[n] / mx, 3)} for n in top],
+            },
+        }
+
+    def suggest_connections(self, user_id: str = "guest", top_n: int = 8) -> Dict:
+        """Phase B4 — link prediction over the user's graph. Scores non-adjacent
+        concept pairs by Adamic-Adar (shared neighbours, weighted by rarity) and
+        common-neighbour count, and returns the most likely *missing* links:
+        'you researched X and Y separately, they're probably related'."""
+        if not self.driver:
+            return {"suggestions": []}
+        uid = self._sanitize(user_id)
+        node_ids, edges = [], []
+        try:
+            with self.driver.session() as session:
+                res = session.run(
+                    """
+                    MATCH (a {user_id:$uid})-[r {user_id:$uid}]->(b {user_id:$uid})
+                    RETURN coalesce(a.name,a.text,toString(id(a))) AS s,
+                           coalesce(b.name,b.text,toString(id(b))) AS t
+                    LIMIT 5000
+                    """, uid=uid)
+                seen = set()
+                for rec in res:
+                    s, t = rec["s"], rec["t"]
+                    if not s or not t or s == t:
+                        continue
+                    edges.append((s, t))
+                    for n in (s, t):
+                        if n not in seen:
+                            seen.add(n); node_ids.append(n)
+        except Exception as e:
+            print(f"⚠️ link-prediction fetch failed: {e}")
+            return {"suggestions": []}
+        return {"suggestions": self._link_predict(node_ids, edges, top_n)}
+
+    @staticmethod
+    def _link_predict(node_ids, edges, top_n: int = 8):
+        import math as _m
+        adj = {x: set() for x in node_ids}
+        for s, t in edges:
+            adj[s].add(t); adj[t].add(s)
+        existing = {frozenset((s, t)) for s, t in edges}
+        deg = {x: len(adj[x]) for x in node_ids}
+        cand = {}
+        # only consider pairs that share at least one neighbour (2-hop reachable)
+        for w in node_ids:
+            nbrs = list(adj[w])
+            for i in range(len(nbrs)):
+                for j in range(i + 1, len(nbrs)):
+                    u, v = nbrs[i], nbrs[j]
+                    if u == v or frozenset((u, v)) in existing:
+                        continue
+                    key = frozenset((u, v))
+                    aa = 1.0 / _m.log(deg[w]) if deg[w] > 1 else 0.0
+                    slot = cand.setdefault(key, {"aa": 0.0, "cn": 0})
+                    slot["aa"] += aa
+                    slot["cn"] += 1
+        ranked = sorted(cand.items(), key=lambda kv: (kv[1]["aa"], kv[1]["cn"]), reverse=True)[:top_n]
+        out = []
+        for key, sc in ranked:
+            a, b = tuple(key)
+            out.append({"source": a, "target": b,
+                        "score": round(sc["aa"], 3), "common_neighbors": sc["cn"]})
+        return out
+
+    @staticmethod
+    def _pagerank(node_ids, edges, damping: float = 0.85, iters: int = 50) -> Dict:
+        """Undirected PageRank via power iteration (edges counted both ways)."""
+        n = len(node_ids)
+        if n == 0:
+            return {}
+        out = {x: [] for x in node_ids}
+        for s, t in edges:
+            out[s].append(t); out[t].append(s)   # symmetric influence
+        outdeg = {x: len(out[x]) for x in node_ids}
+        pr = {x: 1.0 / n for x in node_ids}
+        for _ in range(iters):
+            new = {x: (1 - damping) / n for x in node_ids}
+            dangling = damping * sum(pr[x] for x in node_ids if outdeg[x] == 0) / n
+            for x in node_ids:
+                new[x] += dangling
+            for s in node_ids:
+                if outdeg[s]:
+                    share = damping * pr[s] / outdeg[s]
+                    for d in out[s]:
+                        new[d] += share
+            pr = new
+        return pr
+
+    @staticmethod
+    def _louvain(node_ids, edges) -> Dict:
+        """Communities via Louvain modularity optimization (one local-moving
+        level). Properly separates topical clusters even on small graphs, where
+        naive label propagation collapses everything into one community."""
+        m = len(edges)
+        if m == 0:
+            return {x: i for i, x in enumerate(node_ids)}
+        adj = {x: {} for x in node_ids}
+        for s, t in edges:
+            adj[s][t] = adj[s].get(t, 0) + 1
+            adj[t][s] = adj[t].get(s, 0) + 1
+        k = {x: sum(adj[x].values()) for x in node_ids}   # weighted degree
+        two_m = 2.0 * m
+        comm = {x: x for x in node_ids}
+        sigma_tot = {x: k[x] for x in node_ids}
+
+        improved, passes = True, 0
+        while improved and passes < 30:
+            improved, passes = False, passes + 1
+            for n in node_ids:
+                c_old = comm[n]
+                sigma_tot[c_old] -= k[n]
+                neigh_w = {}
+                for nb, w in adj[n].items():
+                    neigh_w[comm[nb]] = neigh_w.get(comm[nb], 0) + w
+                best_c, best_gain = c_old, (neigh_w.get(c_old, 0) - sigma_tot.get(c_old, 0) * k[n] / two_m)
+                for c, w_in in neigh_w.items():
+                    gain = w_in - sigma_tot.get(c, 0) * k[n] / two_m
+                    if gain > best_gain:
+                        best_gain, best_c = gain, c
+                comm[n] = best_c
+                sigma_tot[best_c] = sigma_tot.get(best_c, 0) + k[n]
+                if best_c != c_old:
+                    improved = True
+
+        remap, nxt = {}, 0
+        for x in node_ids:
+            if comm[x] not in remap:
+                remap[comm[x]] = nxt; nxt += 1
+            comm[x] = remap[comm[x]]
+        return comm
+
+    # ═══════════════════════════════════════════════════════════
+    # PHASE C — GraphRAG: answer over the user's typed subgraph
+    # ═══════════════════════════════════════════════════════════
+
+    def graph_rag_answer(self, query: str, user=None, provider: str = "anthropic",
+                         model: str = None, user_id: str = "guest") -> Dict:
+        """Answer a question over the user's OWN knowledge graph: find entry
+        concepts from the query, expand a multi-hop subgraph of typed triples,
+        and have the LLM reason over those facts (citing the relationships).
+        This is GraphRAG over a personal, self-built graph."""
+        empty = {"answer": "", "triples": [], "entry": [], "grounded": False}
+        if not self.driver:
+            return {**empty, "answer": "The knowledge graph is unavailable right now."}
+        uid = self._sanitize(user_id)
+        q_terms = set(re.findall(r"[a-z]{3,}", (query or "").lower()))
+        if not q_terms:
+            return {**empty, "answer": "Ask a question about concepts you've researched."}
+
+        try:
+            with self.driver.session() as session:
+                names = [r["name"] for r in session.run(
+                    "MATCH (c:Concept {user_id:$uid}) RETURN c.name AS name LIMIT 800", uid=uid)]
+                entry = [n for n in names
+                         if q_terms & set(re.findall(r"[a-z]{3,}", (n or "").lower()))][:6]
+                if not entry:
+                    return {**empty,
+                            "answer": "Your knowledge graph doesn't cover that yet. Run some research on the topic first, then ask again."}
+
+                recs = session.run(
+                    """
+                    MATCH (a:Concept {user_id:$uid})-[r]->(b:Concept {user_id:$uid})
+                    WHERE a.name IN $entry OR b.name IN $entry
+                    RETURN a.name AS s, type(r) AS rel, b.name AS o,
+                           coalesce(r.confidence, 0.6) AS conf
+                    LIMIT 80
+                    """, uid=uid, entry=entry)
+                triples = [{"s": r["s"], "rel": r["rel"], "o": r["o"], "conf": r["conf"]} for r in recs]
+        except Exception as e:
+            return {**empty, "answer": f"Graph lookup failed: {e}"}
+
+        if not triples:
+            return {**empty, "entry": entry,
+                    "answer": "Those concepts exist in your graph but aren't connected yet."}
+
+        facts = "\n".join(f"- {t['s']} {t['rel']} {t['o']} (confidence {t['conf']})" for t in triples)
+        if user is None:
+            return {"answer": "Sign in to reason over your graph.", "triples": triples,
+                    "entry": entry, "grounded": True}
+        try:
+            from app.llm_client import ask_llm
+            system = ("Answer the question using ONLY the knowledge-graph facts provided. "
+                      "Each fact is 'subject RELATION object'. Cite the specific relationships you "
+                      "relied on. If the facts don't answer the question, say so plainly.")
+            answer = ask_llm(user=user, provider=provider, system_prompt=system,
+                             messages=[{"role": "user", "content": f"FACTS:\n{facts}\n\nQUESTION: {query}"}],
+                             max_tokens=650, temperature=0.3)
+        except Exception as e:
+            answer = f"(Could not generate a narrative answer: {e})\n\nRelevant facts:\n{facts}"
+        return {"answer": answer, "triples": triples, "entry": entry, "grounded": True}
+
     # ═══════════════════════════════════════════════════════════
     # GRAPH QUERY METHODS
     # ═══════════════════════════════════════════════════════════

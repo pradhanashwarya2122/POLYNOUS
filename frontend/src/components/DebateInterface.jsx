@@ -586,7 +586,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
           <Icon name="chevron_left" style={{ fontSize: 20 }} />
         </button>
       </div>
-      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+      <nav className="pn-stagger" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
         {NAV.map(({ icon, label, path, active }) => (
           <div key={label} onClick={() => go(path)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 9999, cursor: "pointer", color: active ? C.crimson : C.onSurfaceVariant, background: active ? `${C.crimson}15` : "transparent", fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: active ? 700 : 400, transition: "all 0.2s", whiteSpace: "nowrap", overflow: "hidden" }}
             onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.crimson; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } }}

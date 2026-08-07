@@ -351,3 +351,30 @@ html {
     color: black !important;
   }
 }
+/* ========== STAGGERED SIDEBAR NAV (React Bits inspired) ========== */
+/* Add class "pn-stagger" to any sidebar nav container. Its direct children
+   fade + slide in with an incremental delay. Pure motion, no color/size change,
+   so every page keeps its own theme. */
+@keyframes pnStaggerIn {
+  from { opacity: 0; transform: translateX(-16px) rotate(1.5deg); }
+  to   { opacity: 1; transform: translateX(0)     rotate(0deg); }
+}
+.pn-stagger > * {
+  opacity: 0;
+  animation: pnStaggerIn 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pn-stagger > *:nth-child(1)  { animation-delay: 0.05s; }
+.pn-stagger > *:nth-child(2)  { animation-delay: 0.10s; }
+.pn-stagger > *:nth-child(3)  { animation-delay: 0.15s; }
+.pn-stagger > *:nth-child(4)  { animation-delay: 0.20s; }
+.pn-stagger > *:nth-child(5)  { animation-delay: 0.25s; }
+.pn-stagger > *:nth-child(6)  { animation-delay: 0.30s; }
+.pn-stagger > *:nth-child(7)  { animation-delay: 0.35s; }
+.pn-stagger > *:nth-child(8)  { animation-delay: 0.40s; }
+.pn-stagger > *:nth-child(9)  { animation-delay: 0.45s; }
+.pn-stagger > *:nth-child(10) { animation-delay: 0.50s; }
+.pn-stagger > *:nth-child(11) { animation-delay: 0.55s; }
+.pn-stagger > *:nth-child(12) { animation-delay: 0.60s; }
+@media (prefers-reduced-motion: reduce) {
+  .pn-stagger > * { animation: none; opacity: 1; }
+}

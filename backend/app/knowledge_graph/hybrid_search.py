@@ -34,14 +34,22 @@ class HybridSearchEngine:
             print(f"⚠️ Pinecone index not found: {e}")
             self.pinecone_index = None
     
-    def vector_search(self, query: str, top_k: int = 5) -> List[Dict]:
-        """Vector similarity search using Pinecone with Anthropic"""
+    def vector_search(self, query: str, top_k: int = 5, user=None) -> List[Dict]:
+        """Vector similarity search using Pinecone.
+
+        Phase A1: uses the real user-aware OpenAI embedding (text-embedding-3-small,
+        1536-d), not the old MD5 bag-of-words pseudo-embedding, so matches are
+        genuinely semantic. Returns nothing (honestly) when there's no user/key
+        rather than fabricating results from a hash."""
         if not self.pinecone_index:
             return []
-        
+
         try:
-            embedding = self._create_embedding(query)
-            
+            from app.llm_client import create_embedding
+            embedding = create_embedding(user, query) if user is not None else None
+            if not embedding:
+                return []
+
             results = self.pinecone_index.query(
                 vector=embedding,
                 top_k=top_k,
@@ -75,33 +83,40 @@ class HybridSearchEngine:
         for entity in entities[:3]:
             related = kg.get_related_topics(entity)
             for r in related:
+                # Phase A3: computed relevance, not a hardcoded 85. More research
+                # sessions on a topic => stronger signal (capped at 95).
+                rc = r.get('research_count') or 0
+                score = round(min(95.0, 55.0 + rc * 8.0), 1)
                 results.append({
-                    "text": f"Related topic: {r['topic']} (connected to '{entity}', {r['research_count']} sessions)",
-                    "score": 85.0,
+                    "text": f"Related topic: {r['topic']} (connected to '{entity}', {rc} sessions)",
+                    "score": score,
                     "source": "knowledge_graph",
                     "type": "topic_relation",
                     "entity": entity,
                     "related_topic": r['topic']
                 })
-            
+
             if len(entities) >= 2:
                 for other_entity in entities[1:]:
                     if other_entity != entity:
                         connections = kg.find_connections(entity, other_entity)
                         for conn in connections[:3]:
+                            # Phase A3: closer paths score higher, computed from
+                            # the real hop count (was 90 - hops*10 flat).
+                            score = round(max(40.0, 100.0 / (1 + conn['hops'])), 1)
                             results.append({
                                 "text": f"Path found: {conn['path_display']} ({conn['hops']} hops)",
-                                "score": 90.0 - (conn['hops'] * 10),
+                                "score": score,
                                 "source": "knowledge_graph",
                                 "type": "entity_connection"
                             })
         
         return sorted(results, key=lambda x: x['score'], reverse=True)[:5]
     
-    def hybrid_search(self, query: str, use_graph: bool = True) -> Dict:
+    def hybrid_search(self, query: str, use_graph: bool = True, user=None) -> Dict:
         """Combine vector search + knowledge graph search"""
-        
-        vector_results = self.vector_search(query)
+
+        vector_results = self.vector_search(query, user=user)
         graph_results = self.knowledge_graph_search(query) if use_graph else []
         
         all_results = vector_results + graph_results

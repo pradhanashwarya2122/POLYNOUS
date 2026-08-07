@@ -167,7 +167,7 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
       <div style={{ marginBottom: 24 }}><ActiveModelBadge /></div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+      <nav className="pn-stagger" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
         {NAV.map(({ icon, label, path, active }) => (
           <div
             key={label}

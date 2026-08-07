@@ -994,7 +994,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
         </div>
         <button onClick={() => setCollapsed(true)} style={{ background: "none", border: "none", color: C.textSecondary, cursor: "pointer", padding: 4, flexShrink: 0, marginLeft: 8 }}><Icon name="chevron_left" style={{ fontSize: 20 }} /></button>
       </div>
-      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+      <nav className="pn-stagger" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
         {NAV.map(({ icon, label, path, active }, idx) => (
           <div key={label} onClick={() => handleNav(path)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 9999, cursor: "pointer", color: active ? RAINBOW[idx % RAINBOW.length] : C.onSurfaceVariant, background: active ? `${RAINBOW[idx % RAINBOW.length]}15` : "transparent", fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: active ? 700 : 400, transition: "all 0.2s", whiteSpace: "nowrap", overflow: "hidden" }}
             onMouseEnter={e => { if (!active) { e.currentTarget.style.color = RAINBOW[idx % RAINBOW.length]; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } }}

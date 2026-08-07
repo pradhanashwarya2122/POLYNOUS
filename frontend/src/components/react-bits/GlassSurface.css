@@ -1,0 +1,53 @@
+.glass-surface {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.26s ease-out;
+}
+
+.glass-surface__filter {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  z-index: -1;
+}
+
+.glass-surface__content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  position: relative;
+  z-index: 1;
+}
+
+.glass-surface--svg {
+  background: hsl(0 0% 0% / var(--glass-frost, 0));
+  backdrop-filter: var(--filter-id, url(#glass-filter)) saturate(var(--glass-saturation, 1));
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 82%) inset,
+    0 0 10px 4px color-mix(in oklch, white, transparent 90%) inset,
+    0px 4px 16px rgba(0, 0, 0, 0.28);
+}
+
+/* Dark-themed fallback for Safari/Firefox (no backdrop SVG filter). */
+.glass-surface--fallback {
+  background: rgba(10, 10, 26, 0.55);
+  backdrop-filter: blur(14px) saturate(1.6);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+@supports not (backdrop-filter: blur(10px)) {
+  .glass-surface--fallback { background: rgba(10, 10, 26, 0.85); }
+}

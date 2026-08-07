@@ -1,0 +1,108 @@
+/* InfiniteMenu, POLYNOUS-themed (dark void + neon green). */
+
+.im-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#infinite-grid-menu-canvas {
+  cursor: grab;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  outline: none;
+}
+#infinite-grid-menu-canvas:active { cursor: grabbing; }
+
+.im-action-button {
+  position: absolute;
+  left: 50%;
+  z-index: 10;
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, #00ff5a, #00b83e);
+  border: 4px solid #060610;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 26px -4px rgba(0, 255, 15, 0.65);
+}
+.im-action-button .material-symbols-outlined {
+  color: #04120b;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.im-face-title {
+  user-select: none;
+  position: absolute;
+  font-family: 'Sora', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 0 30px rgba(0, 255, 15, 0.35);
+  top: 50%;
+  left: 1.4em;
+  transform: translate(20%, -50%);
+  max-width: 9ch;
+  line-height: 1.05;
+}
+.im-face-title.im-active {
+  opacity: 1;
+  transform: translate(20%, -50%);
+  pointer-events: auto;
+  transition: 0.5s ease;
+}
+.im-face-title.im-inactive {
+  pointer-events: none;
+  opacity: 0;
+  transition: 0.1s ease;
+}
+
+.im-face-description {
+  user-select: none;
+  position: absolute;
+  max-width: 12ch;
+  top: 50%;
+  right: 1%;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+  line-height: 1.55;
+  color: #9fb3c8;
+  transform: translate(0, -50%);
+}
+.im-face-description.im-active {
+  opacity: 1;
+  transform: translate(-90%, -50%);
+  pointer-events: auto;
+  transition: 0.5s ease;
+}
+.im-face-description.im-inactive {
+  pointer-events: none;
+  transform: translate(-60%, -50%);
+  opacity: 0;
+  transition: 0.1s ease;
+}
+
+.im-action-button.im-active {
+  bottom: 3.6em;
+  transform: translateX(-50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  transition: 0.5s ease;
+}
+.im-action-button.im-inactive {
+  bottom: -80px;
+  transform: translateX(-50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.1s ease;
+}
+
+@media (max-width: 1100px) {
+  .im-face-title, .im-face-description { display: none; }
+}
