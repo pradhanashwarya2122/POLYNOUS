@@ -1001,6 +1001,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
   const [streamingOn,    setStreamingOn]    = useState(true);
   const [confThreshold,  setConfThreshold]  = useState(70);
   const [fontsLoaded,    setFontsLoaded]    = useState(false);
+  const [novelty,        setNovelty]        = useState(null);   // Phase F novelty
 
   // --- NEW: engine collapse state
   const [engineCollapsed, setEngineCollapsed] = useState(false);
@@ -1225,6 +1226,7 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
                   setTelemetry(data?.telemetry || null);
                   setSourceSummaries(data?.source_summaries || []);
                   setCacheInfo(data?.cached ? { age: data?.cache_age_label || "" } : null);
+                  setNovelty(typeof data?.novelty === "number" ? data.novelty : null);
                   setLoading(false);
                   setAgentStatus("");
                   setEngineDone(true);
@@ -1269,6 +1271,21 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
               <p style={{ textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.textSecondary,textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:14,opacity:0.6 }}> -  try one of these - </p>
               <ShufflingPills onSelect={(q)=>{setQuery(q);startResearch(q);}} />
             </div>
+
+            {/* Phase F novelty badge: how much this run expanded your knowledge */}
+            {typeof novelty === "number" && (() => {
+              const pct = Math.round(novelty * 100);
+              const col = pct >= 66 ? "#00ff47" : pct >= 33 ? "#00ccff" : "#8e98a8";
+              const label = pct >= 66 ? "New territory" : pct >= 33 ? "Partly familiar" : "Well-trodden";
+              return (
+                <div style={{ maxWidth:860, margin:"0 auto 14px", display:"flex", justifyContent:"flex-end" }}>
+                  <div title="How different this query is from your existing research" style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"7px 14px", borderRadius:9999, background:`${col}14`, border:`1px solid ${col}44` }}>
+                    <span className="material-symbols-outlined" style={{ fontSize:15, color:col }}>explore</span>
+                    <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:col, fontWeight:700 }}>{label} · {pct}% novel</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Report */}
             <div style={{ maxWidth:860,margin:"0 auto" }}>

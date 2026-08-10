@@ -44,6 +44,17 @@ const NODE_COLORS = {
   default:     { fill: "#4488FF", glow: "#4488FF", ring: "#99BBFF", text: "#CCE0FF" },
 };
 
+// Distinct hues for Louvain communities (used when "Influence view" is on).
+const COMMUNITY_PALETTE = [
+  { fill: "#CC44FF", glow: "#CC44FF", ring: "#E099FF", text: "#F2CCFF" },
+  { fill: "#00FFCC", glow: "#00FFCC", ring: "#80FFE8", text: "#CCFFF5" },
+  { fill: "#FF8800", glow: "#FF8800", ring: "#FFAA60", text: "#FFDDC0" },
+  { fill: "#4499FF", glow: "#4499FF", ring: "#99CCFF", text: "#CCE5FF" },
+  { fill: "#FF2D78", glow: "#FF2D78", ring: "#FF80B0", text: "#FFCCE0" },
+  { fill: "#00FF9F", glow: "#00FF9F", ring: "#80FFD0", text: "#CCFFE8" },
+  { fill: "#F5D442", glow: "#F5D442", ring: "#FFE888", text: "#FFF6CC" },
+];
+
 const EDGE_LABELS = {
   SUPPORTED_BY: "supports", COUNTERED_BY: "counters", RELATED_TO: "related",
   CO_OCCURS: "co-occurs", ABOUT: "about", CITES: "cites",
@@ -592,258 +603,47 @@ function computeCentrality(nodes, edges) {
 }
 
 // ─── LIVELY PURPLE NEURAL BACKGROUND ─────────────────────────
-// Replaces the old bland NeuralCanvas with aurora waves + plasma orbs + constellations
+// Vanta FOG — purple, brand-matched ambient backdrop (replaces the old
+// aurora/plasma-orb canvas). Purple is Polynous's actual brand color, so we
+// lean into it confidently rather than as a generic AI-gradient.
 function NeuralCanvas() {
   const ref = useRef(null);
+  const fx = useRef(null);
   useEffect(() => {
-    const canvas = ref.current;
-    const ctx = canvas.getContext("2d");
-    let animId;
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    window.addEventListener("resize", resize);
-    resize();
-
-    const W = () => canvas.width;
-    const H = () => canvas.height;
-
-    // Stars
-    const STARS = Array.from({ length: 220 }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      r: Math.random() * 1.3 + 0.2,
-      opacity: Math.random() * 0.6 + 0.1,
-      twinkle: Math.random() * Math.PI * 2,
-      twinkleSpeed: 0.004 + Math.random() * 0.008,
-    }));
-
-    // Plasma orbs - big drifting color blobs
-    const ORBS = Array.from({ length: 7 }, (_, i) => ({
-      x: Math.random(),
-      y: Math.random(),
-      r: 200 + Math.random() * 300,
-      speed: 0.00008 + Math.random() * 0.00012,
-      phase: (i / 7) * Math.PI * 2,
-      orbitR: 0.12 + Math.random() * 0.18,
-      orbitCx: 0.3 + Math.random() * 0.4,
-      orbitCy: 0.3 + Math.random() * 0.4,
-      color: [
-        "120,40,255",   // deep violet
-        "168,85,247",   // purple
-        "90,20,200",    // indigo-purple
-        "200,60,255",   // magenta-purple
-        "80,0,180",     // dark violet
-        "140,100,255",  // lavender
-        "220,80,255",   // bright magenta
-      ][i % 7],
-      intensity: 0.06 + Math.random() * 0.09,
-    }));
-
-    // Aurora wave bands
-    const AURORA_BANDS = Array.from({ length: 4 }, (_, i) => ({
-      yBase: 0.15 + i * 0.22,
-      amplitude: 0.04 + Math.random() * 0.06,
-      frequency: 0.8 + Math.random() * 1.2,
-      speed: 0.0006 + Math.random() * 0.0008,
-      phase: Math.random() * Math.PI * 2,
-      color: ["120,40,255","168,85,247","100,0,220","190,70,255"][i],
-      opacity: 0.04 + Math.random() * 0.06,
-      thickness: 60 + Math.random() * 100,
-    }));
-
-    // Constellation particles
-    const CONSTELLATIONS = Array.from({ length: 30 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.06,
-      vy: (Math.random() - 0.5) * 0.06,
-      size: Math.random() * 1.8 + 0.5,
-      opacity: Math.random() * 0.18 + 0.06,
-      hue: 260 + Math.random() * 60, // purple hue range
-    }));
-
-    // Spinning hex rings
-    const HEX_RINGS = Array.from({ length: 3 }, (_, i) => ({
-      cx: 0.5,
-      cy: 0.5,
-      r: 80 + i * 120,
-      speed: (0.0003 + i * 0.0001) * (i % 2 === 0 ? 1 : -1),
-      phase: (i / 3) * Math.PI * 2,
-      opacity: 0.03 - i * 0.007,
-      sides: 6 + i * 2,
-    }));
-
-    let frame = 0;
-
-    const drawPolygon = (ctx, cx, cy, r, sides, rotation) => {
-      ctx.beginPath();
-      for (let i = 0; i <= sides; i++) {
-        const angle = (i / sides) * Math.PI * 2 + rotation;
-        const x = cx + Math.cos(angle) * r;
-        const y = cy + Math.sin(angle) * r;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-    };
-
-    const loop = (timestamp) => {
-      frame++;
-      const w = W(), h = H();
-
-      // Deep purple void base
-      ctx.fillStyle = "#06040f";
-      ctx.fillRect(0, 0, w, h);
-
-      // - PLASMA ORBS (big soft blobs that drift) - 
-      ORBS.forEach(orb => {
-        orb.phase += orb.speed;
-        const ox = (orb.orbitCx + Math.cos(orb.phase) * orb.orbitR) * w;
-        const oy = (orb.orbitCy + Math.sin(orb.phase * 0.7) * orb.orbitR) * h;
-        const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, orb.r);
-        g.addColorStop(0, `rgba(${orb.color},${orb.intensity})`);
-        g.addColorStop(0.4, `rgba(${orb.color},${orb.intensity * 0.5})`);
-        g.addColorStop(1, `rgba(${orb.color},0)`);
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, w, h);
-      });
-
-      // - AURORA BANDS (horizontal sine wave curtains) - 
-      AURORA_BANDS.forEach(band => {
-        band.phase += band.speed;
-        const segCount = Math.ceil(w / 8);
-        for (let s = 0; s < segCount; s++) {
-          const x = (s / segCount) * w;
-          const yWave = (band.yBase + Math.sin(x / w * band.frequency * Math.PI * 2 + band.phase) * band.amplitude) * h;
-          const g = ctx.createLinearGradient(x, yWave - band.thickness / 2, x, yWave + band.thickness / 2);
-          g.addColorStop(0, `rgba(${band.color},0)`);
-          g.addColorStop(0.5, `rgba(${band.color},${band.opacity})`);
-          g.addColorStop(1, `rgba(${band.color},0)`);
-          ctx.fillStyle = g;
-          ctx.fillRect(x, yWave - band.thickness / 2, w / segCount + 1, band.thickness);
-        }
-      });
-
-      // - GEOMETRIC SPINNING RINGS (subtle sacred geometry feel) - 
-      HEX_RINGS.forEach(ring => {
-        ring.phase += ring.speed;
-        const cx = ring.cx * w, cy = ring.cy * h;
-        drawPolygon(ctx, cx, cy, ring.r, ring.sides, ring.phase);
-        ctx.strokeStyle = `rgba(168,85,247,${ring.opacity})`;
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-        // Inner ring slightly offset
-        drawPolygon(ctx, cx, cy, ring.r * 0.88, ring.sides, ring.phase + Math.PI / ring.sides);
-        ctx.strokeStyle = `rgba(200,100,255,${ring.opacity * 0.6})`;
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-      });
-
-      // - STARS (twinkling) - 
-      STARS.forEach(s => {
-        const twink = 0.45 + 0.55 * Math.sin(s.twinkle + frame * s.twinkleSpeed);
-        const alpha = s.opacity * twink;
-        // Cross sparkle for brighter stars
-        if (s.opacity > 0.5) {
-          ctx.beginPath();
-          ctx.moveTo(s.x * w - s.r * 3, s.y * h);
-          ctx.lineTo(s.x * w + s.r * 3, s.y * h);
-          ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.3})`;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(s.x * w, s.y * h - s.r * 3);
-          ctx.lineTo(s.x * w, s.y * h + s.r * 3);
-          ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        ctx.fill();
-      });
-
-      // - CONSTELLATION PARTICLES + LINKS - 
-      CONSTELLATIONS.forEach((p, i) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0) p.x = w;
-        if (p.x > w) p.x = 0;
-        if (p.y < 0) p.y = h;
-        if (p.y > h) p.y = 0;
-
-        // Glow
-        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
-        glow.addColorStop(0, `hsla(${p.hue},80%,70%,${p.opacity})`);
-        glow.addColorStop(1, `hsla(${p.hue},80%,70%,0)`);
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Core
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue},90%,80%,${p.opacity * 2})`;
-        ctx.fill();
-
-        // Connect nearby
-        for (let j = i + 1; j < CONSTELLATIONS.length; j++) {
-          const d = Math.hypot(p.x - CONSTELLATIONS[j].x, p.y - CONSTELLATIONS[j].y);
-          if (d < 150) {
-            const alpha = (1 - d / 150) * 0.12;
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(CONSTELLATIONS[j].x, CONSTELLATIONS[j].y);
-            ctx.strokeStyle = `rgba(168,85,247,${alpha})`;
-            ctx.lineWidth = 0.4;
-            ctx.stroke();
-          }
-        }
-      });
-
-      // - CENTRAL RADIANT PULSE (purple heartbeat from centre) - 
-      const pulseT = (Math.sin(frame * 0.012) * 0.5 + 0.5);
-      const pulseR = 80 + pulseT * 60;
-      const pulseAlpha = 0.06 + pulseT * 0.08;
-      const pulse = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, pulseR);
-      pulse.addColorStop(0, `rgba(168,85,247,${pulseAlpha})`);
-      pulse.addColorStop(0.5, `rgba(124,58,237,${pulseAlpha * 0.4})`);
-      pulse.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = pulse;
-      ctx.fillRect(0, 0, w, h);
-
-      // Outer pulse ring
-      ctx.beginPath();
-      ctx.arc(w / 2, h / 2, 60 + pulseT * 40, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(168,85,247,${pulseAlpha * 0.6})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // - TOP VIGNETTE (keep UI readable) - 
-      const vigTop = ctx.createLinearGradient(0, 0, 0, h * 0.35);
-      vigTop.addColorStop(0, "rgba(6,4,15,0.55)");
-      vigTop.addColorStop(1, "rgba(6,4,15,0)");
-      ctx.fillStyle = vigTop;
-      ctx.fillRect(0, 0, w, h);
-
-      animId = requestAnimationFrame(loop);
-    };
-
-    animId = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener("resize", resize);
-    };
+    let cancelled = false;
+    (async () => {
+      try {
+        const THREE = await import("three");
+        // vanta.fog.min is a UMD global: it reads window.THREE and attaches
+        // window.VANTA.FOG (it has no ES export).
+        window.THREE = THREE;
+        await import("vanta/dist/vanta.fog.min");
+        const FOG = window.VANTA && window.VANTA.FOG;
+        if (cancelled || !ref.current || fx.current || !FOG) return;
+        fx.current = FOG({
+          el: ref.current,
+          THREE,
+          mouseControls: true,
+          touchControls: true,
+          gyroControls: false,
+          minHeight: 200.0,
+          minWidth: 200.0,
+          highlightColor: 0xa855f7,   // classic Polynous purple
+          midtoneColor: 0x7c3aed,
+          lowlightColor: 0x2a1055,
+          baseColor: 0x08060f,
+          blurFactor: 0.62,
+          speed: 0.9,
+          zoom: 0.85,
+        });
+      } catch (e) { /* fog is decorative; page works without it */ }
+    })();
+    return () => { cancelled = true; if (fx.current) { fx.current.destroy(); fx.current = null; } };
   }, []);
   return (
-    <canvas
+    <div
       ref={ref}
-      style={{
-        position: "fixed", top: 0, left: 0,
-        width: "100%", height: "100%",
-        zIndex: 0, pointerEvents: "none",
-      }}
+      style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }}
     />
   );
 }
@@ -1243,6 +1043,184 @@ function EdgeTypeFilter({ activeEdgeTypes, onToggle }) {
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────
+// ─── Graph Intelligence panel: GraphRAG (Phase C) + link prediction (Phase B4) ──
+function GraphIntelPanel({ onStartResearch }) {
+  const P = "#a855f7";
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState("ask");     // "ask" | "links"
+  const [q, setQ] = useState("");
+  const [ans, setAns] = useState(null);
+  const [links, setLinks] = useState(null);
+  const [metrics, setMetrics] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const headers = () => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
+
+  const [conflicts, setConflicts] = useState(null);
+  const loadMetrics = async () => {
+    setBusy(true); setErr("");
+    try {
+      const [m, c] = await Promise.all([
+        fetch(`${API_BASE_URL}/knowledge/graph-metrics`, { headers: headers() }).then(r => r.json()),
+        fetch(`${API_BASE_URL}/knowledge/contradictions`, { headers: headers() }).then(r => r.json()).catch(() => ({ conflicts: [] })),
+      ]);
+      setMetrics(m); setConflicts(c.conflicts || []);
+    } catch (e) { setErr("Could not compute metrics."); }
+    finally { setBusy(false); }
+  };
+
+  const ask = async () => {
+    const query = q.trim();
+    if (!query || busy) return;
+    setBusy(true); setErr(""); setAns(null);
+    try {
+      const r = await fetch(`${API_BASE_URL}/knowledge/graph-rag?query=${encodeURIComponent(query)}`, { headers: headers() });
+      setAns(await r.json());
+    } catch (e) { setErr("Could not reach your graph."); }
+    finally { setBusy(false); }
+  };
+
+  const loadLinks = async () => {
+    setBusy(true); setErr("");
+    try {
+      const r = await fetch(`${API_BASE_URL}/knowledge/suggest-connections?top_n=8`, { headers: headers() });
+      const d = await r.json();
+      setLinks(d.suggestions || []);
+    } catch (e) { setErr("Could not load suggestions."); }
+    finally { setBusy(false); }
+  };
+
+  useEffect(() => { if (open && tab === "links" && links === null) loadLinks(); }, [open, tab]); // eslint-disable-line
+  useEffect(() => { if (open && tab === "metrics" && metrics === null) loadMetrics(); }, [open, tab]); // eslint-disable-line
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} title="Graph intelligence"
+        style={{ position: "fixed", right: 20, top: 96, zIndex: 50, display: "flex", alignItems: "center", gap: 8, padding: "10px 15px", borderRadius: 9999, cursor: "pointer",
+          background: "rgba(20,12,32,0.8)", border: `1px solid ${P}55`, color: "#e9dcff", backdropFilter: "blur(16px)",
+          fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, fontWeight: 700, boxShadow: "0 8px 24px -12px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.05) inset" }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 17, color: P }}>network_intelligence</span>
+        Ask your graph
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ position: "fixed", right: 20, top: 92, width: 380, maxWidth: "92vw", maxHeight: "78vh", overflowY: "auto", zIndex: 50,
+      background: "rgba(12,8,22,0.92)", border: `1px solid ${P}44`, borderRadius: 16, padding: 18, backdropFilter: "blur(20px)",
+      boxShadow: "0 30px 70px -30px rgba(0,0,0,0.7)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: P }}>network_intelligence</span>
+          <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 15, color: "#fff" }}>Graph Intelligence</span>
+        </div>
+        <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#9a8ab5", cursor: "pointer" }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+        </button>
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {[["ask", "Ask"], ["links", "Suggested"], ["metrics", "Influence"]].map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "7px 10px", borderRadius: 9, cursor: "pointer",
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 700,
+            background: tab === k ? `${P}22` : "rgba(255,255,255,0.03)", border: `1px solid ${tab === k ? P : "rgba(255,255,255,0.08)"}`, color: tab === k ? "#fff" : "#a99bc2" }}>{l}</button>
+        ))}
+      </div>
+
+      {tab === "ask" && (
+        <div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()}
+              placeholder="Ask a question answered from your graph…"
+              style={{ flex: 1, background: "rgba(6,4,15,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, outline: "none" }} />
+            <button onClick={ask} disabled={busy || !q.trim()} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: P, color: "#150a24", fontWeight: 800, cursor: busy ? "default" : "pointer", opacity: busy || !q.trim() ? 0.6 : 1 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{busy ? "hourglass_empty" : "send"}</span>
+            </button>
+          </div>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "#7c6e96", margin: "8px 2px 0" }}>Answered only from your knowledge graph, with the relationships it used.</p>
+          {ans && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.7, color: "#e6ddf5", whiteSpace: "pre-wrap" }}>{ans.answer}</div>
+              {Array.isArray(ans.triples) && ans.triples.length > 0 && (
+                <div style={{ marginTop: 12, borderTop: `1px solid ${P}22`, paddingTop: 10 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: P, marginBottom: 7 }}>Relationships used</div>
+                  {ans.triples.slice(0, 8).map((t, i) => (
+                    <div key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#c4b6de", marginBottom: 4 }}>
+                      <span style={{ color: "#fff" }}>{t.s}</span> <span style={{ color: P }}>{t.rel}</span> <span style={{ color: "#fff" }}>{t.o}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "links" && (
+        <div>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "#7c6e96", margin: "0 2px 10px" }}>Concepts you researched separately that the graph predicts are related.</p>
+          {busy && <div style={{ color: "#9a8ab5", fontSize: 12, fontFamily: "'Hanken Grotesk',sans-serif" }}>Computing…</div>}
+          {links && links.length === 0 && <div style={{ color: "#7c6e96", fontSize: 12 }}>Not enough graph yet. Run more research.</div>}
+          {links && links.map((s, i) => (
+            <button key={i} onClick={() => onStartResearch?.(`${s.source} and ${s.target}`)}
+              style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "9px 12px", marginBottom: 7, cursor: "pointer" }}>
+              <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: "#e6ddf5", flex: 1 }}>
+                <span style={{ color: "#fff", fontWeight: 600 }}>{s.source}</span> <span style={{ color: P }}>↔</span> <span style={{ color: "#fff", fontWeight: 600 }}>{s.target}</span>
+              </span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: P }}>{s.common_neighbors}◇</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === "metrics" && (
+        <div>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "#7c6e96", margin: "0 2px 10px" }}>Real graph ML on your graph: PageRank influence + Louvain communities.</p>
+          {busy && <div style={{ color: "#9a8ab5", fontSize: 12 }}>Computing…</div>}
+          {metrics && metrics.summary && (
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              {[["Concepts", metrics.summary.nodes], ["Links", metrics.summary.edges], ["Communities", metrics.communities]].map(([l, v]) => (
+                <div key={l} style={{ flex: 1, textAlign: "center", background: "rgba(255,255,255,0.03)", border: `1px solid ${P}22`, borderRadius: 10, padding: "9px 6px" }}>
+                  <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 800, color: "#fff" }}>{v ?? 0}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: "#8a7ba6", textTransform: "uppercase", letterSpacing: "0.08em" }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {metrics && metrics.summary && (metrics.summary.top_concepts || []).length > 0 && (
+            <div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: P, marginBottom: 8 }}>Most influential concepts</div>
+              {metrics.summary.top_concepts.map((c, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
+                  <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: "#e6ddf5", flex: 1 }}>{c.name}</span>
+                  <div style={{ width: 70, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                    <div style={{ width: `${Math.round((c.pagerank || 0) * 100)}%`, height: "100%", background: P }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {conflicts && conflicts.length > 0 && (
+            <div style={{ marginTop: 16, borderTop: `1px solid ${P}22`, paddingTop: 12 }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "#ff6b6b", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>warning</span> Contradiction radar
+              </div>
+              {conflicts.slice(0, 5).map((c, i) => (
+                <div key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#e6c4c4", marginBottom: 5 }}>
+                  <span style={{ color: "#fff" }}>{c.a}</span> <span style={{ color: "#ff6b6b" }}>{c.relation}</span> <span style={{ color: "#fff" }}>{c.b}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {metrics && (!metrics.summary || !metrics.summary.nodes) && !busy && (
+            <div style={{ color: "#7c6e96", fontSize: 12 }}>Not enough graph yet. Run more research.</div>
+          )}
+        </div>
+      )}
+      {err && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#ff6b6b", marginTop: 10 }}>{err}</p>}
+    </div>
+  );
+}
+
 export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, onLogout }) {
   const canvasRef  = useRef(null);
   const animRef    = useRef(null);
@@ -1292,6 +1270,15 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
   const [activeEdgeTypes, setActiveEdgeTypes] = useState(new Set(Object.keys(EDGE_LABELS)));
   const [centrality, setCentrality]     = useState({});
   const [centralityMode, setCentralityMode] = useState(false);
+  const [nodeMetrics, setNodeMetrics]   = useState({});   // label -> {pagerank, betweenness, community, degree}
+  const [metricsView, setMetricsView]   = useState(true);  // master switch for graph-ML styling
+  const [sizeMetric, setSizeMetric]     = useState("pagerank"); // pagerank|betweenness|degree|uniform
+  const [colorBy, setColorBy]           = useState("community"); // community|type
+  const [bridgeConcepts, setBridgeConcepts] = useState([]); // [{name, betweenness}]
+  const [bridgeNames, setBridgeNames]   = useState(new Set()); // highlighted bridges
+  const [communityLabels, setCommunityLabels] = useState(null); // {cid: {label, concepts, size}}
+  const [labelsBusy, setLabelsBusy]     = useState(false);
+  const [showCaps, setShowCaps]         = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [gifExporting, setGifExporting] = useState(false);
   const [focusMode, setFocusMode]       = useState(false);
@@ -1340,7 +1327,34 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+    // Phase B: pull real graph-ML metrics (PageRank + Louvain communities) so
+    // nodes can be sized by influence and colored by community.
+    try {
+      const mres = await fetch(`${API_BASE_URL}/knowledge/graph-metrics`, { headers });
+      if (mres.ok) {
+        const md = await mres.json();
+        setNodeMetrics(md?.nodes || {});
+        setBridgeConcepts(md?.summary?.bridge_concepts || []);
+      }
+    } catch (e) { /* metrics are optional; graph still renders without them */ }
   }, []);
+
+  // Auto-topics: name each Louvain community with an LLM (Phase B).
+  const loadCommunityLabels = useCallback(async () => {
+    setLabelsBusy(true);
+    try {
+      const token = getToken();
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(`${API_BASE_URL}/knowledge/community-labels`, { headers });
+      if (res.ok) { const d = await res.json(); setCommunityLabels(d?.labels || {}); }
+    } catch (e) { /* labels are optional */ }
+    finally { setLabelsBusy(false); }
+  }, []);
+
+  // Bridge concepts: highlight the highest-betweenness nodes (cyan halos).
+  const toggleBridges = useCallback(() => {
+    setBridgeNames(prev => prev.size > 0 ? new Set() : new Set(bridgeConcepts.map(b => b.name)));
+  }, [bridgeConcepts]);
 
   useEffect(() => { loadGraph(true); }, []);
 
@@ -1721,19 +1735,9 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
         }
       });
 
-      // Ambient edge particles
-      edgeParticlesRef.current.forEach(p => {
-        const src = positions.find(n => n.id === p.edge.source);
-        const tgt = positions.find(n => n.id === p.edge.target);
-        if (!src || !tgt) return;
-        p.t += p.speed; if (p.t > 1) p.t = 0;
-        const x = src.x + (tgt.x - src.x) * p.t, y = src.y + (tgt.y - src.y) * p.t;
-        const [r, g, b] = hexToRgb(p.edge.color || C.purple);
-        ctx.beginPath(); ctx.arc(x, y, p.size * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${r},${g},${b},0.65)`; ctx.fill();
-        ctx.beginPath(); ctx.arc(x, y, p.size * 0.22, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fill();
-      });
+      // Ambient edge particles removed — constant travelling glow dots on every
+      // edge read as decorative noise. Motion is now reserved for interaction
+      // (hover/selection trails), which is intentional, not ambient.
 
       // Shockwaves
       shockwavesRef.current = shockwavesRef.current.filter(s => Date.now() - s.born < 900);
@@ -1766,43 +1770,60 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
         const isDimmed = (searchQuery && !matchSearch) || (highlightNode && !isConnected && n.id !== highlightNode?.id) || isFocusDimmed;
         const pulse = Math.sin(now * 0.002 + (n.id?.charCodeAt(0) || 0) * 0.7) * 0.8;
 
+        const gm = metricsView ? (nodeMetrics[n.label] || nodeMetrics[n.id]) : null;
         let baseSize = n.size || 16;
+        if (gm) {
+          if (sizeMetric === "pagerank" && typeof gm.pagerank === "number") baseSize = 12 + Math.min(1, gm.pagerank) * 26;
+          else if (sizeMetric === "betweenness" && typeof gm.betweenness === "number") baseSize = 12 + Math.min(1, gm.betweenness) * 26;
+          else if (sizeMetric === "degree" && typeof gm.degree === "number") baseSize = 12 + Math.min(1, gm.degree / 6) * 26;
+        }
         if (centralityMode && centrality[n.id] !== undefined) baseSize = 10 + (centrality[n.id] / maxDeg) * 28;
-        let r = (baseSize + pulse);
-        if (isHov) r *= 1.18; if (isSel) r = baseSize + pulse + 4;
+        // Premium flat nodes: solid discs with a subtle vertical sheen, a crisp
+        // hairline ring and a soft tinted drop shadow for depth — no glow auras,
+        // no throbbing pulse (that "glowing orb" look reads as AI slop).
+        let r = baseSize;
+        if (isHov) r = baseSize + 2; if (isSel) r = baseSize + 3;
 
-        const col = NODE_COLORS[n.type] || NODE_COLORS.default;
+        let col = NODE_COLORS[n.type] || NODE_COLORS.default;
+        if (gm && colorBy === "community" && typeof gm.community === "number") col = COMMUNITY_PALETTE[gm.community % COMMUNITY_PALETTE.length];
         const nodeCol = isPathNode && !isSel ? { ...col, fill: C.gold, glow: C.gold } : col;
+        const isBridge = bridgeNames.size > 0 && bridgeNames.has(n.label);
 
-        ctx.globalAlpha = isDimmed ? 0.04 : isConnected && !isHov && !isSel ? 0.55 : 1;
+        ctx.globalAlpha = isDimmed ? 0.06 : isConnected && !isHov && !isSel ? 0.6 : 1;
 
-        if (!isDimmed && (isHov || isSel || isPathNode)) {
-          const auraR = r + (isSel ? 14 : 10);
-          const aura = ctx.createRadialGradient(n.x, n.y, r * 0.4, n.x, n.y, auraR);
-          const [gr, gg, gb] = hexToRgb(nodeCol.glow);
-          aura.addColorStop(0, `rgba(${gr},${gg},${gb},${isSel ? 0.35 : 0.25})`);
-          aura.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.beginPath(); ctx.arc(n.x, n.y, auraR, 0, Math.PI * 2); ctx.fillStyle = aura; ctx.fill();
-        }
-
-        if (isSel) {
-          const [gr, gg, gb] = hexToRgb(nodeCol.glow);
-          const ringR = r + 12 + Math.sin(now * 0.004) * 4;
-          ctx.beginPath(); ctx.arc(n.x, n.y, ringR, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(${gr},${gg},${gb},${0.30 + Math.sin(now * 0.004) * 0.12})`; ctx.lineWidth = 1.2; ctx.stroke();
-        }
-
-        const grad = ctx.createRadialGradient(n.x - r * 0.28, n.y - r * 0.32, 0, n.x, n.y, r);
+        // Dimensional, self-contained node identity: an interior highlight
+        // (top-left) over a rich body, then a colour-matched rim. Contained —
+        // vibrant and readable, but with NO external glow halo bleeding out.
         const [fr, fg, fb] = hexToRgb(nodeCol.fill);
-        const boost = isHov ? 80 : isSel ? 65 : 30;
-        grad.addColorStop(0, `rgba(${Math.min(255, fr + boost + 100)},${Math.min(255, fg + boost + 100)},${Math.min(255, fb + boost + 100)},1)`);
-        grad.addColorStop(0.45, `rgba(${Math.min(255, fr + boost)},${Math.min(255, fg + boost)},${Math.min(255, fb + boost)},1)`);
-        grad.addColorStop(1, `rgba(${Math.max(0, fr - 20)},${Math.max(0, fg - 20)},${Math.max(0, fb - 20)},0.95)`);
-        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+        if (!isDimmed) {
+          ctx.save();
+          ctx.shadowColor = "rgba(3,4,12,0.6)";
+          ctx.shadowBlur = isHov || isSel ? 18 : 10;
+          ctx.shadowOffsetY = 3;
+        }
+        const fill = ctx.createRadialGradient(n.x - r * 0.36, n.y - r * 0.42, r * 0.08, n.x, n.y, r);
+        fill.addColorStop(0, `rgba(${Math.min(255, fr + 58)},${Math.min(255, fg + 58)},${Math.min(255, fb + 58)},1)`);
+        fill.addColorStop(0.55, `rgba(${fr},${fg},${fb},1)`);
+        fill.addColorStop(1, `rgba(${Math.max(0, fr - 32)},${Math.max(0, fg - 32)},${Math.max(0, fb - 32)},1)`);
+        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill();
+        if (!isDimmed) ctx.restore();
 
+        // Colour-matched rim = identity. Brightens on hover/selection.
         ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.strokeStyle = isSel ? "rgba(255,255,255,0.92)" : isHov ? "rgba(255,255,255,0.75)" : isConnected ? "rgba(255,255,255,0.40)" : "rgba(255,255,255,0.22)";
-        ctx.lineWidth = isSel ? 2 : isHov ? 1.6 : 0.8; ctx.stroke();
+        ctx.strokeStyle = isSel ? "rgba(255,255,255,0.95)" : isHov ? "rgba(255,255,255,0.72)"
+          : `rgba(${Math.min(255, fr + 72)},${Math.min(255, fg + 72)},${Math.min(255, fb + 72)},${isConnected ? 0.85 : 0.58})`;
+        ctx.lineWidth = isSel ? 2 : 1.2; ctx.stroke();
+
+        // Steady selection ring (no flicker).
+        if (isSel && !isDimmed) {
+          ctx.beginPath(); ctx.arc(n.x, n.y, r + 6, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+        }
+        // Bridge concepts: one clean cyan ring, no pulsing halo.
+        if (isBridge && !isDimmed && !isSel) {
+          ctx.beginPath(); ctx.arc(n.x, n.y, r + 5, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(56,232,255,0.9)"; ctx.lineWidth = 1.5; ctx.stroke();
+        }
         ctx.globalAlpha = 1;
 
         const labelText = (n.label?.length > 20 ? n.label.slice(0, 19) + "…" : n.label) || "";
@@ -1834,7 +1855,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
     };
     animate();
     return () => { cancelAnimationFrame(animRef.current); window.removeEventListener("resize", resize); };
-  }, [positions, hovered, selectedNode, filter, filteredEdges, searchQuery, pan, zoom, hoveredConnections, highlightNode, pathResult, focusMode, focusNeighbors, centralityMode, centrality, maxDeg, growthStep, growthPlaying, revealedNodeIds]);
+  }, [positions, hovered, selectedNode, filter, filteredEdges, searchQuery, pan, zoom, hoveredConnections, highlightNode, pathResult, focusMode, focusNeighbors, centralityMode, centrality, maxDeg, growthStep, growthPlaying, revealedNodeIds, nodeMetrics, metricsView, sizeMetric, colorBy, bridgeNames]);
 
   // Re-measure graph canvas after the sidebar collapse/expand transition finishes,
   // since offsetWidth changes without a window resize event.
@@ -1888,6 +1909,9 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
         setCollapsed={setSidebarCollapsed}
       />
 
+      {/* Phase C GraphRAG + Phase B4 link prediction, as a floating panel */}
+      <GraphIntelPanel onStartResearch={onStartResearch} />
+
       {showCommandPalette && (
         <CommandPalette nodes={positions} onClose={() => setShowCommandPalette(false)} onSelectNode={n => navigateToNode(n)}
           onAction={handlePaletteAction} filter={filter} setFilter={setFilter}
@@ -1918,9 +1942,9 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
           <GraphHeader nodeCount={graphData.nodes?.length || 0} edgeCount={graphData.edges?.length || 0} />
 
           {/* ── TOP-LEFT: CONTROLS DROPDOWN ── */}
-          <div style={{ position:"absolute", top:10, left:14, zIndex:20, width:285 }} onClick={e => e.stopPropagation()} onWheel={e => e.stopPropagation()}>
+          <div style={{ position:"absolute", top:10, left:14, zIndex:45, width:285 }} onClick={e => e.stopPropagation()} onWheel={e => e.stopPropagation()}>
             <div onClick={e => { e.stopPropagation(); setControlsOpen(p => !p); }}
-              style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:"rgba(8,6,22,0.92)", backdropFilter:"blur(16px)", border:`1px solid rgba(255,255,255,${controlsOpen ? 0.10 : 0.06})`, borderRadius: controlsOpen ? "10px 10px 0 0" : 10, color:"rgba(255,255,255,0.65)", fontSize:12, fontFamily:"'Space Grotesk',sans-serif", fontWeight:500, userSelect:"none" }}>
+              style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 13px", cursor:"pointer", background:"rgba(11,9,20,0.95)", backdropFilter:"blur(18px)", border:`1px solid ${controlsOpen ? "rgba(168,85,247,0.28)" : "rgba(168,85,247,0.14)"}`, borderRadius: controlsOpen ? "12px 12px 0 0" : 12, color:"rgba(236,229,250,0.9)", fontSize:12.5, fontWeight:600, fontFamily:"'Space Grotesk',sans-serif", userSelect:"none", boxShadow:"0 12px 30px -18px rgba(0,0,0,0.8)" }}>
               <Ico name="settings" size={13} color="rgba(255,255,255,0.4)" />
               Graph Controls
               {(filter !== "all" || searchQuery) && (
@@ -1934,9 +1958,9 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
             </div>
 
             {controlsOpen && (
-              <div style={{ background:"rgba(8,6,22,0.97)", backdropFilter:"blur(24px)", border:"1px solid rgba(255,255,255,0.06)", borderTop:"none", borderRadius:"0 0 12px 12px" }} onClick={e => e.stopPropagation()}>
+              <div className="pn-controls-scroll" style={{ background:"rgba(11,9,20,0.96)", backdropFilter:"blur(24px)", border:"1px solid rgba(168,85,247,0.16)", borderTop:"none", borderRadius:"0 0 12px 12px", maxHeight:"calc(100vh - 92px)", overflowY:"auto", boxShadow:"0 28px 70px -20px rgba(0,0,0,0.75)" }} onClick={e => e.stopPropagation()} onWheel={e => e.stopPropagation()}>
                 <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize:9, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.2)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Search Nodes</div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(214,196,255,0.72)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Search Nodes</div>
                   <div style={{ display:"flex", alignItems:"center", gap:7, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:7, padding:"5px 9px" }}>
                     <Ico name="search" size={12} color="rgba(255,255,255,0.28)" />
                     <input type="text" value={searchQuery}
@@ -1948,13 +1972,13 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                   </div>
                 </div>
                 <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize:9, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.2)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Filter by Type</div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(214,196,255,0.72)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Filter by Type</div>
                   <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
                     {["all","claim","evidence","argument","topic","debate_topic","concept","entity"].map(t => {
                       const col = NODE_COLORS[t] || NODE_COLORS.default;
                       const active = filter === t;
                       return (
-                        <button key={t} onClick={e => { e.stopPropagation(); setFilter(t); }} style={{ padding:"3px 9px", borderRadius:20, fontSize:9, fontFamily:"'Space Grotesk',sans-serif", fontWeight: active ? 600 : 400, background: active ? `${col.fill}18` : "rgba(255,255,255,0.03)", border:`1px solid ${active ? col.fill+"40" : "rgba(255,255,255,0.06)"}`, color: active ? col.text : "rgba(255,255,255,0.38)", cursor:"pointer", textTransform:"capitalize" }}>
+                        <button key={t} onClick={e => { e.stopPropagation(); setFilter(t); }} style={{ padding:"4px 10px", borderRadius:20, fontSize:10, fontFamily:"'Space Grotesk',sans-serif", fontWeight: active ? 700 : 500, background: active ? `${col.fill}22` : "rgba(255,255,255,0.05)", border:`1px solid ${active ? col.fill+"66" : "rgba(255,255,255,0.14)"}`, color: active ? col.text : "rgba(232,226,248,0.62)", cursor:"pointer", textTransform:"capitalize" }}>
                           {t.replace("_"," ")}
                           {active && <span style={{ marginLeft:4, opacity:0.45, fontSize:8 }}>({activeFilterCount})</span>}
                         </button>
@@ -1963,21 +1987,147 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                   </div>
                 </div>
                 <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize:9, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.2)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Edge Types</div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(214,196,255,0.72)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Edge Types</div>
                   <EdgeTypeFilter activeEdgeTypes={activeEdgeTypes} onToggle={toggleEdgeType} />
                 </div>
                 <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize:9, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.2)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Graph Mode</div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(214,196,255,0.72)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Graph Mode</div>
                   <div style={{ display:"flex", gap:5 }}>
                     {[{ label:"Rich", rich:true }, { label:"Basic", rich:false }].map(({ label, rich }) => (
-                      <button key={label} onClick={e => { e.stopPropagation(); setUseRichGraph(rich); loadGraph(rich); }} style={{ flex:1, padding:"6px 0", borderRadius:6, cursor:"pointer", fontSize:10, fontFamily:"'Space Grotesk',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:5, border:`1px solid ${useRichGraph === rich ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.06)"}`, background: useRichGraph === rich ? "rgba(168,85,247,0.12)" : "rgba(255,255,255,0.02)", color: useRichGraph === rich ? "#c084fc" : "rgba(255,255,255,0.32)" }}>
+                      <button key={label} onClick={e => { e.stopPropagation(); setUseRichGraph(rich); loadGraph(rich); }} style={{ flex:1, padding:"7px 0", borderRadius:8, cursor:"pointer", fontSize:11, fontWeight: useRichGraph === rich ? 700 : 500, fontFamily:"'Space Grotesk',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:6, border:`1px solid ${useRichGraph === rich ? "rgba(168,85,247,0.5)" : "rgba(255,255,255,0.14)"}`, background: useRichGraph === rich ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.04)", color: useRichGraph === rich ? "#d8b4fe" : "rgba(232,226,248,0.6)" }}>
                         <Ico name={rich ? "rich" : "basic"} size={11} color={useRichGraph === rich ? "#c084fc" : "rgba(255,255,255,0.3)"} /> {label}
                       </button>
                     ))}
                   </div>
                 </div>
+                {/* ── GRAPH INTELLIGENCE (real graph ML, CPU, no GDS plugin) ── */}
+                <div style={{ padding:"11px 12px", borderBottom:"1px solid rgba(255,255,255,0.04)", background:"linear-gradient(180deg, rgba(168,85,247,0.05), rgba(56,232,255,0.02))" }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:9, fontWeight:600, letterSpacing:"0.09em", textTransform:"uppercase", color:"rgba(192,132,252,0.85)", fontFamily:"'Space Grotesk',sans-serif" }}>
+                      <Ico name="centrality" size={11} color="rgba(192,132,252,0.85)" /> Graph Intelligence
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); setMetricsView(v => !v); }}
+                      style={{ padding:"2px 9px", borderRadius:20, cursor:"pointer", fontSize:8.5, fontWeight:700, fontFamily:"'Space Grotesk',sans-serif", letterSpacing:"0.06em",
+                        border:`1px solid ${metricsView ? "rgba(168,85,247,0.5)" : "rgba(255,255,255,0.1)"}`,
+                        background: metricsView ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.03)",
+                        color: metricsView ? "#c084fc" : "rgba(255,255,255,0.4)" }}>
+                      {metricsView ? "ON" : "OFF"}
+                    </button>
+                  </div>
+
+                  {/* Size by (PageRank / Betweenness / Degree) */}
+                  <div style={{ fontSize:9.5, fontWeight:600, letterSpacing:"0.08em", color:"rgba(214,196,255,0.6)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:5 }}>
+                    NODE SIZE
+                  </div>
+                  <div style={{ display:"flex", gap:4, marginBottom:9 }}>
+                    {[{k:"pagerank",l:"PageRank"},{k:"betweenness",l:"Bridge"},{k:"degree",l:"Degree"},{k:"uniform",l:"Flat"}].map(({k,l}) => {
+                      const active = sizeMetric === k;
+                      return (
+                        <button key={k} title={k==="pagerank"?"Which concepts are load-bearing":k==="betweenness"?"Betweenness centrality — connectors between clusters":k==="degree"?"Raw connection count":"Uniform size"}
+                          onClick={e => { e.stopPropagation(); setSizeMetric(k); if(!metricsView) setMetricsView(true); }}
+                          style={{ flex:1, padding:"5px 0", borderRadius:6, cursor:"pointer", fontSize:8.5, fontWeight: active?600:400, fontFamily:"'Space Grotesk',sans-serif",
+                            border:`1px solid ${active?"rgba(168,85,247,0.4)":"rgba(255,255,255,0.06)"}`,
+                            background: active?"rgba(168,85,247,0.14)":"rgba(255,255,255,0.02)",
+                            color: active?"#c084fc":"rgba(255,255,255,0.34)" }}>{l}</button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Color by (Community / Type) */}
+                  <div style={{ fontSize:9.5, fontWeight:600, letterSpacing:"0.08em", color:"rgba(214,196,255,0.6)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:5 }}>
+                    NODE COLOR
+                  </div>
+                  <div style={{ display:"flex", gap:4, marginBottom:9 }}>
+                    {[{k:"community",l:"Community"},{k:"type",l:"Node Type"}].map(({k,l}) => {
+                      const active = colorBy === k;
+                      return (
+                        <button key={k} onClick={e => { e.stopPropagation(); setColorBy(k); if(!metricsView && k==="community") setMetricsView(true); }}
+                          style={{ flex:1, padding:"5px 0", borderRadius:6, cursor:"pointer", fontSize:9, fontWeight: active?600:400, fontFamily:"'Space Grotesk',sans-serif",
+                            border:`1px solid ${active?"rgba(56,232,255,0.4)":"rgba(255,255,255,0.06)"}`,
+                            background: active?"rgba(56,232,255,0.12)":"rgba(255,255,255,0.02)",
+                            color: active?"#38e8ff":"rgba(255,255,255,0.34)" }}>{l}</button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Bridge concepts + Auto-topics */}
+                  <div style={{ display:"flex", gap:5, marginBottom: (bridgeNames.size>0 || communityLabels) ? 8 : 0 }}>
+                    <button onClick={e => { e.stopPropagation(); toggleBridges(); }} disabled={bridgeConcepts.length===0}
+                      title="Betweenness centrality — concepts that bridge separate clusters"
+                      style={{ flex:1, padding:"6px 0", borderRadius:6, cursor: bridgeConcepts.length? "pointer":"not-allowed", fontSize:9, fontFamily:"'Space Grotesk',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+                        border:`1px solid ${bridgeNames.size>0?"rgba(56,232,255,0.5)":"rgba(56,232,255,0.18)"}`,
+                        background: bridgeNames.size>0?"rgba(56,232,255,0.16)":"rgba(56,232,255,0.05)",
+                        color: bridgeConcepts.length? "#38e8ff":"rgba(255,255,255,0.25)" }}>
+                      <Ico name="path_finder" size={11} color={bridgeConcepts.length?"#38e8ff":"rgba(255,255,255,0.25)"} /> Bridges{bridgeNames.size>0?" ✓":""}
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); loadCommunityLabels(); }} disabled={labelsBusy}
+                      title="Louvain communities named by an LLM (auto-topics)"
+                      style={{ flex:1, padding:"6px 0", borderRadius:6, cursor:"pointer", fontSize:9, fontFamily:"'Space Grotesk',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+                        border:"1px solid rgba(168,85,247,0.2)", background:"rgba(168,85,247,0.06)", color:"rgba(192,132,252,0.85)" }}>
+                      <Ico name="rich" size={11} color="rgba(192,132,252,0.85)" /> {labelsBusy?"Naming…":"Auto-topics"}
+                    </button>
+                  </div>
+
+                  {/* Bridge list */}
+                  {bridgeNames.size>0 && bridgeConcepts.length>0 && (
+                    <div style={{ marginBottom:8, display:"flex", flexWrap:"wrap", gap:4 }}>
+                      {bridgeConcepts.map(b => (
+                        <span key={b.name} style={{ fontSize:8.5, padding:"2px 7px", borderRadius:20, background:"rgba(56,232,255,0.1)", border:"1px solid rgba(56,232,255,0.25)", color:"#9fefff", fontFamily:"'Space Grotesk',sans-serif" }}>
+                          {b.name} · {b.betweenness}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Auto-topic labels */}
+                  {communityLabels && Object.keys(communityLabels).length>0 && (
+                    <div style={{ marginBottom:2, display:"flex", flexDirection:"column", gap:3 }}>
+                      {Object.entries(communityLabels).slice(0,8).map(([cid, v]) => (
+                        <div key={cid} style={{ display:"flex", alignItems:"center", gap:6, fontSize:9, fontFamily:"'Space Grotesk',sans-serif" }}>
+                          <span style={{ width:8, height:8, borderRadius:2, background: COMMUNITY_PALETTE[Number(cid)%COMMUNITY_PALETTE.length].fill, flexShrink:0 }} />
+                          <span style={{ color:"rgba(255,255,255,0.75)", fontWeight:600 }}>{v.label}</span>
+                          <span style={{ color:"rgba(255,255,255,0.28)" }}>· {v.size}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Capabilities info */}
+                  <button onClick={e => { e.stopPropagation(); setShowCaps(s => !s); }}
+                    style={{ marginTop:8, width:"100%", padding:"5px 0", borderRadius:6, cursor:"pointer", fontSize:8.5, fontFamily:"'Space Grotesk',sans-serif", letterSpacing:"0.04em",
+                      border:"1px dashed rgba(255,255,255,0.1)", background:"transparent", color:"rgba(255,255,255,0.4)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                    <Ico name="help" size={10} color="rgba(255,255,255,0.4)" /> {showCaps ? "Hide" : "What can this do?"}
+                  </button>
+                  {showCaps && (
+                    <div style={{ marginTop:7, display:"flex", flexDirection:"column", gap:6, fontFamily:"'Space Grotesk',sans-serif" }}>
+                      <div style={{ fontSize:8, color:"rgba(255,255,255,0.28)", lineHeight:1.5 }}>
+                        Real graph ML computed on CPU inside your knowledge graph — no GPU, no GDS plugin:
+                      </div>
+                      {[
+                        ["Concept Influence", "PageRank ranks load-bearing concepts. Node size.", true],
+                        ["Bridge Concepts", "Betweenness finds ideas linking separate clusters.", true],
+                        ["Auto-Topics", "Louvain communities, LLM-named. Node color.", true],
+                        ["Link Prediction", "Adamic-Adar predicts likely-missing connections.", true],
+                        ["Node Similarity", "Jaccard over neighbourhoods — structural, not semantic.", true],
+                        ["Reasoning Chains", "Shortest weighted paths between two concepts.", true],
+                        ["Graph Embeddings", "node2vec structural embeddings.", false],
+                      ].map(([t,d,live]) => (
+                        <div key={t} style={{ display:"flex", gap:7, alignItems:"flex-start" }}>
+                          <span style={{ marginTop:2, width:6, height:6, borderRadius:"50%", flexShrink:0, background: live?"#38e8ff":"rgba(255,255,255,0.18)", boxShadow: live?"0 0 6px rgba(56,232,255,0.6)":"none" }} />
+                          <div>
+                            <div style={{ fontSize:9, fontWeight:600, color: live?"rgba(255,255,255,0.78)":"rgba(255,255,255,0.4)" }}>
+                              {t} {!live && <span style={{ fontSize:7.5, color:"rgba(255,255,255,0.3)", fontWeight:400 }}>· roadmap</span>}
+                            </div>
+                            <div style={{ fontSize:8, color:"rgba(255,255,255,0.34)", lineHeight:1.45 }}>{d}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ padding:"10px 12px" }}>
-                  <div style={{ fontSize:9, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.2)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Actions</div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(214,196,255,0.72)", fontFamily:"'Space Grotesk',sans-serif", marginBottom:6 }}>Actions</div>
                   <div style={{ display:"flex", gap:5 }}>
                     <button onClick={e => { e.stopPropagation(); exportPNG(); }} style={{ flex:1, padding:"7px 0", borderRadius:6, fontSize:10, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer", border:"1px solid rgba(230,196,74,0.2)", background:"rgba(230,196,74,0.06)", color:"rgba(230,196,74,0.8)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                       <Ico name="download" size={11} color="rgba(230,196,74,0.75)" /> PNG {showExportHint ? "✓" : ""}
@@ -2016,7 +2166,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
           {/* Legend + Metrics */}
           <div style={{ position: "absolute", top: 56, right: 14, zIndex: 20, width: 210 }}>
             {!selectedNode && (
-              <div style={{ background: "rgba(8,6,20,0.88)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "12px 14px", backdropFilter: "blur(16px)", marginBottom: 8 }}>
+              <div style={{ background: "rgba(11,9,20,0.95)", border: "1px solid rgba(168,85,247,0.16)", borderRadius: 12, padding: "12px 14px", backdropFilter: "blur(18px)", marginBottom: 8, boxShadow: "0 20px 50px -24px rgba(0,0,0,0.8)" }}>
                 <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 9, display: "flex", alignItems: "center", gap: 6 }}>
                   <Ico name="analytics" size={13} color="rgba(168,85,247,0.7)" /> Topology
                 </div>
@@ -2024,12 +2174,12 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                 <MetricRow label="Edges" value={graphData.edges?.length || 0} color={C.cyan} />
                 <MetricRow label="Visible" value={activeFilterCount} color={C.cyan} />
                 <MetricRow label="Zoom" value={`${Math.round(zoom * 100)}%`} color={C.gold} />
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 9, color: "rgba(255,255,255,0.16)", fontFamily: "'Space Grotesk',sans-serif", lineHeight: 1.7 }}>
+                <div style={{ marginTop: 10, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: 9.5, color: "rgba(214,196,255,0.4)", fontFamily: "'Space Grotesk',sans-serif", lineHeight: 1.7 }}>
                   Drag · Scroll zoom · Click · ⌘K
                 </div>
               </div>
             )}
-            <div style={{ background: "rgba(8,6,20,0.86)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 9, padding: "10px 12px", backdropFilter: "blur(12px)" }}>
+            <div style={{ background: "rgba(11,9,20,0.95)", border: "1px solid rgba(168,85,247,0.14)", borderRadius: 12, padding: "12px 14px", backdropFilter: "blur(18px)", boxShadow: "0 20px 50px -24px rgba(0,0,0,0.8)" }}>
               <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 8, color: "rgba(255,255,255,0.22)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 7 }}>Node Types</div>
               {["claim", "evidence", "argument", "topic", "debate_topic", "concept", "entity"].map(type => (
                 <div key={type} style={{ display: "flex", alignItems: "center", gap: 7, opacity: filter === "all" || filter === type ? 1 : 0.2, marginBottom: 4 }}>

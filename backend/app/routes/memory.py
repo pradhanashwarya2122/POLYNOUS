@@ -57,6 +57,93 @@ async def get_history(request: Request, limit: int = 20):
     history = user_memory.get_recent_research(user_id, limit)
     return {"user_id": user_id, "history": history, "total": len(history)}
 
+@router.get("/forecast")
+async def research_forecast(request: Request):
+    """Phase E: lightweight activity forecast + trending topics from history."""
+    import re as _re
+    from datetime import datetime, timezone
+    user_id = get_user_id(request)
+    history = user_memory.get_recent_research(user_id, 50) or []
+    interests = user_memory.get_user_interests(user_id, 20) or []
+
+    # Bucket by day and fit a linear trend to project the next 7 days.
+    counts = {}
+    for h in history:
+        ts = h.get("timestamp") or h.get("created_at") or h.get("date") or ""
+        day = None
+        try:
+            if isinstance(ts, (int, float)):
+                day = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+            elif isinstance(ts, str) and ts:
+                m = _re.search(r"\d{4}-\d{2}-\d{2}", ts)
+                if m:
+                    day = datetime.fromisoformat(m.group(0)).date()
+        except Exception:
+            day = None
+        if day:
+            counts[day] = counts.get(day, 0) + 1
+
+    projected_week = None
+    trend = "flat"
+    if len(counts) >= 3:
+        try:
+            import numpy as np
+            days = sorted(counts)
+            x = np.arange(len(days)); y = np.array([counts[d] for d in days], dtype=float)
+            slope, intercept = np.polyfit(x, y, 1)
+            nxt = max(0.0, slope * (len(days) + 3) + intercept)  # ~mid next week
+            projected_week = round(float(nxt) * 7, 1)
+            trend = "rising" if slope > 0.15 else "declining" if slope < -0.15 else "steady"
+        except Exception:
+            projected_week = None
+
+    # Trending topics = the user's top interests (already frequency-ranked).
+    trending = [
+        {"topic": (i.get("topic") or i.get("name") or str(i)), "weight": i.get("count", i.get("weight", 1))}
+        for i in interests[:5]
+    ]
+    return {
+        "user_id": user_id,
+        "sessions_analysed": len(history),
+        "activity_trend": trend,
+        "projected_sessions_next_week": projected_week,
+        "trending_topics": trending,
+    }
+
+
+@router.get("/resurface")
+async def resurface(request: Request, limit: int = 5):
+    """Phase F: spaced-repetition. Surface important research you haven't
+    revisited in a while (score = importance x how-long-since), so knowledge
+    doesn't decay."""
+    import re as _re
+    from datetime import datetime, timezone
+    user_id = get_user_id(request)
+    history = user_memory.get_recent_research(user_id, 50) or []
+    now = datetime.now(timezone.utc)
+    scored = []
+    for h in history:
+        ts = h.get("timestamp") or h.get("created_at") or h.get("date") or ""
+        days = 30.0
+        try:
+            if isinstance(ts, (int, float)):
+                days = max(0.0, (now - datetime.fromtimestamp(ts, tz=timezone.utc)).days)
+            elif isinstance(ts, str) and ts:
+                m = _re.search(r"\d{4}-\d{2}-\d{2}", ts)
+                if m:
+                    days = max(0.0, (now - datetime.fromisoformat(m.group(0)).replace(tzinfo=timezone.utc)).days)
+        except Exception:
+            days = 30.0
+        importance = 0.4 + 0.6 * (float(h.get("confidence", 50) or 50) / 100.0)
+        # rises with age (plateaus), weighted by how well-supported it was
+        age_factor = 1.0 - 1.0 / (1.0 + days / 7.0)
+        score = round(importance * age_factor, 4)
+        scored.append({"query": h.get("query", "Untitled"), "mode": h.get("mode", "research"),
+                       "days_since": int(days), "score": score})
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return {"user_id": user_id, "resurface": scored[:limit]}
+
+
 @router.get("/context")
 async def get_personalized_context(request: Request, query: Optional[str] = None):
     """Get personalized context for current user"""

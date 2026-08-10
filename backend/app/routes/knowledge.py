@@ -252,6 +252,38 @@ async def graph_metrics(request: Request):
     return kg.compute_graph_metrics(get_current_user(request))
 
 
+@router.get("/contradictions")
+async def contradictions(request: Request):
+    """Phase F: contradiction radar over the user's typed knowledge graph."""
+    return kg.get_contradictions(get_current_user(request))
+
+
+@router.get("/node-similarity")
+async def node_similarity(request: Request, node: str = Query(...), top_n: int = 8):
+    """Phase B: topological node similarity (Jaccard over neighbourhoods).
+    Structurally similar concepts — different from semantic similarity."""
+    return kg.node_similarity(get_current_user(request), node, top_n=top_n)
+
+
+@router.get("/community-labels")
+async def community_labels(request: Request, db: Session = Depends(get_db)):
+    """Phase B: auto-topic labels. Names each Louvain community with an LLM
+    (falls back to the community's top-PageRank concept without a key)."""
+    pub = get_current_user(request)
+    user = None
+    if pub and pub not in ("guest", "unknown"):
+        user = db.query(User).filter(User.public_id == pub).first()
+    provider = (getattr(user, "preferred_provider", "anthropic") or "anthropic") if user else "anthropic"
+    return kg.label_communities(pub, user=user, provider=provider)
+
+
+@router.get("/suggest-connections")
+async def suggest_connections(request: Request, top_n: int = 8):
+    """Phase B4: link prediction. Likely-missing connections between concepts
+    the user researched separately (Adamic-Adar + common neighbours)."""
+    return kg.suggest_connections(get_current_user(request), top_n=top_n)
+
+
 @router.get("/graph-rag")
 async def graph_rag(request: Request, query: str = Query(...), db: Session = Depends(get_db)):
     """Phase C: GraphRAG. Answer a question over the user's own typed knowledge

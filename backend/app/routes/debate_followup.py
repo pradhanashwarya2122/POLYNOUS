@@ -161,6 +161,57 @@ async def debate_cross_exam(request: Request, db: Session = Depends(get_db)):
     }
 
 
+_FALLACY_SYSTEM = (
+    "You are a logic auditor for a formal debate. Identify concrete logical "
+    "fallacies actually present in each side's argument (e.g. strawman, ad "
+    "hominem, false dilemma, slippery slope, appeal to authority, circular "
+    "reasoning, hasty generalization, correlation-causation). Only flag real "
+    "instances; do not invent them.\n"
+    "Return ONLY raw JSON (no fences):\n"
+    '{"for": [{"fallacy": str, "quote": str, "why": str}], '
+    '"against": [{"fallacy": str, "quote": str, "why": str}]}'
+)
+
+
+@router.post("/debate/fallacies")
+async def debate_fallacies(request: Request, db: Session = Depends(get_db)):
+    """Phase F: detect logical fallacies in each side's argument."""
+    body = await request.json()
+    query = (body.get("query") or "").strip()
+    for_opening = body.get("for_opening") or ""
+    against_opening = body.get("against_opening") or ""
+    if not (for_opening and against_opening):
+        raise HTTPException(400, "Debate arguments required for fallacy analysis")
+
+    user, provider, api_key, model = _resolve(request, db)
+    _guard(user, api_key)
+
+    user_prompt = (
+        f"Proposition: {query}\n\nFOR:\n{for_opening[:1600]}\n\nAGAINST:\n{against_opening[:1600]}\n\n"
+        "Return the fallacy JSON:"
+    )
+    try:
+        client, client_type = _get_client(provider, api_key)
+        raw = _call_with_retry(client, client_type, _FALLACY_SYSTEM, user_prompt,
+                               700, 0.2, model=model, provider=provider)
+        data = extract_json_object(raw)
+        if not isinstance(data, dict):
+            raise ValueError("no parseable JSON")
+    except Exception as e:
+        raise HTTPException(502, f"Fallacy analysis failed: {e}")
+
+    def _clean(items):
+        out = []
+        for it in (items or []):
+            if isinstance(it, dict) and it.get("fallacy"):
+                out.append({"fallacy": str(it.get("fallacy"))[:60],
+                            "quote": str(it.get("quote", ""))[:200],
+                            "why": str(it.get("why", ""))[:240]})
+        return out[:5]
+
+    return {"for": _clean(data.get("for")), "against": _clean(data.get("against")), "provider": provider}
+
+
 _RESPOND_SYSTEM = (
     "You are a sharp debate advocate arguing {opp_side} the proposition. A member "
     "of the audience has just made an argument for the {user_side} side. Respond "

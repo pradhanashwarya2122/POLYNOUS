@@ -510,6 +510,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         from app.utils.usage import summarize_usage
         telemetry = summarize_usage(state.get("usage"))
         final_patch["telemetry"] = telemetry
+        final_patch["novelty"] = state.get("novelty")   # Phase F novelty score
         yield f"data: {json.dumps(final_patch)}\n\n"
 
         from app.graph.orchestrator import headline_confidence as _hc

@@ -3,6 +3,8 @@ import { API_BASE_URL } from '../config';
 import { useState, useEffect, useRef, useCallback } from "react";
 import ConstellationExplorer from "./react-bits/ConstellationExplorer";
 import { makeTile } from "./react-bits/constellationTiles";
+import DuplicatesPanel from "./react-bits/DuplicatesPanel";
+import ResurfaceStrip from "./react-bits/ResurfaceStrip";
 
 /* ─────────────────────────────────────────────
    DESIGN TOKENS  (HTML file palette)
@@ -733,6 +735,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
   const [history,     setHistory]     = useState([]);
   const [debates,     setDebates]     = useState([]);
   const [galaxyOpen,  setGalaxyOpen]  = useState(false);   // Research Galaxy (idea #3)
+  const [dupOpen,     setDupOpen]     = useState(false);   // Phase F: dedup
   const [suggestions, setSuggestions] = useState(getRandomSuggestions());
   const [loading,     setLoading]     = useState(true);
   const [activeTab,   setActiveTab]   = useState("All Activity");
@@ -903,6 +906,17 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
           Research Galaxy
         </button>
       )}
+      {history.length > 1 && (
+        <button onClick={() => setDupOpen(true)}
+          style={{ position: "fixed", right: 24, bottom: 148, zIndex: 60, display: "flex", alignItems: "center", gap: 9, padding: "10px 16px", borderRadius: 9999, cursor: "pointer",
+            background: "rgba(10,10,26,0.75)", border: "1px solid rgba(0,204,255,0.3)", color: "#dcf3ff", backdropFilter: "blur(18px)",
+            fontFamily: C.fontMono, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.04em", boxShadow: "0 0 20px -6px rgba(0,204,255,0.4)" }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 17, color: "#00ccff" }}>content_copy</span>
+          Find duplicates
+        </button>
+      )}
+      <DuplicatesPanel open={dupOpen} onClose={() => setDupOpen(false)} />
+
       <ConstellationExplorer
         open={galaxyOpen}
         onClose={() => setGalaxyOpen(false)}
@@ -985,6 +999,9 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
         {/* ══ PAGE BODY ══ */}
         <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 40px 80px" }}>
+
+          {/* Phase F — spaced-repetition revisit strip */}
+          <ResurfaceStrip onOpen={handleTopicClick} />
 
           {loading && !stats && (
             <div style={{ display:"flex", justifyContent:"center", alignItems:"center",

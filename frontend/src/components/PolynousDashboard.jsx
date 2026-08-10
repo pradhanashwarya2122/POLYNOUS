@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { API_BASE_URL } from '../config';
+import ForecastPanel from "./react-bits/ForecastPanel";
 
 const C = {
   green: "#00ff0f", cyan: "#00ccff", crimson: "#ff2040", purple: "#a855f7",
@@ -1140,6 +1141,7 @@ function TopicsCard({ topicFreq }) {
 // ─── MAIN DASHBOARD ───────────────────────────────────────────
 export default function PolynousDashboard({ user, onNavigate, onLogout }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [forecastOpen, setForecastOpen] = useState(false);   // Phase E forecast
   const [period, setPeriod] = useState('7D');
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
@@ -1230,6 +1232,16 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
       <Styles />
       <NeuralBackground />
       <Sidebar onNavigate={onNavigate} user={user} onLogout={onLogout} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+
+      {/* Phase E forecast */}
+      <button onClick={() => setForecastOpen(true)}
+        style={{ position: "fixed", right: 24, bottom: 88, zIndex: 60, display: "flex", alignItems: "center", gap: 9, padding: "10px 16px", borderRadius: 9999, cursor: "pointer",
+          background: "rgba(10,10,26,0.75)", border: "1px solid rgba(88,120,212,0.4)", color: "#dfe6ff", backdropFilter: "blur(18px)",
+          fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.04em", boxShadow: "0 0 20px -6px rgba(88,120,212,0.5)" }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 17, color: "#7c93e8" }}>insights</span>
+        Forecast
+      </button>
+      <ForecastPanel open={forecastOpen} onClose={() => setForecastOpen(false)} />
 
       <main style={{ marginLeft: sideW, padding: "24px 32px", position: "relative", zIndex: 10, transition: "margin-left 0.35s cubic-bezier(0.4,0,0.2,1)", width: `calc(100% - ${sideW}px)`, boxSizing: "border-box" }}>
 

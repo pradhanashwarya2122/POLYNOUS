@@ -57,6 +57,10 @@ function nodeHex(type) {
   return NODE_HEX[type] || NODE_HEX.default
 }
 
+// Louvain community palette (mirrors the 2D graph) for colour-by-community.
+const COMMUNITY_HEX = [0xa855f7, 0x22d3ee, 0xf59e0b, 0x4499ff, 0xff2d78, 0x34d399, 0xf5d442]
+const COMMUNITY_CSS = ['#a855f7', '#22d3ee', '#f59e0b', '#4499ff', '#ff2d78', '#34d399', '#f5d442']
+
 // ═══════════════════════════════════════════════════
 // HELPER: Icon
 // ═══════════════════════════════════════════════════
@@ -265,6 +269,12 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
   const [clusterMode, setClusterMode] = useState(false)
   const [nodeDetailCache, setNodeDetailCache] = useState({})
   const [loadingDetail, setLoadingDetail] = useState(false)
+  // Graph-ML parity with the 2D view: PageRank sizing, Louvain colouring, bridges.
+  const [nodeMetrics, setNodeMetrics] = useState({})      // label -> {pagerank, betweenness, community}
+  const [bridgeSet, setBridgeSet] = useState(new Set())   // high-betweenness concept names
+  const [sizeByPageRank, setSizeByPageRank] = useState(true)
+  const [colorByCommunity, setColorByCommunity] = useState(true)
+  const [showExplain, setShowExplain] = useState(false)
 
   // ✅ FIX 6: Demo data indicator
   const [isDemoData, setIsDemoData] = useState(false)
@@ -302,16 +312,31 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
   // ─────────────────────────────────────────
   useEffect(() => {
     // ✅ FIX 2: Updated initial data load with auth headers and demo data flag
-    if (initialData?.nodes?.length) { setGraphData(initialData); setLoading(false); return }
-    fetch(`${API_BASE_URL}/knowledge/rich-graph`, { headers: getAuthHeaders() })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => { setGraphData(d); setLoading(false) })
-      .catch(() => { 
-        setGraphData(generateDemoData()); 
-        setLoading(false);
-        setIsDemoData(true);
-        console.log('⚠️ Using demo data (API unavailable or no auth)');
+    if (initialData?.nodes?.length) { setGraphData(initialData); setLoading(false) }
+    else {
+      // Prefer the concept graph (where PageRank/Louvain/bridges are meaningful);
+      // fall back to the rich graph, then to demo data.
+      fetch(`${API_BASE_URL}/knowledge/graph`, { headers: getAuthHeaders() })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => {
+          if (d?.nodes?.length) { setGraphData(d); setLoading(false) }
+          else return Promise.reject()
+        })
+        .catch(() =>
+          fetch(`${API_BASE_URL}/knowledge/rich-graph`, { headers: getAuthHeaders() })
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(d => { setGraphData(d); setLoading(false) })
+            .catch(() => { setGraphData(generateDemoData()); setLoading(false); setIsDemoData(true) })
+        )
+    }
+    // Graph-ML metrics for size/colour parity with the 2D view.
+    fetch(`${API_BASE_URL}/knowledge/graph-metrics`, { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        if (m?.nodes) setNodeMetrics(m.nodes)
+        if (m?.summary?.bridge_concepts) setBridgeSet(new Set(m.summary.bridge_concepts.map(b => b.name)))
       })
+      .catch(() => {})
   }, [])
 
   // ─────────────────────────────────────────
@@ -325,7 +350,7 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
 
     // Scene
     const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x0a0a1e, 0.0004)
+    scene.fog = new THREE.FogExp2(0x08060f, 0.00045)
     sceneRef.current = scene
 
     // Camera
@@ -345,32 +370,34 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
     container.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
-    // ── LIGHTING (3-point) ──
-    // Ambient
-    scene.add(new THREE.AmbientLight(0x1a1040, 5))
-    // Key light (top-right, warm)
-    const keyLight = new THREE.DirectionalLight(0xffc8a0, 2)
-    keyLight.position.set(200, 300, 200)
+    // ── LIGHTING (studio 3-point + hemisphere, tuned for PBR) ──
+    // Soft base ambience — low, so the physically-based spheres keep form.
+    scene.add(new THREE.AmbientLight(0x141024, 1.4))
+    // Hemisphere: violet sky / deep-plum ground for natural, premium shading.
+    scene.add(new THREE.HemisphereLight(0x8b5cf6, 0x120a24, 1.1))
+    // Key light (top-right, soft warm) — sculpts highlights.
+    const keyLight = new THREE.DirectionalLight(0xfff0e0, 1.5)
+    keyLight.position.set(200, 320, 220)
     keyLight.castShadow = true
     scene.add(keyLight)
-    // Fill light (left, cool purple)
-    const fillLight = new THREE.PointLight(0x6633ff, 400, 1200)
-    fillLight.position.set(-250, 100, 250)
+    // Fill light (left, brand purple).
+    const fillLight = new THREE.PointLight(0x8b5cf6, 140, 1400)
+    fillLight.position.set(-260, 110, 260)
     scene.add(fillLight)
-    // Rim light (back, cyan)
-    const rimLight = new THREE.PointLight(0x00ccff, 200, 1000)
-    rimLight.position.set(0, -200, -300)
+    // Rim light (back, cool violet) — separates nodes from the fog.
+    const rimLight = new THREE.PointLight(0x7c5cff, 90, 1100)
+    rimLight.position.set(0, -220, -320)
     scene.add(rimLight)
-    // Volume light from top (volumetric look)
-    const volLight = new THREE.SpotLight(0xaa66ff, 600, 800, Math.PI / 4, 0.5, 1.5)
-    volLight.position.set(0, 400, 0)
+    // Volume light from top for depth.
+    const volLight = new THREE.SpotLight(0xa855f7, 220, 900, Math.PI / 4, 0.6, 1.5)
+    volLight.position.set(0, 420, 0)
     volLight.target.position.set(0, 0, 0)
     scene.add(volLight); scene.add(volLight.target)
-    // Dynamic accent lights (animated in render loop)
-    const accentA = new THREE.PointLight(0x00ff0f, 80, 600)
+    // Dynamic accent lights (animated) — kept within the purple family for cohesion.
+    const accentA = new THREE.PointLight(0xc084fc, 55, 650)
     accentA.position.set(150, -80, 100)
     scene.add(accentA)
-    const accentB = new THREE.PointLight(0xff2040, 60, 500)
+    const accentB = new THREE.PointLight(0x6d5cff, 45, 550)
     accentB.position.set(-150, 80, -100)
     scene.add(accentB)
     scene.userData.lights = { fill: fillLight, rim: rimLight, accentA, accentB }
@@ -611,8 +638,16 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
 
     // ── BUILD NODES ──
     filtered.forEach((node, i) => {
-      const hex = nodeHex(node.type)
-      const size = Math.max(5, Math.min(20, (node.size || 14) * 0.45))
+      // Graph-ML parity: colour by Louvain community, size by PageRank influence.
+      const gm = nodeMetrics[node.label]
+      const hex = (colorByCommunity && gm && typeof gm.community === 'number')
+        ? COMMUNITY_HEX[gm.community % COMMUNITY_HEX.length]
+        : nodeHex(node.type)
+      const baseSize = Math.max(5, Math.min(20, (node.size || 14) * 0.45))
+      const size = (sizeByPageRank && gm && typeof gm.pagerank === 'number')
+        ? 6 + Math.min(1, gm.pagerank) * 15
+        : baseSize
+      const isBridge = bridgeSet.has(node.label)
       const group = new THREE.Group()
 
       // Fibonacci sphere layout
@@ -636,11 +671,11 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
       group.userData.startPos = startPos
       group.userData.entranceDelay = i * 0.04
 
-      // Core sphere
-      const geo = new THREE.SphereGeometry(size, 32, 32)
-      const mat = new THREE.MeshPhongMaterial({
-        color: hex, emissive: hex, emissiveIntensity: 0.6,
-        shininess: 120, transparent: true, opacity: 0.92
+      // Core sphere — physically-based glossy material (premium, not "glow blob").
+      const geo = new THREE.SphereGeometry(size, 48, 48)
+      const mat = new THREE.MeshStandardMaterial({
+        color: hex, emissive: hex, emissiveIntensity: isBridge ? 0.5 : 0.3,
+        metalness: 0.38, roughness: 0.26, transparent: true, opacity: 0.97
       })
       const mesh = new THREE.Mesh(geo, mat)
       mesh.userData.node = node
@@ -651,6 +686,16 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
       const coreGeo = new THREE.SphereGeometry(size * 0.45, 16, 16)
       const coreMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.9 })
       group.add(new THREE.Mesh(coreGeo, coreMat))
+
+      // Bridge concept (high betweenness): a crisp cyan halo ring so the ideas
+      // that connect separate clusters stand out in 3D too.
+      if (isBridge) {
+        const bGeo = new THREE.TorusGeometry(size + 3.5, 0.6, 10, 40)
+        const bMat = new THREE.MeshBasicMaterial({ color: 0x38e8ff, transparent: true, opacity: 0.85, depthWrite: false })
+        const bRing = new THREE.Mesh(bGeo, bMat)
+        bRing.userData.isBridgeRing = true
+        group.add(bRing)
+      }
 
       // Outer glow ring (pulsing)
       const importance = (node.connections || 3) / 15
@@ -766,7 +811,7 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
     physicsRef.current.positions = positions
     physicsRef.current.velocities = positions.map(() => new THREE.Vector3())
 
-  }, [graphData, filter, ready])
+  }, [graphData, filter, ready, nodeMetrics, bridgeSet, sizeByPageRank, colorByCommunity])
 
   // ─────────────────────────────────────────
   // Animate camera to node
@@ -1130,6 +1175,16 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
 
         {/* Right: controls */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {Object.keys(nodeMetrics).length > 0 && (
+            <>
+              <PillButton active={sizeByPageRank} onClick={() => setSizeByPageRank(v => !v)} color={T.purple}>
+                <Icon name="hub" size={13} />PageRank
+              </PillButton>
+              <PillButton active={colorByCommunity} onClick={() => setColorByCommunity(v => !v)} color="#22d3ee">
+                <Icon name="workspaces" size={13} />Communities
+              </PillButton>
+            </>
+          )}
           <PillButton active={autoRotate} onClick={() => setAutoRotate(!autoRotate)}>
             <Icon name={autoRotate ? 'pause' : 'play_arrow'} size={13} />
             {autoRotate ? 'Pause' : 'Rotate'}
@@ -1140,8 +1195,44 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
           <PillButton active={showTimeline} onClick={() => setShowTimeline(!showTimeline)}>
             <Icon name="timeline" size={13} />Timeline
           </PillButton>
+          <PillButton active={showExplain} onClick={() => setShowExplain(v => !v)} color="#f5d442">
+            <Icon name="help" size={13} />?
+          </PillButton>
         </div>
       </div>
+
+      {/* Concept explainer — expands on clicking the "?" */}
+      {showExplain && (
+        <div onClick={() => setShowExplain(false)} style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(4,4,12,0.55)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: '94vw', maxHeight: '84vh', overflowY: 'auto', background: 'rgba(12,10,22,0.97)', border: '1px solid rgba(168,85,247,0.28)', borderRadius: 18, padding: '22px 24px', boxShadow: '0 40px 90px -30px rgba(0,0,0,0.85)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontFamily: T.fontDisplay || T.fontMono, fontWeight: 800, fontSize: 18, color: '#fff' }}>How to read this graph</div>
+              <button onClick={() => setShowExplain(false)} style={{ background: 'none', border: 'none', color: '#9a8ab5', cursor: 'pointer', fontSize: 20 }}>×</button>
+            </div>
+            <div style={{ fontSize: 12.5, color: 'rgba(228,222,245,0.7)', lineHeight: 1.6, marginBottom: 16 }}>
+              Every measure below is real graph ML computed on your own knowledge graph — on CPU, no GPU.
+            </div>
+            {[
+              ['#a855f7', 'Node size = PageRank (influence)', 'Bigger nodes are the load-bearing concepts your research keeps returning to. PageRank ranks a concept by how many other important concepts point to it.'],
+              ['#22d3ee', 'Node colour = community (auto-topics)', 'The Louvain algorithm groups concepts that cluster tightly together into communities, each given its own colour — your research self-organises into topics.'],
+              ['#38e8ff', 'Cyan halo = bridge concept', 'High betweenness centrality: the idea sits on the shortest path between otherwise-separate clusters. These are your insight hotspots — where two topics connect.'],
+              ['#34d399', 'Similarity (Jaccard)', 'Two concepts are structurally similar when they share neighbours in the graph, regardless of wording — a topological, not just semantic, match.'],
+              ['#f59e0b', 'Edges = typed relations', 'Links are real relationships (ENABLES, PART_OF, SUPPORTS…) extracted from your research, not just co-occurrence.'],
+            ].map(([c, title, body]) => (
+              <div key={title} style={{ display: 'flex', gap: 12, marginBottom: 13 }}>
+                <span style={{ marginTop: 5, width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: c, boxShadow: `0 0 10px ${c}` }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginBottom: 2 }}>{title}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(216,208,236,0.62)', lineHeight: 1.55 }}>{body}</div>
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 11.5, color: 'rgba(216,208,236,0.5)', lineHeight: 1.6 }}>
+              Toggle <b style={{ color: '#c9b6ff' }}>PageRank</b> and <b style={{ color: '#7fe9ff' }}>Communities</b> in the top bar to switch how nodes are sized and coloured. Drag to orbit, scroll to zoom, click a node for detail.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───── LEFT SIDEBAR ───── */}
       <div style={{

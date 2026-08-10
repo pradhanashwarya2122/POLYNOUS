@@ -16,6 +16,36 @@ TRIPLE_RELATIONS = {
     "PRECEDED_BY", "CONTRADICTS", "RELATED_TO",
 }
 
+# Generic tokens that must never become graph nodes on their own (they carry no
+# concrete meaning). A concept is rejected only if the WHOLE phrase is generic,
+# so "language model" survives while "model" alone is dropped.
+GENERIC_CONCEPTS = {
+    "study", "studies", "research", "researchers", "system", "systems", "data",
+    "dataset", "people", "it", "this", "that", "approach", "method", "methods",
+    "results", "result", "paper", "authors", "author", "model", "models",
+    "concept", "concepts", "information", "technology", "process", "processes",
+    "thing", "things", "work", "works", "field", "area", "topic", "issue",
+    "problem", "solution", "example", "case", "way", "part", "type", "number",
+}
+
+
+def _canon_concept(name: str) -> str:
+    """Canonicalize a concept label: strip leading articles, collapse spaces,
+    drop trailing punctuation. Keeps the field's own casing/acronyms intact."""
+    s = re.sub(r"^(the|a|an)\s+", "", (name or "").strip(), flags=re.IGNORECASE)
+    s = re.sub(r"[\s]+", " ", s).strip(" .,:;–-")
+    return s
+
+
+def _is_concrete(name: str) -> bool:
+    """True if the phrase is a real, specific concept (not a generic keyword)."""
+    n = (name or "").strip()
+    if len(n) < 3:
+        return False
+    if n.lower() in GENERIC_CONCEPTS:
+        return False
+    return True
+
 class KnowledgeGraph:
     def __init__(self):
         uri = os.getenv("NEO4J_URI")
@@ -341,12 +371,25 @@ class KnowledgeGraph:
         try:
             from app.llm_client import ask_llm
             system = (
-                "Extract the key factual relationships from the text as a JSON array. "
+                "You are building a rigorous, industry-grade knowledge graph. Extract the key "
+                "factual relationships from the text as a JSON array.\n"
                 "Each item: {\"subject\": str, \"relation\": one of "
                 "[CAUSES, SUPPORTS, REFUTES, PART_OF, ENABLES, PRECEDED_BY, CONTRADICTS, RELATED_TO], "
-                "\"object\": str, \"confidence\": 0..1}. Subjects and objects are short noun "
-                "phrases (2-4 words), specific, not pronouns. Return 3-8 of the most important, "
-                "non-trivial relationships. Return ONLY the raw JSON array, no prose."
+                "\"object\": str, \"confidence\": 0..1}.\n"
+                "RULES:\n"
+                "- Subjects and objects must be CONCRETE, canonical, domain-specific concepts: named "
+                "technologies, methods, algorithms, models, standards, organizations, metrics, "
+                "materials, or phenomena (e.g. 'Transformer architecture', 'CRISPR-Cas9', "
+                "'Reciprocal Rank Fusion', 'Basel III', 'mRNA vaccine'). Use the field's real "
+                "terminology.\n"
+                "- NEVER output vague or generic tokens (e.g. 'the study', 'researchers', 'system', "
+                "'data', 'people', 'it', 'this'), pronouns, or single stop-words.\n"
+                "- Use each concept's canonical name; do not create near-duplicates.\n"
+                "- Choose the relation that reflects the real logic (CAUSES for causation, ENABLES "
+                "for a prerequisite/mechanism, PART_OF for composition, REFUTES/CONTRADICTS for "
+                "opposition), not a generic RELATED_TO unless nothing more specific fits.\n"
+                "Return 3-8 of the most important, non-trivial relationships. Return ONLY the raw "
+                "JSON array, no prose."
             )
             raw = ask_llm(user=user, provider=provider, system_prompt=system,
                           messages=[{"role": "user", "content": text[:4000]}],
@@ -359,11 +402,12 @@ class KnowledgeGraph:
             names = set()
             with self.driver.session() as session:
                 for t in triples:
-                    subj = self._sanitize(t["subject"])[:80]
-                    obj = self._sanitize(t["object"])[:80]
+                    subj = self._sanitize(_canon_concept(t["subject"]))[:80]
+                    obj = self._sanitize(_canon_concept(t["object"]))[:80]
                     rel = t["relation"] if t["relation"] in TRIPLE_RELATIONS else "RELATED_TO"
                     conf = t["confidence"]
-                    if not subj or not obj or subj.lower() == obj.lower():
+                    # Reject generic keyword nodes; only concrete concepts get in.
+                    if not _is_concrete(subj) or not _is_concrete(obj) or subj.lower() == obj.lower():
                         continue
                     names.add(subj); names.add(obj)
                     # rel is whitelisted against TRIPLE_RELATIONS, so interpolating
@@ -456,26 +500,161 @@ class KnowledgeGraph:
 
         pr = self._pagerank(node_ids, edges)
         comm = self._louvain(node_ids, edges)
+        btw = self._betweenness(node_ids, edges)
         deg = {n: 0 for n in node_ids}
         for s, t in edges:
             deg[s] += 1; deg[t] += 1
 
-        # Normalize PageRank to 0..1 for easy node sizing on the client.
+        # Normalize PageRank + betweenness to 0..1 for easy node sizing on the client.
         mx = max(pr.values()) if pr else 1.0
+        bmx = max(btw.values()) if btw and max(btw.values()) > 0 else 1.0
         nodes = {
             n: {"pagerank": round(pr[n] / mx, 4) if mx else 0.0,
+                "betweenness": round(btw.get(n, 0.0) / bmx, 4) if bmx else 0.0,
                 "community": comm.get(n, 0), "degree": deg.get(n, 0)}
             for n in node_ids
         }
         top = sorted(node_ids, key=lambda n: pr[n], reverse=True)[:5]
+        # Bridge concepts = highest betweenness (connect otherwise-separate clusters).
+        bridges = sorted(node_ids, key=lambda n: btw.get(n, 0.0), reverse=True)
+        bridges = [{"name": n, "betweenness": round(btw.get(n, 0.0) / bmx, 3)}
+                   for n in bridges if btw.get(n, 0.0) > 0][:5]
         return {
             "nodes": nodes,
             "communities": len(set(comm.values())),
             "summary": {
                 "nodes": len(node_ids), "edges": len(edges),
                 "top_concepts": [{"name": n, "pagerank": round(pr[n] / mx, 3)} for n in top],
+                "bridge_concepts": bridges,
             },
         }
+
+    @staticmethod
+    def _betweenness(node_ids, edges) -> Dict:
+        """Brandes' betweenness centrality (undirected, unweighted). Cheap for the
+        hundreds-of-nodes personal graphs here; no GDS/native plugin needed.
+        High betweenness = a concept that bridges otherwise-separate clusters."""
+        from collections import deque
+        adj = {x: set() for x in node_ids}
+        for s, t in edges:
+            if s != t:
+                adj[s].add(t); adj[t].add(s)
+        cb = {x: 0.0 for x in node_ids}
+        for s in node_ids:
+            stack, pred = [], {w: [] for w in node_ids}
+            sigma = {w: 0.0 for w in node_ids}; sigma[s] = 1.0
+            dist = {w: -1 for w in node_ids}; dist[s] = 0
+            q = deque([s])
+            while q:
+                v = q.popleft(); stack.append(v)
+                for w in adj[v]:
+                    if dist[w] < 0:
+                        dist[w] = dist[v] + 1; q.append(w)
+                    if dist[w] == dist[v] + 1:
+                        sigma[w] += sigma[v]; pred[w].append(v)
+            delta = {w: 0.0 for w in node_ids}
+            while stack:
+                w = stack.pop()
+                for v in pred[w]:
+                    if sigma[w] > 0:
+                        delta[v] += (sigma[v] / sigma[w]) * (1.0 + delta[w])
+                if w != s:
+                    cb[w] += delta[w]
+        # Undirected graph: each pair counted twice.
+        for w in node_ids:
+            cb[w] /= 2.0
+        return cb
+
+    def node_similarity(self, user_id: str, node: str, top_n: int = 8) -> Dict:
+        """Topological node similarity (Jaccard over neighbourhoods): 'find
+        concepts that sit in a structurally similar position in your graph',
+        distinct from semantic similarity. Pure-Python, no GDS."""
+        if not self.driver:
+            return {"node": node, "similar": []}
+        uid = self._sanitize(user_id)
+        node_ids, edges = [], []
+        try:
+            with self.driver.session() as session:
+                res = session.run(
+                    """
+                    MATCH (a {user_id:$uid})-[r {user_id:$uid}]->(b {user_id:$uid})
+                    RETURN coalesce(a.name,a.text,toString(id(a))) AS s,
+                           coalesce(b.name,b.text,toString(id(b))) AS t
+                    LIMIT 5000
+                    """, uid=uid)
+                seen = set()
+                for rec in res:
+                    s, t = rec["s"], rec["t"]
+                    if not s or not t or s == t:
+                        continue
+                    edges.append((s, t))
+                    for n in (s, t):
+                        if n not in seen:
+                            seen.add(n); node_ids.append(n)
+        except Exception as e:
+            print(f"⚠️ node similarity fetch failed: {e}")
+            return {"node": node, "similar": []}
+        if node not in node_ids:
+            return {"node": node, "similar": []}
+        adj = {x: set() for x in node_ids}
+        for s, t in edges:
+            adj[s].add(t); adj[t].add(s)
+        base = adj[node] | {node}
+        sims = []
+        for other in node_ids:
+            if other == node:
+                continue
+            ns = adj[other] | {other}
+            inter = len(base & ns); union = len(base | ns)
+            if inter and union:
+                sims.append({"name": other, "score": round(inter / union, 3),
+                             "shared": inter})
+        sims.sort(key=lambda x: x["score"], reverse=True)
+        return {"node": node, "similar": sims[:top_n]}
+
+    def label_communities(self, user_id: str, user=None, provider: str = "anthropic",
+                          model: str = None) -> Dict:
+        """Auto-topic labels: group concepts by Louvain community and ask the LLM
+        for a short human label per cluster ('Cluster 3 = RL safety'). Falls back
+        to the community's top-PageRank concept when no key/LLM is available."""
+        metrics = self.compute_graph_metrics(user_id)
+        nodes = metrics.get("nodes", {})
+        if not nodes:
+            return {"labels": {}, "communities": 0}
+        groups: Dict[int, list] = {}
+        for name, m in nodes.items():
+            groups.setdefault(m.get("community", 0), []).append(
+                (name, m.get("pagerank", 0.0)))
+        labels = {}
+        for cid, members in groups.items():
+            members.sort(key=lambda x: x[1], reverse=True)
+            concept_list = [n for n, _ in members][:8]
+            labels[str(cid)] = {
+                "label": concept_list[0] if concept_list else f"Cluster {cid}",
+                "concepts": concept_list, "size": len(members),
+            }
+        # Try to upgrade the fallback labels with a single LLM call. If the user
+        # has no key, ask_llm raises and we keep the top-concept fallback labels.
+        if user is not None:
+            try:
+                import json as _json
+                from app.llm_client import ask_llm
+                payload = {cid: v["concepts"] for cid, v in labels.items()}
+                system = ("You name clusters of concepts. Given a JSON map of "
+                          "clusterId -> concept list, return ONLY JSON mapping each "
+                          "clusterId to a 2-4 word topic label. No prose.")
+                raw = ask_llm(user=user, provider=provider, system_prompt=system,
+                              messages=[{"role": "user", "content": _json.dumps(payload)}],
+                              max_tokens=400, temperature=0.2)
+                m = re.search(r"\{.*\}", raw or "", re.DOTALL)
+                if m:
+                    named = _json.loads(m.group(0))
+                    for cid, lab in named.items():
+                        if str(cid) in labels and isinstance(lab, str) and lab.strip():
+                            labels[str(cid)]["label"] = lab.strip()[:40]
+            except Exception as e:
+                print(f"⚠️ community labeling LLM failed: {e}")
+        return {"labels": labels, "communities": len(labels)}
 
     def suggest_connections(self, user_id: str = "guest", top_n: int = 8) -> Dict:
         """Phase B4 — link prediction over the user's graph. Scores non-adjacent
@@ -605,6 +784,29 @@ class KnowledgeGraph:
                 remap[comm[x]] = nxt; nxt += 1
             comm[x] = remap[comm[x]]
         return comm
+
+    def get_contradictions(self, user_id: str = "guest", limit: int = 20) -> Dict:
+        """Phase F — contradiction radar. Surfaces CONTRADICTS/REFUTES edges the
+        typed extractor recorded across all the user's research sessions, so
+        cross-session conflicts in their own knowledge become visible."""
+        if not self.driver:
+            return {"conflicts": []}
+        uid = self._sanitize(user_id)
+        try:
+            with self.driver.session() as session:
+                recs = session.run(
+                    """
+                    MATCH (a:Concept {user_id:$uid})-[r]->(b:Concept {user_id:$uid})
+                    WHERE type(r) IN ['CONTRADICTS','REFUTES']
+                    RETURN a.name AS s, type(r) AS rel, b.name AS o,
+                           coalesce(r.confidence,0.6) AS conf
+                    ORDER BY conf DESC LIMIT $lim
+                    """, uid=uid, lim=limit)
+                conflicts = [{"a": r["s"], "relation": r["rel"], "b": r["o"], "confidence": r["conf"]} for r in recs]
+            return {"conflicts": conflicts, "count": len(conflicts)}
+        except Exception as e:
+            print(f"⚠️ contradiction radar failed: {e}")
+            return {"conflicts": []}
 
     # ═══════════════════════════════════════════════════════════
     # PHASE C — GraphRAG: answer over the user's typed subgraph
@@ -816,7 +1018,27 @@ class KnowledgeGraph:
                             })
                 except:
                     pass
-                
+
+                # ── Concepts (typed triples from research) ─
+                try:
+                    for r in session.run("""
+                        MATCH (c:Concept {user_id: $uid})
+                        OPTIONAL MATCH (c)-[rel {user_id: $uid}]-(:Concept {user_id: $uid})
+                        RETURN c.name as name, count(rel) as count
+                        ORDER BY count DESC LIMIT 60
+                    """, uid=safe_user_id):
+                        if r["name"]:
+                            nodes.append({
+                                "id": "concept_" + r["name"],
+                                "label": r["name"],
+                                "type": "concept",
+                                "size": min(38, (r["count"] or 0) * 5 + 16),
+                                "connections": r["count"] or 0,
+                                "user_id": safe_user_id
+                            })
+                except:
+                    pass
+
                 # ── Claims ────────────────────────────────
                 try:
                     for r in session.run("""
@@ -920,10 +1142,27 @@ class KnowledgeGraph:
                         })
                 except:
                     pass
-                
+
+                # ── Concept typed edges (ENABLES, PART_OF, ...) ─
                 try:
                     for r in session.run("""
-                        MATCH (c:Claim {user_id: $uid})-[:SUPPORTED_BY]->(e:Evidence {user_id: $uid}) 
+                        MATCH (c1:Concept {user_id: $uid})-[rel {user_id: $uid}]->(c2:Concept {user_id: $uid})
+                        RETURN c1.name as s, c2.name as t, type(rel) as rt LIMIT 80
+                    """, uid=safe_user_id):
+                        if r["s"] and r["t"]:
+                            edges.append({
+                                "source": "concept_" + r["s"],
+                                "target": "concept_" + r["t"],
+                                "type": r["rt"],
+                                "weight": 2,
+                                "color": "rgba(96,165,250,0.5)"
+                            })
+                except:
+                    pass
+
+                try:
+                    for r in session.run("""
+                        MATCH (c:Claim {user_id: $uid})-[:SUPPORTED_BY]->(e:Evidence {user_id: $uid})
                         RETURN c.text as s, e.text as t LIMIT 20
                     """, uid=safe_user_id):
                         if r["s"] and r["t"]:

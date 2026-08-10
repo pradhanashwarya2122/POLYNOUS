@@ -16,6 +16,42 @@ pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 INDEX_NAME = "polynous-memory"
 EMBEDDING_DIM = 1536  # OpenAI text-embedding-3-small
 
+
+def _cosine(a, b) -> float:
+    import math
+    if not a or not b:
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def _mmr_rerank(query_vec, matches, k, lam: float = 0.7):
+    """Maximal Marginal Relevance: greedily pick results that are relevant to
+    the query yet diverse from those already chosen, so near-duplicate research
+    entries don't crowd the top. Relevance = the match's cosine score; diversity
+    = max cosine to the already-selected set."""
+    if len(matches) <= k:
+        return matches
+    cand = list(matches)
+    selected = []
+    while cand and len(selected) < k:
+        best, best_val = None, -1e18
+        for m in cand:
+            rel = getattr(m, "score", 0) or 0
+            mv = getattr(m, "values", None)
+            div = 0.0
+            if selected and mv:
+                div = max(_cosine(mv, getattr(s, "values", None) or []) for s in selected)
+            val = lam * rel - (1 - lam) * div
+            if val > best_val:
+                best_val, best = val, m
+        selected.append(best)
+        cand.remove(best)
+    return selected
+
+
 class SemanticSearchEngine:
     def __init__(self):
         self.use_pinecone = False
@@ -120,15 +156,20 @@ class SemanticSearchEngine:
                 # Create query embedding using the user's own key
                 q_embedding = create_embedding(user, query)
                 if q_embedding:
+                    # Phase D: over-fetch candidates, then re-rank with Maximal
+                    # Marginal Relevance so results are relevant AND diverse
+                    # (no near-duplicate research entries crowding the top).
                     pine_results = self.index.query(
                         vector=q_embedding,
-                        top_k=top_k,
+                        top_k=max(top_k * 3, top_k),
                         include_metadata=True,
+                        include_values=True,
                         filter=filters,
                         namespace=namespace,
                     )
-                    for match in pine_results.get("matches", []):
-                        if match.score > 0.3:
+                    raw_matches = [m for m in pine_results.get("matches", []) if m.score > 0.3]
+                    matches = _mmr_rerank(q_embedding, raw_matches, top_k)
+                    for match in matches:
                             meta = match.metadata or {}
                             sources_raw = meta.get("sources", "[]")
                             try:
@@ -160,6 +201,27 @@ class SemanticSearchEngine:
             results = self._keyword_search(query, top_k, filters, user_id)
 
         return results
+
+    # ------------------------------------------------------------------
+    # Phase F — novelty: how far a query is from the user's existing corpus
+    # ------------------------------------------------------------------
+    def novelty(self, user, query: str, user_id: str = "guest"):
+        """1.0 = brand-new territory, 0.0 = you've researched this before.
+        Computed as 1 - (max cosine to your existing entries)."""
+        if not (self.use_pinecone and self.index):
+            return None
+        try:
+            q = create_embedding(user, query)
+            if not q:
+                return None
+            res = self.index.query(vector=q, top_k=1, namespace=f"user_{user_id}")
+            matches = res.get("matches", []) or []
+            if not matches:
+                return 1.0
+            return round(max(0.0, 1.0 - float(matches[0].score)), 3)
+        except Exception as e:
+            print(f"novelty error: {e}")
+            return None
 
     # ------------------------------------------------------------------
     # Fallback keyword search – scoped to user

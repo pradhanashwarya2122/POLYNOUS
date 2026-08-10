@@ -1261,6 +1261,7 @@ function RagAnswer({ text, confidence, sources, onCopy, error }) {
                     #{s.chunk_id !== undefined ? s.chunk_id : s.chunk_index ?? i+1}
                   </span>
                   <span style={{ fontFamily:T.body, fontSize:12.5, color:"#c8d8e8", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.pdf_name}</span>
+                  {s.page ? <span style={{ fontFamily:T.mono, fontSize:10, color:T.textDim, flexShrink:0, whiteSpace:"nowrap" }}>p.{s.page}</span> : null}
                   <div style={{ width:64, height:5, borderRadius:3, background:"rgba(255,255,255,0.06)", overflow:"hidden", flexShrink:0 }}>
                     <div style={{ width:`${Math.min(100,rel)}%`, height:"100%", background:relCol, borderRadius:3, transition:"width 0.6s ease" }} />
                   </div>

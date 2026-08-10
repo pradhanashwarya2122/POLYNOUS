@@ -376,6 +376,13 @@ def search_node(state: AgentState) -> AgentState:
         results = results[:_mr]
     state['retrieved_docs'] = results
 
+    # Phase F novelty: how new is this query vs the user's corpus? Computed NOW,
+    # before this run is indexed, so it isn't just matching itself.
+    try:
+        state['novelty'] = semantic_search.novelty(state.get('user'), state['query'], user_id)
+    except Exception:
+        state['novelty'] = None
+
     # Hybrid search for enhanced context
     print(". Running hybrid search...")
     emit("Running knowledge-graph hybrid search…")
@@ -606,17 +613,26 @@ def writer_node(state: AgentState) -> AgentState:
     emit(f"Drafting research digest from {len(enhanced_summaries)} summaries…",
          {"agents": {"Writer": {"progress": 35, "phase": {"label": "Writing", "sub": "LLM drafting digest…"}}}})
 
-    writer_result = writer_agent(
-        query=state['query'],
-        summaries=enhanced_summaries,
-        critique=state['critique'],
-        citations=state['citations'],
-        provider=provider,
-        api_key=state.get('user_api_key'),
-        response_style=state.get('response_style'),
-        model=state.get('model'),
-        usage_sink=_usage_sink(state),
-    )
+    try:
+        writer_result = writer_agent(
+            query=state['query'],
+            summaries=enhanced_summaries,
+            critique=state['critique'],
+            citations=state['citations'],
+            provider=provider,
+            api_key=state.get('user_api_key'),
+            response_style=state.get('response_style'),
+            model=state.get('model'),
+            usage_sink=_usage_sink(state),
+        )
+    except Exception as e:
+        # Never let a drafting failure skip the persistence side-effects below —
+        # that was the "graph shows nodes but memory/search stay empty" bug.
+        print(f"⚠️ writer_agent failed ({e}); using fallback so persistence still runs")
+        state.setdefault('warnings', []).append(f"writer failed: {e}")
+        fallback = "\n\n".join(str(s) for s in enhanced_summaries)[:4000] or \
+            f"Research on: {state['query']} (draft unavailable — synthesis step failed)."
+        writer_result = {"parse_failed": True, "raw_text": fallback, "sections": {}}
     parse_failed = writer_result.get('parse_failed', False)
     sections = writer_result.get('sections') or {}
 
@@ -693,7 +709,8 @@ def writer_node(state: AgentState) -> AgentState:
     _run_side_effect(
         "Indexed in Semantic Search",
         semantic_search.add_to_index,
-        state['query'],                           # first positional param is `query`
+        state.get('user'),                        # FIX: engine signature is (user, query, ...)
+        state['query'],
         answer=answer,
         mode="research",
         confidence=confidence,
@@ -754,12 +771,34 @@ def _route_after_critic(state: AgentState) -> str:
     return "write"
 
 
+def _safe_node(fn):
+    """Guard a pipeline node so a failure inside it never aborts the whole run.
+
+    This matters for persistence: KG concept nodes are written in `search_node`
+    (early), but Memory Bank + Semantic Search + Analytics are written in
+    `writer_node` (last). If a middle node (summarise/critic/deepen) raised, the
+    run aborted before the writer and those stores stayed empty even though the
+    graph showed nodes. Wrapping the middle nodes guarantees the run always
+    reaches the writer, so every store gets updated on every completed research.
+    """
+    def wrapped(state: AgentState) -> AgentState:
+        try:
+            return fn(state)
+        except Exception as e:
+            print(f"⚠️ Node '{fn.__name__}' failed ({e}); degrading so persistence still runs")
+            state.setdefault('warnings', []).append(f"{fn.__name__} failed: {e}")
+            state['current_agent'] = fn.__name__
+            return state
+    wrapped.__name__ = fn.__name__
+    return wrapped
+
+
 def create_orchestrator():
     workflow = StateGraph(AgentState)
     workflow.add_node("search", search_node)
-    workflow.add_node("summarise", summarise_node)
-    workflow.add_node("critic", critic_node)
-    workflow.add_node("deepen", deepen_node)
+    workflow.add_node("summarise", _safe_node(summarise_node))
+    workflow.add_node("critic", _safe_node(critic_node))
+    workflow.add_node("deepen", _safe_node(deepen_node))
     workflow.add_node("write", writer_node)
     workflow.set_entry_point("search")
     workflow.add_conditional_edges("search", _route_after_search,

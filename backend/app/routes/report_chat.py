@@ -150,3 +150,62 @@ async def report_chat(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(502, f"Report chat failed: {e}")
 
     return {"answer": (answer or "").strip(), "grounded": True, "provider": provider}
+
+
+@router.post("/report/verify-claim")
+async def verify_claim(request: Request, db: Session = Depends(get_db)):
+    """Phase F — NLI faithfulness. Judge whether a source ENTAILS, CONTRADICTS,
+    or is NEUTRAL toward a claim (real entailment, beyond citation counting)."""
+    body = await request.json()
+    claim = (body.get("claim") or "").strip()
+    evidence = (body.get("evidence") or "").strip()
+    if not claim or not evidence:
+        raise HTTPException(400, "claim and evidence are required")
+
+    user, provider, api_key = _resolve_user_key(request, db)
+    if user is None:
+        raise HTTPException(401, "Sign in to verify claims.")
+    if not api_key:
+        raise HTTPException(400, "No API key configured for your account. Add your key in Settings.")
+
+    system_prompt = (
+        "You are a natural-language-inference judge. Given EVIDENCE and a CLAIM, decide whether the "
+        "evidence entails, contradicts, or is neutral toward the claim. Return ONLY raw JSON: "
+        '{"label": "entailment|contradiction|neutral", "confidence": 0..1, "why": "one short sentence"}.'
+    )
+    question = f"EVIDENCE:\n{evidence[:2000]}\n\nCLAIM:\n{claim[:600]}"
+
+    from app.llm_providers import resolve_provider, resolve_model
+    client_type, base_url = resolve_provider(provider)
+    used_model = resolve_model(user, provider)
+    try:
+        if client_type == "openai":
+            from openai import OpenAI
+            from app.utils.openai_compat import openai_chat
+            oc = OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {}))
+            resp = openai_chat(oc, model=used_model,
+                               messages=[{"role": "system", "content": system_prompt},
+                                         {"role": "user", "content": question}],
+                               max_tokens=200, temperature=0.0)
+            raw = resp.choices[0].message.content
+        else:
+            from anthropic import Anthropic
+            ac = Anthropic(api_key=api_key)
+            msg = ac.messages.create(model=used_model, max_tokens=200, temperature=0.0,
+                                     system=system_prompt, messages=[{"role": "user", "content": question}])
+            raw = msg.content[0].text
+    except Exception as e:
+        raise HTTPException(502, f"Claim verification failed: {e}")
+
+    import re as _re
+    label, conf, why = "neutral", 0.5, ""
+    try:
+        m = _re.search(r"\{.*\}", raw or "", _re.DOTALL)
+        data = json.loads(m.group(0)) if m else {}
+        lb = str(data.get("label", "neutral")).lower()
+        label = lb if lb in ("entailment", "contradiction", "neutral") else "neutral"
+        conf = max(0.0, min(1.0, float(data.get("confidence", 0.5))))
+        why = str(data.get("why", ""))[:240]
+    except Exception:
+        pass
+    return {"label": label, "confidence": round(conf, 2), "why": why, "provider": provider}

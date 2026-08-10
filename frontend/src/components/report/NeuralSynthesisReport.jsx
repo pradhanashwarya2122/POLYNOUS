@@ -1031,6 +1031,81 @@ function SourceQualitySection({ body, delay = 0.18 }) {
   );
 }
 
+// Phase F — NLI faithfulness. Check whether the report's sources actually
+// ENTAIL a claim (real entailment via /report/verify-claim), beyond the
+// citation-based faithfulness meter.
+function ClaimVerifier({ answer, sourceSummaries, sources }) {
+  const [claim, setClaim] = useState("");
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const evidence = () => {
+    const parts = (sourceSummaries || []).map((s) => (typeof s === "string" ? s : (s.summary || s.title || ""))).filter(Boolean);
+    return (parts.join("\n\n") || (answer || "")).slice(0, 4000);
+  };
+
+  const verify = async () => {
+    const c = claim.trim();
+    if (!c || busy) return;
+    setBusy(true); setErr(""); setResult(null);
+    try {
+      const body = JSON.stringify({ claim: c, evidence: evidence() });
+      const doPost = (tok) => fetch(`${API_BASE_URL}/report/verify-claim`, {
+        method: "POST", headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}) }, body,
+      });
+      let token = localStorage.getItem("polynous_token") || window.__POLYNOUS_ACCESS_TOKEN__ || "";
+      let res = await doPost(token);
+      if (res.status === 401) {
+        const rr = await fetch(`${API_BASE_URL}/auth/refresh`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } });
+        if (rr.ok) { const rd = await rr.json().catch(() => ({})); if (rd.access_token) { localStorage.setItem("polynous_token", rd.access_token); res = await doPost(rd.access_token); } }
+      }
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.detail || d.message || "Verification failed");
+      setResult(d);
+    } catch (e) { setErr(String(e.message || e)); }
+    finally { setBusy(false); }
+  };
+
+  const META = {
+    entailment: { color: C.green, icon: "check_circle", label: "Supported by the sources" },
+    contradiction: { color: C.crimson, icon: "cancel", label: "Contradicted by the sources" },
+    neutral: { color: C.amber, icon: "help", label: "Not established either way" },
+  };
+  const m = result ? (META[result.label] || META.neutral) : null;
+
+  return (
+    <div style={{ background: "rgba(5,20,36,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: `4px solid ${C.cyan}`, borderRadius: 14, padding: "22px 26px", animation: "sectionIn 0.5s ease both" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <Icon name="fact_check" style={{ fontSize: 19, color: C.cyan }} />
+        <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff", margin: 0 }}>Verify a claim</h3>
+      </div>
+      <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 14px", lineHeight: 1.6 }}>
+        Paste any statement and I'll check whether this report's sources actually entail it (natural-language inference), not just whether it's cited.
+      </p>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <input value={claim} onChange={(e) => setClaim(e.target.value)} onKeyDown={(e) => e.key === "Enter" && verify()}
+          placeholder="e.g. CRISPR has been FDA-approved for sickle cell disease"
+          disabled={busy}
+          style={{ flex: 1, background: "rgba(1,15,31,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9999, padding: "12px 18px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, outline: "none" }} />
+        <button onClick={verify} disabled={busy || !claim.trim()} style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 20px", background: C.cyan, color: "#00121f", fontWeight: 700, borderRadius: 9999, border: "none", cursor: busy || !claim.trim() ? "default" : "pointer", opacity: busy || !claim.trim() ? 0.55 : 1, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 12.5, whiteSpace: "nowrap" }}>
+          <Icon name={busy ? "hourglass_empty" : "rule"} style={{ fontSize: 15, color: "#00121f" }} /> {busy ? "Checking…" : "Verify"}
+        </button>
+      </div>
+      {result && m && (
+        <div style={{ marginTop: 14, display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 15px", borderRadius: 12, background: `${m.color}12`, border: `1px solid ${m.color}44` }}>
+          <Icon name={m.icon} style={{ fontSize: 20, color: m.color, flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13.5, fontWeight: 700, color: m.color }}>{m.label} <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary, fontWeight: 400 }}>· {Math.round((result.confidence || 0) * 100)}% confident</span></div>
+            {result.why && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: "#c8d8ea", marginTop: 4, lineHeight: 1.55 }}>{result.why}</div>}
+          </div>
+        </div>
+      )}
+      {err && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, margin: "10px 0 0" }}>{err}</p>}
+    </div>
+  );
+}
+
 export function NeuralSynthesisReport({ query, answer, report, sources, confidence, confThreshold = 70, telemetry, sourceSummaries = [], cacheInfo, onRerun, onCopy, onNew, onDeepen }) {
   const structured = !!report && !report.parse_failed;
   const legacy = parseAnswer(answer);
@@ -1422,6 +1497,9 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
 
       {/* Chat with your report - grounded follow-up Q&A over the fetched sources */}
       <ReportChat query={query} answer={answer} sources={sources} sourceSummaries={sourceSummaries} />
+
+      {/* Phase F NLI faithfulness: verify any claim against this report's sources */}
+      <ClaimVerifier answer={answer} sources={sources} sourceSummaries={sourceSummaries} />
 
       {/* Footer actions */}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:22,animation:"sectionIn 0.5s 0.48s ease both" }}>

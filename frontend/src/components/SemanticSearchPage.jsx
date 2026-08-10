@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { API_BASE_URL } from '../config';
 import ConstellationExplorer from "./react-bits/ConstellationExplorer";
 import { makeTile } from "./react-bits/constellationTiles";
+import SemanticMap from "./react-bits/SemanticMap";
 
 // ═══════════════════════════════════════════════════════════════
 // DESIGN TOKENS
@@ -1860,6 +1861,7 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
   const [searched,         setSearched]         = useState(false)
   const [selectedResult,   setSelectedResult]   = useState(null)
   const [globeOpen,        setGlobeOpen]        = useState(false)   // results globe (idea #4)
+  const [mapOpen,          setMapOpen]          = useState(false)   // Phase E cluster map
   const [filter,           setFilter]           = useState('all')
   const [showSuggestions,  setShowSuggestions]  = useState(false)
   const [suggestions,      setSuggestions]      = useState([])
@@ -1994,6 +1996,16 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
         })}
         onSelect={(it) => { setGlobeOpen(false); onStartResearch?.(it.query); }}
       />
+
+      {/* Phase E cluster map: always available (maps your whole corpus). */}
+      <button onClick={() => setMapOpen(true)}
+        style={{ position: 'fixed', right: 24, bottom: 148, zIndex: 60, display: 'flex', alignItems: 'center', gap: 9, padding: '10px 16px', borderRadius: 9999, cursor: 'pointer',
+          background: 'rgba(10,10,26,0.75)', border: '1px solid rgba(168,85,247,0.32)', color: '#ecdcff', backdropFilter: 'blur(18px)',
+          fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', boxShadow: '0 0 20px -6px rgba(168,85,247,0.4)' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 17, color: '#a855f7' }}>bubble_chart</span>
+        Cluster map
+      </button>
+      <SemanticMap open={mapOpen} onClose={() => setMapOpen(false)} onSelect={(p) => { setMapOpen(false); onStartResearch?.(p.query); }} />
 
       {/* ── Layer 3: main content ── */}
       <main style={{

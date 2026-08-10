@@ -1162,6 +1162,11 @@ function DebateFollowups({ query, result, onVerdict }) {
   const [crossBusy, setCrossBusy] = useState(false);
   const [crossErr, setCrossErr] = useState("");
 
+  // Phase F — fallacy audit
+  const [fallacies, setFallacies] = useState(null);  // {for:[], against:[]}
+  const [falBusy, setFalBusy] = useState(false);
+  const [falErr, setFalErr] = useState("");
+
   // #8 "what flips this" - pure client-side recompute from the verdict's own
   // evidence-rubric vs judge-quality components.
   const v = result?.verdict || {};
@@ -1229,6 +1234,17 @@ function DebateFollowups({ query, result, onVerdict }) {
       setCrossEx({ for_asks: data.for_asks, against_asks: data.against_asks });
     } catch (e) { setCrossErr(String(e.message || e)); }
     finally { setCrossBusy(false); }
+  };
+
+  // Phase F — fallacy audit
+  const runFallacies = async () => {
+    if (falBusy) return;
+    setFalErr(""); setFalBusy(true);
+    try {
+      const data = await followupPost("/debate/fallacies", args, "Fallacy analysis failed");
+      setFallacies({ for: data.for || [], against: data.against || [] });
+    } catch (e) { setFalErr(String(e.message || e)); }
+    finally { setFalBusy(false); }
   };
 
   if (!ready) return null;
@@ -1329,6 +1345,40 @@ function DebateFollowups({ query, result, onVerdict }) {
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: sideColor(answerer), marginBottom: 5 }}>{answerer === "for" ? "Supporting" : "Counter"} answers</div>
                   <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, color: "#d7dced", lineHeight: 1.65 }}>{qa.answer}</div>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Phase F — Fallacy audit */}
+      <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.amber}`, borderRadius: 16, padding: "22px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <Icon name="gavel" style={{ fontSize: 19, color: C.amber }} />
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Fallacy Audit</h3>
+        </div>
+        <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 14px", lineHeight: 1.6 }}>
+          A logic auditor scans both sides for real fallacies (strawman, false dilemma, ad hominem, and the like).
+        </p>
+        <button onClick={runFallacies} disabled={falBusy}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 10, cursor: falBusy ? "wait" : "pointer",
+            background: "rgba(255,170,0,0.1)", border: `1px solid ${C.amber}55`, color: "#ffdf9e", fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700 }}>
+          <Icon name={falBusy ? "hourglass_empty" : "policy"} style={{ fontSize: 15 }} /> {falBusy ? "Auditing…" : "Run fallacy audit"}
+        </button>
+        {falErr && <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, margin: "10px 0 0" }}>{falErr}</p>}
+        {fallacies && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}>
+            {[["Supporting", fallacies.for, C.green], ["Counter", fallacies.against, C.crimson]].map(([label, list, col]) => (
+              <div key={label}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: col, marginBottom: 8 }}>{label}</div>
+                {(!list || list.length === 0) && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary }}>No clear fallacies found.</div>}
+                {(list || []).map((f, i) => (
+                  <div key={i} style={{ background: "rgba(255,255,255,0.025)", border: `1px solid ${col}30`, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{f.fallacy}</div>
+                    {f.quote && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11.5, fontStyle: "italic", color: "#c8d0dc", marginBottom: 4, lineHeight: 1.5 }}>"{f.quote}"</div>}
+                    {f.why && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11.5, color: C.textSecondary, lineHeight: 1.5 }}>{f.why}</div>}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
