@@ -1256,9 +1256,6 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         </div>
       )}
 
-      {/* Run telemetry (Phase 6) - real token counts + estimated cost */}
-      <RunTelemetryCard telemetry={telemetry} accent={C.cyan} />
-
       {/* Low-confidence guard. Previously this fired on ANY near-miss below the
           user's personal threshold, so a solid 70% answer nagged an 86% setting
           every time. It now only warns when confidence is genuinely LOW in
@@ -1542,6 +1539,10 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
 
       {/* Phase F NLI faithfulness: verify any claim against this report's sources */}
       <ClaimVerifier answer={answer} sources={sources} sourceSummaries={sourceSummaries} />
+
+      {/* Run telemetry (Phase 6) - real token counts + estimated cost. Placed
+          last: it's diagnostic metadata, the least important card for a reader. */}
+      <RunTelemetryCard telemetry={telemetry} accent={C.cyan} />
 
       {/* Footer actions */}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:22,animation:"sectionIn 0.5s 0.48s ease both" }}>

@@ -1043,6 +1043,7 @@ const apiProgress = name => apiFetch(`/pdfs/progress?filename=${encodeURICompone
 const apiList = () => apiFetch("/pdfs/list");
 const apiAsk = (query, pdf) => apiFetch(`/pdfs/ask?query=${encodeURIComponent(query)}${pdf?`&pdf_name=${encodeURIComponent(pdf)}`:""}`, { method:"POST" });
 const apiSearch = (query, pdf) => apiFetch(`/pdfs/search?query=${encodeURIComponent(query)}&top_k=5${pdf?`&pdf_name=${encodeURIComponent(pdf)}`:""}`);
+const apiSummarize = pdf => apiFetch(`/pdfs/summarize${pdf?`?pdf_name=${encodeURIComponent(pdf)}`:""}`, { method:"POST" });
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function LoadingDots({ label }) {
@@ -1347,6 +1348,9 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
   const [uploadError, setUploadError] = useState("");
   const [uploadWarnings, setUploadWarnings] = useState([]);
 
+  const [summary, setSummary] = useState(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
   const [askQuery, setAskQuery] = useState("");
   const [askLoading, setAskLoading] = useState(false);
   const [askAnswer, setAskAnswer] = useState(null);
@@ -1453,6 +1457,25 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       setAskAnswer(res);
       setConversation(prev => [...prev, { role:"assistant", ...res }]);
     } finally { setAskLoading(false); }
+  };
+
+  const doSummarize = async () => {
+    if (summarizing) return;
+    setSummarizing(true); setSummary(null); setSummaryError("");
+    try {
+      const data = await apiSummarize(selectedPdf);
+      if (data?.error) { setSummaryError(data.error); }
+      else if (!data?.summary) { setSummaryError("Couldn't produce a summary for this document."); }
+      else setSummary(data);
+    } catch (e) {
+      const s = e?.status;
+      setSummaryError(
+        s === 401 ? "Please sign in again to summarize your PDFs."
+        : s === 400 && /api key/i.test(e?.message || "") ? "No API key configured. Add one in Settings to summarize."
+        : (e?.message && !/^\d+ /.test(e.message)) ? e.message
+        : "Couldn't reach the summarizer. Please try again in a moment."
+      );
+    } finally { setSummarizing(false); }
   };
 
   const doSearch = async () => {
@@ -1744,7 +1767,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
 
           {/* ── QUERY TABS ────────────────────────────────────── */}
           <div style={{ display:"flex", gap:6, marginBottom:18 }}>
-            {[["ask","auto_awesome","Ask (RAG)"],["search","travel_explore","Semantic Search"]].map(([t, icon, label]) => (
+            {[["ask","auto_awesome","Ask (RAG)"],["summarize","summarize","Summarize"],["search","travel_explore","Semantic Search"]].map(([t, icon, label]) => (
               <button key={t} onClick={() => setTab(t)} style={{
                 display:"flex", alignItems:"center", gap:7, padding:"9px 20px",
                 borderRadius:9999, border:`1px solid ${tab===t ? T.gold : T.border}`,
@@ -1837,6 +1860,110 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── SUMMARIZE TAB ────────────────────────────────── */}
+          {tab === "summarize" && (
+            <div style={{ display:"flex", flexDirection:"column", gap:20, paddingBottom:60 }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:14 }}>
+                <div style={{ maxWidth:520 }}>
+                  <h3 style={{ fontFamily:T.display, fontWeight:800, fontSize:17, color:"#fff", margin:0 }}>
+                    {selectedPdf ? `Summarize "${selectedPdf}"` : "Summarize your document"}
+                  </h3>
+                  <p style={{ fontFamily:T.body, fontSize:13, color:T.textMid, margin:"6px 0 0", lineHeight:1.6 }}>
+                    A whole-document briefing — executive summary, key points and topics — built by reading every chunk, not answering a single question.
+                  </p>
+                </div>
+                <button onClick={doSummarize} disabled={summarizing || !pdfs.length}
+                  style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:10, border:"none",
+                    background: (summarizing || !pdfs.length) ? "rgba(255,214,10,0.25)" : `linear-gradient(90deg,${T.gold},#ffcf3d)`,
+                    color:"#04090f", fontFamily:T.display, fontWeight:800, fontSize:13.5, cursor:(summarizing||!pdfs.length)?"default":"pointer", flexShrink:0 }}>
+                  <Icon name="summarize" size={17} color="#04090f" />
+                  {summarizing ? "Summarizing…" : (summary ? "Re-summarize" : "Summarize document")}
+                </button>
+              </div>
+
+              {!pdfs.length && (
+                <div style={{ padding:"14px 16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", fontFamily:T.body, fontSize:13, color:T.textMid }}>
+                  Upload and process a PDF first — then summarize it here.
+                </div>
+              )}
+
+              {summarizing && (
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:18, padding:"46px 0" }}>
+                  <SquareLoader />
+                  <span style={{ fontFamily:T.mono, fontSize:12, color:T.gold }}>Reading every chunk and synthesizing…</span>
+                </div>
+              )}
+
+              {summaryError && !summarizing && (
+                <div style={{ padding:"14px 16px", borderRadius:12, background:"rgba(255,32,64,0.1)", border:"1px solid rgba(255,32,64,0.3)", color:"#ff8095", fontFamily:T.body, fontSize:13 }}>
+                  ❌ {summaryError}
+                </div>
+              )}
+
+              {summary && !summarizing && (
+                <div style={{ background:T.surface, border:`1px solid ${T.borderGold}`, borderRadius:18, padding:"26px 28px", position:"relative" }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap", marginBottom:18 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:11 }}>
+                      <div style={{ width:40, height:40, borderRadius:11, background:"rgba(255,214,10,0.14)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <Icon name="auto_stories" size={21} color={T.gold} />
+                      </div>
+                      <div>
+                        <div style={{ fontFamily:T.mono, fontSize:9.5, letterSpacing:"0.2em", textTransform:"uppercase", color:T.gold, fontWeight:700 }}>Your PDF, summarized</div>
+                        <div style={{ fontFamily:T.display, fontSize:16, fontWeight:800, color:"#fff", marginTop:2 }}>{summary.pdf_name}</div>
+                      </div>
+                    </div>
+                    <span style={{ fontFamily:T.mono, fontSize:10.5, color:T.textDim }}>
+                      {summary.chunk_count} chunks{summary.pages ? ` · ${summary.pages} pages` : ""}
+                    </span>
+                  </div>
+
+                  {String(summary.summary || "").split(/\n{2,}/).map(s => s.trim()).filter(Boolean).map((p, i) => (
+                    <p key={i} style={{ fontFamily:T.body, fontSize:15, lineHeight:1.85, color:"#dbe6f2", margin:"0 0 13px" }}>{p}</p>
+                  ))}
+
+                  {summary.key_points?.length > 0 && (
+                    <div style={{ marginTop:20 }}>
+                      <div style={{ fontFamily:T.mono, fontSize:9.5, letterSpacing:"0.16em", textTransform:"uppercase", color:T.green, fontWeight:700, marginBottom:12 }}>Key points</div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+                        {summary.key_points.map((k, i) => (
+                          <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+                            <span style={{ flexShrink:0, width:24, height:24, borderRadius:"50%", background:"rgba(0,255,15,0.1)", border:`1px solid ${T.green}`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:T.display, fontSize:11, fontWeight:800, color:T.green, marginTop:1 }}>{i + 1}</span>
+                            <span style={{ fontFamily:T.body, fontSize:13.5, lineHeight:1.7, color:"#cfe0f0" }}>{String(k)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {summary.topics?.length > 0 && (
+                    <div style={{ marginTop:20 }}>
+                      <div style={{ fontFamily:T.mono, fontSize:9.5, letterSpacing:"0.16em", textTransform:"uppercase", color:T.gold, fontWeight:700, marginBottom:10 }}>Topics</div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                        {summary.topics.map((t, i) => (
+                          <span key={i} style={{ fontFamily:T.mono, fontSize:11, color:"#ffe6a3", background:"rgba(255,214,10,0.08)", border:"1px solid rgba(255,214,10,0.22)", borderRadius:9999, padding:"5px 12px" }}>{String(t)}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {summary.caveats?.length > 0 && (
+                    <div style={{ marginTop:20, padding:"13px 16px", borderRadius:12, background:"rgba(255,170,0,0.06)", border:"1px solid rgba(255,170,0,0.22)" }}>
+                      <div style={{ fontFamily:T.mono, fontSize:9.5, letterSpacing:"0.16em", textTransform:"uppercase", color:"#ffaa00", fontWeight:700, marginBottom:9 }}>Caveats</div>
+                      {summary.caveats.map((c, i) => (
+                        <div key={i} style={{ fontFamily:T.body, fontSize:12.5, lineHeight:1.6, color:"#e2d0a0", marginTop:i?6:0 }}>• {String(c)}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button onClick={() => { const t = `${summary.pdf_name} — summary\n\n${summary.summary}\n\nKey points:\n${(summary.key_points||[]).map((k,i)=>`${i+1}. ${k}`).join("\n")}`; navigator.clipboard.writeText(t); notify("Summary copied"); }}
+                    style={{ marginTop:20, display:"inline-flex", alignItems:"center", gap:7, padding:"8px 16px", borderRadius:9999, background:"transparent", border:`1px solid ${T.borderGold}`, color:T.gold, cursor:"pointer", fontFamily:T.mono, fontSize:11, fontWeight:700 }}>
+                    <Icon name="content_copy" size={14} color={T.gold} /> Copy summary
+                  </button>
                 </div>
               )}
             </div>

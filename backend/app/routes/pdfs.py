@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models.user import User
 from app.data_sources.pdf_processor import (
     process_pdf, get_progress, search_pdf, rag_answer_from_pdf, get_uploaded_pdfs,
+    summarize_pdf,
 )
 
 router = APIRouter(prefix="/pdfs", tags=["pdfs"])
@@ -373,6 +374,30 @@ async def ask_pdf(query: str, req: Request, pdf_name: Optional[str] = None, db: 
             )
     except Exception as e:
         print(f"⚠️ PDF KG extraction skipped: {e}")
+    return result
+
+
+@router.post("/summarize")
+async def summarize_pdf_route(req: Request, pdf_name: Optional[str] = None, db: Session = Depends(get_db)):
+    """Whole-document summary (map-reduce over every chunk) — an in-page PDF
+    briefing, distinct from /ask which answers a single question via RAG."""
+    user = _resolve_user(req, db)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in to summarize your PDFs.")
+    result = await run_in_threadpool(summarize_pdf, pdf_name, user)
+
+    # Feed the summary's concepts into the knowledge graph too (tagged 'pdf').
+    try:
+        from app.knowledge_graph.graph_manager import kg
+        txt = (result or {}).get("summary", "") if isinstance(result, dict) else ""
+        if txt:
+            provider = getattr(user, "preferred_provider", "anthropic") or "anthropic"
+            await run_in_threadpool(
+                kg.extract_and_link_triples, f"{pdf_name or 'PDF'}\n{txt[:1600]}",
+                user, provider, None, user.public_id, "pdf",
+            )
+    except Exception as e:
+        print(f"⚠️ PDF summary KG extraction skipped: {e}")
     return result
 
 

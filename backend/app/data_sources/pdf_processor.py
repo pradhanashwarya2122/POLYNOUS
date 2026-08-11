@@ -544,6 +544,79 @@ Provide a structured answer following the format above. Only use information fro
             "confidence": 0
         }
 
+def summarize_pdf(pdf_name: str = None, user=None) -> Dict:
+    """Whole-document summary via map-reduce over ALL chunks (not RAG-ask).
+    Returns a structured briefing: exec summary + key points + topics + caveats."""
+    import json as _json
+    provider = getattr(user, 'preferred_provider', 'anthropic') or 'anthropic'
+    docs = _fetch_corpus(pdf_name, user, cap=600)
+    if not docs:
+        return {"error": "No indexed content found for this PDF. Upload it first.",
+                "summary": "", "key_points": [], "topics": [], "caveats": []}
+    docs.sort(key=lambda d: (d.get('page', 0), d.get('chunk_index', 0)))
+    name = docs[0].get('pdf_name', pdf_name or 'document')
+    pages = max((d.get('page', 0) for d in docs), default=0)
+
+    def _summ(text, mode):
+        if mode == "map":
+            system = ("You are a precise research analyst. Condense the document excerpt into "
+                      "4-6 dense, factual bullet points capturing its key claims, findings and "
+                      "specifics. No preamble, no repetition.")
+            mt = 400
+        else:
+            system = ("You are a precise research analyst. From the notes below, produce a briefing "
+                      "as STRICT JSON with keys: \"summary\" (a 2-3 paragraph executive overview), "
+                      "\"key_points\" (array of 6-10 specific findings), \"topics\" (array of 4-8 short "
+                      "topic labels), \"caveats\" (array of 0-4 limitations). Return ONLY the JSON object.")
+            mt = 1200
+        return ask_llm(user=user, provider=provider, system_prompt=system,
+                       messages=[{"role": "user", "content": text[:14000]}],
+                       max_tokens=mt, temperature=0.3)
+
+    full = "\n\n".join(d.get('text', '') for d in docs if d.get('text'))
+    try:
+        if len(full) > 40000:                       # map-reduce for long docs
+            batches, cur = [], ""
+            for d in docs:
+                t = d.get('text', '')
+                if len(cur) + len(t) > 12000:
+                    batches.append(cur); cur = ""
+                cur += t + "\n\n"
+            if cur.strip():
+                batches.append(cur)
+            notes = []
+            for b in batches[:8]:
+                try:
+                    notes.append(_summ(b, "map"))
+                except Exception:
+                    pass
+            reduce_src = "\n".join(notes) or full[:14000]
+        else:
+            reduce_src = full
+        raw = _summ(reduce_src, "reduce")
+    except Exception as e:
+        return {"error": f"Summarization failed: {e}", "summary": "",
+                "key_points": [], "topics": [], "caveats": []}
+
+    data = {}
+    try:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        data = _json.loads(m.group(0)) if m else {}
+    except Exception:
+        data = {}
+    if not data.get("summary"):
+        data = {"summary": (raw or "").strip(), "key_points": [], "topics": [], "caveats": []}
+    return {
+        "pdf_name": name,
+        "summary": data.get("summary", ""),
+        "key_points": data.get("key_points", []) or [],
+        "topics": data.get("topics", []) or [],
+        "caveats": data.get("caveats", []) or [],
+        "chunk_count": len(docs),
+        "pages": pages,
+    }
+
+
 def get_uploaded_pdfs(user=None) -> List[Dict]:
     try:
         index = get_pdf_index()
