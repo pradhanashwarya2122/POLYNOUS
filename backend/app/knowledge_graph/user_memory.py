@@ -1,4 +1,9 @@
-from neo4j import GraphDatabase
+# Neo4j is deprecated (Postgres is the default backend). Guard the import so the
+# neo4j package is no longer a required dependency and the app boots without it.
+try:
+    from neo4j import GraphDatabase
+except Exception:
+    GraphDatabase = None
 from typing import List, Dict, Optional
 from datetime import datetime
 import os
