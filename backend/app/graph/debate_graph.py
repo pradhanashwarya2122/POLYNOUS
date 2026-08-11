@@ -248,6 +248,20 @@ def judge_node(state: AgentState) -> AgentState:
     except Exception as e:
         print(f"  ⚠️ Memory storage error: {e}")
 
+    # ---------- Extract debate concepts into the Knowledge Graph ----------
+    # Debates now populate the graph too: pull the concrete concepts from the
+    # topic and both sides' arguments, so a debate shows up as nodes just like
+    # a research run does (previously debates wrote nothing to the KG).
+    try:
+        kg_text = f"{state['query']}\n{for_arg[:900]}\n{against_arg[:900]}"
+        kg.extract_and_link_triples(
+            kg_text, user=user, provider=provider,
+            model=state.get('model'), user_id=user_id, source="debate",
+        )
+        print("  ✅ Debate concepts linked into Knowledge Graph")
+    except Exception as e:
+        print(f"  ⚠️ Debate KG error: {e}")
+
     # ---------- Index debate in semantic search ----------
     try:
         semantic_search.add_to_index(

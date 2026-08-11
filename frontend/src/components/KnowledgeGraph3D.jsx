@@ -30,13 +30,13 @@ const T = {
 const NODE_HEX = {
   claim: 0x00ff0f, evidence: 0x00ccff, argument: 0xff2040,
   topic: 0xe06c45, debate_topic: 0xff2040, concept: 0xa855f7,
-  entity: 0x1dab82, major: 0x00ff0f, debate: 0xff2040,
+  entity: 0x1dab82, major: 0x00ff0f, debate: 0xff2040, pdf: 0xff8a3d,
   core: 0xa855f7, default: 0x5878d4
 }
 const NODE_CSS = {
   claim: '#00ff0f', evidence: '#00ccff', argument: '#ff2040',
   topic: '#e06c45', debate_topic: '#ff2040', concept: '#a855f7',
-  entity: '#1dab82', major: '#00ff0f', debate: '#ff2040',
+  entity: '#1dab82', major: '#00ff0f', debate: '#ff2040', pdf: '#ff8a3d',
   core: '#a855f7', default: '#5878d4'
 }
 const NODE_ICON = {

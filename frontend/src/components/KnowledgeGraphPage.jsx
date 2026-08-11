@@ -37,6 +37,7 @@ const NODE_COLORS = {
   topic:       { fill: "#FF8800", glow: "#FF8800", ring: "#FFAA60", text: "#FFDDC0" },
   debate_topic:{ fill: "#FF2D78", glow: "#FF2D78", ring: "#FF80B0", text: "#FFCCE0" },
   concept:     { fill: "#CC44FF", glow: "#CC44FF", ring: "#E099FF", text: "#F2CCFF" },
+  pdf:         { fill: "#FF8A3D", glow: "#FF8A3D", ring: "#FFB980", text: "#FFE0C4" },
   entity:      { fill: "#00FFCC", glow: "#00FFCC", ring: "#80FFE8", text: "#CCFFF5" },
   major:       { fill: "#00FF9F", glow: "#00FF9F", ring: "#80FFD0", text: "#CCFFE8" },
   debate:      { fill: "#FF2D78", glow: "#FF2D78", ring: "#FF80B0", text: "#FFCCE0" },

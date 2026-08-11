@@ -2943,15 +2943,6 @@ function StorySection(){
    ROOT APP
 ══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage(){
-  // "Explore Chambers" InfiniteMenu hero (idea #2). Tiles are generated once.
-  const [exploreOpen, setExploreOpen] = useState(false);
-  const chamberItems = useRef(null);
-  if (!chamberItems.current) {
-    chamberItems.current = CHAMBERS.map(c => ({
-      image: makeTile({ title: c.title, tag: c.tag, accent: c.accent }),
-      title: c.title, description: c.desc, path: c.path,
-    }));
-  }
   useEffect(()=>{
     const el=document.createElement("style");
     el.setAttribute("data-polynous","1");
@@ -2987,24 +2978,6 @@ export default function LandingPage(){
       <div className="noise-overlay"/>
       <NeuralCanvas/>
       <ScrollProgressBar/>
-      {/* Explore Chambers: floating trigger + InfiniteMenu overlay */}
-      <button
-        onClick={()=>setExploreOpen(true)}
-        style={{position:"fixed",left:24,bottom:24,zIndex:60,display:"flex",alignItems:"center",gap:9,padding:"11px 18px",borderRadius:9999,cursor:"pointer",
-          background:"rgba(10,10,26,0.72)",border:"1px solid rgba(0,255,15,0.3)",color:"#eaf7ee",backdropFilter:"blur(18px)",
-          fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.04em",boxShadow:"0 0 22px -6px rgba(0,255,15,0.4)"}}
-      >
-        <span className="material-symbols-outlined" style={{fontSize:18,color:"#00ff0f"}}>hub</span>
-        Explore Chambers
-      </button>
-      <ConstellationExplorer
-        open={exploreOpen}
-        onClose={()=>setExploreOpen(false)}
-        items={chamberItems.current}
-        heading="Explore the Chambers"
-        subheading="Spin the sphere. Release to focus a chamber. Tap the arrow to enter."
-        onSelect={(it)=>{ window.location.href = it.path; }}
-      />
       <main style={{position:"relative",zIndex:10,minHeight:"100vh"}}>
         <Header/>
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px"}}>

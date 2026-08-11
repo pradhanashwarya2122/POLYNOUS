@@ -359,6 +359,20 @@ async def ask_pdf(query: str, req: Request, pdf_name: Optional[str] = None, db: 
     if user is None:
         raise HTTPException(status_code=401, detail="Sign in to ask about your PDFs.")
     result = await run_in_threadpool(rag_answer_from_pdf, query, pdf_name, 5, user)
+
+    # Populate the knowledge graph from the PDF Q&A, tagged source='pdf' so these
+    # concepts are visually distinguishable from research/debate ones in the graph.
+    try:
+        from app.knowledge_graph.graph_manager import kg
+        ans = result.get("answer", "") if isinstance(result, dict) else ""
+        if ans:
+            provider = getattr(user, "preferred_provider", "anthropic") or "anthropic"
+            await run_in_threadpool(
+                kg.extract_and_link_triples, f"{query}\n{ans[:1600]}",
+                user, provider, None, user.public_id, "pdf",
+            )
+    except Exception as e:
+        print(f"⚠️ PDF KG extraction skipped: {e}")
     return result
 
 

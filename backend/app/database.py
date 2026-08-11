@@ -131,15 +131,19 @@ def init_db():
     if auto:
         try:
             run_migrations()
-            return
         except Exception as e:
             print(f"❌ Alembic migration failed: {e}")
             if IS_PRODUCTION:
                 raise
             print("⚠️  Falling back to create_all for local dev…")
+    # ALWAYS run create_all as an idempotent backfill (checkfirst=True: it only
+    # CREATEs tables that don't exist — it never alters or drops existing ones).
+    # This rescues a legacy DB that was stamped 'head' while actually missing
+    # newer tables (e.g. usage_logs, research_cache); without this those inserts
+    # fail with "relation does not exist" and abort the whole request.
     try:
         Base.metadata.create_all(bind=engine)
-        print("✅ Database tables created/verified (create_all fallback)!")
+        print("✅ Database tables created/verified (create_all backfill)!")
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         if IS_PRODUCTION:

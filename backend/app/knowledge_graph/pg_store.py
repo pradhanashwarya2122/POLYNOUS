@@ -172,10 +172,13 @@ class PgGraph:
         return node_ids, edges
 
     def extract_and_link_triples(self, text_in: str, user=None, provider: str = "anthropic",
-                                 model: str = None, user_id: str = "guest") -> List[str]:
+                                 model: str = None, user_id: str = "guest",
+                                 source: str = "research") -> List[str]:
         """LLM-extract typed {subject, relation, object} triples and store them
-        as concept nodes + typed edges (mirrors the Neo4j version)."""
+        as concept nodes + typed edges. `source` (research/debate/pdf) is stored
+        on each node so the graph can distinguish where a concept came from."""
         uid = _sanitize(user_id)
+        src = source if source in ("research", "debate", "pdf") else "research"
         try:
             from app.llm_client import ask_llm
             system = (
@@ -208,10 +211,11 @@ class PgGraph:
                         continue
                     for nm in (subj_disp, obj_disp):
                         conn.execute(text("""
-                            INSERT INTO kg_nodes (user_id, name, ntype)
-                            VALUES (:u, :n, 'concept')
-                            ON CONFLICT (user_id, ntype, name) DO NOTHING
-                        """), {"u": uid, "n": nm})
+                            INSERT INTO kg_nodes (user_id, name, ntype, props)
+                            VALUES (:u, :n, 'concept', :p)
+                            ON CONFLICT (user_id, ntype, name)
+                            DO UPDATE SET props = kg_nodes.props || :p
+                        """), {"u": uid, "n": nm, "p": json.dumps({"source": src})})
                         names.add(nm)
                     conn.execute(text("""
                         INSERT INTO kg_edges (user_id, source, target, rel_type, confidence, cnt)
@@ -322,7 +326,7 @@ class PgGraph:
         try:
             with engine.connect() as conn:
                 node_rows = conn.execute(text("""
-                    SELECT n.name, n.ntype,
+                    SELECT n.name, n.ntype, n.props->>'source' AS src,
                            (SELECT count(*) FROM kg_edges e
                              WHERE e.user_id=n.user_id AND (e.source=n.name OR e.target=n.name)) AS deg
                     FROM kg_nodes n WHERE n.user_id=:u ORDER BY deg DESC LIMIT 300
@@ -331,11 +335,17 @@ class PgGraph:
                     SELECT source, target, rel_type, weight, cnt FROM kg_edges
                     WHERE user_id=:u LIMIT 600
                 """), {"u": uid}).fetchall()
+
+            def _disp_type(nt, src):
+                # Concepts get a distinguishable type by where they came from
+                # (pdf / debate) so the graph can colour them differently.
+                return src if (nt == "concept" and src in ("pdf", "debate")) else nt
             nodes = [{
-                "id": f"{nt}_{name}", "label": name, "type": nt,
+                "id": f"{nt}_{name}", "label": name,
+                "type": _disp_type(nt, src), "source": src or "research",
                 "size": min(38, (deg or 0) * 5 + 16), "connections": deg or 0,
                 "user_id": uid,
-            } for (name, nt, deg) in node_rows]
+            } for (name, nt, src, deg) in node_rows]
             valid = {n["label"] for n in nodes}
             edges = []
             for (s, t, rt, w, cnt) in edge_rows:
@@ -654,9 +664,9 @@ def _node_id(name, node_rows):
 
 
 def _ntype_of(name, node_rows):
-    for (n, nt, _d) in node_rows:
-        if n == name:
-            return nt
+    for row in node_rows:      # rows are (name, ntype, src, deg)
+        if row[0] == name:
+            return row[1]
     return "concept"
 
 

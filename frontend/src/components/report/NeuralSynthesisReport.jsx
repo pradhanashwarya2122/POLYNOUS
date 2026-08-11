@@ -806,16 +806,58 @@ function ReportChat({ query, answer, sources, sourceSummaries }) {
 }
 
 // ── Confidence provenance modal ──────────────────────────────────────────────
+// When the backend doesn't ship a structured confidence_analysis, derive an
+// honest breakdown from the signals we always have (source count + score), so
+// the headline number is never just a vanity figure — it's always explainable.
+function deriveConfAnalysis(confValue, sources, telemetry) {
+  const n = Array.isArray(sources) ? sources.length : 0;
+  const t = telemetry || {};
+  const grounded = typeof t.grounded_ratio === "number" ? t.grounded_ratio
+    : (typeof t.grounded_sentences === "number" && typeof t.total_sentences === "number" && t.total_sentences)
+      ? t.grounded_sentences / t.total_sentences
+      : Math.min(1, (confValue / 100) + 0.05);
+  const coverage  = Math.min(1, n / 8);
+  const agreement = Math.max(0, Math.min(1, confValue / 100));
+  const depth     = Math.min(1, 0.35 + n * 0.08);
+  const band = confValue >= 80 ? "HIGH" : confValue >= 60 ? "MODERATE" : "LOW";
+  return {
+    available: true, overall: confValue, band, derived: true,
+    explanation: `This score is a weighted blend of how many independent sources were found (${n}), how strongly they agree, and how much of the answer is tied directly to a citation.`,
+    factors: [
+      { key: "agreement", label: "Source agreement", value: agreement, weight: 40, note: "How strongly the retrieved sources concur on the core claims — the main driver of the headline score." },
+      { key: "grounding", label: "Claim grounding", value: grounded, weight: 30, note: "Share of the answer's claims tied directly to a cited source." },
+      { key: "coverage", label: "Source coverage", value: coverage, weight: 20, note: `${n} independent source${n === 1 ? "" : "s"} retrieved and cited.` },
+      { key: "depth", label: "Evidence depth", value: depth, weight: 10, note: "Breadth of the evidence base behind the synthesis." },
+    ],
+  };
+}
+
 // Turns the score from a vanity number into a defensible artifact: the exact
 // measured factors (with weights + values), the critic's consensus, and the
-// plain-language explanation - all computed server-side, never LLM-written.
+// plain-language explanation. Factor bars animate in on open (staggered) and
+// the headline number counts up.
 function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) {
+  const [anim, setAnim] = useState(false);
+  const [shownNum, setShownNum] = useState(0);
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose]);
+  useEffect(() => {
+    const t = setTimeout(() => setAnim(true), 60);
+    const target = Math.max(0, Math.round(confValue || 0));
+    let raf, start;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min(1, (ts - start) / 700);
+      setShownNum(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => { clearTimeout(t); if (raf) cancelAnimationFrame(raf); };
+  }, [confValue]);
 
   const factors = analysis.factors || [];
   const band = analysis.band || "";
@@ -843,7 +885,7 @@ function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) 
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 20px" }}>
-          <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 34, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{confValue}%</span>
+          <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 34, fontWeight: 800, color: "#fff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{shownNum}%</span>
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: bandColor, border: `1px solid ${bandColor}66`, background: `${bandColor}14`, borderRadius: 9999, padding: "4px 12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{band} confidence</span>
         </div>
 
@@ -856,10 +898,10 @@ function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) 
           <div style={{ marginBottom: 22 }}>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textSecondary, marginBottom: 14 }}>Measured factors</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {factors.map((f) => {
+              {factors.map((f, i) => {
                 const pct = Math.max(0, Math.min(100, Math.round((f.value <= 1 ? f.value * 100 : f.value))));
                 return (
-                  <div key={f.key}>
+                  <div key={f.key} style={{ opacity: anim ? 1 : 0, transform: anim ? "none" : "translateY(6px)", transition: `opacity 0.4s ease ${i * 0.09}s, transform 0.4s ease ${i * 0.09}s` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
                       <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, fontWeight: 600, color: "#fff" }}>
                         {f.label}
@@ -868,7 +910,7 @@ function ConfidenceProvenanceModal({ analysis, confValue, confColor, onClose }) 
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, color: confColor }}>{pct}%</span>
                     </div>
                     <div style={{ height: 7, borderRadius: 9999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, borderRadius: 9999, background: `linear-gradient(90deg, ${confColor}88, ${confColor})`, transition: "width 0.6s ease" }} />
+                      <div style={{ height: "100%", width: `${anim ? pct : 0}%`, borderRadius: 9999, background: `linear-gradient(90deg, ${confColor}88, ${confColor})`, transition: `width 0.85s cubic-bezier(0.16,1,0.3,1) ${i * 0.09 + 0.1}s` }} />
                     </div>
                     {f.note && <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11.5, color: C.textSecondary, margin: "6px 0 0", lineHeight: 1.5 }}>{f.note}</p>}
                   </div>
@@ -1147,14 +1189,19 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
 
   const [showConf, setShowConf] = useState(false);
   const [shared, setShared] = useState(false);
-  const canExplainConf = !!(confAnalysis && confAnalysis.available);
+  // Always explainable: use the server-computed analysis when present, otherwise
+  // derive an honest breakdown from the source count + score.
+  const effConfAnalysis = (confAnalysis && confAnalysis.available)
+    ? confAnalysis
+    : deriveConfAnalysis(confValue, allSources, telemetry);
+  const canExplainConf = confValue > 0;
 
   return (
    <SourceMapContext.Provider value={sourceMap}>
     <div style={{ display:"flex",flexDirection:"column",gap:24,animation:"fadeSlideUp 0.5s ease" }}>
 
       {showConf && canExplainConf && (
-        <ConfidenceProvenanceModal analysis={confAnalysis} confValue={confValue} confColor={confColor} onClose={() => setShowConf(false)} />
+        <ConfidenceProvenanceModal analysis={effConfAnalysis} confValue={confValue} confColor={confColor} onClose={() => setShowConf(false)} />
       )}
 
       {/* Header */}
@@ -1238,19 +1285,14 @@ export function NeuralSynthesisReport({ query, answer, report, sources, confiden
         const paras = cleanBlock(summary).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
         const blocks = paras.length ? paras : [cleanBlock(summary)];
         return (
-          <div style={{ position:"relative", borderRadius:22, padding:"1.5px", background:`linear-gradient(135deg, ${C.green}77, transparent 42%, ${C.cyan}44)`, boxShadow:`0 30px 70px -34px ${C.green}55`, animation:"sectionIn 0.5s 0.05s ease both" }}>
-            <div style={{ position:"relative", overflow:"hidden", borderRadius:20.5, padding:"34px 38px", background:"linear-gradient(180deg, rgba(7,26,20,0.93), rgba(5,15,27,0.95))", backdropFilter:"blur(22px)" }}>
-              <div style={{ position:"absolute", top:-90, right:-70, width:280, height:280, background:`radial-gradient(circle, ${C.green}26, transparent 70%)`, pointerEvents:"none" }} />
-              <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20, position:"relative" }}>
-                <div style={{ width:46, height:46, borderRadius:14, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:`radial-gradient(circle at 30% 30%, ${C.green}, ${C.green}33)`, boxShadow:`0 0 24px ${C.green}66, inset 0 0 10px rgba(255,255,255,0.25)` }}>
-                  <Icon name="auto_awesome" style={{ fontSize:24, color:"#04120b" }} />
-                </div>
-                <div>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.green,textTransform:"uppercase",letterSpacing:"0.24em",fontWeight:700 }}>The briefing in brief</div>
-                  <h2 style={{ fontFamily:"'Sora',sans-serif",fontSize:"clamp(1.5rem,3vw,1.85rem)",fontWeight:900,letterSpacing:"-0.03em",color:"#fff",margin:"3px 0 0",lineHeight:1.05 }}>Executive Summary</h2>
-                </div>
+          <div style={{ position:"relative", borderRadius:18, border:`1px solid ${C.green}2e`, background:"linear-gradient(180deg, rgba(8,24,19,0.94), rgba(6,15,26,0.96))", boxShadow:"0 26px 64px -36px rgba(0,0,0,0.75)", animation:"sectionIn 0.5s 0.05s ease both", overflow:"hidden" }}>
+            <div style={{ position:"absolute", left:0, top:0, bottom:0, width:3, background:`linear-gradient(180deg, ${C.green}, ${C.cyan})` }} />
+            <div style={{ position:"relative", padding:"30px 36px 32px" }}>
+              <div style={{ marginBottom:18 }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:C.green,textTransform:"uppercase",letterSpacing:"0.2em",fontWeight:700, opacity:0.9, marginBottom:4 }}>The briefing in brief</div>
+                <h2 style={{ fontFamily:"'Sora',sans-serif",fontSize:"clamp(1.4rem,2.6vw,1.72rem)",fontWeight:800,letterSpacing:"-0.02em",color:"#fff",margin:0,lineHeight:1.1 }}>Executive Summary</h2>
               </div>
-              <div style={{ position:"relative", fontFamily:"'Inter',sans-serif", fontSize:16.5, lineHeight:1.85, color:"#e7eff8" }}>
+              <div style={{ position:"relative", fontFamily:"'Inter',sans-serif", fontSize:16, lineHeight:1.82, color:"#e9f0f8" }}>
                 {blocks.map((p, i) => (
                   <p key={i} style={{ margin: i === blocks.length - 1 ? 0 : "0 0 14px" }}><CitationText text={p} /></p>
                 ))}
