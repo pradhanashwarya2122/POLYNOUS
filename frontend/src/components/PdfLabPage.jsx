@@ -1056,6 +1056,31 @@ function LoadingDots({ label }) {
   );
 }
 
+// 9-square processing loader (adapted from Uiverse.io by JkHuger), tinted gold.
+function SquareLoader() {
+  return (
+    <>
+      <style>{`
+        @keyframes loader_5191 { from { opacity: 0; } to { opacity: 1; } }
+        .pdf-sqload { position: relative; width: 60px; height: 60px; margin: 0 auto; }
+        .pdf-sqload .square { background: ${T.gold}; width: 10px; height: 10px; position: absolute; top: 50%; left: 50%; margin-top: -5px; margin-left: -5px; border-radius: 2px; box-shadow: 0 0 8px ${T.gold}66; }
+        .pdf-sqload #sq1 { margin-top: -25px; margin-left: -25px; animation: loader_5191 675ms ease-in-out 0s infinite alternate; }
+        .pdf-sqload #sq2 { margin-top: -25px; animation: loader_5191 675ms ease-in-out 75ms infinite alternate; }
+        .pdf-sqload #sq3 { margin-top: -25px; margin-left: 15px; animation: loader_5191 675ms ease-in-out 150ms infinite; }
+        .pdf-sqload #sq4 { margin-left: -25px; animation: loader_5191 675ms ease-in-out 225ms infinite; }
+        .pdf-sqload #sq5 { animation: loader_5191 675ms ease-in-out 300ms infinite; }
+        .pdf-sqload #sq6 { margin-left: 15px; animation: loader_5191 675ms ease-in-out 375ms infinite; }
+        .pdf-sqload #sq7 { margin-top: 15px; margin-left: -25px; animation: loader_5191 675ms ease-in-out 450ms infinite; }
+        .pdf-sqload #sq8 { margin-top: 15px; animation: loader_5191 675ms ease-in-out 525ms infinite; }
+        .pdf-sqload #sq9 { margin-top: 15px; margin-left: 15px; animation: loader_5191 675ms ease-in-out 600ms infinite; }
+      `}</style>
+      <div className="pdf-sqload" role="status" aria-label="Processing document">
+        {[1,2,3,4,5,6,7,8,9].map(i => <div key={i} className="square" id={`sq${i}`} />)}
+      </div>
+    </>
+  );
+}
+
 function SkeletonLines({ n = 4 }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:9, marginTop:14 }}>
@@ -1385,8 +1410,19 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
       await fetchPdfs();
     } catch (err) {
       if (poll) clearInterval(poll);
-      setUploadMsg("Upload failed - is the server running?");
-      setUploadError("Connection error. Is backend running?");
+      // Surface the actual reason instead of always blaming the backend.
+      const s = err?.status;
+      const msg =
+        s === 401 ? "Your session expired — please sign in again."
+        : s === 413 ? "That PDF is too large. Try a smaller file or split it."
+        : s === 415 || s === 400 ? (err.message || "That file couldn't be read as a PDF.")
+        : s === 429 ? "Rate limit reached — wait a moment and retry."
+        : s >= 500 ? (err.message || "The server hit an error processing this PDF.")
+        : (err?.message && !/failed to fetch/i.test(err.message))
+          ? err.message
+          : "Couldn't reach the server. Check your connection and try again.";
+      setUploadMsg("Upload failed");
+      setUploadError(msg);
       notify("✗ Upload failed");
     } finally {
       setUploading(false);
@@ -1591,14 +1627,27 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
           >
             <input ref={fileRef} type="file" accept=".pdf" style={{ display:"none" }} onChange={onFileChange} />
             <div style={{ width:76, height:76, borderRadius:"50%", background:"rgba(255,214,10,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px" }}>
-              <Icon name={uploading ? "hourglass_top" : "upload_file"} size={38} color={uploadError ? T.crimson : T.gold} />
+              {uploading ? <SquareLoader /> : <Icon name="upload_file" size={38} color={uploadError ? T.crimson : T.gold} />}
             </div>
             <h2 style={{ fontFamily:T.display, fontWeight:800, fontSize:18, color:"#fff", marginBottom:8, letterSpacing:"0.01em" }}>
               {uploading ? "Processing document…" : "Drop your PDF here or click to browse"}
             </h2>
-            <p style={{ fontFamily:T.body, fontSize:14, color:T.textMid, marginBottom:24 }}>
+            <p style={{ fontFamily:T.body, fontSize:14, color:T.textMid, marginBottom: uploading ? 24 : 14 }}>
               Upload research papers, reports, or any PDF document
             </p>
+
+            {!uploading && (
+              <div style={{
+                display:"flex", gap:9, alignItems:"flex-start", textAlign:"left",
+                maxWidth:440, margin:"0 auto 22px", padding:"11px 14px", borderRadius:12,
+                background:"rgba(0,255,15,0.05)", border:"1px solid rgba(0,255,15,0.18)",
+              }}>
+                <Icon name="info" size={16} color={T.green} style={{ marginTop:1, flexShrink:0 }} />
+                <span style={{ fontFamily:T.body, fontSize:12.5, color:"#cfe6d6", lineHeight:1.55 }}>
+                  <b style={{ color:"#fff" }}>Long documents need an OpenAI API key.</b> Big PDFs are split into many chunks that must be embedded in one pass — OpenAI's embedding endpoint handles that scale and long context far more reliably than the other providers, so large files fall back to it. Add your key in <b>Settings → API Keys</b> if a long upload fails.
+                </span>
+              </div>
+            )}
 
             {uploadError && (
               <div style={{

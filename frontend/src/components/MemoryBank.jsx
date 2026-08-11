@@ -1018,10 +1018,35 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
           {/* ── METRIC CARDS ── */}
           {stats && (
             <section style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:20, marginBottom:44 }}>
-              <MetricCard value={stats.total_research || 0} label="Total Sessions"  sub="+12% this week" icon="hexagon" delay={0}   />
-              <MetricCard value={stats.total_debates   || 0} label="Total Debates"  sub="+8% this week"  icon="hexagon" delay={80}  />
-              <MetricCard value={stats.unique_topics   || 0} label="Unique Topics"  sub="+15% this week" icon="hexagon" delay={160} />
-              <MetricCard value={`${stats.avg_confidence || 0}%`} label="Avg Confidence" sub="+11%"      icon="show_chart" delay={240} />
+              {(() => {
+                // Real week-over-week trends computed from the timestamped
+                // history/debates arrays — no longer hardcoded placeholders.
+                const now = Date.now(), DAY = 864e5;
+                const between = (arr, a, b) => (arr || []).filter(x => {
+                  const t = x?.timestamp && new Date(x.timestamp).getTime();
+                  return t && t >= a && t < b;
+                }).length;
+                const wow = (arr) => {
+                  const thisW = between(arr, now - 7 * DAY, now + DAY);
+                  const lastW = between(arr, now - 14 * DAY, now - 7 * DAY);
+                  if (!thisW && !lastW) return "no activity yet";
+                  if (!lastW) return `+${thisW} this week`;
+                  const pct = Math.round(((thisW - lastW) / lastW) * 100);
+                  return `${pct >= 0 ? "+" : ""}${pct}% this week`;
+                };
+                const topicsWeek = new Set(
+                  (history || [])
+                    .filter(h => h?.timestamp && new Date(h.timestamp).getTime() >= now - 7 * DAY)
+                    .map(h => (h.query || h.topic || "").toLowerCase().trim())
+                    .filter(Boolean)
+                ).size;
+                return (<>
+                  <MetricCard value={stats.total_research || 0} label="Total Sessions"  sub={wow(history)} icon="hexagon" delay={0}   />
+                  <MetricCard value={stats.total_debates   || 0} label="Total Debates"  sub={wow(debates)} icon="hexagon" delay={80}  />
+                  <MetricCard value={stats.unique_topics   || 0} label="Unique Topics"  sub={topicsWeek ? `+${topicsWeek} this week` : "no new topics"} icon="hexagon" delay={160} />
+                  <MetricCard value={`${stats.avg_confidence || 0}%`} label="Avg Confidence" sub={stats.total_research ? `across ${stats.total_research} sessions` : "no data yet"} icon="show_chart" delay={240} />
+                </>);
+              })()}
             </section>
           )}
 
