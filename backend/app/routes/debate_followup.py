@@ -16,9 +16,11 @@ the arguments it received), so neither re-runs the whole adversarial pipeline:
 Strict BYO-key policy, matching the streaming debate endpoints.
 """
 import re
+import asyncio
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.database import get_db
 from app.models.user import User
@@ -30,6 +32,19 @@ from app.agents.debate_agents import judge_debate, JUDGE_PERSONAS, _get_client, 
 from app.utils.json_extract import extract_json_object
 
 router = APIRouter()
+
+
+async def _bounded(call, deadline: float = 40.0, label: str = "debate step"):
+    """Run a blocking LLM call in a threadpool with a hard deadline.
+
+    Two fixes in one: (1) run_in_threadpool keeps the blocking judge/LLM call off
+    the async event loop, so it can never stall the whole server; (2) the
+    asyncio.wait_for deadline guarantees the endpoint returns a clean 504 instead
+    of hanging for minutes if the model is slow. `call` is a zero-arg callable."""
+    try:
+        return await asyncio.wait_for(run_in_threadpool(call), timeout=deadline)
+    except asyncio.TimeoutError:
+        raise HTTPException(504, f"{label} took too long and was stopped. Please try again.")
 
 
 def _resolve(request: Request, db: Session):
@@ -93,12 +108,12 @@ async def debate_rejudge(request: Request, db: Session = Depends(get_db)):
     _guard(user, api_key)
 
     try:
-        verdict = judge_debate(
+        verdict = await _bounded(lambda: judge_debate(
             for_arg=for_opening, against_arg=against_opening, query=query,
             api_key=api_key, provider=provider,
             for_rebuttal=for_rebuttal, against_rebuttal=against_rebuttal,
             total_sources=total_sources, model=model, persona=persona,
-        )
+        ), deadline=40.0, label="Re-judge")
     except HTTPException:
         raise
     except Exception as e:
@@ -142,8 +157,8 @@ async def debate_cross_exam(request: Request, db: Session = Depends(get_db)):
     )
     try:
         client, client_type = _get_client(provider, api_key)
-        raw = _call_with_retry(client, client_type, _CROSSEX_SYSTEM, user_prompt,
-                               700, 0.5, model=model, provider=provider)
+        raw = await _bounded(lambda: _call_with_retry(client, client_type, _CROSSEX_SYSTEM, user_prompt,
+                               700, 0.5, model=model, provider=provider), deadline=40.0, label="Cross-examination")
         data = extract_json_object(raw)
         if not isinstance(data, dict):
             raise ValueError("cross-examination returned no parseable JSON")
@@ -192,8 +207,8 @@ async def debate_fallacies(request: Request, db: Session = Depends(get_db)):
     )
     try:
         client, client_type = _get_client(provider, api_key)
-        raw = _call_with_retry(client, client_type, _FALLACY_SYSTEM, user_prompt,
-                               700, 0.2, model=model, provider=provider)
+        raw = await _bounded(lambda: _call_with_retry(client, client_type, _FALLACY_SYSTEM, user_prompt,
+                               700, 0.2, model=model, provider=provider), deadline=40.0, label="Fallacy analysis")
         data = extract_json_object(raw)
         if not isinstance(data, dict):
             raise ValueError("no parseable JSON")
@@ -253,9 +268,11 @@ async def debate_respond(request: Request, db: Session = Depends(get_db)):
     )
     try:
         client, client_type = _get_client(provider, api_key)
-        opponent_response = _call_with_retry(
+        opponent_response = await _bounded(lambda: _call_with_retry(
             client, client_type, system, user_prompt, 500, 0.6, model=model, provider=provider,
-        )
+        ), deadline=30.0, label="Opponent response")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(502, f"Opponent response failed: {e}")
 
@@ -271,12 +288,12 @@ async def debate_respond(request: Request, db: Session = Depends(get_db)):
     total_sources = int(body.get("total_sources") or 0) or _sources_from(
         for_opening, against_opening, for_rebuttal, against_rebuttal)
     try:
-        verdict = judge_debate(
+        verdict = await _bounded(lambda: judge_debate(
             for_arg=for_opening, against_arg=against_opening, query=query,
             api_key=api_key, provider=provider,
             for_rebuttal=for_rebuttal, against_rebuttal=against_rebuttal,
             total_sources=total_sources, model=model, persona=persona,
-        )
+        ), deadline=30.0, label="Re-judge after your argument")
     except HTTPException:
         raise
     except Exception as e:

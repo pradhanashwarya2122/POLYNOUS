@@ -4,6 +4,30 @@
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// ── Token-refresh coordination ──────────────────────────────────────────
+// Prevents a wall of /auth/refresh 401s: concurrent 401s reuse one in-flight
+// refresh, and after a failure we back off for a short window.
+let _refreshInFlight = null;
+let _refreshFailedUntil = 0;
+function _refreshBlockedUntil() {
+  return Date.now() < _refreshFailedUntil;
+}
+async function _sharedRefresh() {
+  if (_refreshInFlight) return _refreshInFlight;
+  _refreshInFlight = fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  })
+    .then((res) => {
+      if (!res.ok) _refreshFailedUntil = Date.now() + 30000; // back off 30s
+      return res;
+    })
+    .catch(() => null)
+    .finally(() => { _refreshInFlight = null; });
+  return _refreshInFlight;
+}
+
 /**
  * Wrapper around fetch that:
  * - uses the correct API base URL
@@ -32,15 +56,13 @@ export async function apiFetch(url, options = {}) {
       credentials: 'include', // required for cross‑site cookie
     });
 
-    // If 401 and we had a token, try refreshing it
-    if (response.status === 401 && token) {
-      const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
+    // If 401 and we had a token, try refreshing it. Concurrent 401s share a
+    // single in-flight refresh, and a recent failure is cached briefly, so we
+    // never spam /auth/refresh (which produced a wall of console 401s).
+    if (response.status === 401 && token && !_refreshBlockedUntil()) {
+      const refreshResponse = await _sharedRefresh();
 
-      if (refreshResponse.ok) {
+      if (refreshResponse && refreshResponse.ok) {
         const data = await refreshResponse.json();
         const newToken = data.access_token;
         

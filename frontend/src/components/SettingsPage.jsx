@@ -411,7 +411,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona 
               <>
                 <img
                   src={persona.img}
-                  alt=""
+                  alt={persona.name}
                   style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
                   onError={e => { e.currentTarget.style.display = "none"; }}
                 />
@@ -615,7 +615,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona 
               <>
                 <img
                   src={persona.img}
-                  alt=""
+                  alt={persona.name}
                   style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
                   onError={e => { e.currentTarget.style.display = "none"; }}
                 />
@@ -1354,7 +1354,7 @@ function ProfileSection({ user: initialUser, push, activePersona, onPersonaChang
                 }}>
                   <img
                     src={currentPersona.img}
-                    alt=""
+                    alt={currentPersona.name}
                     style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
                     onError={e => { e.currentTarget.style.display = "none"; }}
                   />

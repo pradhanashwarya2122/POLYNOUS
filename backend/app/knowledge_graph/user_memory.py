@@ -286,3 +286,13 @@ class UserMemoryGraph:
 
 user_memory = UserMemoryGraph()
 print("✅ User Memory System Ready!")
+
+# ── Optional Postgres backend (set GRAPH_BACKEND=postgres) ───────────────
+import os as _os
+if _os.getenv("GRAPH_BACKEND", "postgres").lower() == "postgres":
+    try:
+        from app.knowledge_graph.pg_store import user_memory as _pg_mem
+        user_memory = _pg_mem
+        print("🐘 User Memory backend: Postgres")
+    except Exception as _e:
+        print(f"⚠️ Postgres memory backend failed to load: {_e}")

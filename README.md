@@ -28,7 +28,7 @@
 
 </div>
 
-![Version](https://img.shields.io/badge/v3.0.0-7c3aed?style=flat-square&labelColor=0a0a1e&label=version&color=7c3aed)
+![Version](https://img.shields.io/badge/v4.0.0-7c3aed?style=flat-square&labelColor=0a0a1e&label=version&color=7c3aed)
 ![Status](https://img.shields.io/badge/production--ready-16a34a?style=flat-square&labelColor=0a0a1e&label=status)
 ![Python](https://img.shields.io/badge/3.11+-3b82f6?style=flat-square&labelColor=0a0a1e&label=python&logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/18+-06b6d4?style=flat-square&labelColor=0a0a1e&label=react&logo=react&logoColor=white)
@@ -42,8 +42,7 @@
 
 ![Backend](https://img.shields.io/badge/Backend-Railway-0B0D0E?style=flat-square&logo=railway&logoColor=white)
 ![Frontend](https://img.shields.io/badge/Frontend-Cloudflare_Pages-F38020?style=flat-square&logo=cloudflare&logoColor=white)
-![Neo4j](https://img.shields.io/badge/Graph-Neo4j_AuraDB-4581C3?style=flat-square&logo=neo4j&logoColor=white)
-![Pinecone](https://img.shields.io/badge/Vectors-Pinecone-6366f1?style=flat-square&logo=pinecone&logoColor=white)
+![Postgres](https://img.shields.io/badge/Data-PostgreSQL_+_pgvector-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Claude](https://img.shields.io/badge/AI-Anthropic_Claude-d97706?style=flat-square&logo=anthropic&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-22c55e?style=flat-square&logo=chainlink&logoColor=white)
 
@@ -58,6 +57,44 @@ POLYNOUS is not a chatbot wrapper. It's a multi-agent research platform where se
 The idea is simple. A single model gives you one confident guess with no sources you can open and no sense of what it got wrong. I wanted the opposite. So I assembled a research team: one agent searches the live web, one condenses each source, one challenges the findings for contradictions, and one writes a structured report with citations, a computed confidence score, and honest limitations. For contested topics, three more agents run a formal adversarial debate where an AI judge scores both sides on a real rubric and delivers a verdict I can actually inspect.
 
 It's fully multi-user with cryptographic data isolation, bring-your-own API keys across seven providers, a live per-user knowledge graph, semantic memory, PDF analysis, and an analytics dashboard. All of it ships in one deployable codebase.
+
+---
+
+## Version history
+
+I keep this as a running log of what actually shipped in each version, newest first. "Shipped" means it is in the code, not on a wishlist.
+
+### POLYNOUS 4.0, the "one database" release (current)
+
+This is the reliability and graph-intelligence release. I moved the entire data layer onto PostgreSQL and made the graph genuinely smart.
+
+- **Unified on Postgres, dropped Neo4j and Pinecone.** The knowledge graph, memory bank, analytics, and semantic search now all live in one PostgreSQL database with pgvector. No more external graph or vector services that fall asleep on the free tier. One connection string, nothing to keep warm.
+- **pgvector GraphRAG.** Semantic search runs on pgvector cosine search, and my graph question-answering now retrieves entry concepts by meaning first and then reasons over their typed relationships. Vector plus graph, in one query.
+- **Real graph ML, no paid tiers.** PageRank (influence), Leiden and Louvain (auto-topics), betweenness centrality (bridge concepts), Jaccard node similarity, Adamic-Adar and a scikit-learn logistic-regression link predictor, and structural embeddings for "find concepts in a similar position." All pure Python on my own data.
+- **Structural twins in the graph UI.** Click any concept and see its structurally similar concepts, click one to jump to it.
+- **Premium 2D and 3D knowledge graph.** Flat, dimensional nodes sized by PageRank and colored by community, cyan halos on bridge concepts, a physically based 3D scene, a purple Vanta fog backdrop, and an in-graph explainer that teaches every measure.
+- **Reliability fix.** Research runs now always reach the persistence step, so a mid-pipeline hiccup no longer leaves the graph populated but the memory bank and search empty.
+- **Web polish.** Per-route page titles, a themed 404 page, robots.txt, sitemap.xml, llms.txt, alt text, and route-level code splitting so three.js no longer ships on the landing page.
+
+### POLYNOUS 3.0, the "graph intelligence" release
+
+- Turned the knowledge graph from storage into science: real graph algorithms over each user's concepts.
+- Typed relationship extraction, so edges are ENABLES, PART_OF, CONTRADICTS, and so on, not raw co-occurrence.
+- Interactive 2D and 3D graph views with a graph-intelligence panel.
+- "Chat with your report" and NLI-based claim verification.
+
+### POLYNOUS 2.0, the "memory and debate" release
+
+- Debate mode: a FOR agent and an AGAINST agent argue a question while an impartial Judge scores both sides and declares a winner.
+- Per-user knowledge graph, a persistent memory bank that tracks research interests and history, and semantic search over past work.
+- PDF Lab: upload PDFs and ask questions answered with hybrid retrieval and page-anchored citations.
+- Analytics dashboard.
+
+### POLYNOUS 1.0, the "research team" release
+
+- The core idea: a multi-agent research pipeline (Search, Summariser, Critic, Writer) that produces cited, confidence-scored answers instead of one confident guess.
+- Bring-your-own API keys across providers, encrypted per user.
+- Multi-user auth with cryptographic data isolation.
 
 <!-- The honest pitch: I care that the numbers are real. Scores are computed from citations
      verified against the source list, confidence is computed from the sources, and telemetry
@@ -96,8 +133,8 @@ It's fully multi-user with cryptographic data isolation, bring-your-own API keys
 | Per-claim confidence, computed from sources | No | No | 0 to 100% |
 | Adversarial debate with a rubric judge | No | No | FOR / AGAINST / VERDICT |
 | Grounded vs fabricated citation counting | No | No | Per advocate, verified |
-| Persistent knowledge graph | No | No | Neo4j, per user |
-| Semantic memory search | No | No | Pinecone namespaces |
+| Persistent knowledge graph | No | No | PostgreSQL, per user |
+| Semantic memory search | No | No | pgvector, per user |
 | Bring-your-own keys, 7 providers | No | No | Yes |
 | Per-user cryptographic isolation | No | No | Yes |
 | Honest run telemetry (your real spend) | No | No | Tokens, cost, per stage |
@@ -267,7 +304,7 @@ An interactive force-directed graph built on Three.js and Canvas, per user, with
 
 ### Semantic Search
 
-Meaning-based search over my own research history using real OpenAI embeddings (`text-embedding-3-small`, 1536 dimensions) and Pinecone cosine similarity, scoped to my user namespace. Results render as an interactive constellation where similarity sets proximity, with real-time autocomplete and a keyword fallback if the vector path is unavailable.
+Meaning-based search over my own research history using real OpenAI embeddings (`text-embedding-3-small`, 1536 dimensions) and pgvector cosine similarity, scoped per user. Results render as an interactive constellation where similarity sets proximity, with real-time autocomplete and a keyword fallback if the vector path is unavailable.
 
 ### PDF Lab
 
@@ -347,13 +384,12 @@ It surfaces research activity over 7, 30, and 90 day windows, top topics from my
 ║  └──────────────────────────────────────────────────────────┘   ║
 ╚══════════╤═══════════════════╤══════════════════╤═══════════════╝
            │                   │                  │
-  ┌────────▼───────┐  ┌────────▼───────┐  ┌──────▼───────────┐
-  │  PostgreSQL    │  │    Neo4j        │  │    Pinecone      │
-  │ Users          │  │ Knowledge graph │  │ Vector embeddings│
-  │ Sessions       │  │ Entity linking  │  │ Semantic search  │
-  │ Preferences    │  │ Relationships   │  │ Per-user scoped  │
-  │ Encrypted keys │  │ Per-user nodes  │  │ user_{uuid} ns   │
-  └────────────────┘  └────────────────┘  └──────────────────┘
+  ┌───────────────────────────────▼──────────────────────────────┐
+  │                   PostgreSQL  +  pgvector                      │
+  │   Users · sessions · encrypted keys · knowledge graph         │
+  │   (kg_nodes / kg_edges) · vector embeddings · memory ·        │
+  │   analytics · semantic search. One database, per-user scoped. │
+  └───────────────────────────────────────────────────────────────┘
 ```
 
 ### Request lifecycle
@@ -369,7 +405,7 @@ It surfaces research activity over 7, 30, and 90 day windows, top topics from my
 8.  Critic  ->  agreement and disagreement groups
 9.  Writer  ->  the structured, cited report
 10. SSE streams: start, per-agent progress, the visual patches, the final report
-11. On completion: stored in Neo4j, Pinecone, and PostgreSQL
+11. On completion: stored in PostgreSQL (knowledge graph, vector embeddings, memory, all in one database)
 12. The frontend renders the report with the executive summary, findings, and confidence
 ```
 
@@ -391,10 +427,9 @@ It surfaces research activity over 7, 30, and 90 day windows, top topics from my
 | Anthropic, OpenAI, Google, Mistral, Groq, NVIDIA, DeepSeek | User-selectable LLM providers (bring your own key) |
 | OpenAI embeddings | `text-embedding-3-small`, 1536 dimensions, for search and RAG |
 | Tavily | Real-time web search tuned for LLM consumption |
-| Neo4j AuraDB | Relationship-native graph database, Cypher traversal |
-| Pinecone Serverless | Vector database with per-user namespace isolation |
-| PostgreSQL | Relational store for users, sessions, preferences, encrypted keys |
-| SQLAlchemy + Alembic | ORM with parameterized queries and migrations |
+| PostgreSQL + pgvector | One database for everything: users, sessions, encrypted keys, the knowledge graph, semantic vectors, memory, and analytics |
+| scikit-learn / NumPy | Pure-Python graph ML (PageRank, Leiden, betweenness, link prediction, structural embeddings) on CPU |
+| SQLAlchemy | ORM with parameterized queries |
 | python-jose | JWT with HMAC-SHA256 |
 | bcrypt | Adaptive password hashing, salt per password |
 | cryptography (Fernet) | Per-user API key encryption |
@@ -413,10 +448,8 @@ It surfaces research activity over 7, 30, and 90 day windows, top topics from my
 
 | Service | Role |
 |:--------|:-----|
-| Railway | Backend hosting and managed PostgreSQL |
+| Railway | Backend hosting and managed PostgreSQL (with pgvector) |
 | Cloudflare Pages | Frontend on a global CDN |
-| Neo4j AuraDB | Managed graph database (free tier) |
-| Pinecone Serverless | Managed vector database (free tier) |
 
 ---
 
@@ -443,13 +476,9 @@ OPENAI_API_KEY=sk-...
 # Search
 TAVILY_API_KEY=tvly-...
 
-# Databases
-PINECONE_API_KEY=pcsk-...
-PINECONE_ENVIRONMENT=gcp-starter
-NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
-NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=your-aura-password
+# Database (one Postgres holds everything: graph, vectors, memory, analytics)
 DATABASE_URL=postgresql://user:pass@localhost:5432/polynous
+GRAPH_BACKEND=postgres      # Postgres + pgvector. Neo4j and Pinecone are no longer used.
 
 # Auth and encryption
 JWT_SECRET=                 # openssl rand -hex 32
@@ -496,8 +525,8 @@ npm run dev
 | Error | Cause | Fix |
 |:------|:------|:----|
 | `ModuleNotFoundError: magic` | Missing binary on Windows | `pip install python-magic-bin` |
-| `Neo4j connection refused` | Wrong URI scheme | The URI must start with `neo4j+s://` |
-| `Pinecone index not found` | Index auto-creates on first use | Wait 5 to 10 seconds after the first request |
+| KG or search empty | `GRAPH_BACKEND` not set | Set `GRAPH_BACKEND=postgres` and make sure `DATABASE_URL` points at Postgres |
+| `type "vector" does not exist` | pgvector not enabled | It auto-creates on boot; the DB user needs permission to `CREATE EXTENSION vector` |
 | `CORS error` | `FRONTEND_URL` mismatch | Match the env var to the exact frontend URL and port |
 | `401 Unauthorized` | Access token expired (15 min TTL) | Log in again, or let the proactive refresh handle it |
 | `422 Validation Error` | Malformed request body | Check `/docs` for the exact schema |
@@ -516,7 +545,7 @@ POLYNOUS/
 │   │   ├── llm_client.py               # Multi-provider LLM + embedding abstraction
 │   │   ├── llm_providers.py            # Provider registry and model resolution
 │   │   ├── embeddings.py               # OpenAI text-embedding-3-small (BYO key)
-│   │   ├── semantic_search.py          # Pinecone cosine search, user-namespaced
+│   │   ├── semantic_search.py          # semantic search (pgvector when GRAPH_BACKEND=postgres)
 │   │   │
 │   │   ├── agents/
 │   │   │   ├── summariser_agent.py
@@ -529,7 +558,10 @@ POLYNOUS/
 │   │   │   └── debate_graph.py         # Debate pipeline: 3-node StateGraph
 │   │   │
 │   │   ├── knowledge_graph/
-│   │   │   ├── graph_manager.py        # Neo4j CRUD, entity linking, pathfinder
+│   │   │   ├── pg_store.py             # Postgres knowledge graph + memory (default backend)
+│   │   │   ├── pg_semantic.py          # pgvector semantic search + GraphRAG
+│   │   │   ├── graph_algorithms.py     # pure-Python graph ML (PageRank, Leiden, node embeddings, ML link prediction)
+│   │   │   ├── graph_manager.py        # legacy Neo4j backend (deprecated, opt-in via GRAPH_BACKEND=neo4j)
 │   │   │   ├── user_memory.py          # User-scoped memory
 │   │   │   └── hybrid_search.py        # Combined vector + graph search
 │   │   │
@@ -639,8 +671,7 @@ I built this assuming it handles sensitive research across many users, so every 
 | Input sanitization | Middleware for XSS, SQL injection, shell injection, path traversal on every request |
 | CORS | Env-driven allowlist plus a preview-host regex, no wildcard, and CORS headers on error responses |
 | Security headers | CSP, HSTS, X-Frame-Options DENY, X-Content-Type-Options nosniff |
-| Neo4j isolation | Every node carries `user_id`, every read filters `WHERE n.user_id = $user_id` |
-| Pinecone isolation | Each user gets `user_{uuid}`, all operations are namespace-scoped |
+| Graph + vector isolation | Every row in `kg_nodes`, `kg_edges`, `semantic_entries`, and `memory_sessions` carries `user_id`, and every read filters on it |
 | SQL injection | Every query goes through SQLAlchemy, no raw string SQL |
 | PDF security | Magic bytes, embedded JS detection, malware signature scan |
 | Error handling | Safe production messages, stack traces never reach clients in production |
@@ -695,11 +726,10 @@ docker-compose up --build
 
 ## Intelligence Roadmap
 
-<!-- This is the part I care most about long-term. Right now the knowledge graph stores nodes;
-     the goal is to actually run math, ML, DL, and GenAI on top of it. Everything below is
-     planned, not shipped. I keep the line clear on purpose. -->
+<!-- Most of this section is now SHIPPED as of v4.0. I keep the original roadmap below for
+     the story, but the graph ML, typed extraction, and GraphRAG are all in the code now. -->
 
-The honest state today: semantic search and PDF RAG use real embeddings and cosine similarity, but the knowledge graph is still mostly storage (regex entity extraction, simple edge scores, no graph algorithms). Here's how I'm closing that gap. All of this runs on my current stack (Neo4j GDS, scikit-learn, CPU, plus bring-your-own model keys), no GPU required.
+Update: as of v4.0 most of this is shipped. The knowledge graph is no longer just storage. Typed LLM triple extraction, PageRank, Leiden and Louvain communities, betweenness bridge detection, Jaccard and structural-embedding similarity, an ML link predictor, and pgvector GraphRAG all run today. And it runs on pure Python plus scikit-learn on CPU, on top of PostgreSQL and pgvector, no Neo4j GDS and no GPU required. What follows is the roadmap as I originally wrote it, kept for the record.
 
 ### Credibility fixes first
 

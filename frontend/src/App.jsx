@@ -1,24 +1,64 @@
-import SettingsPage from './components/SettingsPage'
 import ProfileSetup from './components/ProfileSetup'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import PageTransition from './components/PageTransition';
+import NotFound from './components/NotFound';
 
-// Page imports
-import GraphFeatureShowcase from './components/GraphFeatureShowcase'
-import KnowledgeGraph3D from './components/KnowledgeGraph3D'
+// Lazy-loaded routes — each becomes its own chunk. The heavy WebGL pages
+// (which pull in three.js) only download when the user actually opens them,
+// keeping the initial bundle small.
+const SettingsPage = lazy(() => import('./components/SettingsPage'))
+const GraphFeatureShowcase = lazy(() => import('./components/GraphFeatureShowcase'))
+const KnowledgeGraph3D = lazy(() => import('./components/KnowledgeGraph3D'))
+const MemoryBank = lazy(() => import('./components/MemoryBank'))
+const ResearchInterface = lazy(() => import('./components/ResearchInterface'))
+const DebateInterface = lazy(() => import('./components/DebateInterface'))
+const KnowledgeGraphPage = lazy(() => import('./components/KnowledgeGraphPage'))
+const SemanticSearchPage = lazy(() => import('./components/SemanticSearchPage'))
+const PdfLabPage = lazy(() => import('./components/PdfLabPage'))
+const PolynousDashboard = lazy(() => import('./components/PolynousDashboard'))
+const InfoPage = lazy(() => import('./components/InfoPage'))
+const PrivacyPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.PrivacyPage })))
+const TermsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.TermsPage })))
+const DocsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.DocsPage })))
+
+// ── Per-route document titles (fixes "every page has the same title") ──
+const BASE_TITLE = 'Polynous';
+const ROUTE_TITLES = {
+  '/': 'Polynous — Multi-Agent AI Research Platform with Memory & Knowledge Graphs',
+  '/auth': 'Sign in — Polynous',
+  '/info': 'About — Polynous',
+  '/docs': 'Docs — Polynous',
+  '/privacy': 'Privacy — Polynous',
+  '/terms': 'Terms — Polynous',
+  '/settings': 'Settings — Polynous',
+  '/research': 'Research — Polynous',
+  '/debate': 'Debate Chamber — Polynous',
+  '/graph': 'Knowledge Graph — Polynous',
+  '/graph3d': '3D Knowledge Graph — Polynous',
+  '/graph-lab': 'Graph Lab — Polynous',
+  '/memory': 'Memory Bank — Polynous',
+  '/search': 'Semantic Search — Polynous',
+  '/pdf-lab': 'PDF Lab — Polynous',
+  '/analytics': 'Analytics — Polynous',
+};
+
+function RouteTitles() {
+  const location = useLocation();
+  useEffect(() => {
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    // NotFound sets its own title; leave unknown paths to it.
+    if (ROUTE_TITLES[path]) document.title = ROUTE_TITLES[path];
+    else if (path === '/auth/callback') document.title = 'Signing in — Polynous';
+    else document.title = BASE_TITLE;
+  }, [location.pathname]);
+  return null;
+}
+
+// Eager imports — the landing + auth flow that must paint immediately.
 import PremiumHomepage from './components/PremiumHomepage';
 import AuthPage from './components/AuthPage';
 import OAuthCallback from './components/OAuthCallback';
-import MemoryBank from './components/MemoryBank';
-import ResearchInterface from './components/ResearchInterface';
-import DebateInterface from './components/DebateInterface';
-import KnowledgeGraphPage from './components/KnowledgeGraphPage';
-import SemanticSearchPage from './components/SemanticSearchPage';
-import PdfLabPage from './components/PdfLabPage';
-import PolynousDashboard from './components/PolynousDashboard';
-import InfoPage from './components/InfoPage';
-import { PrivacyPage, TermsPage, DocsPage } from './components/StaticPages';
 import NavDock from './components/NavDock';
 import { API_BASE_URL } from './config';
 
@@ -274,10 +314,18 @@ export default function App() {
   // ═══════════════════════════════════════════════════════════
   return (
     <Router>
+      <RouteTitles />
       <PageTransition />
       {/* Global premium dock: floats over every authenticated page, hidden on
           landing / auth / static pages (handled inside NavDock). */}
       {isLoggedIn && <NavDock />}
+      <Suspense fallback={
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#08060f', color: '#c084fc', fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, letterSpacing: '0.08em' }}>
+          <div style={{ width: 26, height: 26, border: '2px solid rgba(168,85,247,0.25)', borderTopColor: '#a855f7', borderRadius: '50%', animation: 'pn-spin 0.7s linear infinite', marginRight: 12 }} />
+          Loading…
+          <style>{`@keyframes pn-spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      }>
       <Routes>
         {/* ── PUBLIC ROUTES ─────────────────────────────── */}
         <Route 
@@ -324,9 +372,10 @@ export default function App() {
         <Route path="/pdf-lab" element={isLoggedIn ? <PdfLabPage user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
         <Route path="/analytics" element={isLoggedIn ? <PolynousDashboard user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
 
-        {/* ── CATCH-ALL ─────────────────────────────────── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* ── CATCH-ALL: themed 404 page ────────────────── */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
     </Router>
   )
 }

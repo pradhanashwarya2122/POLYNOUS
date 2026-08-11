@@ -989,7 +989,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
         <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
           <img src="/favicon.png" alt="POLYNOUS" style={{ width: 40, height: 40, borderRadius: 11, objectFit: "cover", flexShrink: 0, boxShadow: "0 0 12px rgba(0,255,15,0.3)", border: "1px solid rgba(255,255,255,0.12)" }} />
           <div style={{ minWidth: 0 }}>
-          <h1 style={{ fontFamily: "'Sora',sans-serif", fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", whiteSpace: "nowrap", background: "linear-gradient(135deg,#ff2040,#ff6b35,#ffd700,#00ff0f,#00ccff,#4dabf7,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "200% 200%", animation: "rainbow-shift 6s ease infinite" }}>POLYNOUS</h1>
+          <div role="img" aria-label="POLYNOUS" style={{ fontFamily: "'Sora',sans-serif", fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", whiteSpace: "nowrap", background: "linear-gradient(135deg,#ff2040,#ff6b35,#ffd700,#00ff0f,#00ccff,#4dabf7,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "200% 200%", animation: "rainbow-shift 6s ease infinite" }}>POLYNOUS</div>
           <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.2em", opacity: 0.7, whiteSpace: "nowrap" }}>Cerebral Vitality Engine</p>
           </div>
         </div>

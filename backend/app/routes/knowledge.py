@@ -265,6 +265,15 @@ async def node_similarity(request: Request, node: str = Query(...), top_n: int =
     return kg.node_similarity(get_current_user(request), node, top_n=top_n)
 
 
+@router.get("/structural-similarity")
+async def structural_similarity(request: Request, node: str = Query(...), top_n: int = 8):
+    """Phase 3: structural (role-based) similarity via graph embeddings —
+    complements neighbourhood Jaccard. Available on the Postgres backend."""
+    if hasattr(kg, "structural_similar"):
+        return kg.structural_similar(get_current_user(request), node, top_n=top_n)
+    return {"node": node, "similar": []}
+
+
 @router.get("/community-labels")
 async def community_labels(request: Request, db: Session = Depends(get_db)):
     """Phase B: auto-topic labels. Names each Louvain community with an LLM

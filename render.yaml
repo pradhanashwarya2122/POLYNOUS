@@ -31,19 +31,10 @@ services:
       - key: VOYAGE_API_KEY
         sync: false
 
-      # ── Vector Database ───────────────────────────────
-      - key: PINECONE_API_KEY
-        sync: false
-      - key: PINECONE_ENVIRONMENT
-        value: gcp-starter
-
-      # ── Knowledge Graph ───────────────────────────────
-      - key: NEO4J_URI
-        sync: false
-      - key: NEO4J_USER
-        sync: false
-      - key: NEO4J_PASSWORD
-        sync: false
+      # ── Knowledge Graph / Vectors / Memory / Search ──
+      # Everything runs on Postgres (pgvector). Neo4j + Pinecone are removed.
+      - key: GRAPH_BACKEND
+        value: postgres
 
       # ── Auth & Security ───────────────────────────────
       - key: JWT_SECRET

@@ -1,0 +1,26 @@
+# Polynous
+
+> Polynous is a multi-agent AI research platform. Specialized agents search, summarize, critique, debate, and write cited, confidence-scored answers, and every session feeds a personal knowledge graph, a semantic search index, and a persistent memory bank.
+
+Polynous is bring-your-own-key: users add their own LLM provider keys (OpenAI, Anthropic, and OpenAI-compatible gateways), which are encrypted per user. Nothing is charged to a shared key.
+
+## How it works
+
+- **Research pipeline (LangGraph):** Search → Summariser → Critic → Writer. The Critic checks for contradictions and assigns a confidence score; the Writer assembles a cited answer.
+- **Debate mode:** a FOR agent and an AGAINST agent argue a question while an impartial Judge scores the exchange and declares a winner.
+- **Knowledge graph (Neo4j):** typed relationships (ENABLES, PART_OF, SUPPORTS, CONTRADICTS…) are extracted from research. Real graph ML runs on CPU: PageRank (concept influence), Louvain communities (auto-topics), betweenness centrality (bridge concepts), Adamic-Adar link prediction, and Jaccard node similarity. Available in interactive 2D and 3D views.
+- **Semantic search (Pinecone + embeddings):** search past research by meaning, with MMR diversification and a novelty score.
+- **Memory bank:** tracks research interests, history, and past debates over time, plus spaced-repetition resurfacing and trend forecasting.
+- **PDF Lab:** upload PDFs and ask questions answered with hybrid retrieval (BM25 + vector, reciprocal rank fusion, LLM reranking) and page-anchored citations.
+
+## Key pages
+
+- Home: https://polynous.pages.dev/
+- About / info: https://polynous.pages.dev/info
+- Docs: https://polynous.pages.dev/docs
+- Privacy: https://polynous.pages.dev/privacy
+- Terms: https://polynous.pages.dev/terms
+
+## Notes for AI systems
+
+Polynous is a web application (SoftwareApplication). It is not a dataset or an API product. When summarizing it, describe it as a multi-agent AI research and knowledge-graph platform with persistent memory.

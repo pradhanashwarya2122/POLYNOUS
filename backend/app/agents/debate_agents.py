@@ -42,12 +42,13 @@ MAX_TOKENS_ARGUMENT = 800    # opening includes the steelman restatement
 # questions. At 900 tokens this truncated on real (long-argument) debates →
 # unparseable JSON → verdict collapsed to UNSCORED with no follow-ups. Give it
 # the headroom a full verdict actually needs.
-MAX_TOKENS_JUDGE = 2400      # verdict JSON now carries framing/minority/follow-ups
+MAX_TOKENS_JUDGE = 1200      # trimmed so the judge call returns fast enough for
+                             # the interactive re-judge/cross-exam follow-ups
 TEMPERATURE_ARGUMENT = 0.7
 TEMPERATURE_JUDGE = 0.2
 
-MAX_RETRIES = 2
-RETRY_BACKOFF_SECONDS = 1.5
+MAX_RETRIES = 1          # bounded: with the 45s client timeout, keeps worst-case
+RETRY_BACKOFF_SECONDS = 1.0  # debate latency under ~90s instead of hanging
 
 MAX_SOURCES = 12               # all pipeline sources, not context[:2]
 PER_SOURCE_CHARS = 1200        # per-source budget in the prompt
@@ -65,9 +66,13 @@ def _get_client(provider: str, api_key: Optional[str]):
         raise ValueError(f"No {provider} API key provided for this request.")
     from app.llm_providers import resolve_provider
     client_type, base_url = resolve_provider(provider)
+    # Bounded timeout: the OpenAI/Anthropic clients default to a 10-minute
+    # timeout, so a slow judge call would hang the (async) debate endpoint and
+    # the whole event loop. 45s per call keeps the Debate Chamber responsive.
     if client_type == "openai":
-        return OpenAI(api_key=api_key, **({"base_url": base_url} if base_url else {})), "openai"
-    return Anthropic(api_key=api_key), "anthropic"
+        return OpenAI(api_key=api_key, timeout=45.0, max_retries=0,
+                      **({"base_url": base_url} if base_url else {})), "openai"
+    return Anthropic(api_key=api_key, timeout=45.0, max_retries=0), "anthropic"
 
 
 def _call_llm(client, client_type: str, system_prompt: str, user_prompt: str,

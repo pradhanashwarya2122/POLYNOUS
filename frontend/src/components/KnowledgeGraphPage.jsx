@@ -662,7 +662,7 @@ function GraphHeader({ nodeCount, edgeCount }) {
   return (
     <div style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 15, pointerEvents: "none" }}>
       <div style={{ background: "linear-gradient(180deg, rgba(8,8,28,0.75), rgba(8,8,24,0.60))", backdropFilter: "blur(20px)", border: "1px solid rgba(168,85,247,0.10)", borderRadius: 16, padding: "18px 52px 16px", display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 12px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03)" }}>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 72, fontWeight: 700, fontStyle: "italic", letterSpacing: "0.03em", textTransform: "uppercase", color: "#FFFFFF", margin: 0, lineHeight: 0.9, textShadow: "0 0 8px rgba(168,85,247,0.35), 0 0 20px rgba(168,85,247,0.12)" }}>KNOWLEDGE GRAPH</h1>
+        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 72, fontWeight: 700, fontStyle: "italic", letterSpacing: "0.03em", textTransform: "uppercase", color: "#FFFFFF", margin: 0, lineHeight: 0.9, textShadow: "0 0 8px rgba(168,85,247,0.35), 0 0 20px rgba(168,85,247,0.12)" }}>KNOWLEDGE GRAPH</h2>
         <div style={{ marginTop: 8, display: "flex", gap: 14, alignItems: "center", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.40)" }}>
           <span>{nodeCount} Nodes</span>
           <span style={{ color: "rgba(168,85,247,0.35)" }}>•</span>
@@ -863,10 +863,25 @@ function HoverPopup({ node, position, connections }) {
 }
 
 // ─── NODE DETAIL PANEL ───────────────────────────────────────
-function NodeDetailPanel({ node, details, research, onClose, onResearch, onFindPath, positions }) {
+function NodeDetailPanel({ node, details, research, onClose, onResearch, onFindPath, onJump, positions }) {
   const col = NODE_COLORS[node.type] || NODE_COLORS.default;
   const [slideIn, setSlideIn] = useState(false);
   useEffect(() => { const t = setTimeout(() => setSlideIn(true), 10); return () => clearTimeout(t); }, []);
+
+  // Phase 3: structural twins — concepts that sit in a similar position in the
+  // graph (graph-embedding cosine), fetched from /knowledge/structural-similarity.
+  const [twins, setTwins] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setTwins(null);
+    const token = localStorage.getItem("polynous_token");
+    const h = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`${API_BASE_URL}/knowledge/structural-similarity?node=${encodeURIComponent(node.label)}&top_n=5`, { headers: h })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive) setTwins(d?.similar || []); })
+      .catch(() => { if (alive) setTwins([]); });
+    return () => { alive = false; };
+  }, [node.label]);
   return (
     <div style={{ position: "fixed", right: 20, top: "50%", transform: slideIn ? "translateY(-50%) translateX(0)" : "translateY(-50%) translateX(110%)", transition: "transform 0.35s cubic-bezier(0.34,1.56,0.64,1)", zIndex: 200, width: 290 }}>
       <div style={{ background: "rgba(8,6,20,0.97)", backdropFilter: "blur(28px)", border: `1px solid ${col.glow}30`, borderRadius: 14, padding: "18px", maxHeight: "80vh", overflowY: "auto" }}>
@@ -886,6 +901,25 @@ function NodeDetailPanel({ node, details, research, onClose, onResearch, onFindP
           <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "9px 11px", marginBottom: 10, border: "1px solid rgba(255,255,255,0.04)" }}>
             <div style={{ fontSize: 9, color: C.textSecondary, marginBottom: 4, textTransform: "uppercase" }}>Description</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.55 }}>{details.description}</div>
+          </div>
+        )}
+        {twins && twins.length > 0 && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(56,232,255,0.7)", fontFamily: "'Space Grotesk',sans-serif", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
+              <Ico name="centrality" size={11} color="rgba(56,232,255,0.7)" /> Structural twins
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {twins.map(t => (
+                <button key={t.name} onClick={() => onJump?.(t.name)}
+                  title="Similar position in the graph — click to jump"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "7px 10px", borderRadius: 8, cursor: "pointer", textAlign: "left",
+                    border: "1px solid rgba(56,232,255,0.18)", background: "rgba(56,232,255,0.05)",
+                    fontFamily: "'Space Grotesk',sans-serif" }}>
+                  <span style={{ fontSize: 11, color: "rgba(233,247,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
+                  <span style={{ fontSize: 9, color: "#7fe9ff", opacity: 0.75, flexShrink: 0 }}>{Math.round((t.score || 0) * 100)}%</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
@@ -1855,7 +1889,11 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
     };
     animate();
     return () => { cancelAnimationFrame(animRef.current); window.removeEventListener("resize", resize); };
-  }, [positions, hovered, selectedNode, filter, filteredEdges, searchQuery, pan, zoom, hoveredConnections, highlightNode, pathResult, focusMode, focusNeighbors, centralityMode, centrality, maxDeg, growthStep, growthPlaying, revealedNodeIds, nodeMetrics, metricsView, sizeMetric, colorBy, bridgeNames]);
+    // NOTE: pan/zoom intentionally excluded — the render loop reads panRef/zoomRef
+    // (kept in sync above), so including them here made the effect tear down and
+    // rebuild its rAF loop every frame during camera moves, which triggered
+    // React's "Maximum update depth exceeded". The loop reads live refs instead.
+  }, [positions, hovered, selectedNode, filter, filteredEdges, searchQuery, hoveredConnections, highlightNode, pathResult, focusMode, focusNeighbors, centralityMode, centrality, maxDeg, growthStep, growthPlaying, revealedNodeIds, nodeMetrics, metricsView, sizeMetric, colorBy, bridgeNames]);
 
   // Re-measure graph canvas after the sidebar collapse/expand transition finishes,
   // since offsetWidth changes without a window resize event.
@@ -2202,7 +2240,8 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
           {selectedNode && (
             <NodeDetailPanel node={selectedNode} details={nodeDetails} research={nodeResearch} positions={positions}
               onClose={() => { setSelectedNode(null); setNodeDetails(null); setNodeResearch([]); setFocusMode(false); setPathResult(null); }}
-              onResearch={onStartResearch} onFindPath={() => setShowPathfinder(true)} />
+              onResearch={onStartResearch} onFindPath={() => setShowPathfinder(true)}
+              onJump={label => { const p = positions.find(n => n.label === label); if (p) navigateToNode(p); }} />
           )}
 
           {hoveredLong && !selectedNode && !dragging && !contextMenu && (

@@ -284,3 +284,14 @@ class SemanticSearchEngine:
 
 # Global instance
 semantic_search = SemanticSearchEngine()
+
+# ── Optional Postgres + pgvector backend (set GRAPH_BACKEND=postgres) ────
+# Retires Pinecone: semantic search runs on the same Postgres as KG + memory.
+import os as _os
+if _os.getenv("GRAPH_BACKEND", "postgres").lower() == "postgres":
+    try:
+        from app.knowledge_graph.pg_semantic import semantic_search as _pg_sem
+        semantic_search = _pg_sem
+        print("🐘 Semantic Search backend: Postgres + pgvector (Pinecone bypassed)")
+    except Exception as _e:
+        print(f"⚠️ Postgres semantic backend failed to load, staying on Pinecone: {_e}")

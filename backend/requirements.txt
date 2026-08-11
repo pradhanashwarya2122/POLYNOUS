@@ -13,7 +13,6 @@ voyageai>=0.2.0
 # ── Database & Graph ───────────────────────────────────────────────────────────
 sqlalchemy>=2.0.0,<3.0.0
 aiosqlite>=0.19.0
-neo4j>=5.0.0,<6.0.0
 psycopg2-binary>=2.9.0
 
 # ── Vector DB ──────────────────────────────────────────────────────────────────
@@ -59,3 +58,6 @@ psycopg2-binary
 sqlalchemy
 cryptography
 alembic==1.18.5
+
+# Phase 3 graph ML (Leiden communities). numpy/scipy/scikit-learn already required.
+python-igraph>=0.11

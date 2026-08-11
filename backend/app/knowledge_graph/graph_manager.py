@@ -1,4 +1,9 @@
-from neo4j import GraphDatabase
+# Neo4j is deprecated — the app runs on Postgres (see pg_store.py). The driver
+# import is optional so the neo4j package is no longer a required dependency.
+try:
+    from neo4j import GraphDatabase
+except Exception:
+    GraphDatabase = None
 from typing import List, Dict, Optional
 import os
 import re
@@ -48,10 +53,15 @@ def _is_concrete(name: str) -> bool:
 
 class KnowledgeGraph:
     def __init__(self):
+        # Postgres is the default backend now; don't even attempt Neo4j unless
+        # someone explicitly opts back in with GRAPH_BACKEND=neo4j.
+        if GraphDatabase is None or os.getenv("GRAPH_BACKEND", "postgres").lower() != "neo4j":
+            self.driver = None
+            return
         uri = os.getenv("NEO4J_URI")
         user = os.getenv("NEO4J_USER")
         password = os.getenv("NEO4J_PASSWORD")
-        
+
         if not uri or not user or not password:
             print("❌ Neo4j credentials missing! Check NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")
             self.driver = None
@@ -1413,3 +1423,16 @@ if kg.driver:
     print("✅ Neo4j Knowledge Graph is ACTIVE")
 else:
     print("❌ WARNING: Neo4j Knowledge Graph is INACTIVE — memory features will be limited")
+
+# ── Optional Postgres backend (set GRAPH_BACKEND=postgres) ───────────────
+# Swaps `kg` to the Postgres-backed store so the KG works reliably in
+# deployment (Neo4j Aura free auto-pauses). Same interface, no route changes.
+import os as _os
+if _os.getenv("GRAPH_BACKEND", "postgres").lower() == "postgres":
+    try:
+        from app.knowledge_graph.pg_store import kg as _pg_kg, init_schema as _pg_init
+        _pg_init()
+        kg = _pg_kg
+        print("🐘 Knowledge Graph backend: Postgres (Neo4j bypassed)")
+    except Exception as _e:
+        print(f"⚠️ Postgres KG backend failed to load, staying on Neo4j: {_e}")

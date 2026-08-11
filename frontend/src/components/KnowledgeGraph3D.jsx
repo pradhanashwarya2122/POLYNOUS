@@ -275,6 +275,18 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
   const [sizeByPageRank, setSizeByPageRank] = useState(true)
   const [colorByCommunity, setColorByCommunity] = useState(true)
   const [showExplain, setShowExplain] = useState(false)
+  const [twins, setTwins] = useState(null)   // structural twins of the selected node
+
+  // Fetch structural twins whenever a node is opened.
+  useEffect(() => {
+    if (!detailPanel?.label) { setTwins(null); return }
+    let alive = true; setTwins(null)
+    fetch(`${API_BASE_URL}/knowledge/structural-similarity?node=${encodeURIComponent(detailPanel.label)}&top_n=5`, { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive) setTwins(d?.similar || []) })
+      .catch(() => { if (alive) setTwins([]) })
+    return () => { alive = false }
+  }, [detailPanel?.label])
 
   // ✅ FIX 6: Demo data indicator
   const [isDemoData, setIsDemoData] = useState(false)
@@ -1446,6 +1458,31 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
                   </div>
                 )}
               </GlassPanel>
+
+              {/* Structural twins — concepts in a similar graph position (Phase 3). */}
+              {twins && twins.length > 0 && (
+                <GlassPanel accentColor={T.cyan} style={{ padding: '14px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: T.cyan, fontFamily: T.fontHead, marginBottom: 9, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="hub" size={13} style={{ color: T.cyan }} />Structural twins
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {twins.map(t => {
+                      const target = graphData?.nodes?.find(n => n.label === t.name)
+                      return (
+                        <button key={t.name} disabled={!target}
+                          onClick={() => { if (target) { setSelectedNode(target); setDetailPanel(target); fetchNodeDetail(target.id) } }}
+                          title="Similar position in the graph — click to jump"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 9px', borderRadius: 8,
+                            cursor: target ? 'pointer' : 'default', textAlign: 'left',
+                            border: `1px solid ${T.cyan}22`, background: `${T.cyan}0c`, fontFamily: T.fontMono }}>
+                          <span style={{ fontSize: 10, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                          <span style={{ fontSize: 8.5, color: T.cyan, opacity: 0.8, flexShrink: 0 }}>{Math.round((t.score || 0) * 100)}%</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </GlassPanel>
+              )}
 
               {/* Pathfinding */}
               <GlassPanel accentColor="#ffd700" style={{ padding: '14px' }}>

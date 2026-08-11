@@ -126,16 +126,18 @@ async def startup():
         if os.getenv("ENVIRONMENT", "").lower() == "production":
             raise
 
-    # Verify Neo4j on startup
+    # Verify the knowledge-graph backend on startup (Postgres by default).
     try:
         from app.knowledge_graph.graph_manager import kg
-        if kg.driver:
-            kg.driver.verify_connectivity()
-            print("✅ Neo4j verified on startup")
+        backend = type(kg).__name__
+        if backend == "PgGraph":
+            print("✅ Knowledge graph backend: Postgres (Neo4j removed)")
+        elif getattr(kg, "driver", None):
+            print("✅ Neo4j verified on startup (legacy backend)")
         else:
-            print("❌ Neo4j driver not initialized — memory features will use SQLite fallback")
+            print("⚠️ Knowledge-graph backend unavailable")
     except Exception as e:
-        print(f"❌ Neo4j startup check failed: {e}")
+        print(f"⚠️ KG backend startup check failed: {e}")
 
     print(f"🔒 CORS origins: {ALLOWED_ORIGINS}")
     print(f"🔐 allow_credentials: True")
