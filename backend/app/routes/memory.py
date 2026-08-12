@@ -186,37 +186,32 @@ async def get_user_stats(request: Request):
     return stats
 
 @router.get("/debates")
-async def get_debate_history(request: Request):
-    """Get current user's debate history"""
+async def get_debate_history(request: Request, limit: int = 20):
+    """Get current user's debate history (Postgres-backed)."""
     user_id = get_user_id(request)
-    
     print(f"🔍 Memory debates requested for user: {user_id}")
-    
     try:
-        driver = user_memory._get_driver()   # use the resilient getter
+        # Prefer the backend-agnostic getter (PgMemory implements it); fall back
+        # to the legacy Neo4j driver path only if that method isn't available.
+        getter = getattr(user_memory, "get_recent_debates", None)
+        if callable(getter):
+            debates = getter(user_id, limit) or []
+            return {"user_id": user_id, "debates": debates, "total": len(debates)}
+        driver = user_memory._get_driver()
         if not driver:
-            return {"user_id": user_id, "debates": [], "error": "Neo4j unavailable"}
+            return {"user_id": user_id, "debates": [], "total": 0}
         with driver.session() as session:
             result = session.run("""
                 MATCH (u:User {id: $user_id})-[:DEBATED]->(d:DebateSession)
                 RETURN d.topic as topic, d.winner as winner,
                        d.for_score as for_score, d.against_score as against_score,
                        d.timestamp as timestamp
-                ORDER BY d.timestamp DESC
-                LIMIT 20
+                ORDER BY d.timestamp DESC LIMIT 20
             """, user_id=user_id)
-            
-            debates = [
-                {
-                    "topic": record["topic"],
-                    "winner": record["winner"],
-                    "for_score": record["for_score"],
-                    "against_score": record["against_score"],
-                    "timestamp": str(record["timestamp"])[:19] if record["timestamp"] else None
-                }
-                for record in result
-            ]
-            
+            debates = [{"topic": r["topic"], "winner": r["winner"],
+                        "for_score": r["for_score"], "against_score": r["against_score"],
+                        "timestamp": str(r["timestamp"])[:19] if r["timestamp"] else None}
+                       for r in result]
             return {"user_id": user_id, "debates": debates, "total": len(debates)}
     except Exception as e:
         print(f"⚠️ Debate history error: {e}")

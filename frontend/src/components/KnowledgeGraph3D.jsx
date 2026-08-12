@@ -30,13 +30,13 @@ const T = {
 const NODE_HEX = {
   claim: 0x00ff0f, evidence: 0x00ccff, argument: 0xff2040,
   topic: 0xe06c45, debate_topic: 0xff2040, concept: 0xa855f7,
-  entity: 0x1dab82, major: 0x00ff0f, debate: 0xff2040, pdf: 0xff8a3d,
+  entity: 0x1dab82, major: 0x00ff0f, debate: 0xff2040, pdf: 0xff8a3d, cluster: 0x8e9bb8,
   core: 0xa855f7, default: 0x5878d4
 }
 const NODE_CSS = {
   claim: '#00ff0f', evidence: '#00ccff', argument: '#ff2040',
   topic: '#e06c45', debate_topic: '#ff2040', concept: '#a855f7',
-  entity: '#1dab82', major: '#00ff0f', debate: '#ff2040', pdf: '#ff8a3d',
+  entity: '#1dab82', major: '#00ff0f', debate: '#ff2040', pdf: '#ff8a3d', cluster: '#8e9bb8',
   core: '#a855f7', default: '#5878d4'
 }
 const NODE_ICON = {
@@ -55,6 +55,39 @@ function nodeColor(type) {
 }
 function nodeHex(type) {
   return NODE_HEX[type] || NODE_HEX.default
+}
+
+// Crisp, premium sprite label: text on a rounded pill, rendered to a canvas
+// texture at 2x for sharpness. Always faces the camera and scales naturally
+// with depth (far labels get smaller — real 3D readability, not billboarded noise).
+function makeTextSprite(text) {
+  const label = (text && text.length > 22) ? text.slice(0, 21) + '…' : (text || '')
+  const dpr = 2, fontPx = 26, padX = 14, padY = 9, rad = 10
+  const c = document.createElement('canvas')
+  const cx = c.getContext('2d')
+  cx.font = `700 ${fontPx}px 'Space Grotesk', 'Inter', sans-serif`
+  const tw = cx.measureText(label).width
+  c.width = Math.ceil((tw + padX * 2) * dpr)
+  c.height = Math.ceil((fontPx + padY * 2) * dpr)
+  cx.scale(dpr, dpr)
+  cx.font = `700 ${fontPx}px 'Space Grotesk', 'Inter', sans-serif`
+  cx.textAlign = 'center'; cx.textBaseline = 'middle'
+  const w = c.width / dpr, h = c.height / dpr
+  const rr = (x, y, ww, hh, r) => {
+    if (cx.roundRect) { cx.beginPath(); cx.roundRect(x, y, ww, hh, r) }
+    else { cx.beginPath(); cx.rect(x, y, ww, hh) }
+  }
+  rr(1, 1, w - 2, h - 2, rad); cx.fillStyle = 'rgba(8,6,18,0.86)'; cx.fill()
+  rr(1, 1, w - 2, h - 2, rad); cx.strokeStyle = 'rgba(168,132,252,0.55)'; cx.lineWidth = 1.5; cx.stroke()
+  cx.fillStyle = '#ffffff'; cx.fillText(label, w / 2, h / 2 + 1)
+  const tex = new THREE.CanvasTexture(c)
+  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false })
+  const sp = new THREE.Sprite(mat)
+  const worldH = 11, worldW = worldH * (w / h)
+  sp.scale.set(worldW, worldH, 1)
+  sp.renderOrder = 999
+  return sp
 }
 
 // Louvain community palette (mirrors the 2D graph) for colour-by-community.
@@ -266,7 +299,10 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
   const [contextMenu, setContextMenu] = useState(null)
   const [highlightedPath, setHighlightedPath] = useState(null)
   const [entranceProgress, setEntranceProgress] = useState(0)
-  const [clusterMode, setClusterMode] = useState(false)
+  const [clusterCollapsed3d, setClusterCollapsed3d] = useState(false) // fold communities → super-nodes
+  const [expanded3d, setExpanded3d] = useState(new Set())             // communities shown in full
+  const expanded3dRef = useRef(expanded3d)
+  useEffect(() => { expanded3dRef.current = expanded3d }, [expanded3d])
   const [nodeDetailCache, setNodeDetailCache] = useState({})
   const [loadingDetail, setLoadingDetail] = useState(false)
   // Graph-ML parity with the 2D view: PageRank sizing, Louvain colouring, bridges.
@@ -466,6 +502,11 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
         if (e.button === 2) {
           if (hit) setContextMenu({ node: hit, x: e.clientX, y: e.clientY })
         } else {
+          if (hit?.isSuper) {
+            // Expand this community in place (rebuilds with its members shown).
+            setExpanded3d(prev => { const nx = new Set(prev); nx.add(hit.community); return nx })
+            return
+          }
           if (hit) {
             setSelectedNode(hit)
             setDetailPanel(hit)
@@ -645,8 +686,42 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
     particleSystemsRef.current.forEach(p => { scene.remove(p); p.geometry.dispose(); p.material.dispose() })
     spheresRef.current = []; edgesRef.current = []; particleSystemsRef.current = []
 
-    const filtered = filter === 'all' ? graphData.nodes : graphData.nodes.filter(n => n.type === filter)
+    const rawFiltered = filter === 'all' ? graphData.nodes : graphData.nodes.filter(n => n.type === filter)
+    // Cluster collapse: fold each Louvain community (≥3, not expanded) into ONE
+    // super-node. Layout is rebuilt fresh below, so super-nodes simply take a
+    // slot — no drift. `superMap` remaps edges onto the super-nodes.
+    const superMap = {}
+    let filtered = rawFiltered
+    if (clusterCollapsed3d) {
+      const commOf = n => { const gm = nodeMetrics[n.label]; return (gm && typeof gm.community === 'number') ? gm.community : -1 }
+      const groups = {}
+      rawFiltered.forEach(n => { const c = commOf(n); (groups[c] = groups[c] || []).push(n) })
+      filtered = []
+      Object.keys(groups).forEach(k => {
+        const cn = Number(k), members = groups[k]
+        const doC = cn !== -1 && members.length >= 3 && !expanded3d.has(cn)
+        if (!doC) { members.forEach(m => filtered.push(m)); return }
+        const top = [...members].sort((a, b) => {
+          const ga = nodeMetrics[a.label] || {}, gb = nodeMetrics[b.label] || {}
+          return (gb.pagerank || b.connections || 0) - (ga.pagerank || a.connections || 0)
+        })[0]
+        const superId = `cluster_${cn}`
+        members.forEach(m => { superMap[m.id] = superId })
+        filtered.push({ id: superId, label: `${top?.label || 'Cluster'} +${members.length - 1}`, type: 'cluster', isSuper: true, community: cn, size: 44, connections: members.reduce((s, m) => s + (m.connections || 0), 0) })
+      })
+    }
     const nodeMap = {}
+
+    // Label only the most IMPORTANT nodes (top-N by PageRank, else connections)
+    // so the scene stays readable instead of a wall of text.
+    const _rank3d = (nn) => {
+      const gm = nodeMetrics[nn.label]
+      if (gm && typeof gm.pagerank === 'number') return gm.pagerank * 1000
+      return (nn.connections || nn.size || 0)
+    }
+    const topLabels3d = new Set(
+      [...filtered].sort((a, b) => _rank3d(b) - _rank3d(a)).slice(0, 14).map(nn => nn.label)
+    )
 
     // ── BUILD NODES ──
     filtered.forEach((node, i) => {
@@ -693,6 +768,14 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
       mesh.userData.node = node
       mesh.castShadow = true
       group.add(mesh)
+
+      // Always-on readable label for the important nodes, floating above the sphere.
+      if (topLabels3d.has(node.label)) {
+        const sprite = makeTextSprite(node.label)
+        sprite.position.set(0, size + 9, 0)
+        sprite.userData.isLabel = true
+        group.add(sprite)
+      }
 
       // Inner bright core (small sphere)
       const coreGeo = new THREE.SphereGeometry(size * 0.45, 16, 16)
@@ -749,7 +832,16 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
 
     // ── BUILD EDGES (curved bezier) ──
     const fIds = new Set(filtered.map(n => n.id))
-    ;(graphData.edges || []).filter(e => fIds.has(e.source) && fIds.has(e.target)).slice(0, 200).forEach((edge, idx) => {
+    const _seenE = new Set()
+    ;(graphData.edges || [])
+      .map(e => ({ ...e, source: superMap[e.source] || e.source, target: superMap[e.target] || e.target }))
+      .filter(e => {
+        if (e.source === e.target || !fIds.has(e.source) || !fIds.has(e.target)) return false
+        const k = e.source < e.target ? e.source + '|' + e.target : e.target + '|' + e.source
+        if (_seenE.has(k)) return false
+        _seenE.add(k); return true
+      })
+      .slice(0, 200).forEach((edge, idx) => {
       const srcGroup = nodeMap[edge.source]
       const tgtGroup = nodeMap[edge.target]
       if (!srcGroup || !tgtGroup) return
@@ -823,7 +915,7 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
     physicsRef.current.positions = positions
     physicsRef.current.velocities = positions.map(() => new THREE.Vector3())
 
-  }, [graphData, filter, ready, nodeMetrics, bridgeSet, sizeByPageRank, colorByCommunity])
+  }, [graphData, filter, ready, nodeMetrics, bridgeSet, sizeByPageRank, colorByCommunity, clusterCollapsed3d, expanded3d])
 
   // ─────────────────────────────────────────
   // Animate camera to node
@@ -1146,6 +1238,22 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
         background: 'radial-gradient(ellipse at 30% 20%, rgba(168,85,247,0.04) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(0,204,255,0.04) 0%, transparent 60%)'
       }} />
 
+      {/* EMPTY-STATE — a blank/sparse map reads as broken; guide the user. */}
+      {graphData && (graphData.nodes?.length || 0) === 0 && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 15, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, textAlign: 'center', padding: 24 }}>
+          <Icon name="hub" size={40} style={{ color: 'rgba(168,85,247,0.6)' }} />
+          <div style={{ fontFamily: T.fontBody, fontSize: 17, fontWeight: 800, color: '#fff' }}>Your knowledge map is empty</div>
+          <div style={{ fontFamily: T.fontMono, fontSize: 11.5, color: 'rgba(255,255,255,0.6)', maxWidth: 360, lineHeight: 1.6 }}>
+            Run a research session or a debate — each one plants concepts here and connects them into your map.
+          </div>
+        </div>
+      )}
+      {graphData && (graphData.nodes?.length || 0) > 0 && graphData.nodes.length < 10 && (
+        <div style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 20, pointerEvents: 'none', padding: '9px 16px', borderRadius: 9999, background: 'rgba(11,9,20,0.85)', backdropFilter: 'blur(14px)', border: '1px solid rgba(168,85,247,0.2)', fontFamily: T.fontMono, fontSize: 10.5, color: 'rgba(255,255,255,0.7)' }}>
+          Run a few more research or debate sessions to grow your map.
+        </div>
+      )}
+
       {/* ───── TOP BAR ───── */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
@@ -1197,6 +1305,10 @@ export default function KnowledgeGraph3D({ graphData: initialData, onSwitchTo2D 
               </PillButton>
             </>
           )}
+          <PillButton active={clusterCollapsed3d} onClick={() => setClusterCollapsed3d(v => { if (v) setExpanded3d(new Set()); return !v })} color="#d6deee">
+            <Icon name={clusterCollapsed3d ? 'grid_view' : 'workspaces'} size={13} />
+            {clusterCollapsed3d ? 'Expand all' : 'Collapse'}
+          </PillButton>
           <PillButton active={autoRotate} onClick={() => setAutoRotate(!autoRotate)}>
             <Icon name={autoRotate ? 'pause' : 'play_arrow'} size={13} />
             {autoRotate ? 'Pause' : 'Rotate'}

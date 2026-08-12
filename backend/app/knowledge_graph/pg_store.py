@@ -595,6 +595,21 @@ class PgMemory:
         return [{"query": q, "answer": (a or "")[:400], "topics": _asjson(tp),
                  "confidence": c, "mode": m, "timestamp": str(ts)} for (q, a, tp, c, m, ts) in rows]
 
+    def get_recent_debates(self, user_id, limit=20) -> List[Dict]:
+        """Recent debates from Postgres (the /memory/debates read path)."""
+        uid = _sanitize(user_id)
+        try:
+            with engine.connect() as conn:
+                rows = conn.execute(text("""
+                    SELECT topic, for_score, against_score, winner, created_at
+                    FROM memory_debates WHERE user_id=:u ORDER BY created_at DESC LIMIT :l
+                """), {"u": uid, "l": limit}).fetchall()
+            return [{"topic": t, "for_score": f, "against_score": a, "winner": w,
+                     "timestamp": str(ts)[:19] if ts else None} for (t, f, a, w, ts) in rows]
+        except Exception as e:
+            print(f"⚠️ [PG] get_recent_debates failed: {e}")
+            return []
+
     def get_user_interests(self, user_id, limit=10) -> List[Dict]:
         uid = _sanitize(user_id)
         with engine.connect() as conn:

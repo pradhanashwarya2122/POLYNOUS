@@ -42,8 +42,60 @@ const NODE_COLORS = {
   major:       { fill: "#00FF9F", glow: "#00FF9F", ring: "#80FFD0", text: "#CCFFE8" },
   debate:      { fill: "#FF2D78", glow: "#FF2D78", ring: "#FF80B0", text: "#FFCCE0" },
   core:        { fill: "#CC00FF", glow: "#CC00FF", ring: "#E080FF", text: "#F5CCFF" },
+  cluster:     { fill: "#8E9BB8", glow: "#B7C4DE", ring: "#D6DEEE", text: "#EDF1F8" },
   default:     { fill: "#4488FF", glow: "#4488FF", ring: "#99BBFF", text: "#CCE0FF" },
 };
+
+// ── Cluster collapse ─────────────────────────────────────────────────────────
+// Fold each Louvain community into ONE super-node placed at the CENTROID of its
+// members' existing positions (no layout re-run — nothing can drift), sized by
+// member count and labelled by the community's top concept. Edges are remapped
+// to super-nodes (intra-cluster links hidden, inter-cluster deduped). Communities
+// listed in `expanded` are shown in full. Returns the SAME node/edge shape the
+// renderer already consumes, so hit-testing and drawing work unchanged.
+function computeClusterDisplay(positions, edges, nodeMetrics, collapsed, expanded) {
+  if (!collapsed || !positions?.length) return { displayNodes: positions, displayEdges: edges };
+  const commOf = (n) => {
+    const gm = nodeMetrics[n.label] || nodeMetrics[n.id];
+    return (gm && typeof gm.community === "number") ? gm.community : -1;
+  };
+  const rankOf = (n) => {
+    const gm = nodeMetrics[n.label] || nodeMetrics[n.id];
+    return (gm && typeof gm.pagerank === "number") ? gm.pagerank * 1000 : (n.connections || 0);
+  };
+  const groups = new Map();
+  positions.forEach(n => { const c = commOf(n); (groups.get(c) || groups.set(c, []).get(c)).push(n); });
+  const superOf = new Map();
+  const displayNodes = [];
+  groups.forEach((members, c) => {
+    const doCollapse = c !== -1 && members.length >= 3 && !expanded.has(c);
+    if (!doCollapse) { members.forEach(m => displayNodes.push(m)); return; }
+    const cx = members.reduce((s, m) => s + m.x, 0) / members.length;
+    const cy = members.reduce((s, m) => s + m.y, 0) / members.length;
+    const top = [...members].sort((a, b) => rankOf(b) - rankOf(a))[0];
+    const superId = `cluster_${c}`;
+    members.forEach(m => superOf.set(m.id, superId));
+    displayNodes.push({
+      id: superId, label: `${top?.label || "Cluster"} +${members.length - 1}`,
+      x: cx, y: cy, type: "cluster", isSuper: true, community: c,
+      size: Math.min(48, 20 + members.length * 2.2),
+      connections: members.reduce((s, m) => s + (m.connections || 0), 0),
+      memberCount: members.length,
+    });
+  });
+  const seen = new Set();
+  const displayEdges = [];
+  (edges || []).forEach(e => {
+    const s = superOf.get(e.source) || e.source;
+    const t = superOf.get(e.target) || e.target;
+    if (s === t) return;                       // intra-cluster link: hidden
+    const key = s < t ? `${s}|${t}` : `${t}|${s}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    displayEdges.push({ ...e, source: s, target: t });
+  });
+  return { displayNodes, displayEdges };
+}
 
 // Distinct hues for Louvain communities (used when "Influence view" is on).
 const COMMUNITY_PALETTE = [
@@ -1311,6 +1363,9 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
   const [colorBy, setColorBy]           = useState("community"); // community|type
   const [bridgeConcepts, setBridgeConcepts] = useState([]); // [{name, betweenness}]
   const [bridgeNames, setBridgeNames]   = useState(new Set()); // highlighted bridges
+  const [clusterCollapsed, setClusterCollapsed] = useState(false); // fold communities → super-nodes
+  const [expandedClusters, setExpandedClusters] = useState(new Set()); // communities shown in full
+  const displayRef = useRef({ nodes: [], edges: [] }); // latest render model for hit-testing
   const [communityLabels, setCommunityLabels] = useState(null); // {cid: {label, concepts, size}}
   const [labelsBusy, setLabelsBusy]     = useState(false);
   const [showCaps, setShowCaps]         = useState(false);
@@ -1534,8 +1589,10 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
   }, [pan, zoom]);
 
   const findNodeAt = useCallback((wx, wy) => {
-    return positions.find(n => Math.hypot(n.x - wx, n.y - wy) < n.size + 12);
-  }, [positions]);
+    // Hit-test the CURRENT render model (super-nodes when collapsed), not the raw
+    // positions — otherwise clicks would hit hidden member nodes.
+    return displayRef.current.nodes.find(n => Math.hypot(n.x - wx, n.y - wy) < n.size + 12);
+  }, []);
 
   const handleMouseDown = useCallback((e) => {
     if (e.button === 2) return;
@@ -1571,6 +1628,12 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
 
   const handleClick = useCallback((e) => {
     if (dragging || isPanning) return;
+    // Clicking a collapsed super-node expands that community in place.
+    if (hovered?.isSuper) {
+      setExpandedClusters(prev => { const nx = new Set(prev); nx.add(hovered.community); return nx; });
+      setContextMenu(null);
+      return;
+    }
     if (hovered) { fetchNodeDetails(hovered); setContextMenu(null); }
     else { setSelectedNode(null); setNodeDetails(null); setNodeResearch([]); setHighlightNode(null); setFocusMode(false); setPathResult(null); }
   }, [hovered, dragging, isPanning, fetchNodeDetails]);
@@ -1611,12 +1674,19 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
     return (sv || tv) && (!e.type || activeEdgeTypes.has(e.type));
   });
 
+  // Cluster-collapse display model — super-nodes at community centroids when
+  // collapsed, otherwise the raw graph. Everything below renders from these.
+  const { displayNodes, displayEdges } = computeClusterDisplay(
+    positions, filteredEdges, nodeMetrics, clusterCollapsed, expandedClusters
+  );
+  displayRef.current = { nodes: displayNodes, edges: displayEdges };
+
   const hoveredConnections = hovered
-    ? new Set(filteredEdges.filter(e => e.source === hovered.id || e.target === hovered.id).flatMap(e => [e.source, e.target]))
+    ? new Set(displayEdges.filter(e => e.source === hovered.id || e.target === hovered.id).flatMap(e => [e.source, e.target]))
     : new Set();
   const hoveredConnCount = hoveredConnections.size > 0 ? hoveredConnections.size - 1 : 0;
   const focusNeighbors = focusMode && selectedNode
-    ? new Set(filteredEdges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).flatMap(e => [e.source, e.target]))
+    ? new Set(displayEdges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).flatMap(e => [e.source, e.target]))
     : null;
 
   const maxDeg = Math.max(1, ...Object.values(centrality));
@@ -1717,9 +1787,9 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
       const now = Date.now();
 
       // ─── EDGES ───────────────────────────────────────────
-      filteredEdges.forEach((edge, edgeIdx) => {
-        const src = positions.find(n => n.id === edge.source);
-        const tgt = positions.find(n => n.id === edge.target);
+      displayEdges.forEach((edge, edgeIdx) => {
+        const src = displayNodes.find(n => n.id === edge.source);
+        const tgt = displayNodes.find(n => n.id === edge.target);
         if (!src || !tgt) return;
 
         const isHovEdge  = hovered && (hovered.id === src.id || hovered.id === tgt.id);
@@ -1785,8 +1855,19 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
       });
 
       // ─── NODES ───────────────────────────────────────────
-      positions.forEach(n => {
-        const visible = filter === "all" || n.type === filter;
+      // Always-on labels only for the most IMPORTANT nodes (top-N by PageRank,
+      // else connection count) — labelling every node turns a dense graph into
+      // unreadable noise. Everything else labels on hover/selection.
+      const _rankOf = (nn) => {
+        const gm = nodeMetrics[nn.label] || nodeMetrics[nn.id];
+        if (gm && typeof gm.pagerank === "number") return gm.pagerank * 1000;
+        return (nn.connections || 0);
+      };
+      const topLabelIds = new Set(
+        [...displayNodes].sort((a, b) => _rankOf(b) - _rankOf(a)).slice(0, 14).map(nn => nn.id)
+      );
+      displayNodes.forEach(n => {
+        const visible = filter === "all" || n.type === filter || n.isSuper;
         const matchSearch = !searchQuery || n.label?.toLowerCase().includes(searchQuery.toLowerCase());
 
         if (!visible) {
@@ -1861,19 +1942,39 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
         }
         ctx.globalAlpha = 1;
 
-        const labelText = (n.label?.length > 20 ? n.label.slice(0, 19) + "…" : n.label) || "";
-        const fontSize = zoomRef.current < 0.6 ? 9 : 11;
-        ctx.font = `${isHov || isSel ? 600 : 500} ${fontSize}px 'Space Grotesk',sans-serif`;
-        ctx.textAlign = "center";
-        ctx.globalAlpha = isDimmed ? 0 : 0.45;
-        ctx.fillStyle = "rgba(0,0,0,0.95)"; ctx.fillText(labelText, n.x + 0.5, n.y + r + 7.5);
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = isDimmed ? "rgba(255,255,255,0.10)" : (isHov || isSel) ? "#ffffff" : "rgba(255,255,255,0.82)";
-        ctx.fillText(labelText, n.x, n.y + r + 7);
+        // Premium always-on labels: only for important nodes + hover/selection/
+        // connected, drawn at a CONSTANT on-screen size (÷zoom) inside a rounded
+        // pill so text stays crisp and readable at any zoom, never a blurry pile.
+        const showLabel = !isDimmed && (topLabelIds.has(n.id) || isHov || isSel || isConnected);
+        if (showLabel) {
+          const labelText = (n.label?.length > 22 ? n.label.slice(0, 21) + "…" : n.label) || "";
+          if (labelText) {
+            const z = zoomRef.current || 1;
+            const F = (isHov || isSel) ? 12.5 : 11;      // target screen px
+            const fs = F / z;                             // world units → constant screen size
+            ctx.font = `${isHov || isSel ? 700 : 600} ${fs}px 'Space Grotesk',sans-serif`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            const cy = n.y + r + (10 / z) + fs / 2;
+            const tw = ctx.measureText(labelText).width;
+            const padX = 7 / z, bh = fs + 6 / z, bw = tw + padX * 2;
+            const bx = n.x - bw / 2, by = cy - bh / 2, rad = 5 / z;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, rad); else ctx.rect(bx, by, bw, bh);
+            ctx.globalAlpha = (isHov || isSel) ? 0.95 : 0.72;
+            ctx.fillStyle = "rgba(8,6,18,0.86)"; ctx.fill();
+            ctx.globalAlpha = (isHov || isSel) ? 0.55 : 0.3;
+            ctx.strokeStyle = `rgba(${Math.min(255, fr + 80)},${Math.min(255, fg + 80)},${Math.min(255, fb + 80)},0.7)`;
+            ctx.lineWidth = 1 / z; ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = (isHov || isSel) ? "#ffffff" : "rgba(255,255,255,0.92)";
+            ctx.fillText(labelText, n.x, cy);
+            ctx.textBaseline = "alphabetic";
+          }
+        }
       });
 
       if (focusMode && selectedNode && focusNeighbors) {
-        const focusNode = positions.find(p => p.id === selectedNode.id);
+        const focusNode = displayNodes.find(p => p.id === selectedNode.id);
         if (focusNode) {
           const sx = focusNode.x * zoomRef.current + panRef.current.x;
           const sy = focusNode.y * zoomRef.current + panRef.current.y;
@@ -1894,7 +1995,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
     // (kept in sync above), so including them here made the effect tear down and
     // rebuild its rAF loop every frame during camera moves, which triggered
     // React's "Maximum update depth exceeded". The loop reads live refs instead.
-  }, [positions, hovered, selectedNode, filter, filteredEdges, searchQuery, hoveredConnections, highlightNode, pathResult, focusMode, focusNeighbors, centralityMode, centrality, maxDeg, growthStep, growthPlaying, revealedNodeIds, nodeMetrics, metricsView, sizeMetric, colorBy, bridgeNames]);
+  }, [positions, displayNodes, displayEdges, clusterCollapsed, expandedClusters, hovered, selectedNode, filter, filteredEdges, searchQuery, hoveredConnections, highlightNode, pathResult, focusMode, focusNeighbors, centralityMode, centrality, maxDeg, growthStep, growthPlaying, revealedNodeIds, nodeMetrics, metricsView, sizeMetric, colorBy, bridgeNames]);
 
   // Re-measure graph canvas after the sidebar collapse/expand transition finishes,
   // since offsetWidth changes without a window resize event.
@@ -1970,6 +2071,79 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
         overflow: "hidden",
       }} onWheel={handleWheel}>
         <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+          {/* Cluster-collapse toggle — folds dense communities into super-nodes
+              (click one to expand it). Kills the hairball on large graphs. */}
+          {positions.length > 0 && (
+            <div style={{ position: "absolute", top: 16, right: 16, zIndex: 25, display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+              <button
+                onClick={() => setClusterCollapsed(v => { if (v) setExpandedClusters(new Set()); return !v; })}
+                title="Fold communities into super-nodes"
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 15px", borderRadius: 10, cursor: "pointer",
+                  background: clusterCollapsed ? "rgba(142,155,184,0.18)" : "rgba(11,9,20,0.82)", backdropFilter: "blur(14px)",
+                  border: `1px solid ${clusterCollapsed ? "rgba(214,222,238,0.6)" : "rgba(168,85,247,0.28)"}`,
+                  color: clusterCollapsed ? "#eef1f8" : "rgba(255,255,255,0.85)", fontFamily: "'Space Grotesk',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
+                <Ico name={clusterCollapsed ? "grid_view" : "workspaces"} size={14} color={clusterCollapsed ? "#eef1f8" : "rgba(192,132,252,0.9)"} />
+                {clusterCollapsed ? "Expand all" : "Collapse clusters"}
+              </button>
+              {clusterCollapsed && expandedClusters.size > 0 && (
+                <button onClick={() => setExpandedClusters(new Set())}
+                  style={{ padding: "5px 11px", borderRadius: 9999, cursor: "pointer", background: "rgba(11,9,20,0.8)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)", color: "rgba(255,255,255,0.6)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+                  Re-collapse {expandedClusters.size} expanded
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Insight strip + legend — turns the graph from "pretty" into "useful":
+              answers "so what" (most-connected / bridge concept) and decodes the
+              colours. Non-interactive overlay, so it never blocks canvas dragging. */}
+          {positions.length > 0 && (() => {
+            const byConn = [...positions].sort((a, b) => (b.connections || 0) - (a.connections || 0));
+            const top = byConn[0];
+            const bridge = (bridgeNames && bridgeNames.size) ? [...bridgeNames][0] : null;
+            const typesPresent = [...new Set(positions.map(n => n.type))];
+            const LEGEND = [
+              ["concept", "Research", (NODE_COLORS.concept || NODE_COLORS.default).fill],
+              ["pdf", "PDF", (NODE_COLORS.pdf || NODE_COLORS.default).fill],
+              ["debate", "Debate", (NODE_COLORS.debate || NODE_COLORS.default).fill],
+              ["topic", "Topic", (NODE_COLORS.topic || NODE_COLORS.default).fill],
+              ["entity", "Entity", (NODE_COLORS.entity || NODE_COLORS.default).fill],
+            ].filter(([t]) => typesPresent.includes(t));
+            const chip = (icon, label, value) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 13px", borderRadius: 10, background: "rgba(11,9,20,0.82)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                <Ico name={icon} size={13} color="rgba(192,132,252,0.9)" />
+                <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{label}</span>
+                  <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12.5, fontWeight: 700, color: "#fff", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span>
+                </span>
+              </div>
+            );
+            return (
+              <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", maxWidth: "94%" }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                  {chip("hub", "Concepts mapped", `${positions.length}`)}
+                  {top && chip("star", "Most connected", `${top.label} · ${top.connections || 0} links`)}
+                  {bridge && chip("alt_route", "Bridge concept", bridge)}
+                </div>
+                <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", justifyContent: "center", padding: "7px 14px", borderRadius: 9999, background: "rgba(11,9,20,0.82)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.18)" }}>
+                  {LEGEND.map(([t, lab, col]) => (
+                    <span key={t} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.78)" }}>
+                      <span style={{ width: 9, height: 9, borderRadius: "50%", background: col, boxShadow: `0 0 6px ${col}` }} /> {lab}
+                    </span>
+                  ))}
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.5)" }}>size = connections</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Empty-state prompt — a sparse graph looks broken; guide the user. */}
+          {positions.length > 0 && positions.length < 10 && (
+            <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", padding: "9px 16px", borderRadius: 9999, background: "rgba(11,9,20,0.85)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "rgba(255,255,255,0.7)" }}>
+              Run a few more research or debate sessions to grow your map.
+            </div>
+          )}
+
           {/* Graph canvas - transparent so NeuralCanvas shows through */}
           <canvas
             ref={canvasRef}

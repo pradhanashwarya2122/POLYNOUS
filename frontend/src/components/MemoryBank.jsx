@@ -1026,10 +1026,12 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                   const t = x?.timestamp && new Date(x.timestamp).getTime();
                   return t && t >= a && t < b;
                 }).length;
-                const wow = (arr) => {
+                const wow = (arr, total = 0) => {
                   const thisW = between(arr, now - 7 * DAY, now + DAY);
                   const lastW = between(arr, now - 14 * DAY, now - 7 * DAY);
-                  if (!thisW && !lastW) return "no activity yet";
+                  // No timestamped items but a non-zero total means the timeline
+                  // just isn't loaded — don't claim "no activity" when there is.
+                  if (!thisW && !lastW) return total > 0 ? `${total} total` : "no activity yet";
                   if (!lastW) return `+${thisW} this week`;
                   const pct = Math.round(((thisW - lastW) / lastW) * 100);
                   return `${pct >= 0 ? "+" : ""}${pct}% this week`;
@@ -1041,8 +1043,8 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                     .filter(Boolean)
                 ).size;
                 return (<>
-                  <MetricCard value={stats.total_research || 0} label="Total Sessions"  sub={wow(history)} icon="hexagon" delay={0}   />
-                  <MetricCard value={stats.total_debates   || 0} label="Total Debates"  sub={wow(debates)} icon="hexagon" delay={80}  />
+                  <MetricCard value={stats.total_research || 0} label="Total Sessions"  sub={wow(history, stats.total_research)} icon="hexagon" delay={0}   />
+                  <MetricCard value={stats.total_debates   || 0} label="Total Debates"  sub={wow(debates, stats.total_debates)} icon="hexagon" delay={80}  />
                   <MetricCard value={stats.unique_topics   || 0} label="Unique Topics"  sub={topicsWeek ? `+${topicsWeek} this week` : "no new topics"} icon="hexagon" delay={160} />
                   <MetricCard value={`${stats.avg_confidence || 0}%`} label="Avg Confidence" sub={stats.total_research ? `across ${stats.total_research} sessions` : "no data yet"} icon="show_chart" delay={240} />
                 </>);
