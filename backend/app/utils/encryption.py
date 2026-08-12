@@ -136,6 +136,12 @@ def validate_key_format(api_key: str, provider: str) -> tuple[bool, str]:
     elif provider == "deepseek":
         if not api_key.startswith("sk-"):
             return False, "DeepSeek keys must start with 'sk-'"
+
+    elif provider == "zhipu":
+        # Zhipu/Z.ai keys have no fixed prefix (matches KEY_PREFIXES["zhipu"]
+        # = None in llm_providers.py) — just a basic sanity length check.
+        if len(api_key) < 20:
+            return False, "Zhipu key seems too short"
     
     if len(api_key) > 500:
         return False, "API key too long (max 500 characters)"
