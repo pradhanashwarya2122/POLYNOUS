@@ -16,7 +16,7 @@ from app.llm_providers import (
 
 router = APIRouter(prefix="/settings/api-keys", tags=["api-keys"])
 
-ALLOWED_PROVIDERS = list(ALL_KEY_PROVIDERS)  # anthropic/openai/google/mistral/groq/tavily/voyage
+ALLOWED_PROVIDERS = list(ALL_KEY_PROVIDERS)  # anthropic/openai/google/mistral/groq/nvidia/deepseek/zhipu/tavily/voyage
 
 # ============================================================
 # MODELS
@@ -48,6 +48,7 @@ class APIKeysResponse(BaseModel):
     groq: dict = {"has_key": False, "preview": None, "is_valid": False}
     nvidia: dict = {"has_key": False, "preview": None, "is_valid": False}
     deepseek: dict = {"has_key": False, "preview": None, "is_valid": False}
+    zhipu: dict = {"has_key": False, "preview": None, "is_valid": False}
     tavily: dict = {"has_key": False, "preview": None, "is_valid": False}
     voyage: dict = {"has_key": False, "preview": None, "is_valid": False}
     preferred_provider: str = "anthropic"
@@ -301,7 +302,8 @@ async def test_api_key(api_key: str, provider: str) -> dict:
             return {"valid": True, "message": "OpenAI key is valid ✅"}
         
         elif provider in OPENAI_COMPATIBLE_BASE_URLS:
-            # google / mistral / groq — all speak the OpenAI protocol
+            # google / mistral / groq / nvidia / deepseek / zhipu — all speak
+            # the OpenAI protocol, so one branch covers all of them.
             from openai import OpenAI
             client = OpenAI(api_key=api_key, base_url=OPENAI_COMPATIBLE_BASE_URLS[provider])
             client.models.list()
