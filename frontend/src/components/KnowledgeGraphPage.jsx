@@ -2119,20 +2119,20 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
               </div>
             );
             return (
-              <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", maxWidth: "94%" }}>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                  {chip("hub", "Concepts mapped", `${positions.length}`)}
-                  {top && chip("star", "Most connected", `${top.label} · ${top.connections || 0} links`)}
-                  {bridge && chip("alt_route", "Bridge concept", bridge)}
-                </div>
+              <div style={{ position: "absolute", top: 105, left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", maxWidth: "94%" }}>
                 <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", justifyContent: "center", padding: "7px 14px", borderRadius: 9999, background: "rgba(11,9,20,0.82)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.18)" }}>
                   {LEGEND.map(([t, lab, col]) => (
                     <span key={t} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.78)" }}>
                       <span style={{ width: 9, height: 9, borderRadius: "50%", background: col, boxShadow: `0 0 6px ${col}` }} /> {lab}
                     </span>
                   ))}
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.5)" }}>size = connections</span>
                 </div>
+                {(top || bridge) && (
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                    {top && chip("star", "Most connected", `${top.label} · ${top.connections || 0} links`)}
+                    {bridge && chip("alt_route", "Bridge concept", bridge)}
+                  </div>
+                )}
               </div>
             );
           })()}
