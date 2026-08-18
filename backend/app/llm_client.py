@@ -164,3 +164,57 @@ def resolve_model(user, provider: str) -> str:
     except Exception:
         pass
     return default_model(provider)
+
+
+# ── Text completion + embeddings (used across KG / PDF / semantic modules) ─────
+# These two names are imported from `app.llm_client` in ~10 places. They live
+# here so the whole app has one entry point for "ask the model" and "embed
+# text", routing Anthropic to its native SDK and every other provider through
+# the OpenAI-compatible wrapper.
+def ask_llm(user=None, provider=None, system_prompt: str = "", messages=None,
+            max_tokens: int = 1000, temperature: float = 0.3,
+            model: str = None, api_key: str = None) -> str:
+    """Model-agnostic chat completion. Resolves the user's key + model for
+    `provider`, calls the right SDK, and returns the response text."""
+    messages = messages or []
+    provider = (provider or getattr(user, "preferred_provider", None) or "anthropic").lower()
+
+    if not api_key and user is not None:
+        try:
+            from app.utils.encryption import decrypt_api_key
+            enc = getattr(user, f"{provider}_api_key", None)
+            if enc:
+                api_key = decrypt_api_key(enc, getattr(user, "encryption_key", None))
+        except Exception:
+            api_key = None
+    if not api_key:
+        raise RuntimeError(f"No API key configured for provider '{provider}'.")
+
+    mdl = model or resolve_model(user, provider)
+    client_type, base_url = resolve_provider(provider)
+
+    if client_type == "anthropic":
+        from anthropic import Anthropic
+        client = Anthropic(api_key=api_key)
+        resp = client.messages.create(
+            model=mdl, system=system_prompt or "", messages=messages,
+            max_tokens=max_tokens, temperature=temperature,
+        )
+        return (resp.content[0].text or "").strip()
+
+    # OpenAI-compatible: openai, zhipu, groq, mistral, nvidia, deepseek, google
+    from openai import OpenAI
+    from app.utils.openai_compat import openai_chat
+    kwargs = {"api_key": api_key}
+    if base_url:
+        kwargs["base_url"] = base_url
+    client = OpenAI(**kwargs)
+    full = ([{"role": "system", "content": system_prompt}] if system_prompt else []) + messages
+    resp = openai_chat(client, model=mdl, messages=full, max_tokens=max_tokens, temperature=temperature)
+    return (resp.choices[0].message.content or "").strip()
+
+
+# Re-export the embedding helpers so `from app.llm_client import create_embedding`
+# (used across the KG / PDF / semantic modules) resolves. They actually live in
+# app.embeddings, which has no dependency back on this module (no import cycle).
+from app.embeddings import create_embedding, create_embeddings_batch  # noqa: E402,F401
