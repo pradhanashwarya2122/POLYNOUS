@@ -1,4 +1,5 @@
 import ActiveModelBadge from "./ActiveModelBadge";
+import { isDevPreview } from "../devPreview";
 
 // ─── Icon Component (defined locally) ────────────────────────
 function Icon({ name, style }) {
@@ -46,6 +47,12 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
   const bye = () => (onLogout ? onLogout() : (localStorage.clear(), (window.location.href = "/")));
   const keyGo = (fn) => (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
 
+  // Admin console appears in the nav only for you (admin session / dev-preview),
+  // never for regular clients.
+  const items = isDevPreview()
+    ? [...NAV, { icon: "admin_panel_settings", label: "Admin", path: "/admin" }]
+    : NAV;
+
   // ── Collapsed State ─────────────────────────────────────────
   if (collapsed) return (
     <aside style={{
@@ -65,7 +72,7 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
         <Icon name="chevron_right" style={{ fontSize: 22 }} />
       </button>
 
-      {NAV.map(({ icon, label, path, active }) => (
+      {items.map(({ icon, label, path, active }) => (
         <div
           key={label}
           onClick={() => go(path)}
@@ -165,7 +172,7 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
 
       {/* Navigation */}
       <nav className="pn-stagger" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
-        {NAV.map(({ icon, label, path, active }) => (
+        {items.map(({ icon, label, path, active }) => (
           <div
             key={label}
             onClick={() => go(path)}

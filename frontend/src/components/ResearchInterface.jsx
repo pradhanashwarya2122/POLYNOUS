@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { C } from "../design/researchColors";
 import { Icon } from "./shared/Icon";
 import { NeuralSynthesisReport } from "./report/NeuralSynthesisReport";
+import PolynousReport from "./PolynousReport";
+import { isDevPreview } from "../devPreview";
 import ScrapeCountControl from "./ScrapeCountControl";
 import { API_BASE_URL } from '../config'
 import NeuralResearchEngine from './NeuralResearchEngine'   // ← NEW
@@ -1287,11 +1289,16 @@ export default function PolynousResearch({ user, onNavigate, onLogout }) {
               );
             })()}
 
-            {/* Report */}
-            <div style={{ maxWidth:860,margin:"0 auto" }}>
-              <NeuralSynthesisReport query={query} answer={answer} report={report} sources={sources} confidence={confidence} confThreshold={confThreshold} telemetry={telemetry} sourceSummaries={sourceSummaries} cacheInfo={cacheInfo} onRerun={rerunFresh} onCopy={handleCopy} onNew={handleNew}
-                onDeepen={(finding) => { const q = String(finding).replace(/\s+/g," ").trim().slice(0,240); setQuery(q); startResearch(q); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
-            </div>
+            {/* Report — admins (dev-preview) see the new PolynousReport wired to
+                real data; everyone else keeps the current report. */}
+            {isDevPreview() ? (
+              <PolynousReport query={query} answer={answer} report={report} sources={sources} confidence={confidence} telemetry={telemetry} sourceSummaries={sourceSummaries} />
+            ) : (
+              <div style={{ maxWidth:860,margin:"0 auto" }}>
+                <NeuralSynthesisReport query={query} answer={answer} report={report} sources={sources} confidence={confidence} confThreshold={confThreshold} telemetry={telemetry} sourceSummaries={sourceSummaries} cacheInfo={cacheInfo} onRerun={rerunFresh} onCopy={handleCopy} onNew={handleNew}
+                  onDeepen={(finding) => { const q = String(finding).replace(/\s+/g," ").trim().slice(0,240); setQuery(q); startResearch(q); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+              </div>
+            )}
 
             {/* History */}
             {history.length>0 && (

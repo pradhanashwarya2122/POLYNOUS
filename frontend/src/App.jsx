@@ -63,6 +63,7 @@ import PremiumHomepage from './components/PremiumHomepage';
 import AuthPage from './components/AuthPage';
 import OAuthCallback from './components/OAuthCallback';
 import NavDock from './components/NavDock';
+import AdminLauncher from './components/AdminLauncher';
 import { API_BASE_URL } from './config';
 
 // ═══════════════════════════════════════════════════════════════
@@ -322,6 +323,7 @@ export default function App() {
       {/* Global premium dock: floats over every authenticated page, hidden on
           landing / auth / static pages (handled inside NavDock). */}
       {isLoggedIn && <NavDock />}
+      {isLoggedIn && <AdminLauncher />}
       <Suspense fallback={
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#08060f', color: '#c084fc', fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, letterSpacing: '0.08em' }}>
           <div style={{ width: 26, height: 26, border: '2px solid rgba(168,85,247,0.25)', borderTopColor: '#a855f7', borderRadius: '50%', animation: 'pn-spin 0.7s linear infinite', marginRight: 12 }} />
@@ -375,8 +377,10 @@ export default function App() {
         <Route path="/pdf-lab" element={isLoggedIn ? <PdfLabPage user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
         <Route path="/analytics" element={isLoggedIn ? <PolynousDashboard user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
         <Route path="/admin" element={isLoggedIn ? <AdminDashboard onNavigate={navigateTo} /> : <Navigate to="/auth" replace />} />
-        {/* Dev-preview only: the new report design, visible to admins before it ships to everyone. */}
-        <Route path="/report-preview" element={isLoggedIn && isDevPreview() ? <PolynousReport /> : <Navigate to="/" replace />} />
+        {/* New report design — reachable by direct URL for signed-in owners/reviewers,
+            but never linked in the client nav (only surfaced in the admin console),
+            so clients don't stumble onto in-progress work. */}
+        <Route path="/report-preview" element={isLoggedIn ? <PolynousReport /> : <Navigate to="/auth" replace />} />
 
         {/* ── CATCH-ALL: themed 404 page ────────────────── */}
         <Route path="*" element={<NotFound />} />

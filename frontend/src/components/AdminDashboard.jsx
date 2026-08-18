@@ -231,6 +231,7 @@ export default function AdminDashboard({ onNavigate }) {
     try {
       const d = await fetchUsers(key);
       sessionStorage.setItem(KEY_STORE, key);
+      setDevPreview(true);   // remember you're an admin on this device → shows the sidebar/launcher entry
       setAdminKey(key);
       setData(d);
     } catch (e) {
