@@ -1590,7 +1590,19 @@ function ApiKeysSection({ push }) {
   // ── Free starter key ──
   const [freeStatus, setFreeStatus] = useState(null);
   const [claiming, setClaiming] = useState(false);
-  useEffect(() => { api.freeKeyStatus().then(setFreeStatus).catch(() => setFreeStatus(null)); }, []);
+  const [autoSwap, setAutoSwap] = useState(() => localStorage.getItem("polynous_autoswap_freekey") !== "0");
+  useEffect(() => {
+    api.freeKeyStatus().then((s) => {
+      setFreeStatus(s);
+      // Auto-swap: when the owner has rotated the shared free key, silently pull
+      // the new one in the background (no banner click needed) if enabled.
+      if (s && s.rotated && localStorage.getItem("polynous_autoswap_freekey") !== "0") {
+        api.claimFreeKey()
+          .then((r) => { push(r?.message || "Your free key was refreshed automatically.", "ok"); load(); api.freeKeyStatus().then(setFreeStatus).catch(() => {}); })
+          .catch(() => { /* leave the banner as a manual fallback */ });
+      }
+    }).catch(() => setFreeStatus(null));
+  }, []);
   const claimFree = async () => {
     setClaiming(true);
     try {
@@ -1606,10 +1618,39 @@ function ApiKeysSection({ push }) {
   };
   const showFreeBanner = freeStatus && freeStatus.pool_configured &&
     !freeStatus.already_claimed && !freeStatus.has_own_key && freeStatus.available > 0;
+  // Owner rotated the shared free key → the user's old one is stale; offer the new one.
+  const showRotatedBanner = freeStatus && freeStatus.rotated;
 
   return (
     <Card>
-      <SectionHead icon="key" title="API Keys" subtitle="Bring your own keys · system services managed automatically" />
+      <SectionHead icon="key" title="API Keys" subtitle="You only need ONE key — from any single provider below. That's it." />
+
+      {showRotatedBanner && (
+        <div style={{ marginBottom: 20, padding: "16px 18px", borderRadius: 12,
+          background: "rgba(0,255,71,0.07)", border: "1px solid rgba(0,255,71,0.30)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontFamily: C.fontHead, fontWeight: 700, fontSize: 14, color: "#00ff47", marginBottom: 4 }}>
+              🔄 Your free key was updated
+            </div>
+            <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.5, maxWidth: 460 }}>
+              We rotated the shared free {freeStatus?.claimed_provider ? freeStatus.claimed_provider : ""} key. Click to switch to the new one — completely free, nothing to pay.
+            </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 9, cursor: "pointer", fontFamily: C.fontMono, fontSize: 11, color: C.onSurfaceVariant }}>
+              <input type="checkbox" checked={autoSwap}
+                onChange={(e) => { setAutoSwap(e.target.checked); localStorage.setItem("polynous_autoswap_freekey", e.target.checked ? "1" : "0"); }}
+                style={{ accentColor: "#00ff47", width: 14, height: 14 }} />
+              Auto-update my free key next time (no click needed)
+            </label>
+          </div>
+          <button onClick={claimFree} disabled={claiming} style={{
+            padding: "10px 22px", borderRadius: 9999, border: "none", flexShrink: 0,
+            background: "#00ff47", color: "#04120b", fontFamily: C.fontMono, fontSize: 12, fontWeight: 700,
+            cursor: claiming ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 7 }}>
+            {claiming && <InlineSpinner />}{claiming ? "Updating…" : "Use the new free key"}
+          </button>
+        </div>
+      )}
 
       {showFreeBanner && (
         <div style={{ marginBottom: 20, padding: "16px 18px", borderRadius: 12,

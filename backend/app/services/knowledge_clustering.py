@@ -105,16 +105,40 @@ def find_duplicates(user, user_id: str = "guest", threshold: float = 0.92, max_p
         from app.semantic_search import semantic_search, EMBEDDING_DIM
     except Exception:
         return empty
-    if not getattr(semantic_search, "use_pinecone", False) or not semantic_search.index:
-        return empty
-    try:
-        res = semantic_search.index.query(
-            vector=[0.0] * EMBEDDING_DIM, top_k=max_points,
-            include_metadata=True, include_values=True, namespace=f"user_{user_id}")
-        pts = [(m.id, m.values, (m.metadata or {})) for m in res.get("matches", []) if m.values]
-    except Exception as e:
-        print(f"⚠️ dedup fetch failed: {e}")
-        return empty
+    pts = []
+    if getattr(semantic_search, "use_pinecone", False) and getattr(semantic_search, "index", None):
+        # Legacy Pinecone path
+        try:
+            res = semantic_search.index.query(
+                vector=[0.0] * EMBEDDING_DIM, top_k=max_points,
+                include_metadata=True, include_values=True, namespace=f"user_{user_id}")
+            pts = [(m.id, m.values, (m.metadata or {})) for m in res.get("matches", []) if m.values]
+        except Exception as e:
+            print(f"⚠️ dedup fetch failed: {e}")
+            return empty
+    else:
+        # Postgres/pgvector path — fetch the user's semantic entries + vectors.
+        try:
+            import json as _json
+            from sqlalchemy import text as _sql
+            from app.database import engine as _engine
+            with _engine.connect() as conn:
+                rows = conn.execute(_sql("""
+                    SELECT entry_id, query, mode, embedding::text
+                    FROM semantic_entries
+                    WHERE user_id = :u AND embedding IS NOT NULL
+                    ORDER BY created_at DESC LIMIT :n
+                """), {"u": user_id, "n": max_points}).fetchall()
+            for (eid, q, mode, emb_txt) in rows:
+                try:
+                    vals = _json.loads(emb_txt) if emb_txt else None
+                except Exception:
+                    vals = None
+                if vals:
+                    pts.append((eid or q, vals, {"query": q or "", "mode": mode or "research"}))
+        except Exception as e:
+            print(f"⚠️ pg dedup fetch failed: {e}")
+            return empty
     n = len(pts)
     if n < 2:
         return empty

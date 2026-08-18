@@ -29,26 +29,53 @@ def _fingerprint(key: str) -> str:
 
 
 def _load_pool() -> list[dict]:
-    """Return the list of valid, filled-in pool entries (placeholders skipped)."""
+    """Return the list of valid, filled-in pool entries (placeholders skipped).
+
+    Two sources, merged (env takes priority so it's the "current" free key):
+      1. FREE_KEY + FREE_KEY_PROVIDER env vars — the EASY rotation path. Change
+         these one values on your host and the free key rotates instantly, no
+         redeploy and no file edits.
+      2. backend/free_keys.json — a static pool (or FREE_KEYS_PATH).
+    """
+    valid, seen = [], set()
+
+    # 1) env-var free key — listed first so pick_unclaimed hands it out first
+    env_key = (os.getenv("FREE_KEY") or "").strip()
+    env_provider = (os.getenv("FREE_KEY_PROVIDER") or "").strip().lower()
+    if env_key and not env_key.startswith("PASTE_") and env_provider in LLM_PROVIDERS:
+        fp = _fingerprint(env_key)
+        valid.append({"provider": env_provider, "key": env_key, "fp": fp})
+        seen.add(fp)
+
+    # 2) file pool
     path = os.getenv("FREE_KEYS_PATH", str(_POOL_PATH))
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
+        entries = data.get("keys", []) if isinstance(data, dict) else []
     except (FileNotFoundError, json.JSONDecodeError):
-        return []
-    entries = data.get("keys", []) if isinstance(data, dict) else []
-    valid = []
+        entries = []
     for e in entries:
         key = (e.get("key") or "").strip()
         provider = (e.get("provider") or "").strip().lower()
         if not key or key.startswith("PASTE_") or provider not in LLM_PROVIDERS:
             continue
-        valid.append({"provider": provider, "key": key, "fp": _fingerprint(key)})
+        fp = _fingerprint(key)
+        if fp in seen:
+            continue
+        seen.add(fp)
+        valid.append({"provider": provider, "key": key, "fp": fp})
     return valid
 
 
 def pool_configured() -> bool:
     return len(_load_pool()) > 0
+
+
+def current_fingerprints() -> set:
+    """Fingerprints of the keys currently in the pool — used to detect when a
+    user's previously-claimed free key has been ROTATED out (no longer valid)."""
+    return {e["fp"] for e in _load_pool()}
 
 
 def available_count(claimed_fingerprints: set[str]) -> int:

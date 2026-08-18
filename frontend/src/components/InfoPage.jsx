@@ -171,8 +171,8 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
         </Section>
 
         {/* What each key is used for */}
-        <Section icon="help" accent={C.purple} title="What is an API key used for here?" delay={0.05}
-          subtitle="POLYNOUS never charges you - it runs on keys you provide, so the cost and rate limits are yours. Here's exactly what each key powers:">
+        <Section icon="help" accent={C.purple} title="You only need ONE API key — that's it" delay={0.05}
+          subtitle="One key, from any single provider below, powers everything — research, debates, and the knowledge graph. You don't need a separate key per feature. POLYNOUS never charges you; it runs on the one key you provide, so the cost and rate limits stay yours.">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {KEY_ROLES.map(r => (
               <div key={r.title} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "14px 16px",

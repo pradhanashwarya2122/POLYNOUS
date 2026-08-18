@@ -1907,7 +1907,10 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         };
         
-        const res = await fetch(`${API_BASE_URL}/search?query=${encodeURIComponent(q)}&top_k=12`, { headers });
+        // Trailing slash matters: the backend route is `/search/`. Hitting
+        // `/search` triggers a 307 redirect that can drop the Authorization
+        // header cross-origin — which is why search returned nothing.
+        const res = await fetch(`${API_BASE_URL}/search/?query=${encodeURIComponent(q)}&top_k=12`, { headers });
         if (res.ok) {
             const data = await res.json();
             setResults(data.results || []);

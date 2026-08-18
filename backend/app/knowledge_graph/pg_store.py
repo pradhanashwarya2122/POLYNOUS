@@ -516,7 +516,10 @@ class PgGraph:
                              max_tokens=600, temperature=0.3)
             return {"answer": (answer or "").strip(), "triples": triples, "entry": entry, "grounded": True}
         except Exception as e:
-            return {**empty, "answer": f"Graph reasoning failed: {e}"}
+            err_msg = str(e)
+            if "401" in err_msg or "authentication_error" in err_msg or "API key is invalid" in err_msg or "api_key" in err_msg.lower():
+                err_msg = "Invalid or missing API key. Please configure your API key in Settings → API Keys."
+            return {**empty, "answer": f"Graph reasoning failed: {err_msg}"}
 
     # ── debate/rich helpers (minimal, non-fatal) ───────────────────
     def create_claim_node(self, *a, **k): return None

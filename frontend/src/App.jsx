@@ -18,6 +18,7 @@ const SemanticSearchPage = lazy(() => import('./components/SemanticSearchPage'))
 const PdfLabPage = lazy(() => import('./components/PdfLabPage'))
 const PolynousDashboard = lazy(() => import('./components/PolynousDashboard'))
 const InfoPage = lazy(() => import('./components/InfoPage'))
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'))
 const PrivacyPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.TermsPage })))
 const DocsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.DocsPage })))
@@ -371,6 +372,7 @@ export default function App() {
         <Route path="/search" element={isLoggedIn ? <SemanticSearchPage user={user} onStartResearch={startResearch} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
         <Route path="/pdf-lab" element={isLoggedIn ? <PdfLabPage user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
         <Route path="/analytics" element={isLoggedIn ? <PolynousDashboard user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/admin" element={isLoggedIn ? <AdminDashboard onNavigate={navigateTo} /> : <Navigate to="/auth" replace />} />
 
         {/* ── CATCH-ALL: themed 404 page ────────────────── */}
         <Route path="*" element={<NotFound />} />

@@ -15,9 +15,10 @@ SECURITY MODEL (deliberate, non-negotiable):
 
 Set ADMIN_EMAILS on Railway (e.g. ADMIN_EMAILS="you@example.com") to enable.
 """
+import hmac
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -33,12 +34,23 @@ def _admin_emails() -> set:
     return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
-def require_admin(user: User = Depends(get_current_user)) -> User:
+def require_admin(request: Request, user: User = Depends(get_current_user)) -> User:
+    """Admin gate. Access is granted two ways:
+      1. A secret key — pass it as the `X-Admin-Key` header (or `?admin_key=`)
+         matching the ADMIN_KEY env var. This is your "special side access":
+         log in with any account, supply the key, and you're elevated.
+      2. Your email is in the ADMIN_EMAILS allow-list.
+    Set ADMIN_KEY (a long random string) and/or ADMIN_EMAILS on your host.
+    """
+    admin_key = os.getenv("ADMIN_KEY", "") or ""
+    provided = request.headers.get("X-Admin-Key") or request.query_params.get("admin_key") or ""
+    if admin_key and provided and hmac.compare_digest(provided, admin_key):
+        return user
     admins = _admin_emails()
-    if not admins or (user.email or "").lower() not in admins:
-        # Same 403 whether or not admin is configured — don't leak the gate.
-        raise HTTPException(status_code=403, detail="Admin access required.")
-    return user
+    if admins and (user.email or "").lower() in admins:
+        return user
+    # Same 403 whether or not admin is configured — don't leak the gate.
+    raise HTTPException(status_code=403, detail="Admin access required.")
 
 
 @router.get("/users")
