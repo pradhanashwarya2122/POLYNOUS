@@ -60,6 +60,8 @@ async function request(path, options = {}) {
 const ReportAPI = {
   get: (reportId) => request(`/reports/${reportId}`),
   getStats: (reportId) => request(`/reports/${reportId}/stats`),
+  getBottomLine: (reportId) => request(`/reports/${reportId}/bottom-line`),
+  getExecutiveSummary: (reportId) => request(`/reports/${reportId}/executive-summary`),
   getPipeline: (reportId) => request(`/reports/${reportId}/pipeline`),
   create: (query, options = {}) => request(`/reports`, { method: "POST", body: JSON.stringify({ query, ...options }) }),
   rerun: (reportId) => request(`/reports/${reportId}/rerun`, { method: "POST" }),
@@ -301,6 +303,41 @@ function Header({ reportId, onExport, onShare }) {
   );
 }
 
+function BottomLine({ reportId, onOpenCitation }) {
+  const { data, loading, error, refetch } = useApi(() => ReportAPI.getBottomLine(reportId), [reportId], { text: "The single most important takeaway from this synthesis appears here.", confidence: 61, band: "MODERATE" });
+  const col = data.confidence >= 80 ? COLORS.success : data.confidence >= 60 ? COLORS.primary : COLORS.warning;
+  return (
+    <div className="pn-card">
+      <h3 className="pn-card-title"><i className="ph ph-flag-checkered" style={{ color: COLORS.primary }} /> BOTTOM LINE</h3>
+      {loading ? <Skeleton /> : (
+        <>
+          <p style={{ fontSize: 13.5, lineHeight: 1.62, color: "var(--text-hover)", margin: "0 0 18px" }}><CiteText text={data.text} onOpen={onOpenCitation} /></p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 700, color: col }}>{data.confidence}%</span>
+            <div style={{ flex: 1 }}><Bar pct={data.confidence} color={col} /></div>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: ".08em", color: col }}>{data.band}</span>
+          </div>
+        </>
+      )}
+      <ErrorNote error={error} onRetry={refetch} />
+    </div>
+  );
+}
+
+function ExecutiveSummary({ reportId, onOpenCitation }) {
+  const { data, loading, error, refetch } = useApi(() => ReportAPI.getExecutiveSummary(reportId), [reportId], { text: "" });
+  const paras = String(data.text || "").split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+  return (
+    <div className="pn-card">
+      <h3 className="pn-card-title"><i className="ph ph-star" style={{ color: COLORS.primary }} /> EXECUTIVE SUMMARY</h3>
+      {loading ? <><Skeleton /><Skeleton w="92%" /><Skeleton w="96%" /></> : (paras.length
+        ? paras.map((pp, i) => <p key={i} style={{ fontSize: 13, lineHeight: 1.75, color: "var(--text-bright)", margin: i ? "10px 0 0" : "0" }}><CiteText text={pp} onOpen={onOpenCitation} /></p>)
+        : <p style={{ fontSize: 13, color: "var(--text)" }}>No summary available for this run.</p>)}
+      <ErrorNote error={error} onRetry={refetch} />
+    </div>
+  );
+}
+
 function StatsStrip({ reportId }) {
   const { data, loading, error, refetch } = useApi(() => ReportAPI.getStats(reportId), [reportId], { confidence: 61, sources: 5, passages: 42, insights: 19, claims: 23, consensus: 75 });
   const items = [["CONFIDENCE", "confidence", "%", COLORS.success], ["SOURCES", "sources", "", COLORS.info], ["PASSAGES", "passages", "", COLORS.synthesis], ["INSIGHTS", "insights", "", COLORS.primary], ["CLAIMS", "claims", "", COLORS.secondary], ["CONSENSUS", "consensus", "%", COLORS.critic]];
@@ -394,7 +431,13 @@ function EvidenceLedger({ reportId, onOpenCitation }) {
           {(loading ? Array(5).fill(null) : data).map((row, i) => (
             <tr key={i} onClick={() => row?.citationId && onOpenCitation(row.citationId)} style={{ cursor: row?.citationId ? "pointer" : "default" }}>
               <td><span className="pn-dot" style={{ background: row ? FRESH_COLOR[row.freshness] : "var(--border)" }} /></td>
-              <td style={{ maxWidth: 0, width: "55%" }}>{row ? <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.source}>{row.source}</span>{row.citationId && <Citation id={row.citationId} onOpen={onOpenCitation} />}</span> : <Skeleton />}</td>
+              <td style={{ maxWidth: 0, width: "55%" }}>{row ? <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                {row.domain
+                  ? <img src={`https://www.google.com/s2/favicons?domain=${row.domain}&sz=64`} alt="" width={15} height={15} style={{ borderRadius: 3, flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                  : <span style={{ width: 15, height: 15, flexShrink: 0 }} />}
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.source}>{row.source}</span>
+                {row.citationId && <Citation id={row.citationId} onOpen={onOpenCitation} />}
+              </span> : <Skeleton />}</td>
               <td>{row && <span className="pn-freshness" style={{ color: FRESH_COLOR[row.freshness] }}>● {row.freshness} <span style={{ color: "#fff6" }}>{row.year}</span></span>}</td>
               <td>{row && <Bar pct={row.trust} color={COLORS.success} />}</td>
             </tr>
@@ -990,7 +1033,7 @@ function adaptReportData(p) {
   const ledger = sources.slice(0, 8).map((s, i) => {
     const yr = _year(s.published_date || s.date || s.title) || (2024 - (i % 6));
     const fresh = yr >= 2023 ? "CURRENT" : yr >= 2018 ? "AGING" : "OUTDATED";
-    return { source: (s.title || _domain(s.url) || "Source").slice(0, 42), citationId: String(i + 1), freshness: fresh, year: yr, trust: Math.max(40, Math.min(96, 60 + (s.content_source === "scraped" ? 22 : 8) + (i % 3) * 4)) };
+    return { source: (s.title || _domain(s.url) || "Source").slice(0, 42), domain: _domain(s.url), citationId: String(i + 1), freshness: fresh, year: yr, trust: Math.max(40, Math.min(96, 60 + (s.content_source === "scraped" ? 22 : 8) + (i % 3) * 4)) };
   });
 
   const tierOf = (u) => { const d = _domain(u); if (/\.gov(\.|$)|europa\.eu/.test(d)) return ["Government", CC.secondary]; if (/\.edu(\.|$)|arxiv|nature|science|ncbi|nih/.test(d)) return ["Academic", CC.primary]; if (/\.org(\.|$)/.test(d)) return ["NGO", CC.synthesis]; return ["Web / Media", CC.info]; };
@@ -1029,6 +1072,8 @@ function adaptReportData(p) {
       criticConsensus: { pct: criticScore, agree: Math.max(1, Math.round((n * criticScore) / 100)), total: Math.max(1, n), position: (ca.critic_consensus && ca.critic_consensus.explanation) || (findings[0] && findings[0].text) || _clean(report.executive_summary || "").slice(0, 150) },
     },
     "stats": { confidence: conf, sources: n, passages: (p.sourceSummaries || []).length || n * 3, insights: findings.length, claims: findings.length, consensus: criticScore },
+    "bottom-line": { text: (findings[0] && findings[0].text) || (ca.critic_consensus && ca.critic_consensus.explanation) || _clean(report.executive_summary || p.answer || "").split(/(?<=\.)\s/)[0] || "", confidence: conf, band },
+    "executive-summary": { text: _clean(report.executive_summary || p.answer || "") },
     "pipeline": { stages: ["Query", "Search", "Summarise", "Critic", "Synthesis", "Report"], finalConfidence: conf },
     "key-findings": findings.length ? findings : undefined,
     "evidence-ledger": ledger.length ? ledger : undefined,
@@ -1095,6 +1140,10 @@ export default function PolynousReport({ reportId = "demo-climate-report", query
       <PolynousStyles />
       <Header reportId={reportId} onExport={doExport} onShare={doShare} />
       <div className="pn-container" style={{ paddingTop: 24, paddingBottom: 48, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="pn-grid" style={{ gridTemplateColumns: "1fr 1.35fr" }}>
+          <BottomLine reportId={reportId} onOpenCitation={openCitation} />
+          <ExecutiveSummary reportId={reportId} onOpenCitation={openCitation} />
+        </div>
         <StatsStrip reportId={reportId} />
         <Pipeline reportId={reportId} />
         <div className="pn-grid pn-grid-4">
