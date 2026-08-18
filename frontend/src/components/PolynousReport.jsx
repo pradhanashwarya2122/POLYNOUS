@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { API_BASE_URL as APP_API_BASE, getAuthToken } from "../config";
 
 /* =====================================================================
    POLYNOUS NEURAL SYNTHESIS REPORT — single-file React component (v2)
@@ -135,15 +136,15 @@ const POLYNOUS_CSS = `
     radial-gradient(ellipse 900px 500px at 15% -10%, rgba(94,234,212,0.06), transparent 60%),
     radial-gradient(ellipse 900px 600px at 90% 10%, rgba(129,140,248,0.05), transparent 55%),
     var(--bg);
-  color: var(--text); font-family: "Inter", -apple-system, sans-serif; font-size: 14px;
+  color: var(--text); font-family: "Inter", -apple-system, sans-serif; font-size: 15px;
   min-height: 100vh; position: relative; overflow-x: hidden; letter-spacing: -0.005em;
 }
-.pn-container { max-width: 1560px; margin: 0 auto; padding: 0 2.5rem; }
+.pn-container { max-width: 1300px; margin: 0 auto; padding: 0 2rem; }
 .pn-serif { font-family: "Sora", sans-serif; }
 .pn-mono { font-family: "JetBrains Mono", monospace; }
 .pn-card {
   background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)), var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius); padding: 1.6rem;
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 1.35rem 1.4rem;
   box-shadow: var(--shadow-card); position: relative; transition: border-color .25s ease, transform .25s ease;
 }
 .pn-card::before {
@@ -153,11 +154,11 @@ const POLYNOUS_CSS = `
   -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
 }
 .pn-card:hover { border-color: var(--border-strong); }
-.pn-card-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-bright); font-weight: 700; display: flex; align-items: center; gap: .6rem; margin-bottom: 1.15rem; }
-.pn-card-title i { font-size: 13px; opacity: .9; }
+.pn-card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-bright); font-weight: 700; display: flex; align-items: center; gap: .55rem; margin-bottom: 1rem; }
+.pn-card-title i { font-size: 14px; opacity: .9; }
 .pn-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px rgba(52,211,153,0.15), 0 0 12px rgba(52,211,153,0.6); display: inline-block; margin-right: 6px; }
 .pn-error { font-size: 10px; color: var(--danger); border: 1px solid rgba(251,113,133,0.25); background: rgba(251,113,133,0.06); border-radius: var(--radius-sm); padding: 7px 12px; margin-top: 10px; cursor: pointer; }
-.pn-grid { display: grid; gap: 1.25rem; align-items: stretch; }
+.pn-grid { display: grid; gap: 1.1rem; align-items: stretch; }
 .pn-grid-4 { grid-template-columns: repeat(4, 1fr); }
 .pn-grid-12 { grid-template-columns: repeat(12, 1fr); }
 @media (max-width: 900px) { .pn-grid-4 { grid-template-columns: 1fr; } .pn-grid-12 { grid-template-columns: 1fr; } }
@@ -177,7 +178,7 @@ const POLYNOUS_CSS = `
 .pn-stat { display: flex; flex-direction: column; align-items: center; gap: .35rem; cursor: pointer; padding: .5rem .25rem; border-radius: var(--radius-sm); transition: background .2s; }
 .pn-stat:hover { background: rgba(255,255,255,0.03); }
 .pn-stat-num { font-family: "Sora", sans-serif; font-size: 1.7rem; font-weight: 500; }
-.pn-stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); font-weight: 600; }
+.pn-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); font-weight: 600; }
 .pn-pipeline { display: flex; align-items: center; justify-content: space-between; }
 .pn-pipe-node { display: flex; flex-direction: column; align-items: center; gap: .6rem; }
 .pn-pipe-circle { width: 60px; height: 60px; border-radius: 50%; border: 1px solid var(--border); background: linear-gradient(160deg, rgba(255,255,255,0.03), transparent); display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 1.15rem; transition: all .2s; }
@@ -300,6 +301,61 @@ function Header({ reportId, onExport, onShare }) {
         </div>
       </div>
     </header>
+  );
+}
+
+// Live follow-up Q&A grounded in this report — calls the real backend
+// /report/chat with the report answer + source summaries as context.
+function ChatWithReport({ answer, sourceSummaries }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef(null);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, sending]);
+  const send = async () => {
+    const q = input.trim(); if (!q || sending) return;
+    setInput(""); setMessages((m) => [...m, { role: "user", text: q }]); setSending(true);
+    try {
+      const tok = getAuthToken();
+      const res = await fetch(`${APP_API_BASE}/report/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}) },
+        body: JSON.stringify({ question: q, report_answer: answer || "", source_summaries: sourceSummaries || [] }),
+      });
+      const data = res.ok ? await res.json() : {};
+      setMessages((m) => [...m, { role: "assistant", text: data.answer || (res.status === 401 ? "Please sign in to ask follow-ups." : "Couldn't answer that — please try again.") }]);
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", text: "Couldn't reach the assistant. Try again." }]);
+    } finally { setSending(false); }
+  };
+  return (
+    <div className="pn-card" style={{ display: "flex", flexDirection: "column", minHeight: 360, maxHeight: 560 }}>
+      <h3 className="pn-card-title"><i className="ph ph-chat-circle-dots" style={{ color: COLORS.primary }} /> CHAT WITH THIS REPORT</h3>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 11, paddingRight: 4 }}>
+        {messages.length === 0 && !sending && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, color: "var(--text-dim)", fontSize: 13 }}>
+            <span style={{ marginBottom: 2 }}>Ask a follow-up, grounded strictly in this report:</span>
+            {["What's the strongest evidence here?", "Where do the sources disagree?", "Summarise this in one line."].map((s) => (
+              <button key={s} onClick={() => setInput(s)} style={{ textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-soft)", borderRadius: 10, padding: "9px 12px", color: "var(--text)", fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter',sans-serif" }}>{s}</button>
+            ))}
+          </div>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "88%", padding: "10px 13px", borderRadius: 13,
+            background: m.role === "user" ? "rgba(52,211,153,0.10)" : "var(--bg)", border: `1px solid ${m.role === "user" ? "rgba(52,211,153,0.28)" : "var(--border-soft)"}`,
+            color: m.role === "user" ? "var(--text-hover)" : "var(--text-bright)", fontSize: 13.5, lineHeight: 1.62 }}>{m.text}</div>
+        ))}
+        {sending && <div style={{ alignSelf: "flex-start", color: "var(--text-dim)", fontSize: 12.5, fontFamily: "'JetBrains Mono',monospace" }}>thinking…</div>}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Ask a follow-up…"
+          style={{ flex: 1, padding: "11px 14px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(0,0,0,0.22)", color: "var(--text-hover)", fontSize: 13.5, outline: "none", fontFamily: "'Inter',sans-serif" }} />
+        <button onClick={send} disabled={sending || !input.trim()} title="Send" style={{ flexShrink: 0, width: 44, borderRadius: 12, border: "none", cursor: sending || !input.trim() ? "default" : "pointer",
+          background: sending || !input.trim() ? "rgba(52,211,153,0.25)" : COLORS.primary, color: "#04120b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <i className="ph ph-paper-plane-right" style={{ fontSize: 18 }} />
+        </button>
+      </div>
+    </div>
   );
 }
 
