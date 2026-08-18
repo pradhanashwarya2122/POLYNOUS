@@ -231,6 +231,17 @@ function ErrorNote({ error, onRetry }) {
 }
 function Citation({ id, onOpen }) { return <span className="pn-citation" onClick={() => onOpen(id)}>[{id}]</span>; }
 
+// Renders text with inline [n] markers turned into clickable citations, so we
+// never double them up (text already carries [n]) — used wherever findings/
+// claims prose is shown.
+function CiteText({ text, onOpen }) {
+  const parts = String(text || "").split(/(\[\d+\])/g);
+  return <>{parts.map((p, i) => {
+    const m = p.match(/^\[(\d+)\]$/);
+    return m ? <Citation key={i} id={m[1]} onOpen={onOpen} /> : <React.Fragment key={i}>{p}</React.Fragment>;
+  })}</>;
+}
+
 function Header({ reportId, onExport, onShare }) {
   const { data, loading, error, refetch } = useApi(() => ReportAPI.get(reportId), [reportId], {
     query: "What actually causes climate change?", generatedAt: "15 AUG 2026", sourceCount: 5, model: "GPT-4o-mini",
@@ -355,7 +366,7 @@ function KeyFindings({ reportId, onOpenCitation }) {
         {(loading ? Array(5).fill(null) : data).map((f, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${COLORS.success}`, color: COLORS.success, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0 }}>{i + 1}</div>
-            {f ? <div style={{ fontSize: 12, color: "#fff" }}>{f.text} {f.citationId && <Citation id={f.citationId} onOpen={onOpenCitation} />}</div> : <Skeleton />}
+            {f ? <div style={{ fontSize: 12.5, color: "var(--text-bright)", lineHeight: 1.5 }}><CiteText text={f.text} onOpen={onOpenCitation} /></div> : <Skeleton />}
           </div>
         ))}
       </div>
@@ -383,7 +394,7 @@ function EvidenceLedger({ reportId, onOpenCitation }) {
           {(loading ? Array(5).fill(null) : data).map((row, i) => (
             <tr key={i} onClick={() => row?.citationId && onOpenCitation(row.citationId)} style={{ cursor: row?.citationId ? "pointer" : "default" }}>
               <td><span className="pn-dot" style={{ background: row ? FRESH_COLOR[row.freshness] : "var(--border)" }} /></td>
-              <td>{row ? <>{row.source}{row.citationId && <Citation id={row.citationId} onOpen={onOpenCitation} />}</> : <Skeleton />}</td>
+              <td style={{ maxWidth: 0, width: "55%" }}>{row ? <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.source}>{row.source}</span>{row.citationId && <Citation id={row.citationId} onOpen={onOpenCitation} />}</span> : <Skeleton />}</td>
               <td>{row && <span className="pn-freshness" style={{ color: FRESH_COLOR[row.freshness] }}>● {row.freshness} <span style={{ color: "#fff6" }}>{row.year}</span></span>}</td>
               <td>{row && <Bar pct={row.trust} color={COLORS.success} />}</td>
             </tr>
@@ -531,7 +542,7 @@ function ResearchCoverage({ reportId }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {(loading ? Array(5).fill(null) : data).map((row, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 60 }}><Skeleton w="60%" /></div>
+            <div style={{ width: 116, flexShrink: 0, fontSize: 10.5, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row ? row.label : ""}>{row ? (row.label || "Factor") : <Skeleton w="70%" />}</div>
             <div style={{ flex: 1 }}>{row && <Bar pct={row.pct} color={row.color} />}</div>
             <span style={{ fontSize: 10, color: row ? row.color : "var(--text)", fontFamily: "monospace" }}>{row ? `${row.pct}%` : ""}</span>
           </div>
@@ -570,21 +581,27 @@ function SourceLandscape({ reportId }) {
 }
 
 function ContradictionNetwork({ reportId }) {
-  const { loading, error, refetch } = useApi(() => ContradictionsAPI.getNetwork(reportId), [reportId], {});
-  const [running, setRunning] = useState(false);
-  const run = async () => { setRunning(true); try { await ContradictionsAPI.runAnalysis(reportId); refetch(); } catch { /* */ } finally { setRunning(false); } };
+  const { data, loading, error, refetch } = useApi(() => ContradictionsAPI.getNetwork(reportId), [reportId], { resolution: "", hasConflict: false, count: 0 });
+  const res = (data && data.resolution) || "";
   return (
     <div className="pn-card" style={{ background: "var(--surface-2)" }}>
-      <h3 className="pn-card-title"><i className="ph ph-git-merge" style={{ color: COLORS.synthesis }} /> CONTRADICTION NETWORK</h3>
-      <div style={{ height: 96, display: "flex", alignItems: "center", justifyContent: "center", opacity: loading ? 0.4 : 1 }}>
-        <svg viewBox="0 0 200 100" width="100%" height="100%">
-          <circle cx="30" cy="40" r="8" fill="none" stroke={COLORS.secondary} /><circle cx="30" cy="70" r="8" fill="none" stroke={COLORS.secondary} />
-          <circle cx="100" cy="50" r="12" fill="none" stroke={COLORS.synthesis} /><circle cx="170" cy="30" r="8" fill="none" stroke={COLORS.warning} /><circle cx="170" cy="70" r="8" fill="none" stroke={COLORS.warning} />
-          <line x1="38" y1="40" x2="88" y2="50" stroke="rgba(120,130,180,0.5)" strokeDasharray="2 2" /><line x1="38" y1="70" x2="88" y2="50" stroke="rgba(120,130,180,0.5)" strokeDasharray="2 2" />
-          <line x1="112" y1="50" x2="162" y2="30" stroke="rgba(120,130,180,0.5)" strokeDasharray="2 2" /><line x1="112" y1="50" x2="162" y2="70" stroke="rgba(120,130,180,0.5)" strokeDasharray="2 2" />
-        </svg>
-      </div>
-      <button className="pn-btn" style={{ width: "100%", justifyContent: "center", marginTop: 12 }} onClick={run} disabled={running}>{running ? "RUNNING…" : "RUN ANALYSIS"}</button>
+      <h3 className="pn-card-title"><i className="ph ph-git-merge" style={{ color: COLORS.synthesis }} /> CONTRADICTION RESOLUTION</h3>
+      {loading ? <Skeleton /> : res ? (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: data.hasConflict ? COLORS.warning : COLORS.success }} />
+            <span style={{ fontSize: 9.5, fontFamily: "'JetBrains Mono',monospace", letterSpacing: ".08em", textTransform: "uppercase", color: data.hasConflict ? COLORS.warning : COLORS.success }}>
+              {data.hasConflict ? `${data.count} tension${data.count === 1 ? "" : "s"} reconciled` : "No material conflicts"}
+            </span>
+          </div>
+          <p style={{ fontSize: 11.5, lineHeight: 1.65, color: "var(--text-bright)", margin: 0 }}>{res}</p>
+        </>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.success }} />
+          <span style={{ fontSize: 11.5, color: "var(--text)" }}>No contradictions surfaced across the sources.</span>
+        </div>
+      )}
       <ErrorNote error={error} onRetry={refetch} />
     </div>
   );
@@ -651,7 +668,7 @@ function KUU({ reportId, onOpenCitation }) {
             {(loading ? Array(2).fill(null) : items).map((it, i) => (
               <div key={i}>
                 {it ? (<>
-                  <p style={{ fontSize: 11, color: "#fff", margin: "6px 0 4px" }}>{it.text} {it.citations?.map((c) => <Citation key={c} id={c} onOpen={onOpenCitation} />)}</p>
+                  <p style={{ fontSize: 11, color: "var(--text-bright)", lineHeight: 1.5, margin: "6px 0 4px" }}><CiteText text={it.text} onOpen={onOpenCitation} /></p>
                   {it.pct != null && <div style={{ display: "flex", gap: 8, alignItems: "center" }}><Bar pct={it.pct} color={color} /><span style={{ fontSize: 8, fontFamily: "monospace", color }}>{it.pct}%</span></div>}
                 </>) : <Skeleton />}
               </div>
@@ -668,7 +685,7 @@ function KUU({ reportId, onOpenCitation }) {
   );
 }
 
-function Sensitivity({ reportId, onOpenCitation, confidence }) {
+function Sensitivity({ reportId, onOpenCitation, confidence, synthesis }) {
   const { data, loading, error, refetch } = useApi(() => SensitivityAPI.list(reportId), [reportId], [
     { id: 1, title: "Natural forcing explains recent warming", desc: "Evidence showing natural forcing accounts for most of the observed recent temperature increase.", evidenceNeeded: ["Long-term solar measurements", "Volcanic forcing models", "Independent attribution studies"], citations: ["2", "4"], strength: 24 },
     { id: 2, title: "Independent datasets contradict the current attribution", desc: "Multiple high-quality datasets consistently produce a different attribution of recent warming.", evidenceNeeded: ["Dataset comparison", "Methodological audit", "Cross-reference checks"], citations: ["1"], strength: 15 },
@@ -680,7 +697,7 @@ function Sensitivity({ reportId, onOpenCitation, confidence }) {
       <h3 style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>WHAT WOULD CHANGE OUR MIND?</h3>
       <p style={{ fontSize: 11, color: "var(--text)", marginBottom: 20 }}>Evidence that could materially weaken or overturn the current synthesis.</p>
       <div className="pn-card" style={{ background: "var(--bg)", marginBottom: 20, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ flex: 1 }}><span style={{ fontSize: 9, color: "#5c687c", textTransform: "uppercase", fontWeight: 600 }}>CURRENT SYNTHESIS</span><p style={{ fontSize: 12, color: "#fff" }}>Recent climate change is predominantly driven by human activity, while natural factors contribute to longer-term climate variability.</p></div>
+        <div style={{ flex: 1 }}><span style={{ fontSize: 9, color: "var(--text-dim)", textTransform: "uppercase", fontWeight: 600 }}>CURRENT SYNTHESIS</span><p style={{ fontSize: 12, color: "var(--text-bright)", lineHeight: 1.5 }}>{synthesis || "This synthesis reflects the balance of the retrieved sources for your query."}</p></div>
         <div style={{ textAlign: "right", borderLeft: "1px solid var(--border)", paddingLeft: 16 }}><span style={{ fontSize: 9, color: COLORS.primary, textTransform: "uppercase", fontWeight: 600, display: "block" }}>CURRENT CONFIDENCE</span><span style={{ fontSize: 18, fontFamily: "monospace", color: COLORS.primary, fontWeight: 700 }}>{confidence}%</span></div>
       </div>
       <div>
@@ -768,10 +785,12 @@ function ToolsUsed({ reportId }) {
   const { data, loading, error, refetch } = useApi(() => ToolsAPI.list(reportId), [reportId], [{ icon: "ph-shield", color: COLORS.synthesis }, { icon: "ph-chart-polar", color: COLORS.secondary }, { icon: "ph-share-network", color: COLORS.success }, { icon: "ph-download-simple", color: COLORS.warning }]);
   return (
     <div className="pn-card" style={{ gridColumn: "span 2" }}>
-      <h3 className="pn-card-title">TOOLS</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <h3 className="pn-card-title">TOOLS USED</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {(loading ? Array(4).fill(null) : data).map((t, i) => (
-          <div key={i} style={{ padding: 8, border: `1px solid ${t ? t.color + "33" : "var(--border)"}`, background: t ? t.color + "0d" : "transparent", borderRadius: 6, textAlign: "center" }}>{t && <i className={`ph ${t.icon}`} style={{ color: t.color, fontSize: 18 }} />}</div>
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 10px", border: `1px solid ${t ? t.color + "2e" : "var(--border)"}`, background: t ? t.color + "0d" : "transparent", borderRadius: 8 }}>
+            {t ? <><i className={`ph ${t.icon}`} style={{ color: t.color, fontSize: 15 }} /><span style={{ fontSize: 11, color: "var(--text-bright)" }}>{t.label || "Tool"}</span></> : <Skeleton />}
+          </div>
         ))}
       </div>
       <ErrorNote error={error} onRetry={refetch} />
@@ -780,26 +799,46 @@ function ToolsUsed({ reportId }) {
 }
 
 function RunTelemetry({ reportId }) {
-  const { loading, error, refetch } = useApi(() => TelemetryAPI.get(reportId), [reportId], {});
+  const { data, loading, error, refetch } = useApi(() => TelemetryAPI.get(reportId), [reportId], {});
+  const t = data || {};
+  const steps = t.steps || [];
+  const inTok = t.input_tokens != null ? t.input_tokens : steps.reduce((s, x) => s + (x.input_tokens || 0), 0);
+  const outTok = t.output_tokens != null ? t.output_tokens : steps.reduce((s, x) => s + (x.output_tokens || 0), 0);
+  const total = t.total_tokens != null ? t.total_tokens : inTok + outTok;
+  const costV = t.estimated_cost && typeof t.estimated_cost === "object" ? t.estimated_cost.total : t.estimated_cost;
+  const fmt = (x) => (x == null ? "—" : x >= 1000 ? (x / 1000).toFixed(1) + "k" : String(x));
+  const rows = [["Total tokens", fmt(total)], ["Input", fmt(inTok)], ["Output", fmt(outTok)], ["Est. cost", costV != null ? `$${Number(costV).toFixed(4)}` : "—"]];
   return (
     <div className="pn-card" style={{ gridColumn: "span 4", opacity: loading ? 0.5 : 1 }}>
       <h3 className="pn-card-title">RUN TELEMETRY</h3>
-      <svg viewBox="0 0 100 40" width="100%" height="120" preserveAspectRatio="none"><path d="M0 35 L10 32 L20 38 L30 30 L40 34 L50 25 L60 30 L70 15 L80 25 L90 10" fill="none" stroke={COLORS.synthesis} strokeWidth="0.5" /></svg>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {rows.map(([l, v]) => (
+          <div key={l} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "9px 11px", background: "var(--bg)", border: "1px solid var(--border-soft)", borderRadius: 8 }}>
+            <span style={{ fontSize: 8.5, fontFamily: "'JetBrains Mono',monospace", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-dim)" }}>{l}</span>
+            <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 700, color: "var(--text-hover)" }}>{v}</span>
+          </div>
+        ))}
+      </div>
+      {t.providers && t.providers.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+          {t.providers.map((pv, i) => <span key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--text)", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-soft)", borderRadius: 20, padding: "3px 9px" }}>{pv.provider}{pv.model ? ` · ${pv.model}` : ""}</span>)}
+        </div>
+      )}
       <ErrorNote error={error} onRetry={refetch} />
     </div>
   );
 }
 
-function SourceConstellation({ reportId }) {
-  const { data, loading, error, refetch } = useApi(() => SourceConstellationAPI.get(reportId), [reportId], [1, 2, 3, 4]);
+function SourceConstellation({ reportId, onOpenCitation }) {
+  const { data, loading, error, refetch } = useApi(() => SourceConstellationAPI.get(reportId), [reportId], []);
   return (
     <div className="pn-card" style={{ gridColumn: "span 3" }}>
       <h3 className="pn-card-title">SOURCE CONSTELLATION</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {(loading ? Array(4).fill(null) : data).map((n, i) => (
-          <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${COLORS.secondary}`, color: COLORS.secondary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8 }}>{i + 1}</div>
-            <Skeleton />
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {(loading ? Array(4).fill(null) : data).map((s, i) => (
+          <div key={i} onClick={() => s && onOpenCitation && onOpenCitation(s.citationId)} style={{ display: "flex", gap: 9, alignItems: "center", cursor: s ? "pointer" : "default" }}>
+            <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: "50%", border: `1px solid ${COLORS.secondary}`, color: COLORS.secondary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{s ? s.n : i + 1}</div>
+            {s ? <span style={{ fontSize: 11, color: "var(--text-bright)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.title}>{s.title}</span> : <Skeleton />}
           </div>
         ))}
       </div>
@@ -809,11 +848,23 @@ function SourceConstellation({ reportId }) {
 }
 
 function Provenance({ reportId }) {
-  const { loading, error, refetch } = useApi(() => ProvenanceAPI.get(reportId), [reportId], {});
+  const { data, loading, error, refetch } = useApi(() => ProvenanceAPI.get(reportId), [reportId], { steps: [] });
+  const steps = (data && data.steps) || [];
+  const fmt = (x) => (x >= 1000 ? (x / 1000).toFixed(1) + "k" : String(x));
   return (
     <div className="pn-card" style={{ gridColumn: "span 3", opacity: loading ? 0.5 : 1 }}>
       <h3 className="pn-card-title">RESEARCH PROVENANCE</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, justifyContent: "center" }}>{[75, 50, 66, 25].map((w) => <Skeleton key={w} w={`${w}%`} />)}</div>
+      {steps.length ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--text-dim)", width: 16 }}>{String(i + 1).padStart(2, "0")}</span>
+              <span style={{ flex: 1, fontSize: 11, color: "var(--text-bright)", textTransform: "capitalize" }}>{s.name}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "var(--text)" }}>{s.tokens ? `${fmt(s.tokens)} tok` : ""}</span>
+            </div>
+          ))}
+        </div>
+      ) : <span style={{ fontSize: 11, color: "var(--text)" }}>Pipeline provenance unavailable for this run.</span>}
       <ErrorNote error={error} onRetry={refetch} />
     </div>
   );
@@ -908,6 +959,17 @@ const _split = (b) => {
 };
 const _domain = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 const _year = (d) => { const m = String(d || "").match(/\b(19|20)\d{2}\b/); return m ? +m[0] : null; };
+// Strip the LLM's structured scaffolding ("TOPIC:", "SOURCES: [..]", "FINDING:",
+// "POSITION A (..)", "NATURE:") down to clean, readable prose.
+const _prose = (t) => {
+  let s = String(t || "");
+  const fm = s.match(/FINDING\s*:\s*([\s\S]+)/i);
+  if (fm) s = fm[1];
+  s = s.replace(/\b(TOPIC|SOURCES?|POSITION\s+[AB]|NATURE|AREA|CLAIM)\s*:\s*/gi, "")
+       .replace(/\(?\bSources?\b\s*\[[\d,\s]+\]\)?/gi, "")
+       .replace(/\b\d+\s+of\s+\d+\s+sources?\b/gi, "");
+  return _clean(s);
+};
 const CC = COLORS;
 
 function adaptReportData(p) {
@@ -920,7 +982,9 @@ function adaptReportData(p) {
   const factors = ca.factors || [];
   const findingsRaw = (report.key_findings && report.key_findings.length) ? report.key_findings : _split(report.executive_summary || p.answer || "");
   const findings = findingsRaw.slice(0, 6).map((t, i) => ({ id: i + 1, text: _clean(String(t)), citationId: String(Math.min(i + 1, Math.max(1, n))) }));
-  const model = (p.telemetry && (p.telemetry.model || (p.telemetry.steps && p.telemetry.steps[0] && p.telemetry.steps[0].model))) || "—";
+  const tel = p.telemetry || {};
+  const prov0 = (tel.providers && tel.providers[0]) || {};
+  const model = prov0.model || (tel.steps && tel.steps[0] && tel.steps[0].model) || tel.model || prov0.provider || "—";
   const criticScore = Math.round((ca.critic_consensus && ca.critic_consensus.score) || conf);
 
   const ledger = sources.slice(0, 8).map((s, i) => {
@@ -937,7 +1001,13 @@ function adaptReportData(p) {
   const divergenceTxt = _clean(report.divergence_map || "");
   const divergePts = _split(report.divergence_map || "");
   const limitPts = _split(report.limitations || report.coverage_audit || "");
-  const trajSteps = _split(report.research_trajectory).slice(0, 6);
+  // research_trajectory sometimes arrives as a stringified list ["a","b"] — parse it.
+  const _listish = (t) => {
+    const s = String(t || "").trim();
+    const items = [...s.matchAll(/['"]([^'"]{6,}?)['"]/g)].map((m) => _clean(m[1]));
+    return items.length ? items : _split(s);
+  };
+  const trajSteps = _listish(report.research_trajectory).slice(0, 6);
 
   const factorRows = factors.length ? factors.slice(0, 4).map((f, i) => {
     const pct = Math.round(f.value <= 1 ? f.value * 100 : f.value); const col = pct >= 75 ? CC.success : pct >= 50 ? CC.primary : CC.warning;
@@ -968,25 +1038,26 @@ function adaptReportData(p) {
     "perspectives": {
       a: { label: "Consensus view", sourceCount: Math.max(1, Math.round(n * 0.55)), strength: Math.min(95, conf + 6), support: conf >= 70 ? "Strong" : "Moderate" },
       b: { label: "Divergent view", sourceCount: Math.max(1, Math.round(n * 0.45)), strength: Math.max(20, 100 - conf), support: conf >= 70 ? "Weak" : "Moderate" },
-      leader: "A", leaderNote: consensusTxt.slice(0, 220) || "The retrieved sources broadly converge on the synthesis above.",
-      alternative: { text: (divergenceTxt.slice(0, 120) || "No strong dissent found."), sourceCount: Math.max(1, Math.round(n * 0.45)), strength: Math.max(20, 100 - conf) },
+      leader: "A", leaderNote: (_prose(report.consensus_map).slice(0, 260)) || "The retrieved sources broadly converge on the synthesis above.",
+      alternative: { text: (_prose(report.divergence_map).slice(0, 150) || "No strong dissent found."), sourceCount: Math.max(1, Math.round(n * 0.45)), strength: Math.max(20, 100 - conf) },
       balance: { a: Math.min(85, Math.max(50, conf)), b: 100 - Math.min(85, Math.max(50, conf)) },
     },
-    "research-coverage": (factorRows || []).map((f) => ({ pct: f.pct, color: f.color })).concat([{ pct: Math.min(100, n * 12), color: CC.synthesis }]).slice(0, 5),
+    "research-coverage": (factorRows || []).map((f) => ({ label: f.label, pct: f.pct, color: f.color })).concat([{ label: "Evidence base", pct: Math.min(100, n * 12), color: CC.synthesis }]).slice(0, 5),
+    "contradictions/network": { resolution: _prose(report.contradiction_resolution) || "", hasConflict: !!divergePts.length, count: divergePts.length },
     "source-landscape": { segments: segments.length ? segments : [{ label: "Web / Media", pct: 100, color: CC.info }] },
-    "source-constellation": sources.slice(0, 6).map((_, i) => i + 1),
-    "provenance": {},
+    "source-constellation": sources.slice(0, 6).map((s, i) => ({ n: i + 1, title: (s.title || _domain(s.url) || "Source").slice(0, 46), citationId: String(i + 1) })),
+    "provenance": { steps: (tel.steps || []).slice(0, 6).map((s) => ({ name: s.name || s.step || "step", tokens: (s.input_tokens || 0) + (s.output_tokens || 0) })) },
     "timeline": timeline,
     "trajectory": trajSteps.length ? trajSteps : undefined,
     "known-uncertain-unknown": {
       known: findings.slice(0, 2).map((f) => ({ text: f.text, citations: [f.citationId], pct: Math.min(95, conf + 5) })),
-      uncertain: divergePts.slice(0, 2).map((t) => ({ text: t, citations: [], pct: Math.max(30, 100 - conf) })),
+      uncertain: divergePts.slice(0, 2).map((t) => ({ text: _prose(t), citations: [], pct: Math.max(30, 100 - conf) })),
       unknown: limitPts.slice(0, 2).map((t) => ({ text: t })),
       statusLine: `${findings.length} supported · ${divergePts.length} uncertain · ${limitPts.length} open`,
     },
-    "sensitivity-conditions": (divergePts.length ? divergePts : limitPts).slice(0, 3).map((t, i) => ({ id: i + 1, title: t.slice(0, 80), desc: t, evidenceNeeded: ["Independent replication", "Contradicting high-trust source", "Methodological audit"], citations: [String(Math.min(i + 1, Math.max(1, n)))], strength: Math.max(8, 28 - i * 8) })),
+    "sensitivity-conditions": (divergePts.length ? divergePts : limitPts).slice(0, 3).map((t, i) => { const c = _prose(t); return { id: i + 1, title: c.slice(0, 72) + (c.length > 72 ? "…" : ""), desc: c, evidenceNeeded: ["Independent replication", "Contradicting high-trust source", "Methodological audit"], citations: [String(Math.min(i + 1, Math.max(1, n)))], strength: Math.max(8, 28 - i * 8) }; }),
     "honest-boundaries": limitPts.length ? limitPts.slice(0, 4).map((t, i) => ({ icon: i % 2 ? "ph-info" : "ph-warning-circle", text: t })) : undefined,
-    "tools": [{ icon: "ph-magnifying-glass", color: CC.info }, { icon: "ph-scales", color: CC.synthesis }, { icon: "ph-shield-check", color: CC.success }, { icon: "ph-download-simple", color: CC.warning }],
+    "tools": [{ icon: "ph-magnifying-glass", color: CC.info, label: "Web search" }, { icon: "ph-scales", color: CC.synthesis, label: "Critic" }, { icon: "ph-shield-check", color: CC.success, label: "Faithfulness" }, { icon: "ph-graph", color: CC.primary, label: "Knowledge graph" }],
     "telemetry": p.telemetry || {},
     "confidence/explain": { pct: conf, factors: factors.length ? factors.map((f) => f.label + (f.note ? ` — ${f.note}` : "")).slice(0, 4) : _split(report.executive_summary || "").slice(0, 3) },
     __citation: (idx) => {
@@ -1032,13 +1103,7 @@ export default function PolynousReport({ reportId = "demo-climate-report", query
           <ClaimConfidence reportId={reportId} />
           <Faithfulness reportId={reportId} />
         </div>
-        <div className="pn-grid" style={{ gridTemplateColumns: "1fr 2fr 1fr" }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div className="pn-card" style={{ flex: 1 }}>
-              <h3 className="pn-card-title"><i className="ph ph-chart-polar" style={{ color: COLORS.secondary }} /> ANALYSIS PREVIEW</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}><Skeleton /><Skeleton w="85%" /><Skeleton /><Skeleton w="65%" /></div>
-            </div>
-          </div>
+        <div className="pn-grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
           <Perspectives reportId={reportId} onOpenCitation={openCitation} />
           <EvidenceStrength reportId={reportId} />
         </div>
@@ -1050,7 +1115,7 @@ export default function PolynousReport({ reportId = "demo-climate-report", query
         </div>
         <KUU reportId={reportId} onOpenCitation={openCitation} />
         <div className="pn-grid pn-grid-12">
-          <Sensitivity reportId={reportId} onOpenCitation={openCitation} confidence={61} />
+          <Sensitivity reportId={reportId} onOpenCitation={openCitation} confidence={Math.round(confidence || (report && report.confidence_analysis && report.confidence_analysis.overall) || 0)} synthesis={_clean((report && report.executive_summary) || answer || "").split(/(?<=\.)\s/).slice(0, 2).join(" ").slice(0, 260)} />
           <Trajectory reportId={reportId} />
           <Boundaries reportId={reportId} />
           <ConfidenceBreakdown reportId={reportId} />
@@ -1058,7 +1123,7 @@ export default function PolynousReport({ reportId = "demo-climate-report", query
         <div className="pn-grid pn-grid-12">
           <ToolsUsed reportId={reportId} />
           <RunTelemetry reportId={reportId} />
-          <SourceConstellation reportId={reportId} />
+          <SourceConstellation reportId={reportId} onOpenCitation={openCitation} />
           <Provenance reportId={reportId} />
         </div>
       </div>
