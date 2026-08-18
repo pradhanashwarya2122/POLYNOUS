@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState, useEffect, useCallback } from "react";
 import { API_BASE_URL, getAuthToken } from "../config";
+import { usePreviewFlag, setDevPreview } from "../devPreview";
 
 const C = {
   bg: "#06040f",
@@ -121,6 +122,87 @@ function KeyGate({ onSubmit, error, checking }) {
   );
 }
 
+// ── In-development pages registry ────────────────────────────────────────────
+// Add work-in-progress pages here. They are reachable ONLY from this admin
+// console (each route is gated on dev-preview / admin), so clients never see
+// half-finished work — you review and sign off here, then ship when ready.
+const DEV_PAGES = [
+  {
+    id: "neural-report-v2",
+    name: "Neural Report v2",
+    desc: "Redesigned research report — glass cards, evidence ledger, faithfulness, citation inspector. Runs on demo data until wired to live research.",
+    status: "In progress",
+    route: "/report-preview",
+    icon: "science",
+    accent: "#5eead4",
+  },
+];
+
+function DevPagesSection({ onNavigate }) {
+  const go = (p) => {
+    // Ensure the preview route's gate is open for this admin session.
+    setDevPreview(true);
+    if (onNavigate) onNavigate(p); else window.location.href = p;
+  };
+  return (
+    <div style={{ background: C.surface, backdropFilter: "blur(20px)", border: `1px solid ${C.border2}`, borderRadius: 16, padding: "22px 24px", marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <Ic name="construction" size={17} color={C.amber} />
+        <span style={{ fontFamily: C.head, fontSize: 15, fontWeight: 800, color: C.text }}>Pages in Development</span>
+        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.faint, marginLeft: 4 }}>admin-only · not visible to clients</span>
+      </div>
+      <p style={{ fontFamily: C.body, fontSize: 12, color: C.dim, margin: "0 0 16px" }}>
+        Preview and sign off on unfinished work here. When a page is ready, we flip it on for everyone.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
+        {DEV_PAGES.map((p) => (
+          <div key={p.id} style={{ border: `1px solid ${p.accent}2e`, borderRadius: 13, padding: "16px 18px", background: `${p.accent}0a` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ width: 30, height: 30, borderRadius: 9, background: `${p.accent}1c`, border: `1px solid ${p.accent}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Ic name={p.icon} size={16} color={p.accent} />
+              </span>
+              <div>
+                <div style={{ fontFamily: C.head, fontSize: 14, fontWeight: 700, color: C.text }}>{p.name}</div>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: p.accent, textTransform: "uppercase", letterSpacing: "0.1em" }}>{p.status}</div>
+              </div>
+            </div>
+            <p style={{ fontFamily: C.body, fontSize: 12, color: C.dim, lineHeight: 1.55, margin: "0 0 14px" }}>{p.desc}</p>
+            <button onClick={() => go(p.route)} className="adm-btn" style={{ borderColor: `${p.accent}55`, color: p.accent }}>
+              <Ic name="visibility" size={14} color={p.accent} /> Preview page ↗
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Dev-preview controls ─────────────────────────────────────────────────────
+// Flip experimental components on for yourself (admin) and open the preview —
+// so you can review in-progress work live instead of running localhost.
+function DevPreviewControls({ onNavigate }) {
+  const on = usePreviewFlag();
+  const go = (p) => (onNavigate ? onNavigate(p) : (window.location.href = p));
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <button
+        onClick={() => setDevPreview(!on)}
+        title="Show in-development components to admins only"
+        className="adm-btn"
+        style={{ borderColor: on ? `${C.green}66` : C.border2, color: on ? C.green : C.dim, background: on ? `${C.green}12` : C.surface2 }}
+      >
+        <Ic name={on ? "toggle_on" : "toggle_off"} size={17} color={on ? C.green : C.faint} />
+        Dev Preview {on ? "ON" : "OFF"}
+      </button>
+      {on && (
+        <button onClick={() => go("/report-preview")} className="adm-btn" style={{ borderColor: `${C.cyan}55`, color: C.cyan }}>
+          <Ic name="science" size={14} color={C.cyan} /> New report ↗
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function AdminDashboard({ onNavigate }) {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem(KEY_STORE) || "");
@@ -206,7 +288,8 @@ export default function AdminDashboard({ onNavigate }) {
           </div>
           <h1 style={{ fontFamily: C.head, fontSize: "clamp(1.5rem,3vw,2rem)", fontWeight: 800, margin: 0, letterSpacing: "-0.03em" }}>User Insights</h1>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <DevPreviewControls onNavigate={onNavigate} />
           <button onClick={refresh} disabled={loading} className="adm-btn" title="Refresh">
             <Ic name="refresh" size={15} style={{ animation: loading ? "admSpin 0.8s linear infinite" : "none" }} /> Refresh
           </button>
@@ -222,6 +305,9 @@ export default function AdminDashboard({ onNavigate }) {
         <StatCard icon="bolt" label="Active · last 7 days" value={totals.recently_active_7d} accent={C.cyan} delay={0.1} />
         <StatCard icon="key" label="API keys configured" value={totalKeys} accent={C.amber} delay={0.15} />
       </div>
+
+      {/* In-development pages (admin-only) */}
+      <DevPagesSection onNavigate={onNavigate} />
 
       {/* Toolbar */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>

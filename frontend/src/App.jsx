@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { useState, useEffect, lazy, Suspense } from 'react';
 import PageTransition from './components/PageTransition';
 import NotFound from './components/NotFound';
+import { isDevPreview } from './devPreview';
 
 // Lazy-loaded routes — each becomes its own chunk. The heavy WebGL pages
 // (which pull in three.js) only download when the user actually opens them,
@@ -19,6 +20,7 @@ const PdfLabPage = lazy(() => import('./components/PdfLabPage'))
 const PolynousDashboard = lazy(() => import('./components/PolynousDashboard'))
 const InfoPage = lazy(() => import('./components/InfoPage'))
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'))
+const PolynousReport = lazy(() => import('./components/PolynousReport'))
 const PrivacyPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.TermsPage })))
 const DocsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.DocsPage })))
@@ -373,6 +375,8 @@ export default function App() {
         <Route path="/pdf-lab" element={isLoggedIn ? <PdfLabPage user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
         <Route path="/analytics" element={isLoggedIn ? <PolynousDashboard user={user} onNavigate={navigateTo} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
         <Route path="/admin" element={isLoggedIn ? <AdminDashboard onNavigate={navigateTo} /> : <Navigate to="/auth" replace />} />
+        {/* Dev-preview only: the new report design, visible to admins before it ships to everyone. */}
+        <Route path="/report-preview" element={isLoggedIn && isDevPreview() ? <PolynousReport /> : <Navigate to="/" replace />} />
 
         {/* ── CATCH-ALL: themed 404 page ────────────────── */}
         <Route path="*" element={<NotFound />} />
