@@ -113,17 +113,19 @@ function useApi(fetcher, deps = [], fallback = null) {
    3) THEME (injected once)
    --------------------------------------------------------------------- */
 const POLYNOUS_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import url('https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css');
 
 .pn-root {
-  --bg: #08080f; --bg-elevated: #0c0c18; --surface: #101020; --surface-2: #131326;
-  --border: rgba(148,163,220,0.12); --border-soft: rgba(148,163,220,0.07); --border-strong: rgba(148,163,220,0.22);
-  --primary: #5eead4; --primary-dim: rgba(94,234,212,0.14); --secondary: #818cf8; --success: #34d399;
-  --warning: #fbbf24; --danger: #fb7185; --critic: #f0b86e; --synthesis: #c4a4f5; --info: #38bdf8; --gold: #e7c383;
-  --text-dim: #5b6480; --text: #93a0c0; --text-bright: #c7cfe6; --text-hover: #f4f6fc;
-  --radius-sm: 8px; --radius: 14px; --radius-lg: 20px;
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px -12px rgba(0,0,0,0.55);
+  /* POLYNOUS theme, restrained: near-black base, one emerald accent, muted
+     cyan/purple/amber semantics. No neon. */
+  --bg: #06040f; --bg-elevated: #0b0a16; --surface: #0e0d1a; --surface-2: #12111f;
+  --border: rgba(150,160,200,0.10); --border-soft: rgba(150,160,200,0.055); --border-strong: rgba(150,160,200,0.17);
+  --primary: #34d399; --primary-dim: rgba(52,211,153,0.10); --secondary: #7f8fbe; --success: #3fbf87;
+  --warning: #d6a24a; --danger: #e0738a; --critic: #c6a05f; --synthesis: #9a8bce; --info: #4ba3d1; --gold: #c6a05f;
+  --text-dim: #626b83; --text: #949eb8; --text-bright: #c3ccdf; --text-hover: #eef1f8;
+  --radius-sm: 10px; --radius: 14px; --radius-lg: 18px;
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.30), 0 10px 26px -18px rgba(0,0,0,0.6);
 }
 .pn-root * { box-sizing: border-box; }
 .pn-root {
@@ -135,7 +137,7 @@ const POLYNOUS_CSS = `
   min-height: 100vh; position: relative; overflow-x: hidden; letter-spacing: -0.005em;
 }
 .pn-container { max-width: 1560px; margin: 0 auto; padding: 0 2.5rem; }
-.pn-serif { font-family: "Fraunces", serif; }
+.pn-serif { font-family: "Sora", sans-serif; }
 .pn-mono { font-family: "JetBrains Mono", monospace; }
 .pn-card {
   background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)), var(--surface);
@@ -153,26 +155,26 @@ const POLYNOUS_CSS = `
 .pn-card-title i { font-size: 13px; opacity: .9; }
 .pn-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px rgba(52,211,153,0.15), 0 0 12px rgba(52,211,153,0.6); display: inline-block; margin-right: 6px; }
 .pn-error { font-size: 10px; color: var(--danger); border: 1px solid rgba(251,113,133,0.25); background: rgba(251,113,133,0.06); border-radius: var(--radius-sm); padding: 7px 12px; margin-top: 10px; cursor: pointer; }
-.pn-grid { display: grid; gap: 1.75rem; }
+.pn-grid { display: grid; gap: 1.25rem; align-items: stretch; }
 .pn-grid-4 { grid-template-columns: repeat(4, 1fr); }
 .pn-grid-12 { grid-template-columns: repeat(12, 1fr); }
 @media (max-width: 900px) { .pn-grid-4 { grid-template-columns: 1fr; } .pn-grid-12 { grid-template-columns: 1fr; } }
-.pn-header { position: relative; padding: 3rem 0 2.5rem; border-bottom: 1px solid var(--border-soft); background: linear-gradient(180deg, rgba(94,234,212,0.035), transparent 70%); }
+.pn-header { position: relative; padding: 2.4rem 0 2rem; border-bottom: 1px solid var(--border-soft); background: linear-gradient(180deg, rgba(52,211,153,0.028), transparent 66%); }
 .pn-eyebrow { font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.16em; color: var(--success); font-weight: 500; }
-.pn-title { font-family: "Fraunces", serif; font-size: 2.4rem; font-weight: 500; color: var(--text-hover); letter-spacing: -0.015em; line-height: 1.05; margin: .6rem 0 1rem; }
+.pn-title { font-family: "Sora", sans-serif; font-size: clamp(1.55rem, 2.6vw, 1.95rem); font-weight: 700; color: var(--text-hover); letter-spacing: -0.025em; line-height: 1.12; margin: .1rem 0 1rem; }
 .pn-query-box { background: rgba(255,255,255,0.035); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .7rem 1.1rem; color: var(--text-hover); font-size: 14.5px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); }
 .pn-btn { display: inline-flex; align-items: center; gap: .45rem; font-size: 11px; font-weight: 600; border-radius: 999px; padding: .55rem 1.1rem; cursor: pointer; border: 1px solid var(--border); background: rgba(255,255,255,0.02); color: var(--text); letter-spacing: .02em; transition: all .18s ease; }
 .pn-btn:hover:not(:disabled) { color: var(--text-hover); border-color: var(--border-strong); background: rgba(255,255,255,0.05); transform: translateY(-1px); }
 .pn-btn:disabled { opacity: .55; cursor: default; }
 .pn-btn-primary { background: linear-gradient(180deg, rgba(52,211,153,0.16), rgba(52,211,153,0.08)); border-color: rgba(52,211,153,0.35); color: var(--success); }
 .pn-btn-primary:hover:not(:disabled) { box-shadow: 0 4px 20px -4px rgba(52,211,153,0.4); }
-.pn-gauge-wrap { position: relative; width: 130px; height: 130px; filter: drop-shadow(0 0 20px rgba(94,234,212,0.18)); }
+.pn-gauge-wrap { position: relative; width: 128px; height: 128px; }
 .pn-gauge-value { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.pn-gauge-num { font-family: "Fraunces", serif; font-size: 2rem; font-weight: 500; color: #fff; }
+.pn-gauge-num { font-family: "Sora", sans-serif; font-size: 2rem; font-weight: 500; color: #fff; }
 .pn-consensus-panel { background: linear-gradient(135deg, rgba(240,184,110,0.05), rgba(255,255,255,0.015)); border: 1px solid rgba(240,184,110,0.18); border-radius: var(--radius); padding: 1.1rem 1.3rem; }
 .pn-stat { display: flex; flex-direction: column; align-items: center; gap: .35rem; cursor: pointer; padding: .5rem .25rem; border-radius: var(--radius-sm); transition: background .2s; }
 .pn-stat:hover { background: rgba(255,255,255,0.03); }
-.pn-stat-num { font-family: "Fraunces", serif; font-size: 1.7rem; font-weight: 500; }
+.pn-stat-num { font-family: "Sora", sans-serif; font-size: 1.7rem; font-weight: 500; }
 .pn-stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); font-weight: 600; }
 .pn-pipeline { display: flex; align-items: center; justify-content: space-between; }
 .pn-pipe-node { display: flex; flex-direction: column; align-items: center; gap: .6rem; }
@@ -186,7 +188,7 @@ const POLYNOUS_CSS = `
 .pn-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; }
 .pn-freshness { font-family: "JetBrains Mono", monospace; font-size: 8.5px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .pn-bar-track { height: 5px; background: rgba(148,163,220,0.1); border-radius: 999px; overflow: hidden; flex: 1; }
-.pn-bar-fill { height: 100%; border-radius: 999px; box-shadow: 0 0 10px -1px currentColor; }
+.pn-bar-fill { height: 100%; border-radius: 999px; opacity: 0.92; }
 .pn-citation { cursor: pointer; color: var(--primary); font-family: "JetBrains Mono", monospace; font-size: 9.5px; font-weight: 700; padding: 1px 4px; border-radius: 4px; border: 1px solid transparent; transition: all .15s; }
 .pn-citation:hover { background: var(--primary-dim); border-color: rgba(94,234,212,0.3); }
 .pn-vs-wrap { display: flex; align-items: stretch; gap: 1.75rem; position: relative; }
@@ -217,7 +219,7 @@ function PolynousStyles() { return <style>{POLYNOUS_CSS}</style>; }
 /* ---------------------------------------------------------------------
    4) UI
    --------------------------------------------------------------------- */
-const COLORS = { primary: "#5eead4", secondary: "#818cf8", success: "#34d399", warning: "#fbbf24", danger: "#fb7185", critic: "#f0b86e", synthesis: "#c4a4f5", info: "#38bdf8" };
+const COLORS = { primary: "#34d399", secondary: "#7f8fbe", success: "#3fbf87", warning: "#d6a24a", danger: "#e0738a", critic: "#c6a05f", synthesis: "#9a8bce", info: "#4ba3d1" };
 
 function Bar({ pct, color = COLORS.primary }) {
   return <div className="pn-bar-track"><div className="pn-bar-fill" style={{ width: `${pct}%`, background: color }} /></div>;
@@ -243,11 +245,7 @@ function Header({ reportId, onExport, onShare }) {
     <header className="pn-header">
       <div className="pn-container" style={{ display: "grid", gridTemplateColumns: "repeat(12,1fr)", gap: "2rem", alignItems: "center" }}>
         <div style={{ gridColumn: "span 4" }}>
-          <div style={{ display: "flex", gap: ".75rem", alignItems: "center", marginBottom: ".5rem" }}>
-            <span className="pn-eyebrow"><span className="pn-eyebrow-dot"></span>SYNTHESIS COMPLETE</span>
-            <span style={{ fontFamily: "monospace", fontSize: 10, color: "#5c687c" }}>| POLYNOUS | NEURAL RESEARCH ENGINE</span>
-          </div>
-          <h1 className="pn-title">Neural Synthesis <span style={{ color: COLORS.info }}>Report</span></h1>
+          <h1 className="pn-title">Neural Synthesis Report</h1>
           <div className="pn-query-box" style={{ margin: ".75rem 0" }}>
             {loading ? <Skeleton w="70%" /> : <p style={{ margin: 0, fontSize: 15 }}>{data.query}</p>}
           </div>
@@ -366,7 +364,7 @@ function KeyFindings({ reportId, onOpenCitation }) {
   );
 }
 
-const FRESH_COLOR = { CURRENT: "#39ff9c", AGING: "#ffd166", OUTDATED: "#ff4d6d" };
+const FRESH_COLOR = { CURRENT: "#3fbf87", AGING: "#d6a24a", OUTDATED: "#e0738a" };
 function EvidenceLedger({ reportId, onOpenCitation }) {
   const { data, loading, error, refetch } = useApi(() => EvidenceLedgerAPI.list(reportId), [reportId], [
     { source: "EPA.gov", citationId: "3", freshness: "CURRENT", year: 2025, trust: 90 },
@@ -604,7 +602,7 @@ function Timeline({ reportId, onOpenCitation }) {
     ],
   });
   return (
-    <div className="pn-card" style={{ height: 250, position: "relative", overflow: "hidden" }}>
+    <div className="pn-card" style={{ position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div><h3 className="pn-card-title" style={{ marginBottom: 4 }}>RESEARCH TIMELINE</h3><p style={{ fontSize: 9, color: "#5c687c" }}>How the evidence evolved over time</p></div>
         <div style={{ fontFamily: "monospace", fontSize: 10, color: COLORS.info, background: "rgba(0,204,255,0.05)", padding: "4px 8px", borderRadius: 4, border: "1px solid rgba(0,204,255,0.2)", height: "fit-content" }}>{data.range}</div>
@@ -716,7 +714,7 @@ function Sensitivity({ reportId, onOpenCitation, confidence }) {
 function Trajectory({ reportId }) {
   const { data, loading, error, refetch } = useApi(() => TrajectoryAPI.get(reportId), [reportId], ["Expand source diversity in policy literature", "Cross-validate satellite vs surface station data", "Deepen attribution studies for regional effects", "Track post-2025 emissions trend revisions"]);
   return (
-    <div className="pn-card" style={{ gridColumn: "span 5", height: 384 }}>
+    <div className="pn-card" style={{ gridColumn: "span 5" }}>
       <h3 className="pn-card-title"><i className="ph ph-lightning" style={{ color: COLORS.primary }} /> RESEARCH TRAJECTORY</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {(loading ? Array(4).fill(null) : data).map((step, i) => (
@@ -734,7 +732,7 @@ function Trajectory({ reportId }) {
 function Boundaries({ reportId }) {
   const { data, loading, error, refetch } = useApi(() => BoundariesAPI.get(reportId), [reportId], [{ icon: "ph-warning-circle", text: "Confidence reflects source agreement, not ground truth." }, { icon: "ph-info", text: "Two sources predate 2020 and may understate recent trends." }]);
   return (
-    <div className="pn-card" style={{ gridColumn: "span 5", height: 256 }}>
+    <div className="pn-card" style={{ gridColumn: "span 5" }}>
       <h3 className="pn-card-title"><i className="ph ph-shield-warning" style={{ color: COLORS.warning }} /> HONEST BOUNDARIES</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {(loading ? Array(2).fill(null) : data).map((b, i) => (
@@ -749,7 +747,7 @@ function Boundaries({ reportId }) {
 function ConfidenceBreakdown({ reportId }) {
   const { data, loading, error, refetch } = useApi(() => ReportAPI.explainConfidence(reportId), [reportId], { pct: 75, factors: ["Agreement across 5 sources", "High source diversity", "Moderate recency"] });
   return (
-    <div className="pn-card" style={{ gridColumn: "span 7", height: 256 }}>
+    <div className="pn-card" style={{ gridColumn: "span 7" }}>
       <h3 className="pn-card-title" id="confidence-breakdown">CONFIDENCE BREAKDOWN</h3>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 40, alignItems: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>{(loading ? Array(3).fill(null) : data.factors).map((f, i) => f ? <span key={i} style={{ fontSize: 11, color: "#fffc" }}>• {f}</span> : <Skeleton key={i} />)}</div>
@@ -769,7 +767,7 @@ function ConfidenceBreakdown({ reportId }) {
 function ToolsUsed({ reportId }) {
   const { data, loading, error, refetch } = useApi(() => ToolsAPI.list(reportId), [reportId], [{ icon: "ph-shield", color: COLORS.synthesis }, { icon: "ph-chart-polar", color: COLORS.secondary }, { icon: "ph-share-network", color: COLORS.success }, { icon: "ph-download-simple", color: COLORS.warning }]);
   return (
-    <div className="pn-card" style={{ gridColumn: "span 2", height: 256 }}>
+    <div className="pn-card" style={{ gridColumn: "span 2" }}>
       <h3 className="pn-card-title">TOOLS</h3>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {(loading ? Array(4).fill(null) : data).map((t, i) => (
@@ -784,7 +782,7 @@ function ToolsUsed({ reportId }) {
 function RunTelemetry({ reportId }) {
   const { loading, error, refetch } = useApi(() => TelemetryAPI.get(reportId), [reportId], {});
   return (
-    <div className="pn-card" style={{ gridColumn: "span 4", height: 256, opacity: loading ? 0.5 : 1 }}>
+    <div className="pn-card" style={{ gridColumn: "span 4", opacity: loading ? 0.5 : 1 }}>
       <h3 className="pn-card-title">RUN TELEMETRY</h3>
       <svg viewBox="0 0 100 40" width="100%" height="120" preserveAspectRatio="none"><path d="M0 35 L10 32 L20 38 L30 30 L40 34 L50 25 L60 30 L70 15 L80 25 L90 10" fill="none" stroke={COLORS.synthesis} strokeWidth="0.5" /></svg>
       <ErrorNote error={error} onRetry={refetch} />
@@ -795,7 +793,7 @@ function RunTelemetry({ reportId }) {
 function SourceConstellation({ reportId }) {
   const { data, loading, error, refetch } = useApi(() => SourceConstellationAPI.get(reportId), [reportId], [1, 2, 3, 4]);
   return (
-    <div className="pn-card" style={{ gridColumn: "span 3", height: 256 }}>
+    <div className="pn-card" style={{ gridColumn: "span 3" }}>
       <h3 className="pn-card-title">SOURCE CONSTELLATION</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {(loading ? Array(4).fill(null) : data).map((n, i) => (
@@ -813,7 +811,7 @@ function SourceConstellation({ reportId }) {
 function Provenance({ reportId }) {
   const { loading, error, refetch } = useApi(() => ProvenanceAPI.get(reportId), [reportId], {});
   return (
-    <div className="pn-card" style={{ gridColumn: "span 3", height: 256, opacity: loading ? 0.5 : 1 }}>
+    <div className="pn-card" style={{ gridColumn: "span 3", opacity: loading ? 0.5 : 1 }}>
       <h3 className="pn-card-title">RESEARCH PROVENANCE</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, justifyContent: "center" }}>{[75, 50, 66, 25].map((w) => <Skeleton key={w} w={`${w}%`} />)}</div>
       <ErrorNote error={error} onRetry={refetch} />
