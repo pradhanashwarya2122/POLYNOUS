@@ -122,7 +122,7 @@ const POLYNOUS_CSS = `
 .pn-root {
   /* POLYNOUS theme, restrained: near-black base, one emerald accent, muted
      cyan/purple/amber semantics. No neon. */
-  --bg: #06040f; --bg-elevated: #0b0a16; --surface: #0e0d1a; --surface-2: #12111f;
+  --bg: #0a0f1c; --bg-elevated: #101728; --surface: #131b2c; --surface-2: #182236;
   --border: rgba(150,160,200,0.10); --border-soft: rgba(150,160,200,0.055); --border-strong: rgba(150,160,200,0.17);
   --primary: #34d399; --primary-dim: rgba(52,211,153,0.10); --secondary: #7f8fbe; --success: #3fbf87;
   --warning: #d6a24a; --danger: #e0738a; --critic: #c6a05f; --synthesis: #9a8bce; --info: #4ba3d1; --gold: #c6a05f;
@@ -139,12 +139,13 @@ const POLYNOUS_CSS = `
   color: var(--text); font-family: "Inter", -apple-system, sans-serif; font-size: 15px;
   min-height: 100vh; position: relative; overflow-x: hidden; letter-spacing: -0.005em;
 }
-.pn-container { max-width: 1300px; margin: 0 auto; padding: 0 2rem; }
+.pn-container { max-width: 1460px; margin: 0 auto; padding: 0 2.25rem; }
 .pn-serif { font-family: "Sora", sans-serif; }
 .pn-mono { font-family: "JetBrains Mono", monospace; }
 .pn-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)), var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius); padding: 1.35rem 1.4rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.006)), var(--surface);
+  border: 1px solid var(--border); border-top: 2px solid var(--card-accent, rgba(52,211,153,0.5));
+  border-radius: var(--radius); padding: 1.65rem 1.7rem;
   box-shadow: var(--shadow-card); position: relative; transition: border-color .25s ease, transform .25s ease;
 }
 .pn-card::before {
@@ -154,11 +155,16 @@ const POLYNOUS_CSS = `
   -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
 }
 .pn-card:hover { border-color: var(--border-strong); }
+/* Rotate the top-accent colour across cards in a row, like the agent cards. */
+.pn-grid > .pn-card:nth-child(4n+1) { --card-accent: rgba(52,211,153,0.55); }
+.pn-grid > .pn-card:nth-child(4n+2) { --card-accent: rgba(63,191,135,0.5); }
+.pn-grid > .pn-card:nth-child(4n+3) { --card-accent: rgba(198,160,95,0.5); }
+.pn-grid > .pn-card:nth-child(4n+4) { --card-accent: rgba(154,139,206,0.5); }
 .pn-card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-bright); font-weight: 700; display: flex; align-items: center; gap: .55rem; margin-bottom: 1rem; }
 .pn-card-title i { font-size: 14px; opacity: .9; }
 .pn-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px rgba(52,211,153,0.15), 0 0 12px rgba(52,211,153,0.6); display: inline-block; margin-right: 6px; }
 .pn-error { font-size: 10px; color: var(--danger); border: 1px solid rgba(251,113,133,0.25); background: rgba(251,113,133,0.06); border-radius: var(--radius-sm); padding: 7px 12px; margin-top: 10px; cursor: pointer; }
-.pn-grid { display: grid; gap: 1.1rem; align-items: stretch; }
+.pn-grid { display: grid; gap: 1.2rem; align-items: start; }
 .pn-grid-4 { grid-template-columns: repeat(4, 1fr); }
 .pn-grid-12 { grid-template-columns: repeat(12, 1fr); }
 @media (max-width: 900px) { .pn-grid-4 { grid-template-columns: 1fr; } .pn-grid-12 { grid-template-columns: 1fr; } }
@@ -349,7 +355,7 @@ function ChatWithReport({ answer, sourceSummaries }) {
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Ask a follow-up…"
-          style={{ flex: 1, padding: "11px 14px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(0,0,0,0.22)", color: "var(--text-hover)", fontSize: 13.5, outline: "none", fontFamily: "'Inter',sans-serif" }} />
+          style={{ flex: 1, padding: "11px 14px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(255,255,255,0.035)", color: "var(--text-hover)", fontSize: 13.5, outline: "none", fontFamily: "'Inter',sans-serif" }} />
         <button onClick={send} disabled={sending || !input.trim()} title="Send" style={{ flexShrink: 0, width: 44, borderRadius: 12, border: "none", cursor: sending || !input.trim() ? "default" : "pointer",
           background: sending || !input.trim() ? "rgba(52,211,153,0.25)" : COLORS.primary, color: "#04120b", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <i className="ph ph-paper-plane-right" style={{ fontSize: 18 }} />
@@ -1196,9 +1202,12 @@ export default function PolynousReport({ reportId = "demo-climate-report", query
       <PolynousStyles />
       <Header reportId={reportId} onExport={doExport} onShare={doShare} />
       <div className="pn-container" style={{ paddingTop: 24, paddingBottom: 48, display: "flex", flexDirection: "column", gap: 24 }}>
-        <div className="pn-grid" style={{ gridTemplateColumns: "1fr 1.35fr" }}>
-          <BottomLine reportId={reportId} onOpenCitation={openCitation} />
-          <ExecutiveSummary reportId={reportId} onOpenCitation={openCitation} />
+        <div className="pn-grid" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+          <div className="pn-grid" style={{ gridTemplateColumns: "1fr 1.25fr" }}>
+            <BottomLine reportId={reportId} onOpenCitation={openCitation} />
+            <ExecutiveSummary reportId={reportId} onOpenCitation={openCitation} />
+          </div>
+          <ChatWithReport answer={answer} sourceSummaries={sourceSummaries} />
         </div>
         <StatsStrip reportId={reportId} />
         <Pipeline reportId={reportId} />
