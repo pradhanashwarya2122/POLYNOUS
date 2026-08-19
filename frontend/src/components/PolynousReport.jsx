@@ -157,6 +157,7 @@ function deriveReport(p) {
     analysisText: pick(answer, analysisFallback), coverage, landscape, contradiction,
     bottomLine: (findings[0] || "The evidence points to a single clear primary conclusion for this query."),
     chatAnswer: pick(answer, analysisFallback), sourceSummaries: Array.isArray(p.sourceSummaries) ? p.sourceSummaries : [],
+    timeline: DEMO_TIMELINE, kuu: DEMO_KUU,
   };
 }
 
@@ -183,6 +184,28 @@ const DEMO_TRAJ = ["Establish the anthropogenic warming signal across independen
 const DEMO_BOUND = ["Regional projections carry wider uncertainty than the global trend", "A minority of sources are older than five years", "Cloud-feedback sensitivity remains an open modelling question"];
 const DEMO_CONSTELL = [{ n: 1, title: "EPA — Causes of Climate Change" }, { n: 2, title: "IPCC AR6 Synthesis" }, { n: 3, title: "NASA — Global Climate Change" }, { n: 4, title: "USGS Climate" }, { n: 5, title: "NOAA Climate.gov" }];
 const DEMO_PROV = [{ name: "Search", tokens: 1240 }, { name: "Summarise", tokens: 2980 }, { name: "Critic", tokens: 2110 }, { name: "Writer", tokens: 2122 }];
+const DEMO_TIMELINE = [
+  { year: "1750", title: "Industrial Revolution", desc: "Large-scale fossil-fuel use begins.", cite: "1", conf: 8, density: 1 },
+  { year: "1850", title: "Greenhouse Gas Rise", desc: "Atmospheric composition begins to change.", cite: "2", conf: 22, density: 2 },
+  { year: "1950", title: "Observed Warming", desc: "Instrument records show sustained warming.", cite: "1", conf: 45, density: 3 },
+  { year: "2000", title: "Attribution Evidence", desc: "Research isolates the anthropogenic signal.", cite: "3", conf: 72, density: 5 },
+  { year: "2026", title: "Current Synthesis", desc: "Human activity dominates recent warming.", cite: "1", conf: 92, density: 6 },
+];
+const DEMO_KUU = {
+  known: [
+    { text: "Anthropogenic CO₂ is the primary driver of recent warming", cites: ["2", "3"], pct: 94 },
+    { text: "Global ocean heat content has risen sharply since 1970", cites: ["5"], pct: 88 },
+    { text: "Sea-level rise is accelerating, not linear", cites: ["4"], pct: 81 },
+  ],
+  uncertain: [
+    { text: "Regional precipitation response differences", cites: ["8"], pct: 58 },
+    { text: "Cloud-feedback sensitivity in tropical regions", cites: ["12"], pct: 42 },
+  ],
+  unknown: [
+    { text: "Exact tipping point for AMOC collapse" },
+    { text: "Long-term carbon impact of large-scale deep-sea mining" },
+  ],
+};
 
 const _claimCol = (p) => (p >= 75 ? "app-success" : p >= 55 ? "app-primary" : p >= 40 ? "app-warning" : "app-synthesis");
 function claimRows(d) {
@@ -245,6 +268,127 @@ function landscapeRows(d) {
   return d.landscape.map((c) => `<div class="flex items-center gap-3"><span class="w-2.5 h-2.5 rounded-full bg-${c.color} shrink-0"></span><span class="text-[13px] text-white/85 flex-1 truncate">${esc(c.label)}</span><span class="text-[12px] font-mono text-app-text shrink-0">${c.pct}%</span></div>`).join("");
 }
 
+// Catmull-Rom → cubic-bezier smoothing for the timeline curves.
+function smoothPath(pts) {
+  if (pts.length < 2) return "";
+  let s = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    s += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return s;
+}
+
+// Premium KNOWN / UNCERTAIN / UNKNOWN — tinted panels, real Phosphor icons,
+// per-claim confidence bars, larger type.
+function kuuCard(d) {
+  const k = d.kuu || DEMO_KUU;
+  const col = (title, sub, color, headIcon, itemIcon, items, bars) => {
+    const rows = items.map((it) => {
+      const cites = (it.cites || []).map((c) => `<span class="citation-link font-mono text-[10px] font-bold px-0.5" onclick="openInspector()">[${esc(c)}]</span>`).join(" ");
+      const bar = bars && it.pct != null ? `<div class="mt-2.5 flex items-center gap-2"><div class="h-1 flex-1 bg-app-border/50 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:${it.pct}%;background:${color}"></div></div><span class="text-[11px] font-mono shrink-0" style="color:${color}">${it.pct}%</span></div>` : "";
+      return `<div class="rounded-xl p-3.5 bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-colors"><div class="flex items-start gap-2.5"><i class="ph ${itemIcon} text-base mt-0.5 shrink-0" style="color:${color}"></i><p class="text-white/90 text-[13.5px] leading-snug">${esc(it.text)} ${cites}</p></div>${bar}</div>`;
+    }).join("");
+    return `<div class="flex flex-col gap-3 rounded-2xl p-4 border-t-2" style="border-top-color:${color};background:linear-gradient(180deg, ${color}0f, transparent 55%)">
+      <div class="flex items-center gap-2.5"><span class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style="background:${color}1f;border:1px solid ${color}55"><i class="ph ${headIcon} text-xl" style="color:${color}"></i></span><div class="min-w-0"><h4 class="text-[13px] font-bold tracking-wide uppercase" style="color:${color}">${title}</h4><p class="text-[11px] text-[#78859c] leading-tight mt-0.5">${sub}</p></div></div>
+      <div class="flex flex-col gap-2.5">${rows}</div>
+    </div>`;
+  };
+  return `<div class="bg-[#111125] border border-app-border rounded-2xl p-7 flex flex-col col-span-1 md:col-span-4 shadow-[0_0_24px_rgba(79,209,197,0.03)] backdrop-blur-md">
+    <div class="flex items-center gap-3 mb-6"><span class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"><i class="ph ph-compass-tool text-app-info text-xl"></i></span><div><h3 class="text-[13px] uppercase tracking-[0.2em] text-white font-bold">Known / Uncertain / Unknown</h3><p class="text-[12px] text-[#8D9BB0] mt-0.5">What the evidence supports — and where it stops.</p></div></div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 flex-1">
+      ${col("Known", "Strongly supported by the evidence.", "#00FF47", "ph-seal-check", "ph-check-circle", k.known, true)}
+      ${col("Uncertain", "Plausible, but evidence is mixed.", "#FFAA00", "ph-scales", "ph-warning", k.uncertain, true)}
+      ${col("Unknown", "Not answered by current evidence.", "#FF4D6D", "ph-circle-dashed", "ph-question", k.unknown, false)}
+    </div>
+    <div class="mt-6 pt-4 border-t border-app-border/40 flex justify-between items-center flex-wrap gap-2"><span class="text-[11px] font-mono text-[#8D9BB0] uppercase tracking-wider">Evidence status: ${k.known.length} well-supported · ${k.uncertain.length} uncertain · ${k.unknown.length} unresolved</span><button class="text-[11px] text-app-info font-semibold hover:underline flex items-center gap-1">Expand all <i class="ph ph-caret-down"></i></button></div>
+  </div>`;
+}
+
+// Premium RESEARCH SCALE — icon-tiled stat grid with animated counters.
+function researchScale(d) {
+  const s = d.stats;
+  const tile = (icon, color, val, suffix, label, href) => `<a href="${href}" class="group flex flex-col gap-2.5 rounded-xl p-4 bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.14] hover:bg-white/[0.04] transition-all">
+    <span class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:${color}1c;border:1px solid ${color}44"><i class="ph ${icon} text-lg" style="color:${color}"></i></span>
+    <span class="text-[27px] leading-none font-semibold font-mono tabular-nums number-counter" style="color:${color}" data-target="${val}"${suffix ? ` data-suffix="${suffix}"` : ""}>${val}${suffix || ""}</span>
+    <span class="text-[10.5px] uppercase tracking-[0.08em] text-[#8D9BB0] group-hover:text-white transition-colors">${label}</span>
+  </a>`;
+  return `<section class="bg-gradient-to-b from-[rgba(255,255,255,0.035)] to-[rgba(255,255,255,0.008)] border border-[rgba(255,255,255,0.07)] rounded-2xl p-7 backdrop-blur-sm">
+    <div class="flex items-center gap-3 mb-5"><span class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"><i class="ph ph-gauge text-app-primary text-xl"></i></span><div><h3 class="text-[13px] uppercase tracking-[0.18em] text-white font-bold">Research Scale</h3><p class="text-[12px] text-[#8D9BB0] mt-0.5">A snapshot of the evidence processed for this synthesis</p></div></div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      ${tile("ph-shield-check", "#00FF47", s.confidence, "%", "Confidence", "#confidence-breakdown")}
+      ${tile("ph-books", "#00CCFF", s.sources, "", "Sources", "#source-landscape")}
+      ${tile("ph-file-text", "#B48EF0", s.passages, "", "Passages", "#evidence-ledger")}
+      ${tile("ph-lightbulb", "#4FD1C5", s.insights, "", "Insights", "#key-findings")}
+      ${tile("ph-list-checks", "#6C8CFF", s.claims, "", "Claims", "#claim-level-confidence")}
+      ${tile("ph-handshake", "#E8A855", s.consensus, "%", "Consensus", "#evidence-strength")}
+    </div>
+    <p class="text-[12px] text-[#5C687C] italic mt-5">${s.passages} passages analyzed across ${s.sources} sources to produce ${s.claims} synthesized claims.</p>
+  </section>`;
+}
+
+// Ultra-premium Research Timeline: rising confidence line + evidence-density
+// ridge + hover mini-cards + scroll-triggered draw-in.
+function timelineCard(d) {
+  const ev = (d.timeline && d.timeline.length ? d.timeline : DEMO_TIMELINE);
+  const n = ev.length, W = 1000, H = 260;
+  const x = (i) => 60 + i * ((W - 120) / (n - 1));
+  const confY = (c) => 40 + ((100 - c) / 100) * 150;          // 40 (top) .. 190 (bottom)
+  const maxD = Math.max.apply(null, ev.map((e) => e.density).concat(1));
+  const ridgeY = (dv) => 250 - (dv / maxD) * 78;
+  const linePts = ev.map((e, i) => [x(i), confY(e.conf)]);
+  const ridgePts = ev.map((e, i) => [x(i), ridgeY(e.density)]);
+  const linePath = smoothPath(linePts);
+  const ridgeLine = smoothPath(ridgePts);
+  const ridgeArea = `${ridgeLine} L ${x(n - 1).toFixed(1)} ${H} L ${x(0).toFixed(1)} ${H} Z`;
+  const colOf = (i) => (i === n - 1 ? "#00FF47" : i >= n - 2 ? "#4FD1C5" : "#00CCFF");
+
+  const nodes = ev.map((e, i) => {
+    const leftPct = (x(i) / W) * 100, topPct = (confY(e.conf) / H) * 100, col = colOf(i);
+    const pos = i === 0 ? "left:0;" : i === n - 1 ? "right:0;left:auto;" : "left:50%;margin-left:-92px;";
+    return `<div class="pn-tl-node" style="left:${leftPct.toFixed(2)}%;top:${topPct.toFixed(2)}%;">
+      <span class="pn-tl-dot${i === n - 1 ? " pn-tl-dot-last" : ""}" style="--tl:${col}">${i === n - 1 ? '<span class="pn-tl-halo"></span>' : ""}</span>
+      <span class="pn-tl-year" style="color:${col}">${e.year}</span>
+      <div class="pn-tl-card" style="${pos}">
+        <div class="pn-tl-card-year" style="color:${col}">${e.year}</div>
+        <div class="pn-tl-card-title">${esc(e.title)}</div>
+        <div class="pn-tl-card-desc">${esc(e.desc)}</div>
+        <div class="pn-tl-card-foot"><span>CONFIDENCE ${e.conf}%</span>${e.cite ? `<span class="citation-link" onclick="event.stopPropagation(); openInspector()">[${esc(e.cite)}]</span>` : ""}</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  const grid = [25, 50, 75].map((g) => `<line x1="60" x2="940" y1="${confY(g).toFixed(1)}" y2="${confY(g).toFixed(1)}" stroke="rgba(255,255,255,0.045)" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join("");
+
+  return `<div class="pn-timeline bg-[#0A0A1E]/80 backdrop-blur-md border border-[rgba(255,255,255,0.06)] rounded-2xl p-8 col-span-1 md:col-span-4 mb-6 relative" style="height:360px">
+    <div class="flex justify-between items-start mb-4 flex-wrap gap-3">
+      <div><h3 class="text-[12px] uppercase tracking-[0.2em] text-white font-bold flex items-center gap-2"><span class="w-1 h-4 bg-app-info rounded-full"></span>RESEARCH TIMELINE</h3><p class="text-[11px] text-[#5C687C] mt-1">How field confidence and evidence density evolved over time</p></div>
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 text-[10px] font-mono text-app-success"><span class="inline-block w-3 h-[2px] rounded bg-app-success"></span> CONFIDENCE</div>
+        <div class="flex items-center gap-2 text-[10px] font-mono text-app-info"><span class="inline-block w-3 h-2 rounded-sm bg-app-info/40"></span> EVIDENCE DENSITY</div>
+        <div class="font-mono text-[11px] text-app-info bg-app-info/5 px-2.5 py-1 rounded border border-app-info/20">${ev[0].year} → ${ev[n - 1].year}</div>
+      </div>
+    </div>
+    <div class="relative w-full" style="height:250px">
+      <svg class="absolute inset-0 w-full h-full" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="pnTlLine" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#00CCFF"/><stop offset="60%" stop-color="#4FD1C5"/><stop offset="100%" stop-color="#00FF47"/></linearGradient>
+          <linearGradient id="pnTlRidge" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="rgba(0,204,255,0.20)"/><stop offset="100%" stop-color="rgba(0,204,255,0)"/></linearGradient>
+        </defs>
+        ${grid}
+        <path class="pn-tl-ridge" d="${ridgeArea}" fill="url(#pnTlRidge)" stroke="none"/>
+        <path class="pn-tl-ridge" d="${ridgeLine}" fill="none" stroke="rgba(0,204,255,0.35)" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+        <path class="pn-tl-line" d="${linePath}" fill="none" stroke="url(#pnTlLine)" stroke-width="2.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <div class="pn-tl-nodes absolute inset-0">${nodes}</div>
+      <span class="absolute left-0 -top-1 text-[9px] font-mono text-[#5C687C] tracking-widest opacity-70">100%</span>
+      <span class="absolute left-0 bottom-8 text-[9px] font-mono text-[#5C687C] tracking-widest opacity-70">0%</span>
+    </div>
+  </div>`;
+}
+
 /* ---------- the report markup (verbatim design; ${…} = wired data) ---------- */
 function buildHtml(d) {
   const s = d.stats;
@@ -282,14 +426,22 @@ function buildHtml(d) {
 <div><h3 class="text-[10px] uppercase tracking-wider text-app-critic mb-1">CRITIC CONSENSUS</h3><div class="text-2xl font-bold text-white mb-2">${d.critic.pct}%</div><div class="w-full bg-app-border rounded-full h-1 mb-1"><div class="bg-app-critic h-1 rounded-full drop-shadow-[0_0_4px_rgba(232,168,85,0.4)]" style="width:${d.critic.pct}%"></div></div></div>
 <a class="text-[10px] text-app-critic flex items-center gap-1 hover:underline" href="#">Why this score? <i class="ph ph-arrow-right"></i></a>
 </div>
-<div class="col-span-12 lg:col-span-3 bg-[#121226] border border-app-border rounded-lg p-4 flex flex-col row-span-2 self-stretch">
-<h3 class="text-[10px] uppercase tracking-wider text-app-synthesis mb-4">CHAT WITH THIS REPORT</h3>
-<div id="pn-chat-msgs" class="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 mb-4 hide-scrollbar">
-<div class="flex gap-3"><i class="ph ph-chat-circle text-app-synthesis mt-1 shrink-0"></i><div class="flex-1 text-[12.5px] leading-relaxed text-white/70">Ask a follow-up grounded strictly in this report — e.g. "What's the strongest evidence here?"</div></div>
+<div class="col-span-12 lg:col-span-3 bg-gradient-to-b from-[#15152e] to-[#101024] border border-app-border rounded-xl p-5 flex flex-col row-span-2 self-stretch relative overflow-hidden">
+<div class="flex items-center gap-2.5 mb-4"><span class="w-7 h-7 rounded-lg bg-app-synthesis/15 border border-app-synthesis/30 flex items-center justify-center"><i class="ph ph-sparkle text-app-synthesis text-sm"></i></span><h3 class="text-[11px] uppercase tracking-wider text-app-synthesis font-semibold">Chat with this report</h3></div>
+<div id="pn-chat-msgs" class="flex-1 flex flex-col gap-3 overflow-y-auto pr-1 mb-3 hide-scrollbar">
+<div class="flex gap-2.5"><i class="ph ph-sparkle text-app-synthesis mt-0.5 shrink-0"></i><div class="flex-1 text-[12.5px] leading-relaxed text-white/75">Ask anything about this report — every answer stays grounded strictly in the sources above.</div></div>
+<div class="flex flex-col gap-2 mt-1">
+<span class="text-[10px] uppercase tracking-wider text-[#5C687C] font-mono mb-0.5">Suggested</span>
+<button onclick="pnChatAsk(this)" class="text-[12px] text-white/85 bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 hover:border-app-synthesis/40 hover:bg-app-synthesis/[0.08] hover:text-white transition-all text-left flex items-center gap-2"><i class="ph ph-lightning text-app-synthesis text-xs shrink-0"></i> What's the strongest evidence here?</button>
+<button onclick="pnChatAsk(this)" class="text-[12px] text-white/85 bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 hover:border-app-synthesis/40 hover:bg-app-synthesis/[0.08] hover:text-white transition-all text-left flex items-center gap-2"><i class="ph ph-git-fork text-app-synthesis text-xs shrink-0"></i> Where do the sources disagree?</button>
+<button onclick="pnChatAsk(this)" class="text-[12px] text-white/85 bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 hover:border-app-synthesis/40 hover:bg-app-synthesis/[0.08] hover:text-white transition-all text-left flex items-center gap-2"><i class="ph ph-warning-circle text-app-synthesis text-xs shrink-0"></i> What are the biggest uncertainties?</button>
+<button onclick="pnChatAsk(this)" class="text-[12px] text-white/85 bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 hover:border-app-synthesis/40 hover:bg-app-synthesis/[0.08] hover:text-white transition-all text-left flex items-center gap-2"><i class="ph ph-seal-check text-app-synthesis text-xs shrink-0"></i> How reliable are these sources?</button>
+<button onclick="pnChatAsk(this)" class="text-[12px] text-white/85 bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 hover:border-app-synthesis/40 hover:bg-app-synthesis/[0.08] hover:text-white transition-all text-left flex items-center gap-2"><i class="ph ph-text-aa text-app-synthesis text-xs shrink-0"></i> Summarise this in one line</button>
+</div>
 </div>
 <div class="relative mt-auto">
-<input id="pn-chat-input" onkeydown="if(event.key==='Enter')pnChatSend()" class="w-full bg-[#0A0A1E] border border-app-border rounded-full py-2 pl-4 pr-10 text-[13px] text-white focus:outline-none focus:border-app-synthesis placeholder:text-[#5C687C]" placeholder="Ask a follow-up..." type="text"/>
-<button onclick="pnChatSend()" class="absolute right-1 top-1 w-7 h-7 bg-app-synthesis rounded-full flex items-center justify-center text-[#0A0A1E] hover:bg-white transition-colors drop-shadow-[0_0_4px_rgba(180,142,240,0.4)]"><i class="ph ph-arrow-right font-bold"></i></button>
+<input id="pn-chat-input" onkeydown="if(event.key==='Enter')pnChatSend()" class="w-full bg-[#0A0A1E] border border-app-border rounded-full py-2.5 pl-4 pr-11 text-[13px] text-white focus:outline-none focus:border-app-synthesis focus:shadow-[0_0_0_3px_rgba(180,142,240,0.12)] transition-all placeholder:text-[#5C687C]" placeholder="Ask a follow-up…" type="text"/>
+<button onclick="pnChatSend()" class="absolute right-1.5 top-1.5 w-8 h-8 bg-app-synthesis rounded-full flex items-center justify-center text-[#0A0A1E] hover:bg-white transition-colors drop-shadow-[0_0_6px_rgba(180,142,240,0.5)]"><i class="ph ph-arrow-up font-bold"></i></button>
 </div>
 </div>
 <div class="col-span-12 lg:col-span-9 grid grid-cols-3 gap-6">
@@ -305,30 +457,7 @@ function buildHtml(d) {
 </div>
 </div>
 </section>
-<section class="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 backdrop-blur-sm">
-<div class="flex flex-col gap-4">
-<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-[rgba(255,255,255,0.06)]">
-<div>
-<h3 class="text-[10px] uppercase tracking-wider text-[#8D9BB0] font-bold flex items-center gap-2">RESEARCH SCALE</h3>
-<p class="text-[9px] text-[#5C687C] mt-1">A snapshot of the evidence processed for this synthesis</p>
-</div>
-</div>
-<div class="flex overflow-x-auto pb-2 md:pb-0 hide-scrollbar gap-8 md:justify-between items-center whitespace-nowrap">
-<a class="flex flex-col items-center gap-1 group cursor-pointer shrink-0" href="#confidence-breakdown"><span class="text-2xl md:text-[28px] font-semibold font-mono tabular-nums text-[#00FF47] number-counter" data-suffix="%" data-target="${s.confidence}">${s.confidence}%</span><span class="text-[9px] md:text-[10px] uppercase tracking-[0.08em] text-[#5C687C] group-hover:text-white transition-colors">CONFIDENCE</span></a>
-<div class="w-1 h-1 rounded-full bg-[rgba(255,255,255,0.1)] shrink-0 hidden md:block"></div>
-<a class="flex flex-col items-center gap-1 group cursor-pointer shrink-0" href="#source-landscape"><span class="text-2xl md:text-[28px] font-semibold font-mono tabular-nums text-[#00CCFF] number-counter" data-target="${s.sources}">${s.sources}</span><span class="text-[9px] md:text-[10px] uppercase tracking-[0.08em] text-[#5C687C] group-hover:text-white transition-colors">SOURCES</span></a>
-<div class="w-1 h-1 rounded-full bg-[rgba(255,255,255,0.1)] shrink-0 hidden md:block"></div>
-<a class="flex flex-col items-center gap-1 group cursor-pointer shrink-0" href="#evidence-ledger"><span class="text-2xl md:text-[28px] font-semibold font-mono tabular-nums text-[#B48EF0] number-counter" data-target="${s.passages}">${s.passages}</span><span class="text-[9px] md:text-[10px] uppercase tracking-[0.08em] text-[#5C687C] group-hover:text-white transition-colors">PASSAGES</span></a>
-<div class="w-1 h-1 rounded-full bg-[rgba(255,255,255,0.1)] shrink-0 hidden md:block"></div>
-<a class="flex flex-col items-center gap-1 group cursor-pointer shrink-0" href="#key-findings"><span class="text-2xl md:text-[28px] font-semibold font-mono tabular-nums text-[#4FD1C5] number-counter" data-target="${s.insights}">${s.insights}</span><span class="text-[9px] md:text-[10px] uppercase tracking-[0.08em] text-[#5C687C] group-hover:text-white transition-colors">INSIGHTS</span></a>
-<div class="w-1 h-1 rounded-full bg-[rgba(255,255,255,0.1)] shrink-0 hidden md:block"></div>
-<a class="flex flex-col items-center gap-1 group cursor-pointer shrink-0" href="#claim-level-confidence"><span class="text-2xl md:text-[28px] font-semibold font-mono tabular-nums text-[#6C8CFF] number-counter" data-target="${s.claims}">${s.claims}</span><span class="text-[9px] md:text-[10px] uppercase tracking-[0.08em] text-[#5C687C] group-hover:text-white transition-colors">CLAIMS</span></a>
-<div class="w-1 h-1 rounded-full bg-[rgba(255,255,255,0.1)] shrink-0 hidden md:block"></div>
-<a class="flex flex-col items-center gap-1 group cursor-pointer shrink-0" href="#evidence-strength"><span class="text-2xl md:text-[28px] font-semibold font-mono tabular-nums text-[#E8A855] number-counter" data-suffix="%" data-target="${s.consensus}">${s.consensus}%</span><span class="text-[9px] md:text-[10px] uppercase tracking-[0.08em] text-[#5C687C] group-hover:text-white transition-colors">CONSENSUS</span></a>
-</div>
-<div><p class="text-[10px] text-[#5C687C] italic opacity-80">${s.passages} passages analyzed across ${s.sources} sources to produce ${s.claims} synthesized claims.</p></div>
-</div>
-</section>
+${researchScale(d)}
 <section class="bg-[#111125] border border-app-border rounded-lg p-8 lg:p-10 backdrop-blur-md relative overflow-hidden"><h3 class="text-xs uppercase tracking-[0.2em] text-app-info mb-10 font-bold flex items-center gap-3"><span class="w-1 h-4 bg-app-info rounded-full drop-shadow-[0_0_4px_rgba(0,204,255,0.5)]"></span>HOW WE REACHED THIS CONCLUSION</h3><div class="flex items-center justify-between gap-4"><div class="flex items-center justify-between flex-1 px-4"><div class="flex flex-col items-center gap-4 group relative"><div class="w-16 h-16 rounded-full border border-app-border bg-[#0A0A1E] flex items-center justify-center text-[#5C687C] group-hover:border-app-info group-hover:text-app-info transition-all relative"><div class="absolute inset-0 rounded-full bg-app-info/5 opacity-0 group-hover:opacity-100 transition-all"></div><i class="ph ph-lightning text-xl relative z-10"></i></div><span class="text-[9px] font-bold tracking-[0.15em] text-[#5C687C] uppercase font-mono group-hover:text-app-info">Input</span></div><div class="h-px flex-1 bg-app-border mx-2"></div><div class="flex flex-col items-center gap-4 group relative"><div class="w-16 h-16 rounded-full border border-app-border bg-[#0A0A1E] flex items-center justify-center text-[#5C687C] group-hover:border-app-info group-hover:text-app-info transition-all relative"><i class="ph ph-file-text text-xl relative z-10"></i></div><span class="text-[9px] font-bold tracking-[0.15em] text-[#5C687C] uppercase font-mono group-hover:text-app-info">Sources</span></div><div class="h-px flex-1 bg-app-border mx-2"></div><div class="flex flex-col items-center gap-4 group relative"><div class="w-16 h-16 rounded-full border border-app-border bg-[#0A0A1E] flex items-center justify-center text-[#5C687C] group-hover:border-app-critic group-hover:text-app-critic transition-all relative"><i class="ph ph-chart-polar text-xl relative z-10"></i></div><span class="text-[9px] font-bold tracking-[0.15em] text-[#5C687C] uppercase font-mono group-hover:text-app-critic">Analysis</span></div><div class="h-px flex-1 bg-app-border mx-2"></div><div class="flex flex-col items-center gap-4 group relative"><div class="w-16 h-16 rounded-full border border-app-border bg-[#0A0A1E] flex items-center justify-center text-[#5C687C] group-hover:border-app-critic group-hover:text-app-critic transition-all relative"><i class="ph ph-scales text-xl relative z-10"></i></div><span class="text-[9px] font-bold tracking-[0.15em] text-[#5C687C] uppercase font-mono group-hover:text-app-critic">Evidence</span></div><div class="h-px flex-1 bg-app-border mx-2"></div><div class="flex flex-col items-center gap-4 group relative"><div class="w-16 h-16 rounded-full border border-app-border bg-[#0A0A1E] flex items-center justify-center text-[#5C687C] group-hover:border-app-synthesis group-hover:text-app-synthesis transition-all relative"><i class="ph ph-brain text-xl relative z-10"></i></div><span class="text-[9px] font-bold tracking-[0.15em] text-[#5C687C] uppercase font-mono group-hover:text-app-synthesis">Synthesis</span></div><div class="h-px flex-1 bg-app-border mx-2"></div><div class="flex flex-col items-center gap-4 group relative"><div class="w-16 h-16 rounded-full border border-app-border bg-[#0A0A1E] flex items-center justify-center text-[#5C687C] group-hover:border-app-primary group-hover:text-app-primary transition-all relative"><i class="ph ph-lightbulb text-xl relative z-10"></i></div><span class="text-[9px] font-bold tracking-[0.15em] text-[#5C687C] uppercase font-mono group-hover:text-app-primary">Insights</span></div></div><div class="ml-8 pl-8 border-l border-app-border flex flex-col items-center gap-3"><div class="relative w-28 h-28 flex items-center justify-center"><svg class="absolute inset-0 w-full h-full opacity-20" viewbox="0 0 36 36"><circle cx="18" cy="18" fill="none" r="17.5" stroke="#4FD1C5" stroke-dasharray="1 3" stroke-width="0.5"></circle></svg><svg class="w-full h-full -rotate-90 drop-shadow-[0_0_8px_rgba(79,209,197,0.3)]" viewbox="0 0 36 36"><circle cx="18" cy="18" fill="none" r="16" stroke="rgba(120,130,180,0.16)" stroke-width="1.5"></circle><circle cx="18" cy="18" fill="none" r="16" stroke="#4FD1C5" stroke-dasharray="${d.conf}, 100" stroke-linecap="round" stroke-width="2"></circle><circle cx="18" cy="18" fill="none" r="13" stroke="rgba(120,130,180,0.16)" stroke-dasharray="2 2" stroke-width="0.5"></circle></svg><div class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-2xl font-bold text-white font-mono tracking-tighter">${d.conf}%</span><span class="text-[7px] text-app-primary font-bold tracking-[0.2em] mt-0.5">FINAL</span></div></div><span class="text-[10px] font-bold tracking-[0.2em] text-[#5C687C] uppercase font-mono mt-2">Confidence</span></div></div></section>
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
 <div class="bg-[#111125] border border-app-border rounded-lg p-5 flex flex-col h-[380px]" id="key-findings">
@@ -365,8 +494,8 @@ function buildHtml(d) {
 <div class="bg-[#111125] border border-app-border rounded-lg p-6 flex flex-col"><h3 class="text-[12px] uppercase tracking-wider text-white flex items-center gap-2 mb-5"><i class="ph ph-hexagon text-app-primary"></i> RESEARCH COVERAGE</h3><div class="flex flex-col gap-4">${coverageRows(d)}</div></div>
 <div class="bg-[#151529] border border-app-border rounded-lg p-6 flex flex-col" id="source-landscape"><h3 class="text-[12px] uppercase tracking-wider text-white flex items-center gap-2 mb-5"><i class="ph ph-chart-polar text-app-secondary"></i> SOURCE LANDSCAPE</h3><div class="flex items-center gap-5 flex-1"><div class="relative w-24 h-24 shrink-0"><svg class="w-full h-full" viewbox="0 0 36 36"><circle cx="18" cy="18" fill="transparent" r="15.9" stroke="rgba(120,130,180,0.16)" stroke-width="3"></circle><circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#6C8CFF" stroke-dasharray="40 100" stroke-dashoffset="25" stroke-width="3"></circle><circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#4FD1C5" stroke-dasharray="20 100" stroke-dashoffset="65" stroke-width="3"></circle><circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#B48EF0" stroke-dasharray="15 100" stroke-dashoffset="80" stroke-width="3"></circle></svg><div class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-xl font-bold text-white font-sora">${d.sources}</span><span class="text-[9px] text-[#5C687C] uppercase tracking-wider">sources</span></div></div><div class="flex flex-col gap-3 flex-1 min-w-0">${landscapeRows(d)}</div></div></div>
 <div class="bg-[#121226] border border-app-border rounded-lg p-6 flex flex-col"><h3 class="text-[12px] uppercase tracking-wider text-white flex items-center gap-2 mb-3"><i class="ph ph-git-merge text-app-synthesis"></i> CONTRADICTION NETWORK</h3><div class="flex items-center justify-center relative"><svg class="w-full h-24" viewbox="0 0 200 100"><circle cx="30" cy="40" fill="none" r="8" stroke="#6C8CFF" stroke-width="1"></circle><circle cx="30" cy="70" fill="none" r="8" stroke="#6C8CFF" stroke-width="1"></circle><circle cx="100" cy="50" fill="none" r="12" stroke="#B48EF0" stroke-width="1"></circle><circle cx="170" cy="30" fill="none" r="8" stroke="#FFAA00" stroke-width="1"></circle><circle cx="170" cy="70" fill="none" r="8" stroke="#FFAA00" stroke-width="1"></circle><line stroke="rgba(120,130,180,0.5)" stroke-dasharray="2 2" x1="38" x2="88" y1="40" y2="50"></line><line stroke="rgba(120,130,180,0.5)" stroke-dasharray="2 2" x1="38" x2="88" y1="70" y2="50"></line><line stroke="rgba(120,130,180,0.5)" stroke-dasharray="2 2" x1="112" x2="162" y1="50" y2="30"></line><line stroke="rgba(120,130,180,0.5)" stroke-dasharray="2 2" x1="112" x2="162" y1="50" y2="70"></line><text fill="#B48EF0" font-size="10" x="96" y="55">⚡</text></svg></div><p class="text-[13px] text-white/80 leading-relaxed mt-3">${citeHtml(d.contradiction)}</p></div>
-<div class="bg-[#0A0A1E]/80 backdrop-blur-md border border-[rgba(255,255,255,0.06)] rounded-2xl p-8 col-span-1 md:col-span-4 mb-6 relative overflow-hidden h-[250px]"><div class="flex justify-between items-start mb-6"><div><h3 class="text-[10px] uppercase tracking-[0.2em] text-white font-bold flex items-center gap-2"><span class="w-1 h-4 bg-app-info rounded-full"></span>RESEARCH TIMELINE</h3><p class="text-[9px] text-[#5C687C] mt-1">How the evidence evolved over time</p></div><div class="font-mono text-[10px] text-app-info bg-app-info/5 px-2 py-1 rounded border border-app-info/20">1750 → 2026</div></div><div class="absolute bottom-0 left-0 w-full h-[120px] pointer-events-none z-0"><svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 40"><path d="M0 40 Q 40 40, 70 20 T 100 5" fill="none" stroke="rgba(0, 204, 255, 0.1)" stroke-width="0.5"></path><path d="M0 40 Q 40 40, 70 20 T 100 5 L 100 40 L 0 40 Z" fill="url(#density-grad)"></path><defs><lineargradient id="density-grad" x1="0%" x2="100%" y1="0%" y2="0%"><stop offset="0%" style="stop-color:rgba(0, 204, 255, 0)"></stop><stop offset="100%" style="stop-color:rgba(0, 204, 255, 0.05)"></stop></lineargradient></defs></svg><span class="absolute bottom-2 right-4 text-[7px] text-[#5C687C] font-mono tracking-widest opacity-50">EVIDENCE DENSITY</span></div><div class="relative mt-8 mb-4 h-full z-10 flex items-center"><div class="absolute top-1/2 left-0 w-full h-[1px] bg-white/5 -translate-y-1/2"><div class="h-full bg-gradient-to-r from-app-info/20 via-app-primary/50 to-app-success/80 w-0 animate-draw-line"></div></div><div class="relative flex justify-between items-center w-full"><div class="flex-1 flex flex-col items-center text-center group relative opacity-0 animate-fade-node" style="animation-delay: 0.5s;"><div class="w-2 h-2 rounded-full bg-[#5C687C] z-10 mb-3 border border-app-bg"></div><div class="flex flex-col items-center absolute top-5 w-32"><span class="font-mono text-[9px] text-[#5C687C] font-bold">1750</span><h4 class="text-[8px] font-bold text-white/70 uppercase tracking-wider mt-1">Industrial Revolution</h4><p class="text-[7px] text-[#5C687C] mt-1 leading-tight">Large-scale fossil-fuel use begins.</p><span class="font-mono text-[7px] text-app-info mt-0.5">[1]</span></div></div><div class="flex-1 flex flex-col items-center text-center group relative opacity-0 animate-fade-node" style="animation-delay: 0.8s;"><div class="w-2 h-2 rounded-full bg-app-info/50 z-10 mb-3 border border-app-bg"></div><div class="flex flex-col items-center absolute top-5 w-32"><span class="font-mono text-[9px] text-app-info/70 font-bold">1850</span><h4 class="text-[8px] font-bold text-white/80 uppercase tracking-wider mt-1">Greenhouse Gas Increase</h4><p class="text-[7px] text-[#5C687C] mt-1 leading-tight">Atmospheric composition begins changing.</p><span class="font-mono text-[7px] text-app-info mt-0.5">[2]</span></div></div><div class="flex-1 flex flex-col items-center text-center group relative opacity-0 animate-fade-node" style="animation-delay: 1.1s;"><div class="w-2.5 h-2.5 rounded-full bg-app-info shadow-[0_0_8px_rgba(0,204,255,0.4)] z-10 mb-3 border border-app-bg"></div><div class="flex flex-col items-center absolute top-5 w-32"><span class="font-mono text-[9px] text-app-info font-bold">1950</span><h4 class="text-[8px] font-bold text-white uppercase tracking-wider mt-1">Observed Warming</h4><p class="text-[7px] text-[#5C687C] mt-1 leading-tight">Records show sustained warming.</p><span class="font-mono text-[7px] text-app-info mt-0.5">[1][3]</span></div></div><div class="flex-1 flex flex-col items-center text-center group relative opacity-0 animate-fade-node" style="animation-delay: 1.4s;"><div class="w-2.5 h-2.5 rounded-full bg-app-primary shadow-[0_0_8px_rgba(79,209,197,0.5)] z-10 mb-3 border border-app-bg"></div><div class="flex flex-col items-center absolute top-5 w-32"><span class="font-mono text-[9px] text-app-primary font-bold">2000</span><h4 class="text-[8px] font-bold text-white uppercase tracking-wider mt-1">Attribution Evidence</h4><p class="text-[7px] text-[#5C687C] mt-1 leading-tight">Research distinguishes anthropogenic warming.</p><span class="font-mono text-[7px] text-app-info mt-0.5">[3][4]</span></div></div><div class="flex-1 flex flex-col items-center text-center group relative opacity-0 animate-fade-node" style="animation-delay: 2s;"><div class="relative w-4 h-4 z-10 mb-2"><div class="absolute inset-0 rounded-full bg-app-success animate-pulse-halo"></div><div class="absolute inset-0 rounded-full bg-app-success border-2 border-app-bg shadow-[0_0_12px_#00FF47]"></div></div><div class="flex flex-col items-center absolute top-5 w-32"><span class="font-mono text-[10px] text-app-success font-bold">2026</span><h4 class="text-[9px] font-bold text-white uppercase tracking-wider mt-1">Current Synthesis</h4><p class="text-[8px] text-white/90 mt-1 leading-tight">Human activity dominates warming.</p><span class="font-mono text-[7px] text-app-info mt-0.5">[1][3]</span></div></div></div></div></div>
-<div class="bg-[#111125] border border-app-border rounded-lg p-6 flex flex-col col-span-1 md:col-span-4 shadow-[0_0_20px_rgba(79,209,197,0.02)] backdrop-blur-md"><div class="mb-8"><h3 class="text-[10px] uppercase tracking-[0.2em] text-white font-bold flex items-center gap-2">KNOWN / UNCERTAIN / UNKNOWN</h3><p class="text-[9px] text-[#5C687C] mt-1">What the evidence supports — and where it stops.</p></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1"><div class="flex flex-col gap-4 border-t border-app-success/30 pt-4"><div><h4 class="text-[9px] font-bold text-app-success tracking-widest uppercase flex items-center gap-2 !text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-app-success"></span> KNOWN</h4><p class="text-[8px] text-[#5C687C] mt-0.5">Strongly supported by the available evidence.</p></div><div class="flex flex-col gap-3"><div class="group cursor-pointer"><div class="flex items-start gap-2"><i class="ph ph-check text-app-success text-[10px] mt-0.5"></i><p class="text-white text-[13px] leading-snug">Anthropogenic CO2 is the primary driver of warming <span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="openInspector()">[2][3]</span></p></div><div class="mt-1.5 flex items-center gap-2"><div class="h-0.5 flex-1 bg-app-border rounded-full overflow-hidden"><div class="h-full bg-app-success w-[94%]"></div></div><span class="text-[8px] font-mono text-app-success">94%</span></div></div><div class="group cursor-pointer"><div class="flex items-start gap-2"><i class="ph ph-check text-app-success text-[10px] mt-0.5"></i><p class="text-white text-[13px] leading-snug">Ocean heat content has increased significantly since 1970 <span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="openInspector()">[5]</span></p></div><div class="mt-1.5 flex items-center gap-2"><div class="h-0.5 flex-1 bg-app-border rounded-full overflow-hidden"><div class="h-full bg-app-success w-[88%]"></div></div><span class="text-[8px] font-mono text-app-success">88%</span></div></div></div></div><div class="flex flex-col gap-4 border-t border-app-warning/30 pt-4"><div><h4 class="text-[9px] font-bold text-app-warning tracking-widest uppercase flex items-center gap-2 !text-[11px]"><span class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[7px] border-b-app-warning"></span> UNCERTAIN</h4><p class="text-[8px] text-[#5C687C] mt-0.5">Plausible, but evidence is incomplete or mixed.</p></div><div class="flex flex-col gap-3"><div class="group cursor-pointer"><div class="flex items-start gap-2"><span class="text-app-warning text-[10px] mt-0.5">△</span><p class="text-white text-[13px] leading-snug">Regional precipitation response differences <span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="openInspector()">[8]</span></p></div><div class="mt-1.5 flex items-center gap-2"><div class="h-0.5 flex-1 bg-app-border rounded-full overflow-hidden"><div class="h-full bg-app-warning w-[58%]"></div></div><span class="text-[8px] font-mono text-app-warning">58%</span></div></div><div class="group cursor-pointer"><div class="flex items-start gap-2"><span class="text-app-warning text-[10px] mt-0.5">△</span><p class="text-white text-[13px] leading-snug">Cloud feedback sensitivity in tropical regions <span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="openInspector()">[12]</span></p></div><div class="mt-1.5 flex items-center gap-2"><div class="h-0.5 flex-1 bg-app-border rounded-full overflow-hidden"><div class="h-full bg-app-warning w-[42%]"></div></div><span class="text-[8px] font-mono text-app-warning">42%</span></div></div></div></div><div class="flex flex-col gap-4 border-t border-[#ff4d6d]/30 pt-4"><div><h4 class="text-[9px] font-bold text-[#ff4d6d] tracking-widest uppercase flex items-center gap-2 !text-[11px]"><span class="text-[12px] leading-none">?</span> UNKNOWN</h4><p class="text-[8px] text-[#5C687C] mt-0.5">Not sufficiently answered by current evidence.</p></div><div class="flex flex-col gap-3"><div class="flex items-start gap-2"><span class="text-[#ff4d6d] text-[10px] mt-0.5">?</span><p class="text-white text-[13px] leading-snug">Exact tipping point for AMOC collapse</p></div><div class="flex items-start gap-2"><span class="text-[#ff4d6d] text-[10px] mt-0.5">?</span><p class="text-white text-[13px] leading-snug">Long-term impact of deep-sea mining on carbon sequestration</p></div></div></div></div><div class="mt-8 pt-4 border-t border-app-border/30 flex justify-between items-center"><span class="text-[8px] font-mono text-[#5C687C] uppercase tracking-wider">EVIDENCE STATUS: 3 well-supported · 3 uncertain · 2 unresolved</span><button class="text-[9px] text-app-info font-bold hover:underline flex items-center gap-1 transition-all duration-200">+ more <i class="ph ph-caret-down"></i></button></div></div>
+${timelineCard(d)}
+${kuuCard(d)}
 <div class="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10 md:col-span-4">
 <div class="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-8 flex flex-col relative overflow-hidden md:col-span-7 shadow-[0_0_20px_rgba(79,209,197,0.02)] backdrop-blur-md"><div class="mb-6"><h3 class="text-base font-sora font-semibold text-white tracking-wide">WHAT WOULD CHANGE OUR MIND?</h3><p class="text-[11px] font-inter text-[#8D9BB0] mt-1">Evidence that could materially weaken or overturn the current synthesis.</p></div><div class="bg-[#111125] border border-app-border rounded-lg p-4 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4"><div class="flex-1"><span class="text-[9px] text-[#5C687C] uppercase tracking-wider font-semibold block mb-1">CURRENT SYNTHESIS</span><p class="text-xs text-white leading-relaxed">Recent climate change is predominantly driven by human activity, while natural factors contribute to longer-term climate variability.</p></div><div class="flex items-center gap-2 shrink-0 md:border-l md:border-app-border md:pl-4"><div class="text-right"><span class="text-[9px] text-app-primary uppercase tracking-wider font-semibold block">CURRENT CONFIDENCE</span><span class="text-lg font-mono text-app-primary font-bold">${d.conf}%</span></div></div></div><div class="flex flex-col gap-0 z-10"><div class="border-b border-app-border/50 py-4 group cursor-pointer" onclick="toggleCondition(this)"><div class="flex items-start md:items-center justify-between gap-4"><div class="flex items-start gap-4 flex-1"><span class="font-mono text-xs font-bold text-app-text mt-0.5 md:mt-0">01</span><div><h4 class="text-[13.5px] font-medium text-white group-hover:text-app-primary transition-colors">Natural forcing explains recent warming</h4><p class="text-[12px] text-[#8D9BB0] mt-1 leading-relaxed">Evidence showing natural forcing accounts for most of the observed recent temperature increase.</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="text-[9px] text-[#5C687C] font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#5C687C]"></span> NOT OBSERVED</span><i class="ph ph-caret-down text-app-text condition-icon transition-transform"></i></div></div><div class="condition-content"><div class="pt-2 flex flex-col gap-4"><div><span class="text-[9px] uppercase tracking-wider text-[#5C687C] block mb-2">Evidence Required</span><div class="flex flex-wrap gap-2"><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Long-term solar measurements</span><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Volcanic forcing models</span><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Independent attribution studies</span></div></div><div class="flex items-center justify-between"><div><span class="text-[9px] uppercase tracking-wider text-[#5C687C] mr-2">Relevant Sources</span><span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="event.stopPropagation(); openInspector()">[2]</span><span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="event.stopPropagation(); openInspector()">[4]</span></div><div class="flex items-center gap-2 w-1/3"><span class="text-[9px] uppercase tracking-wider text-[#5C687C]">Challenge Strength</span><div class="h-1 bg-app-border/50 rounded flex-1 overflow-hidden"><div class="h-full bg-app-warning w-[24%]"></div></div><span class="text-[9px] font-mono text-white">24%</span></div></div></div></div></div><div class="border-b border-app-border/50 py-4 group cursor-pointer" onclick="toggleCondition(this)"><div class="flex items-start md:items-center justify-between gap-4"><div class="flex items-start gap-4 flex-1"><span class="font-mono text-xs font-bold text-app-text mt-0.5 md:mt-0">02</span><div><h4 class="text-[13.5px] font-medium text-white group-hover:text-app-primary transition-colors">Independent datasets contradict the current attribution</h4><p class="text-[12px] text-[#8D9BB0] mt-1 leading-relaxed">Multiple high-quality datasets consistently produce a different attribution of recent warming.</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="text-[9px] text-[#5C687C] font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#5C687C]"></span> NOT OBSERVED</span><i class="ph ph-caret-down text-app-text condition-icon transition-transform"></i></div></div><div class="condition-content"><div class="pt-2 flex flex-col gap-4"><div><span class="text-[9px] uppercase tracking-wider text-[#5C687C] block mb-2">Evidence Required</span><div class="flex flex-wrap gap-2"><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Dataset comparison</span><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Methodological audit</span><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Cross-reference checks</span></div></div><div class="flex items-center justify-between"><div><span class="text-[9px] uppercase tracking-wider text-[#5C687C] mr-2">Relevant Sources</span><span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="event.stopPropagation(); openInspector()">[1]</span></div><div class="flex items-center gap-2 w-1/3"><span class="text-[9px] uppercase tracking-wider text-[#5C687C]">Challenge Strength</span><div class="h-1 bg-app-border/50 rounded flex-1 overflow-hidden"><div class="h-full bg-app-warning w-[15%]"></div></div><span class="text-[9px] font-mono text-white">15%</span></div></div></div></div></div><div class="py-4 group cursor-pointer" onclick="toggleCondition(this)"><div class="flex items-start md:items-center justify-between gap-4"><div class="flex items-start gap-4 flex-1"><span class="font-mono text-xs font-bold text-app-text mt-0.5 md:mt-0">03</span><div><h4 class="text-[13.5px] font-medium text-white group-hover:text-app-primary transition-colors">Source consensus changes</h4><p class="text-[12px] text-[#8D9BB0] mt-1 leading-relaxed">New high-trust evidence substantially shifts the balance of independent sources.</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="text-[9px] text-[#5C687C] font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#5C687C]"></span> NOT OBSERVED</span><i class="ph ph-caret-down text-app-text condition-icon transition-transform"></i></div></div><div class="condition-content"><div class="pt-2 flex flex-col gap-4"><div><span class="text-[9px] uppercase tracking-wider text-[#5C687C] block mb-2">Evidence Required</span><div class="flex flex-wrap gap-2"><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Peer-reviewed journals</span><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Official reports</span><span class="px-2 py-1 border border-app-border rounded text-[10px] text-white/80">Expert testimonies</span></div></div><div class="flex items-center justify-between"><div><span class="text-[9px] uppercase tracking-wider text-[#5C687C] mr-2">Relevant Sources</span><span class="citation-link font-mono text-[9px] font-bold px-0.5" onclick="event.stopPropagation(); openInspector()">[5]</span></div><div class="flex items-center gap-2 w-1/3"><span class="text-[9px] uppercase tracking-wider text-[#5C687C]">Challenge Strength</span><div class="h-1 bg-app-border/50 rounded flex-1 overflow-hidden"><div class="h-full bg-app-warning w-[8%]"></div></div><span class="text-[9px] font-mono text-white">8%</span></div></div></div></div></div></div><div class="mt-auto pt-6 border-t border-app-border/30"><div class="flex flex-col md:flex-row md:items-center gap-4"><div class="shrink-0"><span class="text-[9px] text-[#5C687C] uppercase tracking-wider font-semibold block mb-1">CURRENT RESILIENCE</span><span class="text-[11px] font-bold text-app-warning flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-app-warning"></span> MODERATELY ROBUST</span></div><p class="text-[10px] text-[#5C687C] leading-relaxed md:border-l md:border-app-border md:pl-4">The current conclusion is supported by multiple independent sources, but would weaken if stronger evidence materially changed the attribution of recent warming.</p></div></div></div>
 <div class="bg-[#151529] border border-app-border rounded-lg p-8 flex flex-col relative overflow-hidden md:col-span-5 h-96 shadow-[0_0_20px_rgba(79,209,197,0.02)] backdrop-blur-md"><h3 class="text-[11px] uppercase tracking-[0.2em] text-white flex items-center gap-3 mb-6 font-bold shrink-0"><i class="ph ph-lightning text-app-primary text-lg"></i> RESEARCH TRAJECTORY</h3><div class="flex flex-col gap-5 overflow-y-auto pr-1 hide-scrollbar">${trajRows(d)}</div><div class="absolute bottom-4 right-4 opacity-10"><i class="ph ph-rocket-launch text-6xl text-app-primary"></i></div></div>
@@ -440,6 +569,34 @@ const REPORT_CSS = `
 .condition-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out; opacity: 0; }
 .condition-expanded .condition-content { max-height: 400px; opacity: 1; margin-top: 1rem; }
 .condition-expanded .condition-icon { transform: rotate(180deg); }
+
+/* ── Research Timeline ─────────────────────────────────────────────── */
+.pn-tl-node { position: absolute; opacity: 0; transition: opacity .55s cubic-bezier(.16,1,.3,1); }
+.pn-timeline.pn-tl-in .pn-tl-node { opacity: 1; }
+.pn-timeline.pn-tl-in .pn-tl-node:nth-child(1) { transition-delay: .35s; }
+.pn-timeline.pn-tl-in .pn-tl-node:nth-child(2) { transition-delay: .55s; }
+.pn-timeline.pn-tl-in .pn-tl-node:nth-child(3) { transition-delay: .75s; }
+.pn-timeline.pn-tl-in .pn-tl-node:nth-child(4) { transition-delay: .95s; }
+.pn-timeline.pn-tl-in .pn-tl-node:nth-child(5) { transition-delay: 1.15s; }
+/* hover: dim the rest, spotlight one */
+.pn-timeline.pn-tl-in .pn-tl-nodes:hover .pn-tl-node { opacity: .3; }
+.pn-timeline .pn-tl-node:hover { opacity: 1 !important; z-index: 30; }
+.pn-tl-dot { position: absolute; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--tl); box-shadow: 0 0 0 3px rgba(10,10,30,0.9), 0 0 12px var(--tl); transition: transform .2s ease; }
+.pn-tl-node:hover .pn-tl-dot { transform: scale(1.35); }
+.pn-tl-halo { position: absolute; inset: 0; border-radius: 50%; background: var(--tl); opacity: .55; animation: pnTlPulse 2.4s ease-out infinite; }
+@keyframes pnTlPulse { 0% { transform: scale(1); opacity: .55; } 70% { transform: scale(2.6); opacity: 0; } 100% { opacity: 0; } }
+.pn-tl-year { position: absolute; left: 0; top: 12px; transform: translateX(-50%); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.pn-tl-card { position: absolute; top: 26px; width: 184px; padding: 12px 14px; border-radius: 12px; background: rgba(17,17,37,0.97); border: 1px solid rgba(120,130,180,0.28); box-shadow: 0 18px 44px -18px rgba(0,0,0,0.85); opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity .2s ease, transform .2s ease; pointer-events: none; z-index: 40; backdrop-filter: blur(12px); }
+.pn-tl-node:hover .pn-tl-card { opacity: 1; visibility: visible; transform: translateY(0); }
+.pn-tl-card-year { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.pn-tl-card-title { color: #E8EAF0; font-size: 13px; font-weight: 600; margin-top: 3px; line-height: 1.3; }
+.pn-tl-card-desc { color: #8D9BB0; font-size: 12px; line-height: 1.5; margin-top: 5px; }
+.pn-tl-card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(120,130,180,0.16); font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5C687C; letter-spacing: .04em; }
+.pn-tl-line { stroke-dasharray: 1400; stroke-dashoffset: 1400; filter: drop-shadow(0 0 6px rgba(79,209,197,0.45)); }
+.pn-timeline.pn-tl-in .pn-tl-line { transition: stroke-dashoffset 1.9s cubic-bezier(.16,1,.3,1); stroke-dashoffset: 0; }
+.pn-tl-ridge { opacity: 0; }
+.pn-timeline.pn-tl-in .pn-tl-ridge { transition: opacity 1.1s ease .45s; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .pn-tl-node, .pn-tl-line, .pn-tl-ridge { opacity: 1 !important; stroke-dashoffset: 0 !important; transition: none !important; } }
 `;
 
 let assetsInjected = false;
@@ -498,6 +655,12 @@ function installHandlers() {
   // Live "chat with this report" — grounded on the report answer + sources.
   window.__pnApiBase = APP_API_BASE;
   window.__pnGetToken = getAuthToken;
+  window.pnChatAsk = function (btn) {
+    const input = document.getElementById("pn-chat-input");
+    if (!input) return;
+    input.value = typeof btn === "string" ? btn : (btn.textContent || "").trim();
+    window.pnChatSend();
+  };
   window.pnChatSend = async function () {
     const input = document.getElementById("pn-chat-input");
     const box = document.getElementById("pn-chat-msgs");
@@ -546,6 +709,19 @@ function runCounters(root) {
   });
 }
 
+// Scroll-scrubbed reveal for the Research Timeline — draws the line, fades in
+// the ridge, and staggers the nodes in when the card enters the viewport.
+function initTimeline(root) {
+  if (!root || typeof IntersectionObserver === "undefined") return null;
+  const el = root.querySelector(".pn-timeline");
+  if (!el) return null;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) { el.classList.add("pn-tl-in"); io.disconnect(); } });
+  }, { threshold: 0.2 });
+  io.observe(el);
+  return io;
+}
+
 /* ---------- component ---------- */
 export default function PolynousReport(props) {
   const ref = useRef(null);
@@ -554,7 +730,11 @@ export default function PolynousReport(props) {
 
   if (typeof window !== "undefined") window.__pnChatCtx = { answer: data.chatAnswer, sources: data.sourceSummaries };
   useEffect(() => { injectAssets(); installHandlers(); }, []);
-  useEffect(() => { const t = setTimeout(() => runCounters(ref.current), 60); return () => clearTimeout(t); }, [html]);
+  useEffect(() => {
+    const t = setTimeout(() => runCounters(ref.current), 60);
+    const io = initTimeline(ref.current);
+    return () => { clearTimeout(t); if (io) io.disconnect(); };
+  }, [html]);
 
   return (
     <div
