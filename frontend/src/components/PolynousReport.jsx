@@ -291,7 +291,7 @@ function kuuCard(d) {
       const bar = bars && it.pct != null ? `<div class="mt-2.5 flex items-center gap-2"><div class="h-1 flex-1 bg-app-border/50 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:${it.pct}%;background:${color}"></div></div><span class="text-[11px] font-mono shrink-0" style="color:${color}">${it.pct}%</span></div>` : "";
       return `<div class="rounded-xl p-3.5 bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-colors"><div class="flex items-start gap-2.5"><i class="ph ${itemIcon} text-base mt-0.5 shrink-0" style="color:${color}"></i><p class="text-white/90 text-[13.5px] leading-snug">${esc(it.text)} ${cites}</p></div>${bar}</div>`;
     }).join("");
-    return `<div class="flex flex-col gap-3 rounded-2xl p-4 border-t-2" style="border-top-color:${color};background:linear-gradient(180deg, ${color}0f, transparent 55%)">
+    return `<div class="flex flex-col gap-3 rounded-2xl p-4 border border-white/5" style="background:linear-gradient(180deg, ${color}12, transparent 55%)">
       <div class="flex items-center gap-2.5"><span class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style="background:${color}1f;border:1px solid ${color}55"><i class="ph ${headIcon} text-xl" style="color:${color}"></i></span><div class="min-w-0"><h4 class="text-[13px] font-bold tracking-wide uppercase" style="color:${color}">${title}</h4><p class="text-[11px] text-[#78859c] leading-tight mt-0.5">${sub}</p></div></div>
       <div class="flex flex-col gap-2.5">${rows}</div>
     </div>`;
@@ -413,8 +413,9 @@ function buildHtml(d) {
 <div class="flex items-center gap-2"><i class="ph ph-circle text-app-secondary"></i><span>Model:</span><span class="text-white/80">${esc(d.model)}</span></div>
 </div>
 </div>
-<div class="col-span-12 lg:col-span-2 flex justify-center items-center">
-<div class="relative w-32 h-32 flex items-center justify-center">
+<div class="col-span-12 lg:col-span-2 h-32 rounded-[1.5rem] bg-white/[0.04] ring-1 ring-white/10 p-1.5">
+<div class="h-full rounded-[1.125rem] bg-app-surface border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex items-center justify-center">
+<div class="relative w-28 h-28 flex items-center justify-center">
 <svg class="w-full h-full -rotate-90" viewbox="0 0 36 36">
 <path class="text-app-border" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-width="1.5"></path>
 <path class="text-app-primary drop-shadow-[0_0_8px_rgba(79,209,197,0.4)]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="${d.conf}, 100" stroke-width="1.5"></path>
@@ -422,11 +423,15 @@ function buildHtml(d) {
 <div class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-3xl font-sora font-bold text-white">${d.conf}%</span><span class="text-[8px] text-app-text tracking-widest uppercase mt-1">CONFIDENCE</span></div>
 </div>
 </div>
-<div class="col-span-12 lg:col-span-2 bg-app-surface border border-app-border rounded-lg p-5 flex flex-col justify-between h-32">
+</div>
+<div class="col-span-12 lg:col-span-2 h-32 rounded-[1.5rem] bg-white/[0.04] ring-1 ring-white/10 p-1.5">
+<div class="h-full rounded-[1.125rem] bg-app-surface border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] p-5 flex flex-col justify-between">
 <div><h3 class="text-[10px] uppercase tracking-wider text-app-critic mb-1">CRITIC CONSENSUS</h3><div class="text-2xl font-bold text-white mb-2">${d.critic.pct}%</div><div class="w-full bg-app-border rounded-full h-1 mb-1"><div class="bg-app-critic h-1 rounded-full drop-shadow-[0_0_4px_rgba(232,168,85,0.4)]" style="width:${d.critic.pct}%"></div></div></div>
 <a class="text-[10px] text-app-critic flex items-center gap-1 hover:underline" href="#">Why this score? <i class="ph ph-arrow-right"></i></a>
 </div>
-<div class="col-span-12 lg:col-span-3 bg-gradient-to-b from-[#15152e] to-[#101024] border border-app-border rounded-xl p-5 flex flex-col row-span-2 self-stretch relative overflow-hidden">
+</div>
+<div class="col-span-12 lg:col-span-3 row-span-2 self-stretch rounded-[1.5rem] bg-white/[0.04] ring-1 ring-white/10 p-1.5">
+<div class="h-full flex flex-col bg-gradient-to-b from-[#15152e] to-[#101024] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] rounded-[1.125rem] p-5 relative overflow-hidden">
 <div class="flex items-center gap-2.5 mb-4"><span class="w-7 h-7 rounded-lg bg-app-synthesis/15 border border-app-synthesis/30 flex items-center justify-center"><i class="ph ph-sparkle text-app-synthesis text-sm"></i></span><h3 class="text-[11px] uppercase tracking-wider text-app-synthesis font-semibold">Chat with this report</h3></div>
 <div id="pn-chat-msgs" class="flex-1 flex flex-col gap-3 overflow-y-auto pr-1 mb-3 hide-scrollbar">
 <div class="flex gap-2.5"><i class="ph ph-sparkle text-app-synthesis mt-0.5 shrink-0"></i><div class="flex-1 text-[12.5px] leading-relaxed text-white/75">Ask anything about this report — every answer stays grounded strictly in the sources above.</div></div>
@@ -444,16 +449,21 @@ function buildHtml(d) {
 <button onclick="pnChatSend()" class="absolute right-1.5 top-1.5 w-8 h-8 bg-app-synthesis rounded-full flex items-center justify-center text-[#0A0A1E] hover:bg-white transition-colors drop-shadow-[0_0_6px_rgba(180,142,240,0.5)]"><i class="ph ph-arrow-up font-bold"></i></button>
 </div>
 </div>
+</div>
 <div class="col-span-12 lg:col-span-9 grid grid-cols-3 gap-6">
-<div class="col-span-1 bg-[#151529] border border-app-border rounded-lg p-5 flex flex-col h-[300px]">
+<div class="col-span-1 h-[300px] rounded-[1.5rem] bg-white/[0.04] ring-1 ring-white/10 p-1.5">
+<div class="h-full rounded-[1.125rem] bg-[#151529] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] p-5 flex flex-col">
 <h3 class="text-[10px] uppercase tracking-wider text-app-primary flex items-center gap-2 mb-4 font-semibold"><i class="ph ph-wave-sine"></i> BOTTOM LINE</h3>
 <div class="flex-1 text-[12.5px] text-white/90 leading-relaxed overflow-y-auto hide-scrollbar pr-1">${citeHtml(d.bottomLine)}</div>
-<div class="flex items-center gap-3 mt-4"><div class="bg-app-bg border border-app-border rounded px-3 py-1 text-white font-mono text-sm">${d.conf}%</div><div class="h-1 bg-app-border flex-1 rounded overflow-hidden"><div class="h-full bg-app-primary" style="width:${d.conf}%"></div></div></div>
+<div class="flex items-center gap-3 mt-4"><div class="bg-app-bg border border-white/5 rounded-lg px-3 py-1 text-white font-mono text-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]">${d.conf}%</div><div class="h-1 bg-app-border flex-1 rounded overflow-hidden"><div class="h-full bg-app-primary" style="width:${d.conf}%"></div></div></div>
 </div>
-<div class="col-span-2 bg-[#111125] border border-app-border rounded-lg p-5 flex flex-col relative overflow-hidden h-[300px]">
+</div>
+<div class="col-span-2 h-[300px] rounded-[1.5rem] bg-white/[0.04] ring-1 ring-white/10 p-1.5">
+<div class="h-full rounded-[1.125rem] bg-[#111125] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] p-5 flex flex-col relative overflow-hidden">
 <h3 class="text-[10px] uppercase tracking-wider text-app-text flex items-center gap-2 mb-4"><i class="ph ph-star"></i> EXECUTIVE SUMMARY</h3>
 <div class="flex-1 relative z-10 w-2/3 text-[12.5px] text-white leading-relaxed overflow-y-auto hide-scrollbar pr-2">${citeHtml(d.analysisText)}</div>
 <div class="absolute right-0 top-0 bottom-0 w-1/3 opacity-30 flex items-center justify-end pr-4 pointer-events-none"><svg class="w-32 h-32 text-app-info fill-transparent stroke-current stroke-[0.5]" viewbox="0 0 100 100"><circle cx="50" cy="50" r="40" stroke-dasharray="2 2"></circle><path d="M50 10 C 20 10, 10 50, 50 90 C 80 90, 90 50, 50 10"></path><path d="M10 50 C 10 20, 50 10, 90 50 C 90 80, 50 90, 10 50"></path></svg></div>
+</div>
 </div>
 </div>
 </section>
@@ -514,7 +524,7 @@ ${kuuCard(d)}
 <div class="fixed inset-0 bg-black/35 backdrop-blur-[1px] z-40 hidden transition-opacity opacity-0" id="inspector-backdrop" onclick="closeInspector()"></div>
 <div class="fixed top-0 right-0 h-full w-[420px] bg-[rgba(7,12,25,0.96)] backdrop-blur-xl border-l border-white/10 rounded-l-2xl z-50 drawer-closed transition-transform duration-300 shadow-2xl flex flex-col overflow-hidden" id="citation-inspector">
 <div class="flex items-center justify-between p-6 border-b border-white/5 shrink-0"><div><h2 class="text-xs font-bold tracking-[0.2em] text-app-text uppercase flex items-center gap-2"><i class="ph ph-magnifying-glass text-app-primary text-sm"></i> Citation Inspector</h2><p class="text-[9px] text-[#5C687C] mt-1 font-mono">ID: x7f-992a · Analyzing Claim</p></div><button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5 text-[#5C687C] hover:text-white transition-colors" onclick="closeInspector()"><i class="ph ph-x"></i></button></div>
-<div class="flex-1 overflow-y-auto p-6 flex flex-col gap-8 fade-in-content"><div class="flex flex-col gap-3"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold flex items-center justify-between"><span class="">Target Claim</span><span class="px-1.5 py-0.5 rounded text-[8px] font-bold border border-app-success text-app-success bg-app-success/10 flex items-center gap-1"><i class="ph ph-check"></i> SUPPORTED</span></div><p class="text-white text-sm leading-relaxed font-medium">"Human activity is the primary driver of recent climate change" <span class="font-mono text-app-primary text-xs ml-1 bg-app-primary/10 px-1 rounded">[3]</span></p></div><div class="flex flex-col gap-3"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold">Primary Source</div><div class="bg-app-surface/50 border border-white/5 rounded-lg p-4 flex flex-col gap-3"><div class="flex items-start justify-between"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center text-white/50"><i class="ph ph-globe text-lg"></i></div><div><h4 class="text-white text-xs font-semibold">US Environmental Protection Agency</h4><p class="text-[10px] text-app-text mt-0.5">epa.gov/climatechange</p></div></div><div class="flex items-center gap-1.5 bg-app-success/10 px-2 py-1 rounded border border-app-success/20"><div class="w-1.5 h-1.5 rounded-full bg-app-success animate-pulse"></div><span class="text-app-success font-mono text-[10px] font-bold">0.96</span></div></div></div></div><div class="flex flex-col gap-3"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold">Matched Evidence</div><div class="bg-[#00FF47]/5 border-l-2 border-app-success rounded-r-lg p-4 relative"><i class="ph ph-quotes absolute top-2 right-2 text-3xl text-app-success/10"></i><p class="text-white/90 text-xs leading-relaxed italic relative z-10">"Human activities, principally through emissions of greenhouse gases, have unequivocally caused global warming, with global surface temperature reaching 1.1°C above 1850-1900 in 2011-2020."</p></div><p class="text-[10px] text-app-text leading-relaxed bg-app-surface/30 p-3 rounded border border-white/5"><span class="text-white font-medium">Synthesis:</span> The source explicitly confirms human activities (greenhouse gas emissions) as the "unequivocal" cause of recent warming, directly supporting the claim.</p></div><div class="flex flex-col gap-4 bg-[#0A0A1E]/50 rounded-lg p-4 border border-white/5"><div class="flex items-center justify-between gap-4"><span class="text-[10px] text-[#5C687C] uppercase tracking-wider w-24">Semantic Match</span><div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-app-info w-[94%]"></div></div><span class="text-[10px] font-mono text-white w-8 text-right">94%</span></div><div class="flex items-center justify-between gap-4"><span class="text-[10px] text-[#5C687C] uppercase tracking-wider w-24">Source Trust</span><div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-app-primary w-[96%]"></div></div><span class="text-[10px] font-mono text-white w-8 text-right">0.96</span></div><div class="flex items-center justify-between gap-4"><span class="text-[10px] text-[#5C687C] uppercase tracking-wider w-24">Grounding</span><div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-app-success w-[91%]"></div></div><span class="text-[10px] font-mono text-white w-8 text-right">91%</span></div></div><div class="flex flex-col gap-2"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold">Overall Assessment</div><div class="flex items-center gap-2 text-app-success text-xs font-bold"><i class="ph ph-shield-check text-lg"></i> STRONG SUPPORT</div><p class="text-[10px] text-app-text">High confidence semantic match from a Tier 1 authoritative source.</p></div></div>
+<div class="flex-1 overflow-y-auto p-6 flex flex-col gap-8 fade-in-content"><div class="flex flex-col gap-3"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold flex items-center justify-between"><span class="">Target Claim</span><span class="px-1.5 py-0.5 rounded text-[8px] font-bold border border-app-success text-app-success bg-app-success/10 flex items-center gap-1"><i class="ph ph-check"></i> SUPPORTED</span></div><p class="text-white text-sm leading-relaxed font-medium">"Human activity is the primary driver of recent climate change" <span class="font-mono text-app-primary text-xs ml-1 bg-app-primary/10 px-1 rounded">[3]</span></p></div><div class="flex flex-col gap-3"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold">Primary Source</div><div class="bg-app-surface/50 border border-white/5 rounded-lg p-4 flex flex-col gap-3"><div class="flex items-start justify-between"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center text-white/50"><i class="ph ph-globe text-lg"></i></div><div><h4 class="text-white text-xs font-semibold">US Environmental Protection Agency</h4><p class="text-[10px] text-app-text mt-0.5">epa.gov/climatechange</p></div></div><div class="flex items-center gap-1.5 bg-app-success/10 px-2 py-1 rounded border border-app-success/20"><div class="w-1.5 h-1.5 rounded-full bg-app-success animate-pulse"></div><span class="text-app-success font-mono text-[10px] font-bold">0.96</span></div></div></div></div><div class="flex flex-col gap-3"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold">Matched Evidence</div><div class="bg-[#00FF47]/5 border border-app-success/25 rounded-lg p-4 relative"><i class="ph ph-quotes absolute top-2 right-2 text-3xl text-app-success/10"></i><p class="text-white/90 text-xs leading-relaxed italic relative z-10">"Human activities, principally through emissions of greenhouse gases, have unequivocally caused global warming, with global surface temperature reaching 1.1°C above 1850-1900 in 2011-2020."</p></div><p class="text-[10px] text-app-text leading-relaxed bg-app-surface/30 p-3 rounded border border-white/5"><span class="text-white font-medium">Synthesis:</span> The source explicitly confirms human activities (greenhouse gas emissions) as the "unequivocal" cause of recent warming, directly supporting the claim.</p></div><div class="flex flex-col gap-4 bg-[#0A0A1E]/50 rounded-lg p-4 border border-white/5"><div class="flex items-center justify-between gap-4"><span class="text-[10px] text-[#5C687C] uppercase tracking-wider w-24">Semantic Match</span><div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-app-info w-[94%]"></div></div><span class="text-[10px] font-mono text-white w-8 text-right">94%</span></div><div class="flex items-center justify-between gap-4"><span class="text-[10px] text-[#5C687C] uppercase tracking-wider w-24">Source Trust</span><div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-app-primary w-[96%]"></div></div><span class="text-[10px] font-mono text-white w-8 text-right">0.96</span></div><div class="flex items-center justify-between gap-4"><span class="text-[10px] text-[#5C687C] uppercase tracking-wider w-24">Grounding</span><div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-app-success w-[91%]"></div></div><span class="text-[10px] font-mono text-white w-8 text-right">91%</span></div></div><div class="flex flex-col gap-2"><div class="text-[10px] uppercase tracking-widest text-[#5C687C] font-semibold">Overall Assessment</div><div class="flex items-center gap-2 text-app-success text-xs font-bold"><i class="ph ph-shield-check text-lg"></i> STRONG SUPPORT</div><p class="text-[10px] text-app-text">High confidence semantic match from a Tier 1 authoritative source.</p></div></div>
 <div class="p-6 border-t border-white/5 bg-[#0A0A1E]/80 shrink-0 flex flex-col gap-4"><div class="flex justify-between items-center text-[9px] font-mono text-[#5C687C]"><span class="">Model: ${esc(d.model)}</span><span class="">Latency: 412ms</span></div><div class="flex gap-3"><button class="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-md text-white text-xs font-medium transition-colors flex items-center justify-center gap-2"><i class="ph ph-arrow-square-out"></i> Open Source</button><button class="flex-1 px-4 py-2 bg-app-primary/10 hover:bg-app-primary/20 border border-app-primary/30 text-app-primary rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-2"><i class="ph ph-arrows-out-line-horizontal"></i> Verify Claim</button></div></div>
 </div>
 `;
@@ -533,7 +543,7 @@ const TW_CONFIG = {
           text: "#8D9BB0", textHover: "#E8EAF0", critic: "#E8A855", synthesis: "#B48EF0", info: "#00CCFF",
         },
       },
-      fontFamily: { sans: ["Plus Jakarta Sans", "sans-serif"], mono: ["JetBrains Mono", "monospace"], sora: ["Sora", "sans-serif"] },
+      fontFamily: { sans: ["Hanken Grotesk", "sans-serif"], mono: ["JetBrains Mono", "monospace"], sora: ["Sora", "sans-serif"] },
       borderRadius: { lg: "0.375rem", xl: "0.5rem" },
       animation: { "draw-line": "drawLine 2s ease-out forwards", "fade-node": "fadeNode 0.5s ease-out forwards", "pulse-halo": "pulseHalo 2s infinite" },
       keyframes: {
@@ -566,8 +576,9 @@ const REPORT_CSS = `
 .citation-link:hover { text-shadow: 0 0 8px rgba(79,209,197,0.6); background: rgba(79,209,197,0.1); border-radius: 2px; padding: 0 2px; }
 .interactive-item { cursor: pointer; transition: all 0.2s; }
 .interactive-item:hover { background: rgba(120,130,180,0.08); border-color: rgba(120,130,180,0.4); }
-.condition-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out; opacity: 0; }
-.condition-expanded .condition-content { max-height: 400px; opacity: 1; margin-top: 1rem; }
+.condition-content { display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows 0.32s cubic-bezier(.32,.72,0,1), opacity 0.3s ease, margin 0.3s ease; opacity: 0; }
+.condition-content > * { min-height: 0; }
+.condition-expanded .condition-content { grid-template-rows: 1fr; opacity: 1; margin-top: 1rem; }
 .condition-expanded .condition-icon { transform: rotate(180deg); }
 
 /* ── Research Timeline ─────────────────────────────────────────────── */
@@ -599,8 +610,8 @@ const REPORT_CSS = `
 @media (prefers-reduced-motion: reduce) { .pn-tl-node, .pn-tl-line, .pn-tl-ridge { opacity: 1 !important; stroke-dashoffset: 0 !important; transition: none !important; } }
 
 /* ── Premium surface + motion layer (soft-skill / redesign-skill) ─────────── */
-/* Body type: Plus Jakarta Sans, tighter tracking, better rendering. */
-.pn-html-root { font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+/* Body type: Hanken Grotesk, tighter tracking, better rendering. */
+.pn-html-root { font-family: 'Hanken Grotesk', -apple-system, sans-serif; letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 /* Every card surface gets a soft, navy-tinted, highly diffused ambient shadow +
    a hairline top highlight, and lifts with spring easing on hover. Targeted by
    the report's surface colours so it hits ~30 cards without touching markup. */
@@ -628,6 +639,16 @@ const REPORT_CSS = `
   outline: 2px solid rgba(79,209,197,0.9); outline-offset: 2px; border-radius: 8px;
 }
 .pn-html-root { scroll-behavior: smooth; }
+/* Perf: backdrop-blur only survives on the fixed inspector/backdrop. On all the
+   scrolling cards it forces continuous GPU repaints, so neutralise it there. */
+.pn-html-root [class*="backdrop-blur"]:not(#citation-inspector):not(#inspector-backdrop) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* Respect reduced motion across the whole report. */
+@media (prefers-reduced-motion: reduce) {
+  .pn-html-root *, .pn-html-root *::before, .pn-html-root *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.12s !important; scroll-behavior: auto !important;
+  }
+}
 `;
 
 let assetsInjected = false;
@@ -637,7 +658,7 @@ function injectAssets() {
   const head = document.head;
   // fonts + phosphor icons
   const links = [
-    "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+    "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap",
     "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap",
     "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap",
     "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css",
@@ -753,6 +774,27 @@ function initTimeline(root) {
   return io;
 }
 
+// A11y: the mockup fires interactions via onclick on <div>/<span>. Make every
+// such element keyboard-focusable and activatable with Enter/Space, without
+// rewriting the markup.
+function initA11y(root) {
+  if (!root || typeof document === "undefined") return;
+  root.querySelectorAll("[onclick]").forEach((el) => {
+    const tag = el.tagName.toLowerCase();
+    if (tag === "button" || tag === "a") return;
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "0");
+    if (!el.getAttribute("role")) el.setAttribute("role", "button");
+  });
+  if (!window.__pnKeyBound) {
+    window.__pnKeyBound = true;
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const el = document.activeElement;
+      if (el && el.getAttribute && el.getAttribute("role") === "button" && el.hasAttribute("onclick")) { e.preventDefault(); el.click(); }
+    });
+  }
+}
+
 /* ---------- component ---------- */
 export default function PolynousReport(props) {
   const ref = useRef(null);
@@ -762,7 +804,7 @@ export default function PolynousReport(props) {
   if (typeof window !== "undefined") window.__pnChatCtx = { answer: data.chatAnswer, sources: data.sourceSummaries };
   useEffect(() => { injectAssets(); installHandlers(); }, []);
   useEffect(() => {
-    const t = setTimeout(() => runCounters(ref.current), 60);
+    const t = setTimeout(() => { runCounters(ref.current); initA11y(ref.current); }, 60);
     const io = initTimeline(ref.current);
     return () => { clearTimeout(t); if (io) io.disconnect(); };
   }, [html]);
@@ -771,7 +813,7 @@ export default function PolynousReport(props) {
     <div
       ref={ref}
       className="pn-html-root"
-      style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#0A0A1E", color: "#8D9BB0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+      style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#0A0A1E", color: "#8D9BB0", fontFamily: "'Hanken Grotesk', sans-serif" }}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
