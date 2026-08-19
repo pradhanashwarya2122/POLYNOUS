@@ -64,3 +64,6 @@ Thumbs.db
 
 
 package-lock.json
+
+# Claude Code skills (local only — never commit)
+.claude/skills/

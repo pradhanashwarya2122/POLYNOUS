@@ -533,7 +533,7 @@ const TW_CONFIG = {
           text: "#8D9BB0", textHover: "#E8EAF0", critic: "#E8A855", synthesis: "#B48EF0", info: "#00CCFF",
         },
       },
-      fontFamily: { sans: ["Inter", "sans-serif"], mono: ["JetBrains Mono", "monospace"], sora: ["Sora", "sans-serif"] },
+      fontFamily: { sans: ["Plus Jakarta Sans", "sans-serif"], mono: ["JetBrains Mono", "monospace"], sora: ["Sora", "sans-serif"] },
       borderRadius: { lg: "0.375rem", xl: "0.5rem" },
       animation: { "draw-line": "drawLine 2s ease-out forwards", "fade-node": "fadeNode 0.5s ease-out forwards", "pulse-halo": "pulseHalo 2s infinite" },
       keyframes: {
@@ -597,6 +597,37 @@ const REPORT_CSS = `
 .pn-tl-ridge { opacity: 0; }
 .pn-timeline.pn-tl-in .pn-tl-ridge { transition: opacity 1.1s ease .45s; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .pn-tl-node, .pn-tl-line, .pn-tl-ridge { opacity: 1 !important; stroke-dashoffset: 0 !important; transition: none !important; } }
+
+/* ── Premium surface + motion layer (soft-skill / redesign-skill) ─────────── */
+/* Body type: Plus Jakarta Sans, tighter tracking, better rendering. */
+.pn-html-root { font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+/* Every card surface gets a soft, navy-tinted, highly diffused ambient shadow +
+   a hairline top highlight, and lifts with spring easing on hover. Targeted by
+   the report's surface colours so it hits ~30 cards without touching markup. */
+.pn-html-root [class*="bg-[#111125]"],
+.pn-html-root [class*="bg-[#151529]"],
+.pn-html-root [class*="bg-[#121226]"],
+.pn-html-root [class*="bg-[#14142b]"],
+.pn-html-root [class*="bg-[#15152e]"],
+.pn-html-root [class*="bg-app-surface"],
+.pn-html-root .pn-timeline {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 6px -3px rgba(0,4,20,0.5), 0 20px 44px -24px rgba(2,6,30,0.85);
+  transition: transform .55s cubic-bezier(.32,.72,0,1), box-shadow .55s cubic-bezier(.32,.72,0,1), border-color .3s ease;
+}
+.pn-html-root [class*="bg-[#111125]"]:hover,
+.pn-html-root [class*="bg-[#151529]"]:hover,
+.pn-html-root [class*="bg-[#121226]"]:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 10px -4px rgba(0,4,20,0.5), 0 28px 60px -22px rgba(2,6,30,0.9);
+}
+/* Buttons: physical press + spring, no default easing. */
+.pn-html-root button, .pn-html-root a[href] { transition: transform .25s cubic-bezier(.32,.72,0,1), background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease; }
+.pn-html-root button:active { transform: scale(0.97); }
+/* Accessible focus ring on every interactive element. */
+.pn-html-root a:focus-visible, .pn-html-root button:focus-visible, .pn-html-root input:focus-visible {
+  outline: 2px solid rgba(79,209,197,0.9); outline-offset: 2px; border-radius: 8px;
+}
+.pn-html-root { scroll-behavior: smooth; }
 `;
 
 let assetsInjected = false;
@@ -606,7 +637,7 @@ function injectAssets() {
   const head = document.head;
   // fonts + phosphor icons
   const links = [
-    "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
     "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap",
     "https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap",
     "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css",
@@ -740,7 +771,7 @@ export default function PolynousReport(props) {
     <div
       ref={ref}
       className="pn-html-root"
-      style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#0A0A1E", color: "#8D9BB0", fontFamily: "'Inter', sans-serif" }}
+      style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#0A0A1E", color: "#8D9BB0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
