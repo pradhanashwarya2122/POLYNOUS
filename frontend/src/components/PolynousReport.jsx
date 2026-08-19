@@ -144,7 +144,7 @@ const POLYNOUS_CSS = `
   --warning: #d6a24a; --danger: #e0738a; --critic: #c6a05f; --synthesis: #9a8bce; --info: #4ba3d1; --gold: #c6a05f;
   --text-dim: #626b83; --text: #949eb8; --text-bright: #c3ccdf; --text-hover: #eef1f8;
   --radius-sm: 10px; --radius: 14px; --radius-lg: 18px;
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.30), 0 10px 26px -18px rgba(0,0,0,0.6);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.28), 0 18px 44px -24px rgba(0,0,0,0.72);
 }
 .pn-root * { box-sizing: border-box; }
 .pn-root {
@@ -152,17 +152,19 @@ const POLYNOUS_CSS = `
     radial-gradient(ellipse 900px 500px at 15% -10%, rgba(94,234,212,0.06), transparent 60%),
     radial-gradient(ellipse 900px 600px at 90% 10%, rgba(129,140,248,0.05), transparent 55%),
     var(--bg);
-  color: var(--text); font-family: "Inter", -apple-system, sans-serif; font-size: 15px;
+  color: var(--text); font-family: "Inter", -apple-system, sans-serif; font-size: 16px;
   min-height: 100vh; position: relative; overflow-x: hidden; letter-spacing: -0.005em;
 }
 .pn-container { max-width: 1460px; margin: 0 auto; padding: 0 2.25rem; }
 .pn-serif { font-family: "Sora", sans-serif; }
 .pn-mono { font-family: "JetBrains Mono", monospace; }
 .pn-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.006)), var(--surface);
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--card-accent, rgba(52,211,153,0.5)) 7%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.004)), var(--surface);
   border: 1px solid var(--border); border-top: 2px solid var(--card-accent, rgba(52,211,153,0.5));
-  border-radius: var(--radius); padding: 1.65rem 1.7rem;
-  box-shadow: var(--shadow-card); position: relative; transition: border-color .25s ease, transform .25s ease;
+  border-radius: var(--radius-lg); padding: 1.8rem 1.9rem;
+  box-shadow: var(--shadow-card); position: relative; transition: border-color .25s ease, transform .25s ease, box-shadow .25s ease;
 }
 .pn-card::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
@@ -170,14 +172,14 @@ const POLYNOUS_CSS = `
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
 }
-.pn-card:hover { border-color: var(--border-strong); }
+.pn-card:hover { border-color: var(--border-strong); box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 10px rgba(0,0,0,0.3), 0 24px 54px -22px rgba(0,0,0,0.78); }
 /* Rotate the top-accent colour across cards in a row, like the agent cards. */
 .pn-grid > .pn-card:nth-child(4n+1) { --card-accent: rgba(52,211,153,0.55); }
 .pn-grid > .pn-card:nth-child(4n+2) { --card-accent: rgba(63,191,135,0.5); }
 .pn-grid > .pn-card:nth-child(4n+3) { --card-accent: rgba(198,160,95,0.5); }
 .pn-grid > .pn-card:nth-child(4n+4) { --card-accent: rgba(154,139,206,0.5); }
-.pn-card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-bright); font-weight: 700; display: flex; align-items: center; gap: .55rem; margin-bottom: 1rem; }
-.pn-card-title i { font-size: 14px; opacity: .9; }
+.pn-card-title { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-bright); font-weight: 700; display: flex; align-items: center; gap: .55rem; margin-bottom: 1.15rem; }
+.pn-card-title i { font-size: 15px; opacity: .9; }
 .pn-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px rgba(52,211,153,0.15), 0 0 12px rgba(52,211,153,0.6); display: inline-block; margin-right: 6px; }
 .pn-error { font-size: 10px; color: var(--danger); border: 1px solid rgba(251,113,133,0.25); background: rgba(251,113,133,0.06); border-radius: var(--radius-sm); padding: 7px 12px; margin-top: 10px; cursor: pointer; }
 .pn-grid { display: grid; gap: 1.2rem; align-items: start; }
@@ -351,13 +353,13 @@ function ChatWithReport({ answer, sourceSummaries }) {
     } finally { setSending(false); }
   };
   return (
-    <div className="pn-card" style={{ display: "flex", flexDirection: "column", minHeight: 240, maxHeight: 340 }}>
+    <div className="pn-card" style={{ display: "flex", flexDirection: "column", minHeight: 200, maxHeight: 250 }}>
       <h3 className="pn-card-title"><i className="ph ph-chat-circle-dots" style={{ color: COLORS.primary }} /> CHAT WITH THIS REPORT</h3>
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 11, paddingRight: 4 }}>
         {messages.length === 0 && !sending && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8, color: "var(--text-dim)", fontSize: 13 }}>
             <span style={{ marginBottom: 2 }}>Ask a follow-up, grounded strictly in this report:</span>
-            {["What's the strongest evidence here?", "Where do the sources disagree?", "Summarise this in one line."].map((s) => (
+            {["What's the strongest evidence here?", "Where do the sources disagree?"].map((s) => (
               <button key={s} onClick={() => setInput(s)} style={{ textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-soft)", borderRadius: 10, padding: "9px 12px", color: "var(--text)", fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter',sans-serif" }}>{s}</button>
             ))}
           </div>
@@ -408,11 +410,36 @@ function ExecutiveSummary({ reportId, onOpenCitation }) {
   return (
     <div className="pn-card">
       <h3 className="pn-card-title"><i className="ph ph-star" style={{ color: COLORS.primary }} /> EXECUTIVE SUMMARY</h3>
-      {loading ? <><Skeleton /><Skeleton w="92%" /><Skeleton w="96%" /></> : (paras.length
-        ? paras.map((pp, i) => <p key={i} style={{ fontSize: 13, lineHeight: 1.75, color: "var(--text-bright)", margin: i ? "10px 0 0" : "0" }}><CiteText text={pp} onOpen={onOpenCitation} /></p>)
-        : <p style={{ fontSize: 13, color: "var(--text)" }}>No summary available for this run.</p>)}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.55fr) minmax(220px,0.95fr)", gap: "1.6rem", alignItems: "start" }}>
+        <div style={{ minWidth: 0 }}>
+          {loading ? <><Skeleton /><Skeleton w="92%" /><Skeleton w="96%" /></> : (paras.length
+            ? paras.map((pp, i) => <p key={i} style={{ fontSize: 15, lineHeight: 1.8, color: "var(--text-bright)", margin: i ? "13px 0 0" : "0" }}><CiteText text={pp} onOpen={onOpenCitation} /></p>)
+            : <p style={{ fontSize: 15, color: "var(--text)" }}>No summary available for this run.</p>)}
+        </div>
+        {/* Reserved mount for a three.js visual — render your canvas into
+            #pn-exec-viz. A faint wireframe globe holds the space until then. */}
+        <div id="pn-exec-viz" style={{ position: "sticky", top: 16, height: 300, borderRadius: "var(--radius)", border: "1px solid var(--border-soft)", background: "radial-gradient(120% 120% at 50% 30%, rgba(75,163,209,0.10), transparent 60%)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          <ExecGlobePlaceholder />
+        </div>
+      </div>
       <ErrorNote error={error} onRetry={refetch} />
     </div>
+  );
+}
+
+// Lightweight SVG stand-in for the future three.js globe — keeps the reserved
+// space from looking empty. Replace by mounting a canvas into #pn-exec-viz.
+function ExecGlobePlaceholder() {
+  return (
+    <svg viewBox="0 0 200 200" width="88%" style={{ maxWidth: 230, opacity: 0.5 }} aria-hidden="true">
+      <defs><radialGradient id="pnGlobe" cx="42%" cy="38%" r="70%">
+        <stop offset="0%" stopColor="#4ba3d1" stopOpacity="0.35" /><stop offset="100%" stopColor="#4ba3d1" stopOpacity="0.02" />
+      </radialGradient></defs>
+      <circle cx="100" cy="100" r="72" fill="url(#pnGlobe)" stroke="rgba(120,150,200,0.25)" strokeWidth="0.75" />
+      {[0.28, 0.55, 0.82].map((r, i) => <ellipse key={i} cx="100" cy="100" rx={72 * r} ry="72" fill="none" stroke="rgba(120,150,200,0.18)" strokeWidth="0.6" />)}
+      {[-45, 0, 45].map((a, i) => <ellipse key={i} cx="100" cy="100" rx="72" ry={72 * Math.abs(Math.cos(a * Math.PI / 180)) + 6} fill="none" stroke="rgba(120,150,200,0.14)" strokeWidth="0.6" />)}
+      <line x1="100" y1="28" x2="100" y2="172" stroke="rgba(120,150,200,0.12)" strokeWidth="0.6" />
+    </svg>
   );
 }
 
@@ -594,13 +621,13 @@ function Perspectives({ reportId }) {
             {["a", "b"].map((k) => (
               <div key={k} className="pn-position-card">
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text)", textTransform: "uppercase" }}>{data[k].label}</span>
-                  <span style={{ fontSize: 8, fontFamily: "monospace", color: k === "b" ? COLORS.info : COLORS.warning }}>SOURCES {data[k].sourceCount}</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-bright)", textTransform: "uppercase", letterSpacing: ".02em" }}>{data[k].label}</span>
+                  <span style={{ fontSize: 10.5, fontFamily: "monospace", color: k === "b" ? COLORS.info : COLORS.warning }}>SOURCES {data[k].sourceCount}</span>
                 </div>
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontFamily: "monospace" }}><span>EVIDENCE STRENGTH</span><span style={{ color: "#fff" }}>{data[k].strength}%</span></div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "monospace" }}><span>EVIDENCE STRENGTH</span><span style={{ color: "#fff" }}>{data[k].strength}%</span></div>
                   <Bar pct={data[k].strength} color={k === "b" ? COLORS.success : COLORS.warning} />
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontFamily: "monospace", marginTop: 4 }}><span>SUPPORT</span><span style={{ color: k === "b" ? COLORS.success : COLORS.warning }}>{data[k].support}</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "monospace", marginTop: 6 }}><span>SUPPORT</span><span style={{ color: k === "b" ? COLORS.success : COLORS.warning }}>{data[k].support}</span></div>
                 </div>
               </div>
             ))}
@@ -609,19 +636,19 @@ function Perspectives({ reportId }) {
           <div style={{ background: "rgba(0,255,71,0.05)", border: "1px solid rgba(0,255,71,0.2)", borderRadius: 8, padding: 16 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.success }} />
-              <span style={{ fontSize: 9, fontWeight: 700, color: COLORS.success, textTransform: "uppercase" }}>EVIDENCE CURRENTLY FAVORS POSITION {data.leader}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.success, textTransform: "uppercase" }}>EVIDENCE CURRENTLY FAVORS POSITION {data.leader}</span>
             </div>
-            <p style={{ fontSize: 10, color: "#fffc", margin: 0 }}>{data.leaderNote}</p>
+            <p style={{ fontSize: 14, lineHeight: 1.65, color: "var(--text-bright)", margin: 0 }}>{data.leaderNote}</p>
             <button className="pn-btn" style={{ background: "none", border: "none", color: COLORS.info, marginTop: 8, padding: 0 }} onClick={() => PerspectivesAPI.explainLeader(reportId).catch(() => {})}>Why does Position {data.leader} lead? →</button>
           </div>
           <div style={{ padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 6 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 9, color: "var(--text)", fontStyle: "italic" }}>Alternative Interpretation: {data.alternative.text}</span>
-              <span style={{ fontSize: 8, fontFamily: "monospace", color: "#fff6" }}>{data.alternative.sourceCount} sources · {data.alternative.strength}% strength</span>
+              <span style={{ fontSize: 12.5, color: "var(--text-bright)", fontStyle: "italic", lineHeight: 1.6 }}>Alternative Interpretation: {data.alternative.text}</span>
+              <span style={{ fontSize: 10, fontFamily: "monospace", color: "#fff6", whiteSpace: "nowrap", paddingLeft: 10 }}>{data.alternative.sourceCount} sources · {data.alternative.strength}% strength</span>
             </div>
           </div>
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, fontFamily: "monospace", color: "var(--text)", textTransform: "uppercase" }}><span>Evidence Balance</span><span>A ({data.balance.a}%) vs B ({data.balance.b}%)</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, fontFamily: "monospace", color: "var(--text)", textTransform: "uppercase", marginBottom: 5 }}><span>Evidence Balance</span><span>A ({data.balance.a}%) vs B ({data.balance.b}%)</span></div>
             <div style={{ display: "flex", height: 4, borderRadius: 999, overflow: "hidden", background: "rgba(120,130,180,0.2)" }}>
               <div style={{ width: `${data.balance.a}%`, background: COLORS.warning }} /><div style={{ width: `${data.balance.b}%`, background: COLORS.success }} />
             </div>
@@ -780,17 +807,17 @@ function KUU({ reportId, onOpenCitation }) {
   return (
     <div className="pn-card" style={{ gridColumn: "1 / -1" }}>
       <h3 className="pn-card-title">KNOWN / UNCERTAIN / UNKNOWN</h3>
-      <p style={{ fontSize: 9, color: "#5c687c", marginTop: -8, marginBottom: 16 }}>What the evidence supports — and where it stops.</p>
+      <p style={{ fontSize: 12, color: "#5c687c", marginTop: -8, marginBottom: 18 }}>What the evidence supports — and where it stops.</p>
       <div className="pn-grid" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {cols.map(([label, items, color, sub, icon]) => (
           <div key={label} className="pn-kuu-col" style={{ borderColor: color + "55" }}>
-            <h4 style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: ".1em", textTransform: "uppercase" }}>{icon} {label}</h4>
-            <p style={{ fontSize: 8, color: "#5c687c" }}>{sub}</p>
+            <h4 style={{ fontSize: 12.5, fontWeight: 700, color, letterSpacing: ".08em", textTransform: "uppercase" }}>{icon} {label}</h4>
+            <p style={{ fontSize: 11, color: "#78859c", margin: "4px 0 2px" }}>{sub}</p>
             {(loading ? Array(2).fill(null) : items).map((it, i) => (
               <div key={i}>
                 {it ? (<>
-                  <p style={{ fontSize: 11, color: "var(--text-bright)", lineHeight: 1.5, margin: "6px 0 4px" }}><CiteText text={it.text} onOpen={onOpenCitation} /></p>
-                  {it.pct != null && <div style={{ display: "flex", gap: 8, alignItems: "center" }}><Bar pct={it.pct} color={color} /><span style={{ fontSize: 8, fontFamily: "monospace", color }}>{it.pct}%</span></div>}
+                  <p style={{ fontSize: 14, color: "var(--text-bright)", lineHeight: 1.6, margin: "10px 0 5px" }}><CiteText text={it.text} onOpen={onOpenCitation} /></p>
+                  {it.pct != null && <div style={{ display: "flex", gap: 8, alignItems: "center" }}><Bar pct={it.pct} color={color} /><span style={{ fontSize: 10.5, fontFamily: "monospace", color }}>{it.pct}%</span></div>}
                 </>) : <Skeleton />}
               </div>
             ))}
@@ -798,7 +825,7 @@ function KUU({ reportId, onOpenCitation }) {
         ))}
       </div>
       <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 8, fontFamily: "monospace", color: "#5c687c", textTransform: "uppercase" }}>EVIDENCE STATUS: {data.statusLine}</span>
+        <span style={{ fontSize: 10.5, fontFamily: "monospace", color: "#5c687c", textTransform: "uppercase" }}>EVIDENCE STATUS: {data.statusLine}</span>
         <button className="pn-btn" style={{ background: "none", border: "none", color: COLORS.info, padding: 0 }} onClick={loadMore} disabled={more}>{more ? "loading…" : "+ more"}</button>
       </div>
       <ErrorNote error={error} onRetry={refetch} />
