@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { API_BASE_URL, getAuthToken } from "../config";
 import { usePreviewFlag, setDevPreview } from "../devPreview";
+import PolynousReport from "./PolynousReport";
 
 const C = {
   bg: "#06040f",
@@ -177,6 +178,31 @@ function DevPagesSection({ onNavigate }) {
   );
 }
 
+// ── Inline demo report ───────────────────────────────────────────────────────
+// Renders the full PolynousReport structure on its built-in demo data, right
+// here in the console — so you can review the report layout any time without
+// running a live research query.
+function InlineReportPreview() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ background: C.surface, backdropFilter: "blur(20px)", border: `1px solid ${C.border2}`, borderRadius: 16, padding: open ? "22px 24px 8px" : "22px 24px", marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <Ic name="description" size={17} color={C.cyan} />
+        <span style={{ fontFamily: C.head, fontSize: 15, fontWeight: 800, color: C.text }}>Report Structure (demo data)</span>
+        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.faint }}>no research run needed</span>
+        <button onClick={() => setOpen(o => !o)} className="adm-btn" style={{ marginLeft: "auto", borderColor: `${C.cyan}55`, color: C.cyan }}>
+          <Ic name={open ? "expand_less" : "expand_more"} size={15} color={C.cyan} /> {open ? "Hide preview" : "Show preview"}
+        </button>
+      </div>
+      {open && (
+        <div style={{ marginTop: 16, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border2}` }}>
+          <PolynousReport />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Dev-preview controls ─────────────────────────────────────────────────────
 // Flip experimental components on for yourself (admin) and open the preview —
 // so you can review in-progress work live instead of running localhost.
@@ -309,6 +335,9 @@ export default function AdminDashboard({ onNavigate }) {
 
       {/* In-development pages (admin-only) */}
       <DevPagesSection onNavigate={onNavigate} />
+
+      {/* Full report structure on demo data — no research run needed */}
+      <InlineReportPreview />
 
       {/* Toolbar */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>

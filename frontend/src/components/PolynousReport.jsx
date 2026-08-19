@@ -335,7 +335,7 @@ function ChatWithReport({ answer, sourceSummaries }) {
     } finally { setSending(false); }
   };
   return (
-    <div className="pn-card" style={{ display: "flex", flexDirection: "column", minHeight: 360, maxHeight: 560 }}>
+    <div className="pn-card" style={{ display: "flex", flexDirection: "column", minHeight: 240, maxHeight: 340 }}>
       <h3 className="pn-card-title"><i className="ph ph-chat-circle-dots" style={{ color: COLORS.primary }} /> CHAT WITH THIS REPORT</h3>
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 11, paddingRight: 4 }}>
         {messages.length === 0 && !sending && (
@@ -1202,8 +1202,8 @@ export default function PolynousReport({ reportId = "demo-climate-report", query
       <PolynousStyles />
       <Header reportId={reportId} onExport={doExport} onShare={doShare} />
       <div className="pn-container" style={{ paddingTop: 24, paddingBottom: 48, display: "flex", flexDirection: "column", gap: 24 }}>
-        <div className="pn-grid" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
-          <div className="pn-grid" style={{ gridTemplateColumns: "1fr 1.25fr" }}>
+        <div className="pn-grid" style={{ gridTemplateColumns: "1.85fr 0.85fr" }}>
+          <div className="pn-grid" style={{ gridTemplateColumns: "0.8fr 1.5fr" }}>
             <BottomLine reportId={reportId} onOpenCitation={openCitation} />
             <ExecutiveSummary reportId={reportId} onOpenCitation={openCitation} />
           </div>
