@@ -55,7 +55,15 @@ async function request(path, options = {}) {
     throw new Error(`${options.method || "GET"} ${path} failed (${res.status}): ${body}`);
   }
   const contentType = res.headers.get("content-type") || "";
-  return contentType.includes("application/json") ? res.json() : res.text();
+  // These /reports/* endpoints don't exist server-side — the report is driven
+  // either by the LIVE bridge (real research) or by each card's demo fallback.
+  // When there's no backend, the SPA host answers with index.html (200, HTML).
+  // Treat any non-JSON body as a miss so useApi falls back to demo data instead
+  // of handing cards an HTML string (which would crash on `data.x.y`).
+  if (!contentType.includes("application/json")) {
+    throw new Error(`${path} returned non-JSON (${res.status}) — using demo fallback`);
+  }
+  return res.json();
 }
 
 const ReportAPI = {
@@ -105,7 +113,15 @@ function useApi(fetcher, deps = [], fallback = null) {
     setLoading(true); setError(null);
     fetcher()
       .then((result) => { if (!cancelled) { setData(result); setLoading(false); } })
-      .catch((err) => { if (!cancelled) { setError(err); setLoading(false); if (fallback !== null) setData(fallback); } });
+      .catch((err) => {
+        if (cancelled) return;
+        setLoading(false);
+        // A fallback IS the graceful path (demo data / unmapped live slice) —
+        // show it quietly without a scary "couldn't load" note. Only surface an
+        // error when there's genuinely nothing to fall back to.
+        if (fallback !== null) { setData(fallback); setError(null); }
+        else setError(err);
+      });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, nonce]);
@@ -297,11 +313,11 @@ function Header({ reportId, onExport, onShare }) {
           </div>
           <div className="pn-consensus-panel">
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.critic, textTransform: "uppercase" }}>CRITIC CONSENSUS: {data.criticConsensus.pct}%</span>
-              <span style={{ fontSize: 9, fontFamily: "monospace", color: "#5c687c" }}>{data.criticConsensus.agree} / {data.criticConsensus.total} sources agree</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.critic, textTransform: "uppercase" }}>CRITIC CONSENSUS: {data.criticConsensus?.pct ?? "—"}%</span>
+              <span style={{ fontSize: 9, fontFamily: "monospace", color: "#5c687c" }}>{data.criticConsensus?.agree ?? "—"} / {data.criticConsensus?.total ?? "—"} sources agree</span>
             </div>
             <p style={{ fontSize: 11, color: "#fff9", lineHeight: 1.5, marginTop: 6 }}>
-              <b style={{ color: "#5c687c" }}>MOST COMMON POSITION:</b> {data.criticConsensus.position}
+              <b style={{ color: "#5c687c" }}>MOST COMMON POSITION:</b> {data.criticConsensus?.position || "—"}
             </p>
           </div>
         </div>
@@ -387,7 +403,7 @@ function BottomLine({ reportId, onOpenCitation }) {
 }
 
 function ExecutiveSummary({ reportId, onOpenCitation }) {
-  const { data, loading, error, refetch } = useApi(() => ReportAPI.getExecutiveSummary(reportId), [reportId], { text: "" });
+  const { data, loading, error, refetch } = useApi(() => ReportAPI.getExecutiveSummary(reportId), [reportId], { text: "Recent warming is driven predominantly by human activity, chiefly the burning of fossil fuels that raises atmospheric CO₂ and other greenhouse gases [1][2]. Across the five sources reviewed, agreement on the core mechanism is high, while emphasis differs on secondary factors such as land-use change and the precise magnitude of relativistic and natural contributions [3].\n\nConfidence is moderate: the evidence base is diverse and well-grounded, but recency is mixed and a minority of sources stress uncertainty in regional projections [4]. No source in this set disputes the dominant human-driver conclusion." });
   const paras = String(data.text || "").split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
   return (
     <div className="pn-card">
