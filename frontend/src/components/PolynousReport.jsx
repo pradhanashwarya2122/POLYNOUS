@@ -462,6 +462,7 @@ function buildHtml(d) {
 </div>
 <div class="col-span-2 h-[300px] rounded-[1.5rem] bg-white/[0.04] ring-1 ring-white/10 p-1.5">
 <div class="h-full rounded-[1.125rem] bg-[#0A0A1E] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] p-5 flex flex-col relative overflow-hidden" style="background-image: linear-gradient(100deg, #0A0A1E 0%, rgba(10,10,30,0.94) 34%, rgba(10,10,30,0.62) 56%, rgba(10,10,30,0.2) 80%, rgba(10,10,30,0) 100%), url('/exec-summary-bg.png'); background-size: cover; background-position: right center; background-repeat: no-repeat;">
+<div class="absolute inset-0 pointer-events-none rounded-[1.125rem] z-0" style="box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), inset 0 34px 44px -34px rgba(10,10,30,0.7), inset 0 -60px 80px -32px rgba(10,10,30,0.9); background: radial-gradient(130% 90% at 50% -12%, rgba(120,160,255,0.06), transparent 42%);"></div>
 <h3 class="text-[10px] uppercase tracking-wider text-app-text flex items-center gap-2 mb-4 relative z-10"><i class="ph-duotone ph-star text-app-info"></i> EXECUTIVE SUMMARY</h3>
 <div class="flex-1 relative z-10 w-[64%] text-[12.5px] text-white leading-relaxed overflow-y-auto hide-scrollbar pr-2">${citeHtml(d.analysisText)}</div>
 </div>
