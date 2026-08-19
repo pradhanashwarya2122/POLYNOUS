@@ -14,6 +14,7 @@
 // (used by /report-preview and the admin inline preview).
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useEffect, useRef } from "react";
+import { API_BASE_URL as APP_API_BASE, getAuthToken } from "../config";
 
 /* ---------- helpers ---------- */
 const pick = (...vals) => { for (const v of vals) if (v !== undefined && v !== null && v !== "") return v; return undefined; };
@@ -154,6 +155,8 @@ function deriveReport(p) {
     date: fmtDate(new Date()), sources, model, conf, band, breakdown, critic, findings, stats, ledger,
     faithful, ungrounded, claims, trajectory, boundaries, telemetry, tools, constellation, provenance,
     analysisText: pick(answer, analysisFallback), coverage, landscape, contradiction,
+    bottomLine: (findings[0] || "The evidence points to a single clear primary conclusion for this query."),
+    chatAnswer: pick(answer, analysisFallback), sourceSummaries: Array.isArray(p.sourceSummaries) ? p.sourceSummaries : [],
   };
 }
 
@@ -245,77 +248,60 @@ function buildHtml(d) {
   return `
 <main class="flex-1 flex flex-col h-full overflow-y-auto bg-app-bg relative scroll-smooth">
 <div class="absolute top-0 left-0 right-0 h-96 bg-gradient-to-b from-app-surface/50 to-transparent pointer-events-none z-0"></div>
-<header class="relative min-h-[240px] p-8 pt-10 z-20 border-b border-app-border/20">
-<div class="absolute inset-0 pointer-events-none opacity-5 flex items-center justify-center">
-<svg class="w-full h-full" viewbox="0 0 1000 200">
-<circle cx="500" cy="100" fill="none" r="150" stroke="#4FD1C5" stroke-dasharray="4 4" stroke-width="0.5"></circle>
-<circle cx="500" cy="100" fill="none" r="100" stroke="#00FF47" stroke-dasharray="2 2" stroke-width="0.5"></circle>
-<line stroke="#4FD1C5" stroke-width="0.2" x1="0" x2="1000" y1="100" y2="100"></line>
-<line stroke="#4FD1C5" stroke-width="0.2" x1="500" x2="500" y1="0" y2="200"></line>
-</svg>
+<header class="flex justify-between items-center p-8 pb-2 z-10">
+<div class="flex items-center gap-3"><span class="text-app-success font-mono text-[11px] font-bold tracking-widest drop-shadow-[0_0_8px_rgba(0,255,71,0.5)]">● SYNTHESIS COMPLETE</span><span class="text-app-text font-mono text-[11px] uppercase tracking-widest">| POLYNOUS | NEURAL RESEARCH ENGINE</span></div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-1.5 border border-app-border rounded text-app-text hover:text-white hover:border-gray-500 transition-colors bg-app-surface/50 text-xs font-medium"><i class="ph ph-share-network"></i> Share Report</button>
+<button class="flex items-center gap-2 px-4 py-1.5 border border-app-success/40 rounded text-app-success hover:bg-app-success/10 hover:border-app-success hover:shadow-[0_0_10px_rgba(0,255,71,0.2)] transition-all bg-[#0A0A1E] text-xs font-medium"><i class="ph ph-download-simple"></i> Export<i class="ph ph-caret-down ml-1"></i></button>
 </div>
-<div class="relative z-10 grid grid-cols-12 gap-8 h-full items-center max-w-[1600px] mx-auto w-full">
-<div class="col-span-4 flex flex-col gap-3">
-<div class="flex items-center gap-3">
-<span class="text-app-success font-mono text-[11px] font-bold tracking-widest drop-shadow-[0_0_8px_rgba(0,255,71,0.5)]">● SYNTHESIS COMPLETE</span>
-<span class="text-app-text font-mono text-[11px] uppercase tracking-widest">| POLYNOUS | NEURAL RESEARCH ENGINE</span>
-</div>
-<h1 class="text-4xl font-sora font-semibold text-white tracking-tight">Neural Synthesis <span class="text-app-info">Report</span></h1>
-<div class="bg-white/5 border border-white/10 rounded px-4 py-2">
-<p class="text-white text-[15px] font-inter">${esc(d.query)}</p>
-</div>
-<div class="flex items-center gap-4 font-mono text-[10px] text-[#5C687C] uppercase tracking-wider">
-<span>GENERATED: ${d.date}</span><span class="opacity-30">·</span>
-<span>SOURCES: ${d.sources}</span><span class="opacity-30">·</span>
-<span>MODEL: ${esc(d.model)}</span>
-</div>
-</div>
-<div class="col-span-4 flex flex-col items-center justify-center">
-<div class="relative w-32 h-32 flex items-center justify-center group cursor-pointer">
-<svg class="w-full h-full -rotate-90" viewbox="0 0 36 36">
-<circle cx="18" cy="18" fill="none" r="16" stroke="rgba(120,130,180,0.1)" stroke-width="2"></circle>
-<circle class="transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(79,209,197,0.6)]" cx="18" cy="18" fill="none" r="16" stroke="url(#gauge-grad)" stroke-dasharray="${d.conf}, 100" stroke-linecap="round" stroke-width="2"></circle>
-<defs><lineargradient id="gauge-grad" x1="0%" x2="100%" y1="0%" y2="0%"><stop offset="0%" style="stop-color:#4FD1C5"></stop><stop offset="100%" style="stop-color:#00FF47"></stop></lineargradient></defs>
-</svg>
-<div class="absolute inset-0 flex flex-col items-center justify-center">
-<span class="text-3xl font-sora font-bold text-white">${d.conf}%</span>
-<div class="flex flex-col items-center -mt-1">
-<span class="text-[8px] text-[#5C687C] tracking-[0.2em] uppercase">CONFIDENCE</span>
-<span class="text-[8px] text-app-primary font-bold tracking-widest">${esc(d.band)}</span>
-</div>
-</div>
-<div class="absolute top-full mt-2 bg-app-surface border border-app-border p-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-48 shadow-2xl">
-<div class="space-y-2">
-<div class="flex justify-between text-[9px] font-mono"><span>Agreement</span><span class="text-white">${d.breakdown.agreement}%</span></div>
-<div class="flex justify-between text-[9px] font-mono"><span>Diversity</span><span class="text-white">${d.breakdown.diversity}%</span></div>
-<div class="flex justify-between text-[9px] font-mono"><span>Recency</span><span class="text-white">${d.breakdown.recency}%</span></div>
-<div class="flex justify-between text-[9px] font-mono"><span>Grounding</span><span class="text-white">${d.breakdown.grounding}%</span></div>
-</div>
-</div>
-</div>
-<button class="mt-4 text-[10px] font-bold text-app-primary hover:text-white transition-all flex items-center gap-1 group">WHY THIS SCORE? <span class="group-hover:translate-x-1 transition-transform">→</span></button>
-</div>
-<div class="col-span-4 flex flex-col h-full justify-between py-2">
-<div class="flex justify-end gap-3">
-<button class="flex items-center gap-2 px-4 py-1.5 border border-app-border rounded text-app-text hover:text-white hover:border-white/40 transition-colors bg-transparent text-xs font-medium"><i class="ph ph-share-network"></i> Share Report</button>
-<button class="flex items-center gap-2 px-4 py-1.5 bg-app-success/10 border border-app-success/30 rounded text-app-success hover:bg-app-success/20 hover:shadow-[0_0_15px_rgba(0,255,71,0.2)] transition-all text-xs font-medium group"><i class="ph ph-download-simple group-hover:-translate-y-0.5 transition-transform"></i> Export<i class="ph ph-caret-down ml-1"></i></button>
-</div>
-<div class="bg-app-surface/30 border border-app-border/50 rounded-lg p-4 flex flex-col gap-2">
-<div class="flex justify-between items-center">
-<span class="text-[10px] font-bold text-app-critic uppercase tracking-wider">CRITIC CONSENSUS: ${d.critic.pct}%</span>
-<span class="text-[9px] font-mono text-[#5C687C]">${d.critic.agree} / ${d.critic.total} sources agree</span>
-</div>
-<p class="text-[11px] text-white/80 leading-relaxed"><span class="text-[#5C687C] font-bold">MOST COMMON POSITION:</span> ${esc(d.critic.position)}</p>
-<div class="flex gap-4 mt-1">
-<a class="text-[9px] font-bold text-app-info hover:underline flex items-center gap-1" href="#">VIEW ANALYSIS →</a>
-<a class="text-[9px] font-bold text-app-critic hover:underline flex items-center gap-1" href="#">WHY THIS SCORE? →</a>
-</div>
-</div>
-</div>
-</div>
-<div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-app-info/30 to-transparent"></div>
 </header>
-<div class="p-8 pt-0 z-10 flex flex-col gap-6 max-w-[1600px] mx-auto w-full">
+<div class="p-8 pt-2 z-10 flex flex-col gap-6 max-w-[1600px] mx-auto w-full">
+<section class="grid grid-cols-12 gap-6 items-start">
+<div class="col-span-12 lg:col-span-5 flex flex-col gap-4">
+<h2 class="text-4xl font-sora font-semibold text-white tracking-tight">Neural Synthesis <span class="text-app-info">Report</span></h2>
+<div class="flex items-center gap-3 bg-app-surface p-2 px-4 rounded-lg border border-app-border"><span class="text-app-info font-mono font-bold text-xs shrink-0">QUERY:</span><span class="text-white text-[13px] truncate">${esc(d.query)}</span></div>
+<div class="flex items-center gap-6 text-[11px] text-app-text mt-1 font-mono">
+<div class="flex items-center gap-2"><i class="ph ph-check-circle text-app-success drop-shadow-[0_0_4px_rgba(0,255,71,0.5)]"></i><span>Generated:</span><span class="text-white/80">${d.date}</span></div>
+<div class="flex items-center gap-2"><i class="ph ph-circle text-app-info"></i><span>Sources:</span><span class="text-white/80">${d.sources}</span></div>
+<div class="flex items-center gap-2"><i class="ph ph-circle text-app-secondary"></i><span>Model:</span><span class="text-white/80">${esc(d.model)}</span></div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-2 flex justify-center items-center">
+<div class="relative w-32 h-32 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90" viewbox="0 0 36 36">
+<path class="text-app-border" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-width="1.5"></path>
+<path class="text-app-primary drop-shadow-[0_0_8px_rgba(79,209,197,0.4)]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="${d.conf}, 100" stroke-width="1.5"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-3xl font-sora font-bold text-white">${d.conf}%</span><span class="text-[8px] text-app-text tracking-widest uppercase mt-1">CONFIDENCE</span></div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-2 bg-app-surface border border-app-border rounded-lg p-5 flex flex-col justify-between h-32">
+<div><h3 class="text-[10px] uppercase tracking-wider text-app-critic mb-1">CRITIC CONSENSUS</h3><div class="text-2xl font-bold text-white mb-2">${d.critic.pct}%</div><div class="w-full bg-app-border rounded-full h-1 mb-1"><div class="bg-app-critic h-1 rounded-full drop-shadow-[0_0_4px_rgba(232,168,85,0.4)]" style="width:${d.critic.pct}%"></div></div></div>
+<a class="text-[10px] text-app-critic flex items-center gap-1 hover:underline" href="#">Why this score? <i class="ph ph-arrow-right"></i></a>
+</div>
+<div class="col-span-12 lg:col-span-3 bg-[#121226] border border-app-border rounded-lg p-4 flex flex-col row-span-6">
+<h3 class="text-[10px] uppercase tracking-wider text-app-synthesis mb-4">CHAT WITH THIS REPORT</h3>
+<div id="pn-chat-msgs" class="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 mb-4 hide-scrollbar">
+<div class="flex gap-3"><i class="ph ph-chat-circle text-app-synthesis mt-1 shrink-0"></i><div class="flex-1 text-[12.5px] leading-relaxed text-white/70">Ask a follow-up grounded strictly in this report — e.g. "What's the strongest evidence here?"</div></div>
+</div>
+<div class="relative mt-auto">
+<input id="pn-chat-input" onkeydown="if(event.key==='Enter')pnChatSend()" class="w-full bg-[#0A0A1E] border border-app-border rounded-full py-2 pl-4 pr-10 text-[13px] text-white focus:outline-none focus:border-app-synthesis placeholder:text-[#5C687C]" placeholder="Ask a follow-up..." type="text"/>
+<button onclick="pnChatSend()" class="absolute right-1 top-1 w-7 h-7 bg-app-synthesis rounded-full flex items-center justify-center text-[#0A0A1E] hover:bg-white transition-colors drop-shadow-[0_0_4px_rgba(180,142,240,0.4)]"><i class="ph ph-arrow-right font-bold"></i></button>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-9 grid grid-cols-3 gap-6">
+<div class="col-span-1 bg-[#151529] border border-app-border rounded-lg p-5 flex flex-col h-48">
+<h3 class="text-[10px] uppercase tracking-wider text-app-primary flex items-center gap-2 mb-4 font-semibold"><i class="ph ph-wave-sine"></i> BOTTOM LINE</h3>
+<div class="flex-1 text-[12.5px] text-white/90 leading-relaxed overflow-y-auto hide-scrollbar pr-1">${citeHtml(d.bottomLine)}</div>
+<div class="flex items-center gap-3 mt-4"><div class="bg-app-bg border border-app-border rounded px-3 py-1 text-white font-mono text-sm">${d.conf}%</div><div class="h-1 bg-app-border flex-1 rounded overflow-hidden"><div class="h-full bg-app-primary" style="width:${d.conf}%"></div></div></div>
+</div>
+<div class="col-span-2 bg-[#111125] border border-app-border rounded-lg p-5 flex flex-col relative overflow-hidden h-48">
+<h3 class="text-[10px] uppercase tracking-wider text-app-text flex items-center gap-2 mb-4"><i class="ph ph-star"></i> EXECUTIVE SUMMARY</h3>
+<div class="flex-1 relative z-10 w-2/3 text-[12.5px] text-white leading-relaxed overflow-y-auto hide-scrollbar pr-2">${citeHtml(d.analysisText)}</div>
+<div class="absolute right-0 top-0 bottom-0 w-1/3 opacity-30 flex items-center justify-end pr-4 pointer-events-none"><svg class="w-32 h-32 text-app-info fill-transparent stroke-current stroke-[0.5]" viewbox="0 0 100 100"><circle cx="50" cy="50" r="40" stroke-dasharray="2 2"></circle><path d="M50 10 C 20 10, 10 50, 50 90 C 80 90, 90 50, 50 10"></path><path d="M10 50 C 10 20, 50 10, 90 50 C 90 80, 50 90, 10 50"></path></svg></div>
+</div>
+</div>
+</section>
 <section class="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 backdrop-blur-sm">
 <div class="flex flex-col gap-4">
 <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-[rgba(255,255,255,0.06)]">
@@ -506,6 +492,38 @@ function installHandlers() {
     all.forEach((cond) => { if (cond !== element && cond.classList.contains("condition-expanded")) cond.classList.remove("condition-expanded"); });
     element.classList.toggle("condition-expanded");
   };
+  // Live "chat with this report" — grounded on the report answer + sources.
+  window.__pnApiBase = APP_API_BASE;
+  window.__pnGetToken = getAuthToken;
+  window.pnChatSend = async function () {
+    const input = document.getElementById("pn-chat-input");
+    const box = document.getElementById("pn-chat-msgs");
+    if (!input || !box) return;
+    const q = input.value.trim(); if (!q) return;
+    input.value = "";
+    const esc2 = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const add = (role, html) => {
+      const el = document.createElement("div");
+      el.className = "flex gap-3" + (role === "user" ? " flex-row-reverse" : "");
+      el.innerHTML = `<i class="ph ${role === "user" ? "ph-user-circle text-app-info" : "ph-chat-circle text-app-synthesis"} mt-1 shrink-0"></i><div class="flex-1 text-[12.5px] leading-relaxed ${role === "user" ? "text-white text-right" : "text-white/85"}">${html}</div>`;
+      box.appendChild(el); box.scrollTop = box.scrollHeight; return el;
+    };
+    add("user", esc2(q));
+    const pending = add("assistant", '<span class="text-app-text italic">thinking…</span>');
+    try {
+      const ctx = window.__pnChatCtx || {};
+      const tok = (window.__pnGetToken && window.__pnGetToken()) || "";
+      const res = await fetch(window.__pnApiBase + "/report/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(tok ? { Authorization: "Bearer " + tok } : {}) },
+        body: JSON.stringify({ question: q, report_answer: ctx.answer || "", source_summaries: ctx.sources || [] }),
+      });
+      const data = res.ok ? await res.json() : {};
+      pending.querySelector("div").innerHTML = esc2(data.answer || (res.status === 401 ? "Please sign in to ask follow-ups." : "Couldn't answer that — please try again."));
+    } catch {
+      pending.querySelector("div").innerHTML = "Couldn't reach the assistant. Try again.";
+    }
+  };
 }
 
 function runCounters(root) {
@@ -531,6 +549,7 @@ export default function PolynousReport(props) {
   const data = deriveReport(props);
   const html = buildHtml(data);
 
+  if (typeof window !== "undefined") window.__pnChatCtx = { answer: data.chatAnswer, sources: data.sourceSummaries };
   useEffect(() => { injectAssets(); installHandlers(); }, []);
   useEffect(() => { const t = setTimeout(() => runCounters(ref.current), 60); return () => clearTimeout(t); }, [html]);
 
