@@ -300,7 +300,7 @@ function sInspector() {
 }
 
 function buildReport(d) {
-  return `<div class="rp-wrap">
+  return `<div class="rp-progress" id="rp-prog"></div><div class="rp-wrap">
     ${sMasthead(d)}${sExec(d)}${sGlance(d)}${sFindings(d)}${sEvidence(d)}${sConfidence(d)}${sPerspectives(d)}${sKUU(d)}${sChange(d)}${sTrajectory(d)}${sProvenance(d)}${sChat(d)}
     <footer class="rp-foot"><span>◆ POLYNOUS</span><span class="rp-dim">Transparent · Auditable · Grounded research</span></footer>
   </div>${sInspector()}`;
@@ -311,14 +311,18 @@ const RP_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 .rp * { box-sizing: border-box; margin: 0; }
 .rp {
-  --ink:#0a0b0d; --panel:#111317; --panel2:#15181d;
-  --line:rgba(255,255,255,0.09); --line2:rgba(255,255,255,0.05);
-  --tx:#a7abb4; --dim:#676c76; --hi:#eef0f3;
-  --acc:#63e6be; --acc-soft:rgba(99,230,190,0.12);
-  --pos:#63e6be; --warn:#e0b15e; --neg:#e0738a; --info:#7aa2f7;
+  --ink:#0a0a1e; --ink2:#0b0b24; --panel:#111634; --panel2:#151b3e;
+  --line:rgba(200,216,234,0.11); --line2:rgba(200,216,234,0.06);
+  --tx:#c3d2e6; --dim:#6c7a97; --hi:#f2f6fb;
+  --acc:#3ef07f; --acc-soft:rgba(0,255,71,0.12);
+  --pos:#3ef07f; --warn:#ffb64a; --neg:#ff6b8a; --info:#00ccff;
   --serif:'Bricolage Grotesque',sans-serif; --sans:'Hanken Grotesk',-apple-system,sans-serif; --mono:'JetBrains Mono',monospace;
-  background: var(--ink); color: var(--tx); font-family: var(--sans); font-size: 15px; line-height: 1.6;
-  letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; height: 100vh; overflow-y: auto;
+  background:
+    radial-gradient(1200px 620px at 10% -10%, rgba(0,255,71,0.055), transparent 58%),
+    radial-gradient(1000px 700px at 94% 2%, rgba(0,204,255,0.05), transparent 54%),
+    var(--ink);
+  color: var(--tx); font-family: var(--sans); font-size: 15px; line-height: 1.6;
+  letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; height: 100vh; overflow-y: auto; position: relative;
 }
 .rp-wrap { max-width: 940px; margin: 0 auto; padding: 0 40px 80px; }
 .rp ::selection { background: var(--acc-soft); }
@@ -328,7 +332,7 @@ const RP_CSS = `
 .rp-acc-t { color: var(--acc); font-weight: 600; }
 .rp .pos { color: var(--pos); } .rp .warn { color: var(--warn); } .rp .neg { color: var(--neg); }
 .rp-cite { color: var(--acc); font-family: var(--mono); font-size: 0.82em; font-weight: 600; cursor: pointer; padding: 0 1px; }
-.rp-cite:hover { text-shadow: 0 0 10px rgba(99,230,190,0.5); }
+.rp-cite:hover { text-shadow: 0 0 10px rgba(0,255,71,0.5); }
 
 /* reveal — transform-only so content is NEVER hidden even if frames don't composite */
 @keyframes rpIn { from { transform: translateY(14px); } to { transform: none; } }
@@ -473,7 +477,7 @@ const RP_CSS = `
 .rp-step { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx); }
 .rp-steprule { flex: 1; min-width: 14px; height: 1px; background: var(--line); }
 .rp-tl { width: 100%; height: 130px; margin-top: 8px; }
-.rp-tlline { fill: none; stroke: var(--acc); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 5px rgba(99,230,190,0.35)); }
+.rp-tlline { fill: none; stroke: var(--acc); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 5px rgba(0,255,71,0.35)); }
 .rp-tldot { fill: var(--acc); }
 .rp-tlyear { fill: var(--dim); font-family: var(--mono); font-size: 8px; }
 .rp-provgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 40px; }
@@ -493,7 +497,7 @@ const RP_CSS = `
 .rp-msgs { padding: 22px; display: flex; flex-direction: column; gap: 16px; max-height: 340px; overflow-y: auto; }
 .rp-msg { font-size: 14px; line-height: 1.6; max-width: 82%; }
 .rp-msg-a { color: var(--tx); }
-.rp-msg-u { align-self: flex-end; color: var(--hi); background: var(--acc-soft); border: 1px solid rgba(99,230,190,0.25); padding: 9px 14px; border-radius: 12px; }
+.rp-msg-u { align-self: flex-end; color: var(--hi); background: var(--acc-soft); border: 1px solid rgba(0,255,71,0.25); padding: 9px 14px; border-radius: 12px; }
 .rp-chiprow { display: flex; flex-wrap: wrap; gap: 8px; }
 .rp-chipbtn { text-align: left; background: transparent; cursor: pointer; color: var(--tx); font-family: var(--sans); transition: all .2s ease; }
 .rp-chipbtn:hover { border-color: var(--acc); color: var(--hi); }
@@ -527,6 +531,23 @@ const RP_CSS = `
 .rp-dmetrics { gap: 14px; }
 .rp-dmetrics > div { display: grid; grid-template-columns: 90px 1fr auto; gap: 12px; align-items: center; font-size: 11px; }
 .rp-dmetrics .rp-dim { font-family: var(--mono); letter-spacing: 0.08em; }
+
+/* ── premium interactions ─────────────────────────────────────────────── */
+.rp-progress { position: fixed; top: 0; left: 0; height: 2px; width: 100%; transform: scaleX(0); transform-origin: left; background: linear-gradient(90deg, var(--acc), var(--info)); z-index: 95; box-shadow: 0 0 10px rgba(0,255,71,0.55); transition: transform .08s linear; }
+.rp a:focus-visible, .rp button:focus-visible, .rp input:focus-visible, .rp [role="button"]:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 4px; }
+.rp-eye span { transition: text-shadow .3s ease; }
+.rp-sec:hover .rp-eye span { text-shadow: 0 0 12px rgba(0,255,71,0.6); }
+.rp-pos, .rp-synth, .rp-chat, .rp-dsrc { transition: border-color .3s ease, transform .45s cubic-bezier(.16,1,.3,1), box-shadow .45s cubic-bezier(.16,1,.3,1); }
+.rp-pos:hover, .rp-synth:hover { border-color: rgba(200,216,234,0.22); transform: translateY(-2px); box-shadow: 0 18px 42px -24px rgba(0,0,12,0.85); }
+.rp-cons li { transition: color .2s ease, transform .2s cubic-bezier(.16,1,.3,1); }
+.rp-cons li:hover { transform: translateX(4px); }
+.rp-num { transition: text-shadow .25s ease; }
+.rp-find:hover .rp-num { text-shadow: 0 0 10px rgba(0,255,71,0.6); }
+.rp-chatbar button { transition: filter .2s ease, transform .14s ease; }
+.rp-chatbar button:active { transform: scale(.93); }
+.rp-fig { transition: text-shadow .35s ease; }
+.rp-masthead:hover .rp-fig { text-shadow: 0 0 34px rgba(0,255,71,0.28); }
+.rp-msg-u { animation: rpIn .4s cubic-bezier(.16,1,.3,1) both; }
 
 @media (max-width: 820px) {
   .rp-wrap { padding: 0 22px 60px; }
@@ -590,7 +611,15 @@ export default function PolynousReport(props) {
   useEffect(() => { injectAssets(); installHandlers(); }, []);
   useEffect(() => {
     const t = setTimeout(() => runCounters(ref.current), 500);
-    return () => clearTimeout(t);
+    const el = ref.current;
+    const onScroll = () => {
+      if (!el) return;
+      const bar = el.querySelector("#rp-prog");
+      const max = el.scrollHeight - el.clientHeight;
+      if (bar) bar.style.transform = "scaleX(" + (max > 0 ? el.scrollTop / max : 0) + ")";
+    };
+    if (el) el.addEventListener("scroll", onScroll, { passive: true });
+    return () => { clearTimeout(t); if (el) el.removeEventListener("scroll", onScroll); };
   }, [html]);
   return <div ref={ref} className="rp" dangerouslySetInnerHTML={{ __html: html }} />;
 }
