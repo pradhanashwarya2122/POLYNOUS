@@ -14,16 +14,11 @@
   font-display: swap;
 }
 
-/* ========== BRICOLAGE GROTESQUE — headings/subheadings across Polynous (except homepage brand) ========== */
-/* Apply Bricolage to every heading app-wide. Homepage brand headers (.polynous-header /
-   .polynous-subheader, Lemons) are explicitly excluded so the landing page keeps its identity.
-   !important is used so it wins over React inline fontFamily styles. */
-h1:not(.polynous-header):not(.polynous-subheader),
-h2:not(.polynous-header):not(.polynous-subheader),
-h3:not(.polynous-header):not(.polynous-subheader),
-h4:not(.polynous-header):not(.polynous-subheader),
-h5:not(.polynous-header):not(.polynous-subheader),
-h6:not(.polynous-header):not(.polynous-subheader),
+/* ========== BRICOLAGE GROTESQUE — opt-in only ==========
+   The Bricolage font is loaded (see @import at top) and available across the app,
+   but it is NOT force-applied to existing headings — those keep their original
+   fonts. Add the `pn-subhead` class to any element you explicitly want in
+   Bricolage. (Removed the previous global h1–h6 override.) */
 .pn-subhead {
   font-family: 'Bricolage Grotesque', 'Sora', sans-serif !important;
   letter-spacing: -0.01em;
