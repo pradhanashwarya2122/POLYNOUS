@@ -18,6 +18,7 @@ import ResearchChamberSection from "./ResearchChamberSection";
 import DebateChamberSection from "./DebateChamberSection";
 import ConstellationExplorer from "./react-bits/ConstellationExplorer";
 import { makeTile } from "./react-bits/constellationTiles";
+import { CoverflowCarousel } from "./ui/CoverflowCarousel";
 
 // The 8 chambers, used by the "Explore Chambers" InfiniteMenu hero.
 const CHAMBERS = [
@@ -1935,12 +1936,47 @@ function TechHighlights(){
           velocity={2} numCopies={6} className="tech-velocity"
         />
       </div>
-      <div ref={gRef} className="reveal-stagger tech-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px"}}>
-        {/* Engineering pillars (no route) + the cross-cutting capabilities moved
-            out of the 7-page grid - all click-to-flip. */}
-        {[...TECH, ...TECH_EXTRA].map((t)=>(
-          <FlipCard key={t.title} icon={t.icon} title={t.title} desc={t.desc} color={t.color} route={t.route} height={244}/>
-        ))}
+      {/* Engineering pillars + cross-cutting capabilities, presented as a 3D
+          coverflow. Drag / arrow-keys / dots / side-arrows all navigate. */}
+      <div ref={gRef} className="reveal">
+        <CoverflowCarousel
+          slides={[...TECH, ...TECH_EXTRA]}
+          label="Tech highlights"
+          /* ┌──────────────────────────────────────────────────────────────┐
+             │  CHANGE CARD SIZE HERE.                                        │
+             │  cardWidth  = card width (any CSS length; clamp = responsive). │
+             │  cardHeight = card height. Raise/lower these two numbers to    │
+             │  make the scrolling cards bigger or smaller.                   │
+             └──────────────────────────────────────────────────────────────┘ */
+          cardWidth="clamp(240px, 27vw, 320px)"
+          cardHeight="clamp(300px, 34vw, 380px)"
+          renderCard={(t, i, isActive) => (
+            <article
+              onClick={() => { if (isActive && t.route) window.location.assign(t.route); }}
+              style={{
+                position:"relative", height:"100%", width:"100%", boxSizing:"border-box",
+                display:"flex", flexDirection:"column", padding:"26px 24px 22px",
+                borderRadius:"20px", cursor: isActive && t.route ? "pointer" : "inherit",
+                background:"linear-gradient(158deg, rgba(19,19,38,0.96) 0%, rgba(6,6,15,0.98) 100%)",
+                border:`1px solid ${t.color}33`,
+                boxShadow:`0 24px 60px -28px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.02) inset, 0 30px 80px -50px ${t.color}55`,
+              }}
+            >
+              {/* top accent bar */}
+              <div style={{position:"absolute",top:0,left:0,right:0,height:"3px",background:`linear-gradient(90deg, transparent, ${t.color}, transparent)`,opacity:0.9}}/>
+              <div style={{width:"54px",height:"54px",borderRadius:"14px",display:"flex",alignItems:"center",justifyContent:"center",background:`${t.color}14`,border:`1px solid ${t.color}3a`,marginBottom:"20px",boxShadow:`0 0 24px -6px ${t.color}55`}}>
+                <span style={{fontFamily:"Material Symbols Outlined",fontSize:"27px",color:t.color}}>{t.icon}</span>
+              </div>
+              <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:800,fontSize:"clamp(1.05rem,1.5vw,1.28rem)",lineHeight:1.15,letterSpacing:"-0.02em",color:"#fff",margin:0}}>{t.title}</h3>
+              <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13.5px",lineHeight:1.6,color:"rgba(150,166,186,0.82)",margin:"14px 0 0",flex:1}}>{t.desc}</p>
+              {t.route && (
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10.5px",letterSpacing:"0.1em",color:t.color,marginTop:"16px",opacity:isActive?0.95:0.45,transition:"opacity 0.3s ease"}}>
+                  {isActive ? "OPEN →" : " "}
+                </span>
+              )}
+            </article>
+          )}
+        />
       </div>
     </section>
   );
