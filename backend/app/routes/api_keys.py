@@ -231,6 +231,7 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
     # "rotated": the user claimed a free key earlier, but the owner has since
     # swapped the pool key — their key is now stale and a fresh one is waiting.
     rotated = bool(own_claim and own_claim.key_fingerprint not in current_fps)
+    from app.services import trial as trial_svc
     return {
         "pool_configured": fk.pool_configured(),
         "available": fk.available_count(claimed_fps),
@@ -238,6 +239,7 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
         "has_own_key": _has_any_llm_key(user),
         "rotated": rotated,
         "claimed_provider": own_claim.provider if own_claim else None,
+        "trial": trial_svc.state(user, db),
     }
 
 
@@ -281,12 +283,20 @@ async def claim_free_key(user: User = Depends(get_current_db_user), db: Session 
     setattr(user, f"{provider}_api_key", encrypted)
     user.preferred_provider = provider
     db.add(FreeKeyClaim(user_id=user.public_id, key_fingerprint=entry["fp"], provider=provider))
+
+    # Record the time+run limited trial marker (the pooled key stays server-side;
+    # trial.enforce() disables it once the window / run cap is used up).
+    from app.services import trial as trial_svc
+    from app.llm_providers import DEFAULT_MODELS
+    trial_svc.mark_claimed(user, provider, DEFAULT_MODELS.get(provider))
     db.commit()
 
+    st = trial_svc.state(user, db)
     return {
         "status": "claimed",
         "provider": provider,
         "rotated": is_rotated,
+        "trial": st,
         "message": (f"Your free {provider.title()} key was updated to the latest one — completely free. You're all set!"
                     if is_rotated else
                     f"Free {provider.title()} starter key added to your account. You're ready to research!"),

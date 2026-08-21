@@ -1634,7 +1634,7 @@ function ApiKeysSection({ push }) {
 
   return (
     <Card>
-      <SectionHead icon="key" title="API Keys" subtitle="You only need ONE key — from any single provider below. That's it." />
+      <SectionHead icon="key" title="API Keys" subtitle="You only need ONE key total — not two or three. A single LLM key from any one provider below runs research, debates, the graph and everything else. (Tavily & Voyage are optional extras — web search is built in.)" />
 
       {showRotatedBanner && (
         <div style={{ marginBottom: 20, padding: "16px 18px", borderRadius: 12,
@@ -1668,11 +1668,11 @@ function ApiKeysSection({ push }) {
           background: "rgba(0,204,255,0.06)", border: "1px solid rgba(0,204,255,0.22)",
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontFamily: C.fontHead, fontWeight: 700, fontSize: 14, color: C.cyan, marginBottom: 4 }}>
-              🎁 Claim your free starter key
+            <div style={{ fontFamily: "'Bricolage Grotesque','Sora',sans-serif", fontWeight: 700, fontSize: 15, color: C.cyan, marginBottom: 4, letterSpacing: "-0.01em" }}>
+              🎁 Claim your free GLM trial key
             </div>
-            <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.5, maxWidth: 460 }}>
-              New here? Get one free API key to try POLYNOUS instantly - no card, no setup. You can add your own key anytime.
+            <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55, maxWidth: 480 }}>
+              New here? Get a free trial key and see POLYNOUS work instantly — no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial on a lightweight model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key anytime.
             </div>
           </div>
           <button onClick={claimFree} disabled={claiming} style={{
@@ -1683,6 +1683,50 @@ function ApiKeysSection({ push }) {
           </button>
         </div>
       )}
+
+      {/* ── Free-trial status: countdown + run meter + weak-model note ── */}
+      {freeStatus?.trial?.active && (() => {
+        const t = freeStatus.trial;
+        const runsPct = t.runs_cap ? Math.min(100, Math.round((t.runs_used / t.runs_cap) * 100)) : 0;
+        const low = (t.days_left != null && t.days_left <= 2) || (t.runs_left != null && t.runs_left <= 3);
+        const accent = t.expired ? "#ff6b8a" : low ? "#ffb64a" : "#00ff47";
+        const bric = "'Bricolage Grotesque','Sora',sans-serif";
+        return (
+          <div style={{ marginBottom: 20, padding: "18px 20px", borderRadius: 14,
+            background: "linear-gradient(160deg, rgba(19,19,38,0.72), rgba(6,6,15,0.88))",
+            border: `1px solid ${accent}38`, boxShadow: `0 20px 50px -30px ${accent}55` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: t.runs_cap ? 12 : 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 20, color: accent }}>{t.expired ? "hourglass_disabled" : "hourglass_top"}</span>
+                <h3 style={{ fontFamily: bric, fontWeight: 700, fontSize: 16, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>
+                  {t.expired ? "Free trial ended" : "Free trial active"}
+                </h3>
+                <span style={{ fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 9999, padding: "3px 9px" }}>
+                  {(t.provider || "glm").toUpperCase()}{t.model ? ` · ${t.model}` : ""}
+                </span>
+              </div>
+              {!t.expired && (
+                <div style={{ fontFamily: C.fontMono, fontSize: 12, color: accent, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {t.days_left != null ? `${t.days_left} day${t.days_left === 1 ? "" : "s"} left` : ""}
+                  {t.days_left != null && t.runs_left != null ? " · " : ""}
+                  {t.runs_left != null ? `${t.runs_left} run${t.runs_left === 1 ? "" : "s"} left` : ""}
+                </div>
+              )}
+            </div>
+            {t.runs_cap ? (
+              <div style={{ height: 6, borderRadius: 9999, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginBottom: 12 }}>
+                <div style={{ height: "100%", width: `${runsPct}%`, background: accent, borderRadius: 9999, transition: "width 0.5s cubic-bezier(0.23,1,0.32,1)" }} />
+              </div>
+            ) : null}
+            <p style={{ fontFamily: C.fontBody, fontSize: 12.5, lineHeight: 1.6, color: C.onSurfaceVariant, margin: 0 }}>
+              {t.expired
+                ? "Your trial is over. Add your own API key below to keep researching — it takes under a minute."
+                : (<>This is a <strong style={{ color: "#fff" }}>lightweight trial model</strong> for exploring POLYNOUS. Stronger providers — <strong style={{ color: "#fff" }}>Claude, GPT, Gemini</strong> — give noticeably better, more reliable results. Add your own key anytime below.</>)}
+            </p>
+          </div>
+        );
+      })()}
+
       <div style={{ marginBottom: 20 }}>
         <Label>Preferred AI Provider</Label>
         {(() => {

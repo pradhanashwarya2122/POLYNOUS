@@ -355,6 +355,16 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass  # user stays None → guest policy below
 
+    # ── FREE-TRIAL GATE: block + disable an expired/used-up GLM trial before
+    #    the run so a pooled key can't be abused past its window / run cap.
+    if user is not None:
+        from app.services import trial as trial_svc
+        _ok, _trial_msg = trial_svc.enforce(user, db)
+        if not _ok:
+            async def _trial_gate():
+                yield f"data: {json.dumps({'type': 'error', 'error': _trial_msg, 'message': _trial_msg, 'trial_expired': True})}\n\n"
+            return StreamingResponse(_trial_gate(), media_type="text/event-stream")
+
     # ── ENFORCE the user's saved Research Preferences server-side: if the
     #    request didn't specify a response style, fall back to the account's
     #    saved default so the preference actually takes effect regardless of
@@ -642,6 +652,16 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
                             break
         except Exception:
             pass  # user stays None → guest policy below
+
+    # ── FREE-TRIAL GATE: same policy as /ask-visual — block + disable an
+    #    expired/used-up GLM trial before the debate runs.
+    if user is not None:
+        from app.services import trial as trial_svc
+        _ok, _trial_msg = trial_svc.enforce(user, db)
+        if not _ok:
+            async def _trial_gate():
+                yield f"data: {json.dumps({'type': 'error', 'error': _trial_msg, 'message': _trial_msg, 'trial_expired': True})}\n\n"
+            return StreamingResponse(_trial_gate(), media_type="text/event-stream")
 
     # Enforce the account's saved response-style preference when unspecified.
     if not response_style and user is not None:

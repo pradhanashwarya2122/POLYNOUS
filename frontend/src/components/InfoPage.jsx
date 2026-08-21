@@ -39,12 +39,12 @@ const Icon = ({ name, style }) => (
 
 // What each kind of key actually powers in the pipeline
 const KEY_ROLES = [
-  { icon: "psychology", color: "#a855f7", title: "Your LLM key (Anthropic / OpenAI / Google / Groq / NVIDIA / DeepSeek / Mistral)",
-    body: "This is the brain. It reads every source, extracts what each one says, cross-examines them for agreement and contradiction, computes the confidence score, and writes the final cited report. In Debate mode it also powers the two advocates and the judge. Every reasoning step runs on this key - pick whichever provider you like." },
-  { icon: "travel_explore", color: "#ffd700", title: "Tavily key (web search & scraping)",
-    body: "This is how POLYNOUS reads the live web. Tavily finds the most relevant pages for your question and POLYNOUS scrapes their full text - that scraped content is the evidence every citation points back to. Without it, the pipeline has nothing real to reason over. Tavily gives 1,000 free searches per month." },
-  { icon: "hub", color: "#00ccff", title: "Voyage key (optional - semantic memory)",
-    body: "Optional. Used only for embeddings that power Semantic Search and the memory features - turning your past research into a searchable knowledge space. The core research and debate flows work fine without it." },
+  { icon: "psychology", color: "#a855f7", title: "Your one LLM key — this is the only key you need",
+    body: "One LLM key from any single provider (Anthropic, OpenAI, Google, Groq, NVIDIA, DeepSeek, Mistral or Zhipu/GLM) powers EVERYTHING — research, debates, the knowledge graph, PDF analysis, all of it. You do NOT need a separate key per feature and you do NOT need more than one. It reads every source, cross-examines them, scores confidence, and writes the cited report; in Debate mode it also runs both advocates and the judge. Pick whichever provider you like — that single key is the whole requirement." },
+  { icon: "travel_explore", color: "#ffd700", title: "Tavily key — optional (web search is already included)",
+    body: "You do NOT need this to start. POLYNOUS ships with built-in web search, so your one LLM key is enough to run real, cited research right away. Add your own Tavily key (1,000 free searches/month) only if you want higher search limits of your own." },
+  { icon: "hub", color: "#00ccff", title: "Voyage key — optional (semantic memory)",
+    body: "Also optional. Used only for embeddings that power Semantic Search and the memory features. The core research and debate flows work perfectly without it." },
 ];
 
 // Inline free-key claim - loader → reveals a (placeholder) key, no navigation
@@ -71,7 +71,7 @@ function FreeKeyClaim() {
           cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="key" style={{ fontSize: 16 }} /> Claim my free key
         </button>
-        <span style={{ fontSize: 12.5, color: "#6b7386" }}>Instant · no card · one per account</span>
+        <span style={{ fontSize: 12.5, color: "#6b7386" }}>Instant · no card · one key runs everything · time-limited GLM trial</span>
       </div>
     );
   }
@@ -99,8 +99,8 @@ function FreeKeyClaim() {
           <Icon name={copied ? "check" : "content_copy"} style={{ fontSize: 14 }} /> {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <p style={{ fontSize: 12, color: "#6b7386", marginTop: 10, lineHeight: 1.5 }}>
-        Placeholder for now - real starter keys are being provisioned. Paste it (or your own key) in Settings → API Keys to start researching.
+      <p style={{ fontSize: 12, color: "#6b7386", marginTop: 10, lineHeight: 1.55 }}>
+        This single key runs <strong style={{ color: "#c8d2e0" }}>everything</strong> — research, debates, the graph — you don't need any others. It's a <strong style={{ color: "#c8d2e0" }}>time-limited trial on a lightweight GLM model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key in Settings → API Keys anytime.
       </p>
     </div>
   );
@@ -181,7 +181,7 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
 
         {/* What each key is used for */}
         <Section id="info-onekey" icon="help" accent={C.purple} title="You only need ONE API key — that's it" delay={0.05}
-          subtitle="One key, from any single provider below, powers everything — research, debates, and the knowledge graph. You don't need a separate key per feature. POLYNOUS never charges you; it runs on the one key you provide, so the cost and rate limits stay yours.">
+          subtitle="To be crystal clear: it's ONE key total — not two, not three. A single LLM key from any one provider below powers research, debates, the knowledge graph, PDF analysis — everything. You never need a separate key per feature. (Tavily and Voyage are optional extras, not requirements — web search is already built in.) POLYNOUS never charges you; it runs on the one key you provide, so the cost and rate limits stay yours.">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {KEY_ROLES.map(r => (
               <div key={r.title} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "14px 16px",
