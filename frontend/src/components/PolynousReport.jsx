@@ -15,7 +15,18 @@
 import React, { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import SideRail from "./react-bits/SideRail";
 import { API_BASE_URL as APP_API_BASE, getAuthToken } from "../config";
+
+const REPORT_RAIL = [
+  { label: "Executive summary", id: "rp-sec-01" },
+  { label: "Key findings", id: "rp-sec-03" },
+  { label: "Evidence", id: "rp-sec-04" },
+  { label: "Confidence", id: "rp-sec-05" },
+  { label: "Perspectives", id: "rp-sec-06" },
+  { label: "Provenance", id: "rp-sec-10" },
+  { label: "Interrogate", id: "rp-sec-11" },
+];
 
 /* ---------- recharts confidence-over-time chart (in Polynous colours) ---------- */
 const RP_ACC = "#3ef07f";
@@ -176,7 +187,7 @@ function deriveReport(p) {
 }
 
 /* ---------- section primitives ---------- */
-const eye = (n, t) => `<div class="rp-shead"><span class="rp-snum">${n}</span><h2 class="rp-stitle">${t}</h2><span class="rp-shline"></span></div>`;
+const eye = (n, t) => `<div class="rp-shead" id="rp-sec-${n}" style="scroll-margin-top:20px"><span class="rp-snum">${n}</span><h2 class="rp-stitle">${t}</h2><span class="rp-shline"></span></div>`;
 const bar = (p, tone) => `<span class="rp-bar"><i style="width:${pct(p)}%${tone ? `;background:var(--${tone})` : ""}"></i></span>`;
 const toneCls = { pos: "pos", warn: "warn", neg: "neg" };
 
@@ -729,5 +740,10 @@ export default function PolynousReport(props) {
     if (el) el.addEventListener("scroll", onScroll, { passive: true });
     return () => { clearTimeout(t); if (el) el.removeEventListener("scroll", onScroll); };
   }, [html]);
-  return <div ref={ref} className="rp" dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <>
+      <div ref={ref} className="rp" dangerouslySetInnerHTML={{ __html: html }} />
+      <SideRail items={REPORT_RAIL} getContainer={() => ref.current} />
+    </>
+  );
 }

@@ -3,6 +3,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL } from '../config';
 import ConstellationExplorer from "./react-bits/ConstellationExplorer";
 import { makeTile } from "./react-bits/constellationTiles";
+import SideRail from "./react-bits/SideRail";
+
+const PDFLAB_RAIL = [
+  { label: "Overview", id: "pdf-hero" },
+  { label: "Upload", id: "pdf-upload" },
+  { label: "Library", id: "pdf-library" },
+  { label: "Tools", id: "pdf-tools" },
+];
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -1531,7 +1539,8 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
         <div style={{ maxWidth:1060, margin:"0 auto" }}>
 
           {/* ── HERO ─────────────────────────────────────────── */}
-          <section style={{
+          <section id="pdf-hero" style={{
+            scrollMarginTop:24,
             display:"flex", alignItems:"center", justifyContent:"space-between",
             gap:32, flexWrap:"wrap", marginBottom:52, paddingTop:8,
             animation:"fadeUp 0.5s ease",
@@ -1633,11 +1642,13 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
 
           {/* ── UPLOAD ZONE ──────────────────────────────────── */}
           <section
+            id="pdf-upload"
             onDragOver={e => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
             onDrop={onDrop}
             onClick={() => !uploading && fileRef.current?.click()}
             style={{
+              scrollMarginTop:24,
               border:`2px dashed ${drag ? T.gold : uploadError ? T.crimson : T.borderGold}`,
               borderRadius:20, padding:"52px 28px",
               background: drag ? "rgba(255,214,10,0.04)" : uploadError ? "rgba(255,32,64,0.03)" : T.surface,
@@ -1734,7 +1745,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
 
           {/* ── LIBRARY ──────────────────────────────────────── */}
           {pdfs.length > 0 && (
-            <section style={{ marginBottom:26 }}>
+            <section id="pdf-library" style={{ marginBottom:26, scrollMarginTop:24 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                 <h3 style={{ fontFamily:T.display, fontWeight:700, fontSize:16, color:"#fff" }}>Knowledge Library</h3>
                 <span style={{ fontFamily:T.mono, fontSize:12, color:T.textDim }}>{pdfs.length} doc{pdfs.length!==1?"s":""}</span>
@@ -1766,7 +1777,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
           )}
 
           {/* ── QUERY TABS ────────────────────────────────────── */}
-          <div style={{ display:"flex", gap:6, marginBottom:18 }}>
+          <div id="pdf-tools" style={{ display:"flex", gap:6, marginBottom:18, scrollMarginTop:24 }}>
             {[["ask","auto_awesome","Ask (RAG)"],["summarize","summarize","Summarize"],["search","travel_explore","Semantic Search"]].map(([t, icon, label]) => (
               <button key={t} onClick={() => setTab(t)} style={{
                 display:"flex", alignItems:"center", gap:7, padding:"9px 20px",
@@ -2026,6 +2037,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
         </div>
       </main>
 
+      <SideRail items={PDFLAB_RAIL} accentColor="#ffd60a" />
       <Toast msg={toast} onClose={() => setToast("")} />
     </div>
   );

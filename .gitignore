@@ -65,5 +65,11 @@ Thumbs.db
 
 package-lock.json
 
-# Claude Code skills (local only — never commit)
-.claude/skills/
+# Claude Code / local tooling & scratch files (never commit)
+.claude/
+POLYNOUS-FIX-PLAN.md
+POLYNOUS-INTELLIGENCE-ROADMAP.md
+claude-commits.txt
+file_structure.txt
+remove_claude.py
+structure.txt

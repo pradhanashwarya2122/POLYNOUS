@@ -1,5 +1,14 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
+import SideRail from "./react-bits/SideRail";
+
+const HELP_RAIL = [
+  { label: "Overview", id: "info-header" },
+  { label: "Free key", id: "info-free" },
+  { label: "One key", id: "info-onekey" },
+  { label: "Bring your own", id: "info-byok" },
+  { label: "Troubleshooting", id: "info-trouble" },
+];
 
 // ============================================================================
 // INFO / HELP PAGE - how to get an API key, claim a free starter key, and
@@ -117,10 +126,10 @@ const TROUBLESHOOTING = [
   { q: "Knowledge Graph is empty", a: "The graph fills in as you run research - each session adds nodes. A brand-new account starts empty; run a few queries first." },
 ];
 
-function Section({ icon, accent, title, subtitle, children, delay = 0 }) {
+function Section({ icon, accent, title, subtitle, children, delay = 0, id }) {
   return (
-    <div className="info-card" style={{ background: C.surface, border: `1px solid ${C.border}`, borderLeft: `3px solid ${accent}`,
-      borderRadius: 14, padding: "26px 30px", marginBottom: 20, animationDelay: `${delay}s` }}>
+    <div id={id} className="info-card" style={{ background: C.surface, border: `1px solid ${C.border}`, borderLeft: `3px solid ${accent}`,
+      borderRadius: 14, padding: "26px 30px", marginBottom: 20, animationDelay: `${delay}s`, scrollMarginTop: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: subtitle ? 6 : 18 }}>
         <Icon name={icon} style={{ fontSize: 22, color: accent }} />
         <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", color: C.primary, margin: 0 }}>{title}</h2>
@@ -151,7 +160,7 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
         padding: "48px 56px", maxWidth: 980, width: "100%" }}>
 
         {/* Header */}
-        <div className="info-card" style={{ marginBottom: 32 }}>
+        <div id="info-header" className="info-card" style={{ marginBottom: 32, scrollMarginTop: 24 }}>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: "0.22em",
             textTransform: "uppercase", color: C.purple, marginBottom: 12 }}>Help &amp; Getting Started</div>
           <h1 style={{ fontFamily: "'Sora',sans-serif", fontSize: 34, fontWeight: 800, letterSpacing: "-0.025em", color: C.primary, margin: "0 0 12px" }}>
@@ -165,13 +174,13 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
         </div>
 
         {/* Free starter key - claimed inline, no navigation */}
-        <Section icon="redeem" accent={C.green} title="Every new user gets one free API key" delay={0.03}
+        <Section id="info-free" icon="redeem" accent={C.green} title="Every new user gets one free API key" delay={0.03}
           subtitle="Just signed up? Claim a free starter key so you can try POLYNOUS immediately - no card, no provider account needed.">
           <FreeKeyClaim />
         </Section>
 
         {/* What each key is used for */}
-        <Section icon="help" accent={C.purple} title="You only need ONE API key — that's it" delay={0.05}
+        <Section id="info-onekey" icon="help" accent={C.purple} title="You only need ONE API key — that's it" delay={0.05}
           subtitle="One key, from any single provider below, powers everything — research, debates, and the knowledge graph. You don't need a separate key per feature. POLYNOUS never charges you; it runs on the one key you provide, so the cost and rate limits stay yours.">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {KEY_ROLES.map(r => (
@@ -188,7 +197,7 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
         </Section>
 
         {/* Where to get keys */}
-        <Section icon="vpn_key" accent={C.cyan} title="Or bring your own API key" delay={0.06}
+        <Section id="info-byok" icon="vpn_key" accent={C.cyan} title="Or bring your own API key" delay={0.06}
           subtitle="POLYNOUS supports several providers - pick any one. Groq and Google have the most generous free tiers if you're starting out. Paste your key in Settings → API Keys and hit Test.">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
             {PROVIDERS.map(p => (
@@ -209,7 +218,7 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
         </Section>
 
         {/* Troubleshooting */}
-        <Section icon="build" accent={C.amber} title="Troubleshooting" delay={0.09}
+        <Section id="info-trouble" icon="build" accent={C.amber} title="Troubleshooting" delay={0.09}
           subtitle="The two fixes that solve most issues: refresh the page, and log out then log back in.">
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {TROUBLESHOOTING.map((t, i) => (
@@ -242,6 +251,8 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
           Still stuck? Your keys are encrypted and never leave your account. Nothing you do here can break your data.
         </p>
       </main>
+
+      <SideRail items={HELP_RAIL} />
     </div>
   );
 }

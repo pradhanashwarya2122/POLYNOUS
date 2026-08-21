@@ -2,6 +2,17 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL, apiFetch } from '../config';
 import ScrapeCountControl from './ScrapeCountControl';
 import AnimatedList from './react-bits/AnimatedList';
+import SideRail from './react-bits/SideRail';
+
+const SETTINGS_RAIL = [
+  { label: "Profile", id: "set-profile" },
+  { label: "API Keys", id: "set-keys" },
+  { label: "Usage", id: "set-usage" },
+  { label: "Preferences", id: "set-preferences" },
+  { label: "Integrations", id: "set-integrations" },
+  { label: "Security", id: "set-security" },
+  { label: "Danger Zone", id: "set-danger" },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DESIGN TOKENS
@@ -2522,21 +2533,24 @@ export default function SettingsPage({ user, onNavigate, onLogout }) {
           <div style={{ height: 1, marginTop: 18, background: `linear-gradient(90deg, ${C.silverBorder}, transparent)` }} />
         </header>
 
-        <ProfileSection
-          user={user}
-          push={push}
-          activePersona={activePersona}
-          onPersonaChange={handlePersonaChange}
-        />
-        <ApiKeysSection                   push={push} />
-        <UsageSection                     push={push} />
-        <PreferencesSection               push={push} />
-        <IntegrationsSection              push={push} />
-        <SecuritySection                  push={push} />
+        <div id="set-profile" style={{ scrollMarginTop: 24 }}>
+          <ProfileSection
+            user={user}
+            push={push}
+            activePersona={activePersona}
+            onPersonaChange={handlePersonaChange}
+          />
+        </div>
+        <div id="set-keys"         style={{ scrollMarginTop: 24 }}><ApiKeysSection      push={push} /></div>
+        <div id="set-usage"        style={{ scrollMarginTop: 24 }}><UsageSection        push={push} /></div>
+        <div id="set-preferences"  style={{ scrollMarginTop: 24 }}><PreferencesSection  push={push} /></div>
+        <div id="set-integrations" style={{ scrollMarginTop: 24 }}><IntegrationsSection push={push} /></div>
+        <div id="set-security"     style={{ scrollMarginTop: 24 }}><SecuritySection     push={push} /></div>
         <AdminSection                     push={push} />
-        <DangerZone                       push={push} />
+        <div id="set-danger"       style={{ scrollMarginTop: 24 }}><DangerZone          push={push} /></div>
       </main>
 
+      <SideRail items={SETTINGS_RAIL} />
       <ToastBox toasts={toasts} />
     </div>
   );

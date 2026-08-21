@@ -1,0 +1,143 @@
+.line-sidebar {
+  --accent-color: #a855f7;
+  --text-color: #c4c4c4;
+  --marker-color: #6c6c6c;
+  --marker-length: 60px;
+  --marker-gap: 0px;
+  --tick-scale: 0.5;
+  --max-shift: 30px;
+  --item-gap: 20px;
+  --font-size: 1.1rem;
+  --smoothing: 100ms;
+
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.line-sidebar--markers {
+  padding-left: calc(var(--marker-length) + var(--marker-gap));
+}
+
+.line-sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--item-gap);
+}
+
+/* --effect (0..1) is driven per item by a rAF lerp in JS, so every derived
+   property below reads the same continuously-animating value and stays in
+   step, with no CSS transitions to stagger. */
+.line-sidebar__item {
+  position: relative;
+  cursor: pointer;
+}
+
+/* Widen the pointer target so items react a touch before the cursor arrives */
+.line-sidebar__item::before {
+  content: '';
+  position: absolute;
+  inset: -6px -48px;
+}
+
+.line-sidebar__label {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  font-size: var(--font-size);
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--accent-color) calc(var(--effect, 0) * 100%), var(--text-color));
+  transform: translateX(calc(var(--effect, 0) * var(--max-shift)));
+}
+
+.line-sidebar__index {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin-right: 0.6rem;
+  font-size: 0.85em;
+  opacity: calc(0.55 + var(--effect, 0) * 0.45);
+}
+
+.line-sidebar__marker {
+  position: absolute;
+  top: 50%;
+  left: calc(-1 * var(--marker-length) - var(--marker-gap));
+  height: 1px;
+  width: var(--marker-length);
+  background-color: color-mix(in srgb, var(--accent-color) calc(var(--effect, 0) * 100%), var(--marker-color));
+  transform-origin: left center;
+  transform: translateY(-50%) scaleX(calc(0.7 + var(--effect, 0) * 0.5));
+}
+
+/* Short static tick centered in the gap between two menu items */
+.line-sidebar--markers .line-sidebar__item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + var(--item-gap) / 2);
+  left: calc(-1 * var(--marker-length) - var(--marker-gap));
+  height: 1px;
+  width: calc(var(--marker-length) * var(--tick-scale));
+  background-color: var(--marker-color);
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+
+/* When enabled, the in-between ticks grow with cursor proximity too */
+.line-sidebar--scale-tick .line-sidebar__item:not(:last-child)::after {
+  transform-origin: left center;
+  transform: translateY(-50%) scaleX(calc(0.7 + var(--effect, 0) * 0.6));
+}
+
+/* ===========================================================================
+   SideRail — fixed, extreme-right, vertically-centred wrapper used across
+   POLYNOUS pages (research/debate reports, settings, PDF lab, help). Premium,
+   theme-blended, and out of the way. Hidden on narrower viewports so it never
+   collides with page content.
+   =========================================================================== */
+.side-rail {
+  position: fixed;
+  right: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 60;
+  pointer-events: none; /* only the labels themselves are interactive */
+}
+
+.side-rail .line-sidebar {
+  pointer-events: auto;
+}
+
+/* right-anchored: labels sit to the right, markers reach outward toward the edge */
+.side-rail .line-sidebar__list {
+  align-items: flex-end;
+  text-align: right;
+  padding: 0;
+}
+
+.side-rail .line-sidebar__label {
+  white-space: nowrap;
+}
+
+/* a whisper-thin eyebrow above the rail for a finished, deliberate look */
+.side-rail::before {
+  content: 'ON THIS PAGE';
+  position: absolute;
+  right: 2px;
+  top: -30px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  color: rgba(140, 158, 180, 0.4);
+  writing-mode: horizontal-tb;
+}
+
+@media (max-width: 1280px) {
+  .side-rail { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line-sidebar__label,
+  .line-sidebar__marker { transform: none !important; }
+}

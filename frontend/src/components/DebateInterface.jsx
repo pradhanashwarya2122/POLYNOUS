@@ -3,6 +3,15 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL, apiFetch } from '../config';
 import ScrapeCountControl from './ScrapeCountControl';
 import DebateEngine from './DebateEngine';
+import SideRail from './react-bits/SideRail';
+
+const DEBATE_RAIL = [
+  { label: "Proposition", id: "deb-topic" },
+  { label: "The cases", id: "deb-cases" },
+  { label: "Clash meter", id: "deb-clash" },
+  { label: "Verdict", id: "deb-verdict" },
+  { label: "Deep dive", id: "deb-followups" },
+];
 
 const C = {
   crimson: "#ff2040", green: "#00e64d", purple: "#a855f7", gold: "#ffd700",
@@ -1898,7 +1907,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                 <div style={{ animation: "fadeUp 0.5s ease both" }}>
 
                   {/* Topic banner */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", background: "rgba(168,85,247,0.04)", border: "1px solid rgba(168,85,247,0.18)", borderRadius: 14, marginBottom: 28, animation: "dropIn 0.4s ease both" }}>
+                  <div id="deb-topic" style={{ scrollMarginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", background: "rgba(168,85,247,0.04)", border: "1px solid rgba(168,85,247,0.18)", borderRadius: 14, marginBottom: 28, animation: "dropIn 0.4s ease both" }}>
                     <div>
                       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: C.purple, marginBottom: 5 }}>Proposition Under Review</div>
                       <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 600, color: "#e2e0fc", lineHeight: 1.4 }}>{activeTopic}</div>
@@ -1927,7 +1936,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                     onReframe={(alt) => fireDebate(`${activeTopic} — reframed through a ${alt} lens`)} />
 
                   {/* Two-column podiums */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 64px 1fr", gap: 18, alignItems: "start", marginBottom: 28 }}>
+                  <div id="deb-cases" style={{ scrollMarginTop: 20, display: "grid", gridTemplateColumns: "1fr 64px 1fr", gap: 18, alignItems: "start", marginBottom: 28 }}>
 
                     {/* FOR column */}
                     <div style={{ background: "rgba(0,230,77,0.015)", border: "1px solid rgba(0,230,77,0.14)", borderRadius: 18, overflow: "hidden", animation: "fadeLeft 0.5s 0.1s ease both" }}>
@@ -1969,7 +1978,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                   </div>
 
                   {/* Score comparison */}
-                  <div style={{ background: "rgba(10,10,30,0.55)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 16, padding: "20px 26px", marginBottom: 24, animation: "dropIn 0.4s 0.2s ease both" }}>
+                  <div id="deb-clash" style={{ scrollMarginTop: 20, background: "rgba(10,10,30,0.55)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 16, padding: "20px 26px", marginBottom: 24, animation: "dropIn 0.4s 0.2s ease both" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
                       <Icon name="sports_kabaddi" style={{ fontSize: 16, color: C.purple }} />
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: C.textSecondary }}>Clash Meter</span>
@@ -1982,7 +1991,7 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
                   </div>
 
                   {/* Verdict panel */}
-                  <div style={{ background: "rgba(10,10,30,0.75)", border: `1px solid ${winColor}28`, borderRadius: 20, padding: "32px 36px", marginBottom: 28, textAlign: "center", animation: "dropIn 0.5s 0.3s ease both" }}>
+                  <div id="deb-verdict" style={{ scrollMarginTop: 20, background: "rgba(10,10,30,0.75)", border: `1px solid ${winColor}28`, borderRadius: 20, padding: "32px 36px", marginBottom: 28, textAlign: "center", animation: "dropIn 0.5s 0.3s ease both" }}>
                     <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
                       <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg, #ffe566, #ffd700)", display: "flex", alignItems: "center", justifyContent: "center", animation: "none" }}>
                         <Icon name="balance" style={{ fontSize: 26, color: "#7a5800" }} />
@@ -2035,8 +2044,10 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
 
                   {/* Tribunal report sections: minority report, track record +
                       vote, analytics, sources cited, follow-ups, case file */}
-                  <DebateFollowups query={activeTopic} result={result}
-                    onVerdict={(v) => setResult((r) => ({ ...r, verdict: { ...(r?.verdict || {}), ...v } }))} />
+                  <div id="deb-followups" style={{ scrollMarginTop: 20 }}>
+                    <DebateFollowups query={activeTopic} result={result}
+                      onVerdict={(v) => setResult((r) => ({ ...r, verdict: { ...(r?.verdict || {}), ...v } }))} />
+                  </div>
                   <DebateExtras result={result} activeTopic={activeTopic} onNewDebate={(q) => { setTopic(q); fireDebate(q); }} />
 
                   {/* Action row */}
@@ -2062,6 +2073,8 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
           </div>
         </div>
       </main>
+
+      {result && <SideRail items={DEBATE_RAIL} accentColor="#ff2040" getContainer={() => scrollRef.current} />}
     </div>
   );
 }
