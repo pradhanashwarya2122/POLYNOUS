@@ -13,7 +13,44 @@
 // No props → built-in demo data (used by /report-preview and admin preview).
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
+import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { API_BASE_URL as APP_API_BASE, getAuthToken } from "../config";
+
+/* ---------- recharts confidence-over-time chart (in Polynous colours) ---------- */
+const RP_ACC = "#3ef07f";
+function ConfTip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  const p = payload.find((x) => x.dataKey === "conf") || payload[0];
+  return (
+    <div style={{ background: "#0e1434", border: "1px solid rgba(0,255,71,0.28)", borderRadius: 10, padding: "10px 14px", boxShadow: "0 18px 40px -20px rgba(0,0,10,0.9)", fontFamily: "'JetBrains Mono', monospace" }}>
+      <div style={{ color: "#6c7a97", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ color: "#f2f6fb", fontSize: 16, fontWeight: 600 }}>{p.value}% <span style={{ color: RP_ACC, fontSize: 11 }}>confidence</span></div>
+      {p.payload && p.payload.title ? <div style={{ color: "#c3d2e6", fontSize: 11.5, marginTop: 5, fontFamily: "'Hanken Grotesk', sans-serif", maxWidth: 190, lineHeight: 1.4 }}>{p.payload.title}</div> : null}
+    </div>
+  );
+}
+function ConfidenceChart({ data }) {
+  const rows = (data || []).map((e) => ({ year: e.year, conf: e.conf, title: e.title }));
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={rows} margin={{ top: 14, right: 16, left: -6, bottom: 4 }}>
+        <defs>
+          <linearGradient id="rpConfGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={RP_ACC} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={RP_ACC} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 5" stroke="rgba(200,216,234,0.08)" horizontal vertical={false} />
+        <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#6c7a97", fontFamily: "'JetBrains Mono', monospace" }} dy={6} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#6c7a97", fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={(v) => v + "%"} domain={[0, 100]} width={46} />
+        <Tooltip content={<ConfTip />} cursor={{ stroke: "rgba(0,255,71,0.32)", strokeWidth: 1, strokeDasharray: "4 4" }} />
+        <Area type="monotone" dataKey="conf" stroke="transparent" fill="url(#rpConfGrad)" />
+        <Line type="monotone" dataKey="conf" stroke={RP_ACC} strokeWidth={2.5} dot={{ fill: "#0a0a1e", stroke: RP_ACC, strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: RP_ACC, stroke: "#0a0a1e", strokeWidth: 2 }} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
 
 /* ---------- helpers ---------- */
 const pick = (...v) => { for (const x of v) if (x !== undefined && x !== null && x !== "") return x; return undefined; };
@@ -263,14 +300,6 @@ function sTrajectory(d) {
 }
 
 function sProvenance(d) {
-  const W = 680, H = 128, n = d.timeline.length, pad = 30;
-  const x = (i) => pad + i * ((W - pad * 2) / (n - 1));
-  const y = (c) => 118 - (c / 100) * 96;
-  const pts = d.timeline.map((e, i) => [x(i), y(e.conf)]);
-  const path = "M " + pts.map((p) => `${p[0].toFixed(0)} ${p[1].toFixed(0)}`).join(" L ");
-  const area = path + ` L ${x(n - 1).toFixed(0)} 118 L ${x(0).toFixed(0)} 118 Z`;
-  const grid = [25, 50, 75, 100].map((g) => `<line class="rp-tlgrid" x1="${pad}" x2="${W - pad}" y1="${y(g).toFixed(0)}" y2="${y(g).toFixed(0)}"/>`).join("");
-  const dots = d.timeline.map((e, i) => `<circle class="rp-tldot" cx="${x(i).toFixed(0)}" cy="${y(e.conf).toFixed(0)}" r="3.5"/>`).join("");
   const miles = d.timeline.map((e) => `<div class="rp-tlmile"><span class="rp-tlyear">${e.year}</span><span class="rp-tltitle">${esc(e.title)}</span><span class="rp-tlconf">${e.conf}%</span></div>`).join("");
   const t = d.telemetry;
   const tel = [["Tokens", t.tokens ? t.tokens.toLocaleString() : "—"], ["Est. cost", t.cost ? "$" + t.cost.toFixed(4) : "—"], ["Steps", t.steps.length || d.provenance.length], ["Model", esc(d.model)]];
@@ -281,7 +310,7 @@ function sProvenance(d) {
   return `<section class="rp-sec rp-rev">${eye("10", "Provenance")}
     <div class="rp-pipe">${pipe}</div>
     <div class="rp-subh" style="margin-top:34px">Confidence of the field over time</div>
-    <svg class="rp-tl" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="rpTlg" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#3ef07f" stop-opacity="0.24"/><stop offset="100%" stop-color="#3ef07f" stop-opacity="0"/></linearGradient></defs>${grid}<path class="rp-tlarea" d="${area}" fill="url(#rpTlg)"/><path class="rp-tlline" d="${path}"/>${dots}</svg>
+    <div id="rp-confchart" class="rp-chart-mount"></div>
     <div class="rp-tlmiles">${miles}</div>
     <div class="rp-provgrid">
       <div><div class="rp-subh">Run telemetry</div><div class="rp-tels">${telCells}</div><div class="rp-tools">${d.tools.map((t) => `<span class="rp-chip">${esc(t)}</span>`).join("")}</div></div>
@@ -523,6 +552,9 @@ const RP_CSS = `
 .rp-step { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx); }
 .rp-steprule { flex: 1; min-width: 14px; height: 1px; background: var(--line); }
 .rp-tl { width: 100%; height: 160px; margin-top: 10px; }
+.rp-chart-mount { width: 100%; height: 300px; margin-top: 12px; }
+.rp-chart-mount .recharts-surface { overflow: visible; }
+.rp-chart-mount svg { outline: none; }
 .rp-tlgrid { stroke: rgba(200,216,234,0.07); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .rp-tlline { fill: none; stroke: #3ef07f; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 6px rgba(0,255,71,0.45)); }
 .rp-tldot { fill: #3ef07f; }
@@ -665,6 +697,7 @@ function initReveal(root) {
 /* ---------- component ---------- */
 export default function PolynousReport(props) {
   const ref = useRef(null);
+  const chartStore = useRef({ root: null, node: null });
   const d = deriveReport(props);
   const html = buildReport(d);
   if (typeof window !== "undefined") window.__rpCtx = { answer: d.chatAnswer, sources: d.sourceSummaries };
@@ -672,6 +705,21 @@ export default function PolynousReport(props) {
   useEffect(() => {
     const t = setTimeout(() => runCounters(ref.current), 500);
     const el = ref.current;
+    // Render the recharts confidence chart into the report's island node via a
+    // dedicated React root. The node is keyed so StrictMode/HMR re-runs reuse the
+    // existing root (no double createRoot); when the report HTML is rebuilt the
+    // node changes and the stale root is retired.
+    const mount = el ? el.querySelector("#rp-confchart") : null;
+    if (mount) {
+      const store = chartStore.current;
+      if (store.node !== mount) {
+        if (store.root) { const old = store.root; setTimeout(() => { try { old.unmount(); } catch (e) {} }, 0); }
+        store.node = mount;
+        store.root = mount.__rpRoot || createRoot(mount);
+        mount.__rpRoot = store.root;
+      }
+      store.root.render(<ConfidenceChart data={d.timeline} />);
+    }
     const onScroll = () => {
       if (!el) return;
       const bar = el.querySelector("#rp-prog");

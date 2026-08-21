@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,6 +12,21 @@
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+}
+
+/* ========== BRICOLAGE GROTESQUE — headings/subheadings across Polynous (except homepage brand) ========== */
+/* Apply Bricolage to every heading app-wide. Homepage brand headers (.polynous-header /
+   .polynous-subheader, Lemons) are explicitly excluded so the landing page keeps its identity.
+   !important is used so it wins over React inline fontFamily styles. */
+h1:not(.polynous-header):not(.polynous-subheader),
+h2:not(.polynous-header):not(.polynous-subheader),
+h3:not(.polynous-header):not(.polynous-subheader),
+h4:not(.polynous-header):not(.polynous-subheader),
+h5:not(.polynous-header):not(.polynous-subheader),
+h6:not(.polynous-header):not(.polynous-subheader),
+.pn-subhead {
+  font-family: 'Bricolage Grotesque', 'Sora', sans-serif !important;
+  letter-spacing: -0.01em;
 }
 
 /* Global header style using Lemons font */
