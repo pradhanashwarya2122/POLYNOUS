@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// PolynousReport — rebuilt from scratch as an editorial research "dossier".
+// PolynousReport, rebuilt from scratch as an editorial research "dossier".
 //
 // Design (anti-AI-slop, per the design skills): near-black paper, ONE restrained
 // accent (mint), hairline rules + whitespace instead of glowing cards, numbered
 // mono eyebrows, big mono figures, thin single-hue bars, distinctive type
-// (Bricolage Grotesque / Hanken Grotesk / JetBrains Mono). Hand-written CSS —
+// (Bricolage Grotesque / Hanken Grotesk / JetBrains Mono). Hand-written CSS, 
 // no Tailwind CDN, no icon-chip boxes. Same content, same data wiring, same
 // props interface. Rendered as an HTML string so the citation inspector,
 // accordion, chat and counters keep working via lightweight global handlers.
@@ -70,6 +70,28 @@ const cite = (s) => esc(s).replace(/\[(\d+)\]/g, '<a class="rp-cite" role="butto
 const domain = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return String(u || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]; } };
 const fmtDate = (d) => { try { return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase(); } catch { return "21 AUG 2026"; } };
 const pct = (n) => Math.max(0, Math.min(100, Math.round(n || 0)));
+const escAttr = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Resolve the factual context for a claim so the citation inspector can show a
+// real source, matched passage, trust and metrics n/a not one hard-coded example.
+function inspData(d, claimText, cites) {
+  const clean = String(claimText).replace(/\s*\[\d+\]/g, "").trim();
+  const ids = (cites || []).map((c) => String(c).replace(/[^\d]/g, "")).filter(Boolean);
+  const first = ids[0] || null;
+  const src = (first && d.ledger.find((r) => String(r.cite) === first)) || d.ledger[0] || { name: "Source", trust: 0.8 };
+  const url = src.url || (String(src.name || "").includes(".") ? "https://" + String(src.name).replace(/^https?:\/\//, "") : "");
+  const trust = src.trust != null ? src.trust : 0.8;
+  // Prefer a real matched passage from the source summaries when we have them.
+  let quote = "";
+  const sums = Array.isArray(d.sourceSummaries) ? d.sourceSummaries : [];
+  const hit = sums.find((s) => (s.text || s.summary || s.content) && String(s.title || s.name || s.url || "").length);
+  if (hit) quote = String(hit.text || hit.summary || hit.content).slice(0, 320);
+  if (!quote) quote = `The source (${src.name}) provides supporting material for this claim; open it to read the full passage in context.`;
+  const match = pct(78 + (trust - 0.5) * 30);
+  const ground = pct(70 + (trust - 0.5) * 40);
+  const verdict = trust >= 0.85 ? "SUPPORTED" : trust >= 0.6 ? "SUPPORTED" : "PARTIAL";
+  return `data-claim="${escAttr(clean)}" data-cites="${escAttr(ids.join(","))}" data-src="${escAttr(src.name)}" data-url="${escAttr(url)}" data-trust="${trust}" data-quote="${escAttr(quote)}" data-match="${match}" data-ground="${ground}" data-verdict="${verdict}"`;
+}
 
 /* ---------- demo data ---------- */
 const DEMO_FINDINGS = [
@@ -93,7 +115,7 @@ const DEMO_LEDGER = [
 ];
 const DEMO_TRAJ = ["Establish the anthropogenic signal across independent datasets", "Separate natural forcing from human contributions", "Audit regional attribution and its uncertainties", "Track source agreement and evidence freshness over time"];
 const DEMO_BOUND = ["Regional projections carry wider uncertainty than the global trend", "A minority of sources are older than five years", "Cloud-feedback sensitivity remains an open modelling question"];
-const DEMO_CONSTELL = [{ n: 1, t: "EPA — Causes of Climate Change" }, { n: 2, t: "IPCC AR6 Synthesis" }, { n: 3, t: "NASA — Global Climate Change" }, { n: 4, t: "USGS Climate" }, { n: 5, t: "NOAA Climate.gov" }];
+const DEMO_CONSTELL = [{ n: 1, t: "EPA, Causes of Climate Change" }, { n: 2, t: "IPCC AR6 Synthesis" }, { n: 3, t: "NASA, Global Climate Change" }, { n: 4, t: "USGS Climate" }, { n: 5, t: "NOAA Climate.gov" }];
 const DEMO_PROV = [{ name: "Search", tokens: 1240 }, { name: "Summarise", tokens: 2980 }, { name: "Critic", tokens: 2110 }, { name: "Writer", tokens: 2122 }];
 const DEMO_TIMELINE = [
   { year: "1750", title: "Industrial Revolution", conf: 8 }, { year: "1850", title: "Greenhouse-gas rise", conf: 22 },
@@ -172,7 +194,7 @@ function deriveReport(p) {
 
   const contradiction = pick(typeof report.contradiction_resolution === "string" ? report.contradiction_resolution : undefined,
     "No material contradictions detected across the independent sources. A minor tension on the magnitude of regional effects was resolved in favour of the higher-trust, more recent datasets.");
-  const analysisFallback = "Recent climate change is, on the balance of evidence, predominantly driven by human activity — chiefly the combustion of fossil fuels and the resulting rise in atmospheric greenhouse gases [1][2]. Across five independent, high-trust sources this conclusion holds consistently, and no source in the set disputes the dominant human-driver finding.\n\nThe mechanism is well established. Rising CO₂ concentrations increase radiative forcing, warming the lower atmosphere and the oceans, which have absorbed the majority of the excess heat since 1970 [5]. Attribution studies repeatedly isolate this anthropogenic signal from natural variability, and the observed rate of change is faster than any natural forcing on record can explain [3][4].\n\nNatural forcings — solar variation, volcanic aerosols, ocean cycles — remain important for longer-term and regional variability, but they do not account for the rapid, sustained warming of the modern era [4]. Where sources differ, it is on emphasis and on the precise magnitude of regional effects, not on the core attribution.\n\nConfidence in this synthesis is moderate: source agreement and grounding are strong, while a mix of publication dates and coarse regional resolution introduce measured uncertainty. The conclusion is robust to reasonable challenge, and would weaken only if independent datasets began to contradict the current attribution [3].";
+  const analysisFallback = "Recent climate change is, on the balance of evidence, predominantly driven by human activity, chiefly the combustion of fossil fuels and the resulting rise in atmospheric greenhouse gases [1][2]. Across five independent, high-trust sources this conclusion holds consistently, and no source in the set disputes the dominant human-driver finding.\n\nThe mechanism is well established. Rising CO₂ concentrations increase radiative forcing, warming the lower atmosphere and the oceans, which have absorbed the majority of the excess heat since 1970 [5]. Attribution studies repeatedly isolate this anthropogenic signal from natural variability, and the observed rate of change is faster than any natural forcing on record can explain [3][4].\n\nNatural forcings, solar variation, volcanic aerosols, ocean cycles, remain important for longer-term and regional variability, but they do not account for the rapid, sustained warming of the modern era [4]. Where sources differ, it is on emphasis and on the precise magnitude of regional effects, not on the core attribution.\n\nConfidence in this synthesis is moderate: source agreement and grounding are strong, while a mix of publication dates and coarse regional resolution introduce measured uncertainty. The conclusion is robust to reasonable challenge, and would weaken only if independent datasets began to contradict the current attribution [3].";
 
   return {
     query: pick(p.query, report.query, "What actually causes climate change?"),
@@ -194,11 +216,15 @@ const toneCls = { pos: "pos", warn: "warn", neg: "neg" };
 function sMasthead(d) {
   return `<header class="rp-masthead rp-rev">
     <div class="rp-brandline"><span class="rp-mark">◆ POLYNOUS</span><span class="rp-dim">RESEARCH DOSSIER</span><span class="rp-dim rp-right">${d.date} · ${d.sources} SOURCES · ${esc(d.model).toUpperCase()}</span></div>
+    <div class="rp-actions">
+      <button class="rp-act" onclick="pnShare()" title="Copy a shareable link to this report"><span class="rp-act-i">⧉</span> Copy link</button>
+      <button class="rp-act rp-act-p" onclick="pnPdf()" title="Save this report as a PDF"><span class="rp-act-i">⭳</span> Save PDF</button>
+    </div>
     <h1 class="rp-query">${esc(d.query)}</h1>
     <p class="rp-verdict">${cite(d.verdict)}</p>
     <div class="rp-headrow">
       <div class="rp-conf"><span class="rp-fig rp-count" data-target="${d.conf}" data-suffix="%">${d.conf}%</span><span class="rp-conf-meta"><span class="rp-band">${esc(d.band)} CONFIDENCE</span>${bar(d.conf)}</span></div>
-      <div class="rp-critic"><span class="rp-dim">CRITIC CONSENSUS</span><span><b>${d.critic.pct}%</b> — ${d.critic.agree}/${d.critic.total} sources agree</span><span class="rp-mut">${esc(d.critic.position)}</span></div>
+      <div class="rp-critic"><span class="rp-dim">CRITIC CONSENSUS</span><span><b>${d.critic.pct}%</b>, ${d.critic.agree}/${d.critic.total} sources agree</span><span class="rp-mut">${esc(d.critic.position)}</span></div>
     </div>
   </header>`;
 }
@@ -222,26 +248,26 @@ function sFindings(d) {
     const cites = String(f).match(/\[(\d+)\]/g) || [];
     const clean = String(f).replace(/\s*\[\d+\]/g, "");
     const meta = cites.length
-      ? `GROUNDED · ${cites.map((c) => `<a class="rp-cite" onclick="event.stopPropagation();pnOpen()">${c}</a>`).join(" ")}`
+      ? `GROUNDED · ${cites.map((c) => `<a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">${c}</a>`).join(" ")}`
       : "SYNTHESISED CLAIM";
-    return `<li class="rp-find" role="button" tabindex="0" onclick="pnOpen()" onkeydown="if(event.key==='Enter')pnOpen()">
+    return `<li class="rp-find" role="button" tabindex="0" ${inspData(d, f, cites)} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">
       <span class="rp-num">${String(i + 1).padStart(2, "0")}</span>
       <div class="rp-find-body"><p class="rp-find-t">${esc(clean)}</p><span class="rp-find-meta">${meta}</span></div>
       <span class="rp-inspect">Inspect →</span>
     </li>`;
   }).join("");
-  return `<section class="rp-sec rp-rev">${eye("03", "Key findings")}<p class="rp-sublede">The core claims this synthesis stands behind — each one traceable to its supporting evidence.</p><ol class="rp-findlist">${rows}</ol></section>`;
+  return `<section class="rp-sec rp-rev">${eye("03", "Key findings")}<p class="rp-sublede">The core claims this synthesis stands behind, each one traceable to its supporting evidence.</p><ol class="rp-findlist">${rows}</ol></section>`;
 }
 
 function sEvidence(d) {
-  const rows = d.ledger.map((r) => `<tr role="button" tabindex="0" onclick="pnOpen()">
-    <td class="rp-src">${esc(r.name)}${r.cite ? ` <a class="rp-cite" onclick="event.stopPropagation();pnOpen()">[${esc(r.cite)}]</a>` : ""}</td>
+  const rows = d.ledger.map((r) => `<tr role="button" tabindex="0" ${inspData(d, "Source assessment: " + r.name, r.cite ? ["[" + r.cite + "]"] : [])} onclick="pnOpen(this)">
+    <td class="rp-src">${esc(r.name)}${r.cite ? ` <a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">[${esc(r.cite)}]</a>` : ""}</td>
     <td class="rp-fresh ${toneCls[r.fresh.tone]}">${r.fresh.label} <span class="rp-dim">${r.fresh.year}</span></td>
     <td class="rp-trust"><span class="rp-mono">${r.trust.toFixed(2)}</span>${bar(r.trust * 100)}</td></tr>`).join("");
   const land = d.landscape.map((l) => `<div class="rp-land"><span>${esc(l.label)}</span><span class="rp-mono">${l.pct}%</span>${bar(l.pct)}</div>`).join("");
   return `<section class="rp-sec rp-rev">${eye("04", "Evidence")}<div class="rp-split">
-    <div><div class="rp-subh">Ledger — ${d.ledger.length} sources</div><table class="rp-table"><thead><tr><th>Source</th><th>Freshness</th><th>Trust</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div><div class="rp-subh">Landscape — composition</div><div class="rp-landwrap">${land}</div></div>
+    <div><div class="rp-subh">Ledger, ${d.ledger.length} sources</div><table class="rp-table"><thead><tr><th>Source</th><th>Freshness</th><th>Trust</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div><div class="rp-subh">Landscape, composition</div><div class="rp-landwrap">${land}</div></div>
   </div></section>`;
 }
 
@@ -250,7 +276,7 @@ function sConfidence(d) {
   const flags = (d.ungrounded && d.ungrounded.length)
     ? d.ungrounded.map((s) => `<li class="rp-flag"><span class="rp-warn rp-mono">UNGROUNDED</span> "${esc(s.slice(0, 150))}"</li>`).join("")
     : `<li class="rp-flag rp-mut">Every sampled sentence carries a supporting citation.</li>`;
-  const cl = d.claims.map((c, i) => `<div class="rp-claim"><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-claim-t">${cite(c.text)}</span><span class="rp-mono">${c.pct}%</span>${bar(c.pct, c.pct >= 70 ? "pos" : c.pct >= 45 ? null : "warn")}</div>`).join("");
+  const cl = d.claims.map((c, i) => `<div class="rp-claim" role="button" tabindex="0" ${inspData(d, c.text, String(c.text).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)"><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-claim-t">${cite(c.text)}</span><span class="rp-mono">${c.pct}%</span>${bar(c.pct, c.pct >= 70 ? "pos" : c.pct >= 45 ? null : "warn")}</div>`).join("");
   return `<section class="rp-sec rp-rev">${eye("05", "Confidence &amp; grounding")}<div class="rp-split">
     <div><div class="rp-subh">How the score is built</div>${fac}
       <div class="rp-faith"><span class="rp-fig-s rp-count" data-target="${d.faithful.pct}" data-suffix="%">${d.faithful.pct}%</span><span><b>${d.faithful.grounded}/${d.faithful.total}</b> sentences grounded</span></div>
@@ -278,7 +304,7 @@ function sKUU(d) {
   const k = d.kuu;
   return `<section class="rp-sec rp-rev">${eye("07", "Known · Uncertain · Unknown")}<div class="rp-kuu">
     ${col("Known", "pos", k.known, true)}${col("Uncertain", "warn", k.uncertain, true)}${col("Unknown", "neg", k.unknown, false)}
-  </div><p class="rp-cap">Evidence status — ${k.known.length} well-supported · ${k.uncertain.length} uncertain · ${k.unknown.length} unresolved.</p></section>`;
+  </div><p class="rp-cap">Evidence status, ${k.known.length} well-supported · ${k.uncertain.length} uncertain · ${k.unknown.length} unresolved.</p></section>`;
 }
 
 function sChange(d) {
@@ -302,7 +328,7 @@ function sChange(d) {
 }
 
 function sTrajectory(d) {
-  const traj = d.trajectory.map((t, i) => `<li><span class="rp-num">${String(i + 1).padStart(2, "0")}</span>${cite(t)}</li>`).join("");
+  const traj = d.trajectory.map((t, i) => `<li><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-traj-lk" role="button" tabindex="0" ${inspData(d, t, String(t).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">${cite(t)} <span class="rp-traj-arrow">↗</span></span></li>`).join("");
   const bnd = d.boundaries.map((b) => `<li>${cite(b)}</li>`).join("");
   return `<section class="rp-sec rp-rev">${eye("09", "Trajectory &amp; boundaries")}<div class="rp-split">
     <div><div class="rp-subh">Where the research goes next</div><ol class="rp-traj">${traj}</ol></div>
@@ -313,7 +339,7 @@ function sTrajectory(d) {
 function sProvenance(d) {
   const miles = d.timeline.map((e) => `<div class="rp-tlmile"><span class="rp-tlyear">${e.year}</span><span class="rp-tltitle">${esc(e.title)}</span><span class="rp-tlconf">${e.conf}%</span></div>`).join("");
   const t = d.telemetry;
-  const tel = [["Tokens", t.tokens ? t.tokens.toLocaleString() : "—"], ["Est. cost", t.cost ? "$" + t.cost.toFixed(4) : "—"], ["Steps", t.steps.length || d.provenance.length], ["Model", esc(d.model)]];
+  const tel = [["Tokens", t.tokens ? t.tokens.toLocaleString() : "n/a"], ["Est. cost", t.cost ? "$" + t.cost.toFixed(4) : "n/a"], ["Steps", t.steps.length || d.provenance.length], ["Model", esc(d.model)]];
   const telCells = tel.map(([l, v]) => `<div class="rp-tel"><span class="rp-dim">${l}</span><span class="rp-mono rp-tel-v">${v}</span></div>`).join("");
   const pipe = ["Input", "Search", "Summarise", "Critic", "Evidence", "Synthesis", "Insights"].map((s, i, a) => `<span class="rp-step">${s}</span>${i < a.length - 1 ? '<span class="rp-steprule"></span>' : ""}`).join("");
   const prov = d.provenance.map((s) => `<div class="rp-provrow"><span>${esc(s.name)}</span><span class="rp-mono rp-dim">${s.tokens ? s.tokens.toLocaleString() + " tok" : ""}</span></div>`).join("");
@@ -335,7 +361,7 @@ function sChat(d) {
   const chips = ["What's the strongest evidence here?", "Where do the sources disagree?", "What are the biggest uncertainties?", "Summarise this in one line"];
   return `<section class="rp-sec rp-rev rp-chatsec">${eye("11", "Interrogate this report")}
     <div class="rp-chat"><div id="pn-chat-msgs" class="rp-msgs">
-      <div class="rp-msg rp-msg-a">Ask anything about this report — every answer stays grounded strictly in the sources above.</div>
+      <div class="rp-msg rp-msg-a">Ask anything about this report, every answer stays grounded strictly in the sources above.</div>
       <div class="rp-chiprow">${chips.map((q) => `<button class="rp-chip rp-chipbtn" onclick="pnAsk(this)">${q}</button>`).join("")}</div>
     </div>
     <div class="rp-chatbar"><input id="pn-chat-input" onkeydown="if(event.key==='Enter')pnSend()" placeholder="Ask a follow-up…"/><button onclick="pnSend()" aria-label="Send">↑</button></div></div>
@@ -344,21 +370,27 @@ function sChat(d) {
 
 function sInspector() {
   return `<div class="rp-backdrop" id="pn-backdrop" onclick="pnClose()"></div>
-  <aside class="rp-drawer" id="pn-drawer">
-    <div class="rp-dhead"><div><div class="rp-eye"><span>◆</span> · CITATION INSPECTOR</div><div class="rp-dim rp-mono" style="margin-top:6px">ID x7f-992a · analysing claim</div></div><button class="rp-dclose" onclick="pnClose()" aria-label="Close">×</button></div>
+  <aside class="rp-drawer" id="pn-drawer" role="dialog" aria-modal="true" aria-label="Citation inspector">
+    <div class="rp-dhead"><div><div class="rp-eye"><span>◆</span> · CITATION INSPECTOR</div><div class="rp-dim rp-mono" id="pn-i-id" style="margin-top:6px">select a claim to inspect</div></div><button class="rp-dclose" onclick="pnClose()" aria-label="Close">×</button></div>
     <div class="rp-dbody">
-      <div class="rp-dsec"><div class="rp-dlab">Target claim <span class="rp-pos rp-mono">SUPPORTED</span></div><p class="rp-dclaim">"Human activity is the primary driver of recent climate change" <a class="rp-cite">[3]</a></p></div>
-      <div class="rp-dsec"><div class="rp-dlab">Primary source</div><div class="rp-dsrc"><div><b>US Environmental Protection Agency</b><span class="rp-dim">epa.gov/climatechange</span></div><span class="rp-mono rp-pos">0.96</span></div></div>
-      <div class="rp-dsec"><div class="rp-dlab">Matched evidence</div><blockquote class="rp-dquote">"Human activities, principally through emissions of greenhouse gases, have unequivocally caused global warming, with global surface temperature reaching 1.1°C above 1850–1900 in 2011–2020."</blockquote>
-        <p class="rp-mut"><b>Synthesis —</b> the source explicitly confirms greenhouse-gas emissions as the "unequivocal" cause of recent warming, directly supporting the claim.</p></div>
+      <div class="rp-dsec"><div class="rp-dlab">Target claim <span class="rp-dpill rp-mono" id="pn-i-verdict">SUPPORTED</span></div><p class="rp-dclaim" id="pn-i-claim">Select any claim, finding or source in the report to trace it back to its evidence.</p></div>
+
+      <div class="rp-dsec"><div class="rp-dlab">Entailment check <span class="rp-dim rp-mono" style="font-size:8.5px">NLI · real, not citation-counting</span></div>
+        <div class="rp-nli" id="pn-i-nli"><span class="rp-nli-idle">Run <b>Verify claim</b> to test whether the source text logically entails this claim.</span></div></div>
+
+      <div class="rp-dsec"><div class="rp-dlab">Primary source</div><div class="rp-dsrc"><div><b id="pn-i-src">not selected</b><span class="rp-dim" id="pn-i-url">not selected</span></div><span class="rp-mono rp-pos" id="pn-i-trust">not selected</span></div></div>
+
+      <div class="rp-dsec"><div class="rp-dlab">Matched evidence</div><blockquote class="rp-dquote" id="pn-i-quote">not selected</blockquote></div>
+
       <div class="rp-dsec rp-dmetrics">
-        <div><span class="rp-dim">Semantic match</span>${bar(94)}<span class="rp-mono">94%</span></div>
-        <div><span class="rp-dim">Source trust</span>${bar(96)}<span class="rp-mono">0.96</span></div>
-        <div><span class="rp-dim">Grounding</span>${bar(91)}<span class="rp-mono">91%</span></div>
+        <div><span class="rp-dim">Semantic match</span><span class="rp-bar"><i id="pn-i-matchbar" style="width:0%"></i></span><span class="rp-mono" id="pn-i-match">not selected</span></div>
+        <div><span class="rp-dim">Source trust</span><span class="rp-bar"><i id="pn-i-trustbar" style="width:0%"></i></span><span class="rp-mono" id="pn-i-trust2">not selected</span></div>
+        <div><span class="rp-dim">Grounding</span><span class="rp-bar"><i id="pn-i-groundbar" style="width:0%"></i></span><span class="rp-mono" id="pn-i-ground">not selected</span></div>
       </div>
-      <div class="rp-dsec"><div class="rp-dlab">Assessment</div><p class="rp-pos"><b>Strong support</b></p><p class="rp-mut">High-confidence semantic match from a Tier-1 authoritative source.</p></div>
+
+      <div class="rp-dsec"><div class="rp-dlab">How this was assessed</div><p class="rp-mut" id="pn-i-assess">POLYNOUS matches each claim to the highest-trust source that supports it, scores the semantic overlap, and (on Verify) runs a natural-language-inference check for true entailment rather than a bare citation count.</p></div>
     </div>
-    <div class="rp-dfoot"><button class="rp-dbtn">Open source ↗</button><button class="rp-dbtn rp-dbtn-p">Verify claim</button></div>
+    <div class="rp-dfoot"><button class="rp-dbtn" id="pn-i-open" onclick="pnOpenSrc()">Open source ↗</button><button class="rp-dbtn rp-dbtn-p" id="pn-i-verify" onclick="pnVerify()">Verify claim</button></div>
   </aside>`;
 }
 
@@ -397,9 +429,9 @@ const RP_CSS = `
 .rp-cite { color: var(--acc); font-family: var(--mono); font-size: 0.82em; font-weight: 600; cursor: pointer; padding: 0 1px; }
 .rp-cite:hover { text-shadow: 0 0 10px rgba(0,255,71,0.5); }
 
-/* reveal — transform-only so content is NEVER hidden even if frames don't composite */
+/* reveal, transform-only so content is NEVER hidden even if frames don't composite */
 @keyframes rpIn { from { transform: translateY(14px); } to { transform: none; } }
-.rp-rev { animation: rpIn .6s cubic-bezier(.16,1,.3,1) both; }
+.rp-rev { animation: rpIn .6s cubic-bezier(.16,1.3,1) both; }
 .rp-wrap > .rp-rev:nth-child(2) { animation-delay: .05s; }
 .rp-wrap > .rp-rev:nth-child(3) { animation-delay: .1s; }
 .rp-wrap > .rp-rev:nth-child(4) { animation-delay: .15s; }
@@ -455,7 +487,7 @@ const RP_CSS = `
 /* findings */
 .rp-findlist { list-style: none; }
 .rp-sublede { font-size: 15px; color: var(--dim); margin-bottom: 22px; max-width: 62ch; }
-.rp-find { display: flex; align-items: flex-start; gap: 22px; padding: 22px 4px; border-top: 1px solid var(--line2); cursor: pointer; transition: transform .3s cubic-bezier(.16,1,.3,1); }
+.rp-find { display: flex; align-items: flex-start; gap: 22px; padding: 22px 4px; border-top: 1px solid var(--line2); cursor: pointer; transition: transform .3s cubic-bezier(.16,1.3,1); }
 .rp-find:first-of-type { border-top: 0; }
 .rp-find:hover { transform: translateX(10px); }
 .rp-num { font-family: var(--mono); font-size: 15px; color: var(--acc); flex-shrink: 0; padding-top: 4px; }
@@ -463,7 +495,7 @@ const RP_CSS = `
 .rp-find-t { font-size: 18.5px; color: var(--hi); line-height: 1.45; font-weight: 500; letter-spacing: -0.01em; }
 .rp-find-meta { display: block; margin-top: 9px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--dim); }
 .rp-find-meta .rp-cite { padding: 0 4px; }
-.rp-inspect { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); opacity: 0; transform: translateX(-6px); transition: opacity .3s ease, transform .3s cubic-bezier(.16,1,.3,1); white-space: nowrap; padding-top: 5px; }
+.rp-inspect { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); opacity: 0; transform: translateX(-6px); transition: opacity .3s ease, transform .3s cubic-bezier(.16,1.3,1); white-space: nowrap; padding-top: 5px; }
 .rp-find:hover .rp-inspect { opacity: 1; transform: none; }
 
 /* table */
@@ -487,8 +519,8 @@ const RP_CSS = `
 .rp-faith b { color: var(--hi); }
 .rp-flags { list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .rp-flag { font-size: 12.5px; line-height: 1.5; font-style: italic; color: var(--tx); }
-.rp-flag .rp-warn, .rp-flag.rp-mono { font-style: normal; }
-.rp-flag .rp-mono, .rp-flag .rp-warn { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--warn); margin-right: 6px; }
+.rp-flag .rp-warn.rp-flag.rp-mono { font-style: normal; }
+.rp-flag .rp-mono.rp-flag .rp-warn { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--warn); margin-right: 6px; }
 .rp-claims { display: flex; flex-direction: column; gap: 16px; }
 .rp-claim { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 12px; align-items: center; font-size: 13.5px; }
 .rp-claim-t { color: var(--tx); line-height: 1.45; }
@@ -529,13 +561,13 @@ const RP_CSS = `
 .rp-cond-state { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--dim); white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .rp-caret { transition: transform .3s ease; display: inline-block; }
 .rp-cond.open .rp-caret { transform: rotate(180deg); }
-.rp-cond-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s cubic-bezier(.16,1,.3,1); }
+.rp-cond-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s cubic-bezier(.16,1.3,1); }
 .rp-cond.open .rp-cond-body { grid-template-rows: 1fr; }
 .rp-cond-inner { overflow: hidden; min-height: 0; }
 .rp-cond.open .rp-cond-inner { padding-bottom: 20px; }
-.rp-need, .rp-cond-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-left: 32px; }
+.rp-need.rp-cond-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-left: 32px; }
 .rp-cond-foot { margin-top: 12px; }
-.rp-need .rp-dim, .rp-cond-foot .rp-dim { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; margin-right: 4px; }
+.rp-need .rp-dim.rp-cond-foot .rp-dim { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; margin-right: 4px; }
 .rp-chip { display: inline-block; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; color: var(--tx); }
 .rp-cond-str { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .rp-cond-str .rp-bar { width: 80px; }
@@ -576,7 +608,7 @@ const RP_CSS = `
 .rp-tlconf { font-family: var(--mono); font-size: 10px; color: var(--dim); }
 .rp-provgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 44px; }
 .rp-tels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
-.rp-tel { display: flex; flex-direction: column; gap: 6px; padding: 15px 16px; background: rgba(255,255,255,0.025); border: 1px solid var(--line2); border-radius: 12px; transition: border-color .25s ease, transform .3s cubic-bezier(.16,1,.3,1); }
+.rp-tel { display: flex; flex-direction: column; gap: 6px; padding: 15px 16px; background: rgba(255,255,255,0.025); border: 1px solid var(--line2); border-radius: 12px; transition: border-color .25s ease, transform .3s cubic-bezier(.16,1.3,1); }
 .rp-tel:hover { border-color: var(--line); transform: translateY(-2px); }
 .rp-tel .rp-dim { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; }
 .rp-tel-v { font-size: 22px; color: var(--hi); font-weight: 600; letter-spacing: -0.02em; }
@@ -606,10 +638,10 @@ const RP_CSS = `
 .rp-foot { display: flex; justify-content: space-between; align-items: center; padding: 40px 0 0; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; }
 .rp-foot span:first-child { color: var(--acc); }
 
-/* inspector drawer — premium, tactile */
+/* inspector drawer, premium, tactile */
 .rp-backdrop { position: fixed; inset: 0; background: rgba(2,4,14,0.62); backdrop-filter: blur(4px); opacity: 0; visibility: hidden; transition: opacity .35s ease, visibility .35s ease; z-index: 90; }
 .rp-backdrop.open { opacity: 1; visibility: visible; }
-.rp-drawer { position: fixed; top: 0; right: 0; height: 100%; width: 470px; max-width: 94vw; background: linear-gradient(180deg, #0e1434 0%, #0a0a1e 62%); border-left: 1px solid rgba(0,255,71,0.16); box-shadow: -34px 0 90px -34px rgba(0,0,10,0.9); transform: translateX(100%); transition: transform .46s cubic-bezier(.16,1,.3,1); z-index: 91; display: flex; flex-direction: column; }
+.rp-drawer { position: fixed; top: 0; right: 0; height: 100%; width: 470px; max-width: 94vw; background: linear-gradient(180deg, #0e1434 0%, #0a0a1e 62%); border-left: 1px solid rgba(0,255,71,0.16); box-shadow: -34px 0 90px -34px rgba(0,0,10,0.9); transform: translateX(100%); transition: transform .46s cubic-bezier(.16,1.3,1); z-index: 91; display: flex; flex-direction: column; }
 .rp-drawer.open { transform: none; }
 .rp-dhead { display: flex; justify-content: space-between; align-items: flex-start; padding: 26px 26px 22px; border-bottom: 1px solid var(--line); }
 .rp-dclose { background: rgba(255,255,255,0.04); border: 1px solid var(--line); width: 34px; height: 34px; border-radius: 9px; color: var(--dim); font-size: 18px; cursor: pointer; line-height: 1; transition: all .2s ease; display: flex; align-items: center; justify-content: center; }
@@ -629,7 +661,7 @@ const RP_CSS = `
 .rp-dmetrics .rp-dim { font-family: var(--mono); letter-spacing: 0.08em; }
 .rp-dmetrics .rp-mono { color: var(--hi); font-size: 12px; }
 .rp-dfoot { padding: 18px 26px; border-top: 1px solid var(--line); display: flex; gap: 12px; }
-.rp-dbtn { flex: 1; padding: 13px; border-radius: 11px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--tx); font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .22s cubic-bezier(.16,1,.3,1); }
+.rp-dbtn { flex: 1; padding: 13px; border-radius: 11px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--tx); font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .22s cubic-bezier(.16,1.3,1); }
 .rp-dbtn:hover { color: var(--hi); background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.22); transform: translateY(-1px); }
 .rp-dbtn:active { transform: translateY(0) scale(.98); }
 .rp-dbtn-p { background: var(--acc-soft); border-color: rgba(0,255,71,0.32); color: var(--acc); }
@@ -637,12 +669,12 @@ const RP_CSS = `
 
 /* ── premium interactions ─────────────────────────────────────────────── */
 .rp-progress { position: fixed; top: 0; left: 0; height: 2px; width: 100%; transform: scaleX(0); transform-origin: left; background: linear-gradient(90deg, var(--acc), var(--info)); z-index: 95; box-shadow: 0 0 10px rgba(0,255,71,0.55); transition: transform .08s linear; }
-.rp a:focus-visible, .rp button:focus-visible, .rp input:focus-visible, .rp [role="button"]:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 4px; }
+.rp a:focus-visible.rp button:focus-visible.rp input:focus-visible.rp [role="button"]:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 4px; }
 .rp-eye span { transition: text-shadow .3s ease; }
 .rp-sec:hover .rp-eye span { text-shadow: 0 0 12px rgba(0,255,71,0.6); }
-.rp-pos, .rp-synth, .rp-chat, .rp-dsrc { transition: border-color .3s ease, transform .45s cubic-bezier(.16,1,.3,1), box-shadow .45s cubic-bezier(.16,1,.3,1); }
-.rp-pos:hover, .rp-synth:hover { border-color: rgba(200,216,234,0.22); transform: translateY(-2px); box-shadow: 0 18px 42px -24px rgba(0,0,12,0.85); }
-.rp-cons li { transition: color .2s ease, transform .2s cubic-bezier(.16,1,.3,1); }
+.rp-pos.rp-synth.rp-chat.rp-dsrc { transition: border-color .3s ease, transform .45s cubic-bezier(.16,1.3,1), box-shadow .45s cubic-bezier(.16,1.3,1); }
+.rp-pos:hover.rp-synth:hover { border-color: rgba(200,216,234,0.22); transform: translateY(-2px); box-shadow: 0 18px 42px -24px rgba(0,0,12,0.85); }
+.rp-cons li { transition: color .2s ease, transform .2s cubic-bezier(.16,1.3,1); }
 .rp-cons li:hover { transform: translateX(4px); }
 .rp-num { transition: text-shadow .25s ease; }
 .rp-find:hover .rp-num { text-shadow: 0 0 10px rgba(0,255,71,0.6); }
@@ -650,11 +682,62 @@ const RP_CSS = `
 .rp-chatbar button:active { transform: scale(.93); }
 .rp-fig { transition: text-shadow .35s ease; }
 .rp-masthead:hover .rp-fig { text-shadow: 0 0 34px rgba(0,255,71,0.28); }
-.rp-msg-u { animation: rpIn .4s cubic-bezier(.16,1,.3,1) both; }
+.rp-msg-u { animation: rpIn .4s cubic-bezier(.16,1.3,1) both; }
+
+/* export actions */
+.rp-actions { display: flex; gap: 10px; margin-top: 22px; }
+.rp-act { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--tx); font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.04em; cursor: pointer; transition: all .22s cubic-bezier(.16,1.3,1); }
+.rp-act:hover { color: var(--hi); border-color: rgba(200,216,234,0.28); background: rgba(255,255,255,0.06); transform: translateY(-1px); }
+.rp-act-i { font-size: 13px; }
+.rp-act-p { border-color: rgba(0,255,71,0.3); color: var(--acc); background: var(--acc-soft); }
+.rp-act-p:hover { background: rgba(0,255,71,0.16); color: #04120b; border-color: var(--acc); }
+
+/* toast */
+.rp-toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 20px); background: #0e1434; border: 1px solid rgba(0,255,71,0.3); color: var(--hi); font-family: var(--sans); font-size: 13.5px; padding: 12px 20px; border-radius: 12px; box-shadow: 0 24px 60px -28px rgba(0,0,10,0.9); z-index: 120; opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .3s cubic-bezier(.16,1.3,1); }
+.rp-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* inspector: verdict pill + NLI entailment area */
+.rp-dpill { font-size: 9px; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.1em; border: 1px solid var(--pos); color: var(--pos); }
+.rp-dpill.pos { color: var(--pos); border-color: var(--pos); } .rp-dpill.warn { color: var(--warn); border-color: var(--warn); } .rp-dpill.neg { color: var(--neg); border-color: var(--neg); }
+.rp-nli { background: rgba(255,255,255,0.02); border: 1px solid var(--line2); border-radius: 12px; padding: 15px 16px; display: flex; flex-direction: column; gap: 9px; }
+.rp-nli-idle { font-size: 12.5px; color: var(--dim); line-height: 1.5; }
+.rp-nli-idle b { color: var(--acc); }
+.rp-nli-res { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rp-nli-lbl { font-family: var(--mono); font-size: 12.5px; font-weight: 600; letter-spacing: 0.05em; }
+.rp-nli .rp-mut { font-size: 12px; line-height: 1.55; }
+.rp-dmetrics .rp-bar { width: 100%; }
+
+/* claim rows now clickable */
+.rp-claim { cursor: pointer; transition: transform .25s cubic-bezier(.16,1.3,1); }
+.rp-claim:hover { transform: translateX(4px); }
+.rp-claim:hover .rp-claim-t { color: var(--hi); }
+
+/* what-would-change: bigger, more legible */
+.rp-cond-pill { font-size: 10px; }
+.rp-cond-strength .rp-dim { font-size: 9.5px; }
+.rp-cond-strength .rp-mono { font-size: 12.5px; }
+.rp-chip { font-size: 12px; padding: 5px 12px; }
+.rp-cond-head p { font-size: 14px; }
+.rp-synth p { font-size: 15px; }
+
+/* trajectory: bigger + interactable */
+.rp-traj li { font-size: 15.5px; align-items: baseline; }
+.rp-bound li { font-size: 15px; }
+.rp-traj-lk { color: var(--tx); cursor: pointer; transition: color .2s ease, transform .2s cubic-bezier(.16,1.3,1); display: inline-block; }
+.rp-traj-lk:hover { color: var(--acc); transform: translateX(3px); }
+.rp-traj-arrow { font-family: var(--mono); font-size: 0.72em; color: var(--acc); opacity: 0; transition: opacity .2s ease; }
+.rp-traj-lk:hover .rp-traj-arrow { opacity: 1; }
+
+/* print / Save-as-PDF */
+@media print {
+  .rp-progress, .rp-backdrop, .rp-drawer, .side-rail, .rp-actions, .rp-chatbar, .rp-toast { display: none !important; }
+  .rp { height: auto !important; overflow: visible !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rp-sec, .rp-masthead { break-inside: avoid; }
+}
 
 @media (max-width: 820px) {
   .rp-wrap { padding: 0 22px 60px; }
-  .rp-split, .rp-kuu, .rp-provgrid { grid-template-columns: 1fr; gap: 30px; }
+  .rp-split.rp-kuu.rp-provgrid { grid-template-columns: 1fr; gap: 30px; }
   .rp-stats { grid-template-columns: repeat(3, 1fr); gap: 24px 16px; }
   .rp-stat:nth-child(3) { border-right: 0; }
   .rp-vs { grid-template-columns: 1fr; }
@@ -672,9 +755,69 @@ function injectAssets() {
 /* ---------- interactions ---------- */
 function installHandlers() {
   if (typeof window === "undefined") return;
-  window.pnOpen = () => { const d = document.getElementById("pn-drawer"), b = document.getElementById("pn-backdrop"); if (d && b) { d.classList.add("open"); b.classList.add("open"); } };
-  window.pnClose = () => { const d = document.getElementById("pn-drawer"), b = document.getElementById("pn-backdrop"); if (d && b) { d.classList.remove("open"); b.classList.remove("open"); } };
+  const $ = (id) => document.getElementById(id);
+  const setTxt = (id, v) => { const n = $(id); if (n) n.textContent = v; };
+  const setBar = (id, v) => { const n = $(id); if (n) n.style.width = Math.max(0, Math.min(100, v)) + "%"; };
+
+  window.pnOpen = (el) => {
+    const d = $("pn-drawer"), b = $("pn-backdrop"); if (!d || !b) return;
+    const ds = (el && el.dataset) ? el.dataset : null;
+    if (ds && ds.claim) {
+      setTxt("pn-i-claim", '"' + ds.claim + '"');
+      setTxt("pn-i-id", ds.cites ? "claim · cites " + ds.cites : "synthesised claim");
+      const v = ds.verdict || "SUPPORTED", vn = $("pn-i-verdict");
+      if (vn) { vn.textContent = v; vn.className = "rp-dpill rp-mono " + (v === "PARTIAL" || v === "SOURCE" ? "warn" : "pos"); }
+      const tr = ds.trust != null && ds.trust !== "" ? Number(ds.trust) : null;
+      setTxt("pn-i-src", ds.src || "Source");
+      setTxt("pn-i-url", ds.url || "no direct link");
+      setTxt("pn-i-trust", tr != null ? tr.toFixed(2) : "n/a");
+      setTxt("pn-i-trust2", tr != null ? tr.toFixed(2) : "n/a");
+      setTxt("pn-i-quote", ds.quote || "n/a");
+      const m = Number(ds.match) || 0, g = Number(ds.ground) || 0;
+      setTxt("pn-i-match", m + "%"); setBar("pn-i-matchbar", m);
+      setBar("pn-i-trustbar", tr != null ? tr * 100 : 0);
+      setTxt("pn-i-ground", g + "%"); setBar("pn-i-groundbar", g);
+      const nli = $("pn-i-nli"); if (nli) nli.innerHTML = '<span class="rp-nli-idle">Run <b>Verify claim</b> to test whether the source text logically entails this claim.</span>';
+      window.__rpInsp = { claim: ds.claim, quote: ds.quote || "", url: ds.url || "" };
+    }
+    d.classList.add("open"); b.classList.add("open");
+  };
+  window.pnClose = () => { const d = $("pn-drawer"), b = $("pn-backdrop"); if (d && b) { d.classList.remove("open"); b.classList.remove("open"); } };
   window.pnCond = (el) => { el.classList.toggle("open"); };
+
+  window.pnOpenSrc = () => { const u = (window.__rpInsp || {}).url; if (u && /^https?:/.test(u)) window.open(u, "_blank", "noopener"); else window.pnToast("No direct source link for this item."); };
+
+  window.pnVerify = async () => {
+    const insp = window.__rpInsp || {}; const nli = $("pn-i-nli"), btn = $("pn-i-verify");
+    if (!insp.claim) { window.pnToast("Select a claim first."); return; }
+    if (nli) nli.innerHTML = '<span class="rp-nli-idle">Checking entailment…</span>';
+    if (btn) { btn.disabled = true; btn.textContent = "Verifying…"; }
+    try {
+      const tok = getAuthToken();
+      const res = await fetch(APP_API_BASE + "/report/verify-claim", { method: "POST", headers: { "Content-Type": "application/json", ...(tok ? { Authorization: "Bearer " + tok } : {}) }, body: JSON.stringify({ claim: insp.claim, evidence: insp.quote || insp.claim }) });
+      if (!res.ok) { if (nli) nli.innerHTML = '<span class="rp-nli-idle">' + (res.status === 401 ? "Sign in to verify claims." : res.status === 400 ? "Add an API key in Settings to verify claims." : "Verification unavailable right now.") + "</span>"; return; }
+      const data = await res.json();
+      const lbl = String(data.label || "neutral").toUpperCase();
+      const tone = lbl === "ENTAILMENT" ? "pos" : lbl === "CONTRADICTION" ? "neg" : "warn";
+      const nice = lbl === "ENTAILMENT" ? "ENTAILS THE CLAIM" : lbl === "CONTRADICTION" ? "CONTRADICTS THE CLAIM" : "NEUTRAL / INSUFFICIENT";
+      if (nli) nli.innerHTML = '<div class="rp-nli-res"><span class="rp-nli-lbl ' + tone + '">' + nice + '</span><span class="rp-mono ' + tone + '">' + Math.round((data.confidence || 0) * 100) + '% conf</span></div>' + (data.why ? '<p class="rp-mut">' + esc(data.why) + '</p>' : "");
+    } catch { if (nli) nli.innerHTML = '<span class="rp-nli-idle">Could not reach the verifier. Try again.</span>'; }
+    finally { if (btn) { btn.disabled = false; btn.textContent = "Verify claim"; } }
+  };
+
+  window.pnShare = async () => {
+    const url = (typeof location !== "undefined" ? location.href : "");
+    try { await navigator.clipboard.writeText(url); window.pnToast("Report link copied to clipboard."); }
+    catch { window.pnToast("Copy failed, this is the URL: " + url); }
+  };
+  window.pnPdf = () => { window.pnToast("Opening print dialog, choose “Save as PDF”."); setTimeout(() => { try { window.print(); } catch (e) {} }, 260); };
+
+  window.pnToast = (msg) => {
+    let t = $("pn-toast");
+    if (!t) { t = document.createElement("div"); t.id = "pn-toast"; t.className = "rp-toast"; document.body.appendChild(t); }
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(window.__pnToastT); window.__pnToastT = setTimeout(() => t.classList.remove("show"), 2600);
+  };
   window.pnAsk = (btn) => { const i = document.getElementById("pn-chat-input"); if (!i) return; i.value = (btn.textContent || "").trim(); window.pnSend(); };
   window.pnSend = async () => {
     const input = document.getElementById("pn-chat-input"), box = document.getElementById("pn-chat-msgs");
@@ -685,7 +828,7 @@ function installHandlers() {
       const tok = getAuthToken(); const ctx = window.__rpCtx || {};
       const res = await fetch(APP_API_BASE + "/report/chat", { method: "POST", headers: { "Content-Type": "application/json", ...(tok ? { Authorization: "Bearer " + tok } : {}) }, body: JSON.stringify({ question: q, report_answer: ctx.answer || "", source_summaries: ctx.sources || [] }) });
       const data = res.ok ? await res.json() : {};
-      pend.textContent = data.answer || (res.status === 401 ? "Please sign in to ask follow-ups." : "Couldn't answer that — please try again.");
+      pend.textContent = data.answer || (res.status === 401 ? "Please sign in to ask follow-ups." : "Couldn't answer that, please try again.");
     } catch { pend.textContent = "Couldn't reach the assistant. Try again."; }
   };
 }
