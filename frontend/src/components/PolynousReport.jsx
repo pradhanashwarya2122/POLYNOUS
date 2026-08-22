@@ -294,10 +294,12 @@ function sMasthead(d) {
       <div class="rp-critic"><span class="rp-dim">CRITIC CONSENSUS</span><span><b>${d.critic.pct}%</b>, ${d.critic.agree}/${d.critic.total} sources agree</span><span class="rp-mut">${esc(d.critic.position)}</span></div>
     </div>
     <div class="rp-asof">
-      <span>Generated <b>${d.dataAsOf.generated}</b></span><span class="rp-asof-sep">·</span>
-      <span>Sources current to <b>${d.dataAsOf.current}</b></span><span class="rp-asof-sep">·</span>
-      <button class="rp-asof-btn" onclick="pnRev(this)">Revision history <span class="rp-caret">▾</span></button>
-      <div class="rp-revs">${d.dataAsOf.revisions.map((r) => `<div class="rp-rev"><span class="rp-mono rp-acc-t">${esc(r.v)}</span><span class="rp-mono rp-dim">${esc(r.date)}</span><span>${esc(r.note)}</span></div>`).join("")}</div>
+      <div class="rp-asof-line">
+        <span>Generated <b>${d.dataAsOf.generated}</b></span><span class="rp-asof-sep">·</span>
+        <span>Sources current to <b>${d.dataAsOf.current}</b></span><span class="rp-asof-sep">·</span>
+        <button class="rp-asof-btn" onclick="pnRev(this)">Revision history <span class="rp-caret">▾</span></button>
+      </div>
+      <div class="rp-revs"><div class="rp-revs-inner">${d.dataAsOf.revisions.map((r) => `<div class="rp-revrow"><span class="rp-mono rp-acc-t">${esc(r.v)}</span><span class="rp-mono rp-dim">${esc(r.date)}</span><span>${esc(r.note)}</span></div>`).join("")}</div></div>
     </div>
   </header>`;
 }
@@ -830,7 +832,8 @@ const RP_CSS = `
 .rp-dsrc b { color: var(--hi); font-size: 14px; display: block; margin-bottom: 2px; }
 .rp-dsrc span.rp-dim { font-size: 11.5px; font-family: var(--mono); }
 .rp-dsrc > span.rp-mono { font-size: 14px; padding: 5px 12px; background: var(--acc-soft); border: 1px solid rgba(0,255,71,0.28); border-radius: 999px; color: var(--acc); }
-.rp-dquote { font-size: 14.5px; font-style: italic; color: var(--hi); line-height: 1.66; padding: 15px 18px; border-left: 2px solid var(--acc); background: rgba(0,255,71,0.045); border-radius: 0 10px 10px 0; }
+.rp-dquote { position: relative; font-size: 14.5px; font-style: italic; color: var(--hi); line-height: 1.66; padding: 15px 18px; background: rgba(0,255,71,0.045); border-radius: 0 10px 10px 0; }
+.rp-dquote::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; border-radius: 2px 0 0 2px; background: linear-gradient(180deg, var(--acc), rgba(62,240,127,0.08)); }
 .rp-dmetrics { gap: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--line2); border-radius: 14px; padding: 20px; }
 .rp-dmetrics > div { display: grid; grid-template-columns: 98px 1fr auto; gap: 14px; align-items: center; font-size: 11px; }
 .rp-dmetrics .rp-dim { font-family: var(--mono); letter-spacing: 0.08em; }
@@ -916,18 +919,19 @@ const RP_CSS = `
 .rp-ciband-lo { width: 1px; height: 8px; background: var(--dim); }
 
 /* data-as-of + revision history */
-.rp-asof { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 30px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; color: var(--dim); }
+.rp-asof { margin-top: 30px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; color: var(--dim); }
+.rp-asof-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .rp-asof b { color: var(--tx); font-weight: 600; }
 .rp-asof-sep { opacity: 0.5; }
 .rp-asof-btn { background: transparent; border: 0; color: var(--acc); font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 0; }
 .rp-asof-btn .rp-caret { transition: transform .3s ease; display: inline-block; }
 .rp-asof.open .rp-asof-btn .rp-caret { transform: rotate(180deg); }
-.rp-revs { flex-basis: 100%; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .34s cubic-bezier(.16,1.3,1); }
+.rp-revs { display: grid; grid-template-rows: 0fr; }
 .rp-asof.open .rp-revs { grid-template-rows: 1fr; }
-.rp-revs > * { overflow: hidden; min-height: 0; }
-.rp-rev { display: grid; grid-template-columns: 44px 92px 1fr; gap: 14px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line2); font-size: 11px; }
-.rp-rev span:last-child { color: var(--tx); font-family: var(--sans); font-size: 12.5px; letter-spacing: 0; }
-.rp-revs > div { padding-top: 6px; }
+.rp-revs-inner { overflow: hidden; min-height: 0; padding-top: 4px; opacity: 0; transform: translateY(-4px); transition: opacity .3s ease, transform .32s cubic-bezier(.16,1,.3,1); }
+.rp-asof.open .rp-revs-inner { opacity: 1; transform: none; }
+.rp-revrow { display: grid; grid-template-columns: 44px 92px 1fr; gap: 14px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line2); font-size: 11px; }
+.rp-revrow span:last-child { color: var(--tx); font-family: var(--sans); font-size: 12.5px; letter-spacing: 0; }
 
 /* tags */
 .rp-tag { display: inline-flex; align-items: center; font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; padding: 3px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
@@ -937,7 +941,8 @@ const RP_CSS = `
 /* key takeaways (lead) */
 .rp-lead { border-top: 0; padding-top: 40px; }
 .rp-lead-eye { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; font-size: 11px; letter-spacing: 0.14em; margin-bottom: 22px; }
-.rp-takes { list-style: none; border-left: 2px solid var(--acc); }
+.rp-takes { list-style: none; position: relative; }
+.rp-takes::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, var(--acc), rgba(62,240,127,0.06)); }
 .rp-take { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 20px; align-items: start; padding: 20px 4px 20px 24px; border-bottom: 1px solid var(--line2); cursor: pointer; transition: transform .3s cubic-bezier(.16,1.3,1), background .3s ease; }
 .rp-take:last-child { border-bottom: 0; }
 .rp-take:hover { transform: translateX(6px); background: rgba(0,255,71,0.02); }
@@ -982,7 +987,8 @@ const RP_CSS = `
 .rp-sens-note { font-size: 12px; color: var(--dim); } .rp-sens-note b { color: var(--tx); font-family: var(--mono); }
 
 /* dissent / counter-argument */
-.rp-dissent { border-left: 2px solid var(--neg); padding: 4px 0 4px 24px; }
+.rp-dissent { position: relative; padding: 4px 0 4px 24px; }
+.rp-dissent::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, var(--neg), rgba(255,107,138,0.06)); }
 .rp-dissent-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .rp-dissent-q { font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--hi); line-height: 1.4; letter-spacing: -0.015em; }
 .rp-dissent .rp-mut { margin: 12px 0 20px; }

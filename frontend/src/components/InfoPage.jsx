@@ -39,11 +39,11 @@ const Icon = ({ name, style }) => (
 
 // What each kind of key actually powers in the pipeline
 const KEY_ROLES = [
-  { icon: "psychology", color: "#a855f7", title: "Your one LLM key — this is the only key you need",
-    body: "One LLM key from any single provider (Anthropic, OpenAI, Google, Groq, NVIDIA, DeepSeek, Mistral or Zhipu/GLM) powers EVERYTHING — research, debates, the knowledge graph, PDF analysis, all of it. You do NOT need a separate key per feature and you do NOT need more than one. It reads every source, cross-examines them, scores confidence, and writes the cited report; in Debate mode it also runs both advocates and the judge. Pick whichever provider you like — that single key is the whole requirement." },
-  { icon: "travel_explore", color: "#ffd700", title: "Tavily key — optional (web search is already included)",
+  { icon: "psychology", color: "#a855f7", title: "Your one LLM key, this is the only key you need",
+    body: "One LLM key from any single provider (Anthropic, OpenAI, Google, Groq, NVIDIA, DeepSeek, Mistral or Zhipu/GLM) powers EVERYTHING, research, debates, the knowledge graph, PDF analysis, all of it. You do NOT need a separate key per feature and you do NOT need more than one. It reads every source, cross-examines them, scores confidence, and writes the cited report; in Debate mode it also runs both advocates and the judge. Pick whichever provider you like, that single key is the whole requirement." },
+  { icon: "travel_explore", color: "#ffd700", title: "Tavily key, optional (web search is already included)",
     body: "You do NOT need this to start. POLYNOUS ships with built-in web search, so your one LLM key is enough to run real, cited research right away. Add your own Tavily key (1,000 free searches/month) only if you want higher search limits of your own." },
-  { icon: "hub", color: "#00ccff", title: "Voyage key — optional (semantic memory)",
+  { icon: "hub", color: "#00ccff", title: "Voyage key, optional (semantic memory)",
     body: "Also optional. Used only for embeddings that power Semantic Search and the memory features. The core research and debate flows work perfectly without it." },
 ];
 
@@ -100,7 +100,7 @@ function FreeKeyClaim() {
         </button>
       </div>
       <p style={{ fontSize: 12, color: "#6b7386", marginTop: 10, lineHeight: 1.55 }}>
-        This single key runs <strong style={{ color: "#c8d2e0" }}>everything</strong> — research, debates, the graph — you don't need any others. It's a <strong style={{ color: "#c8d2e0" }}>time-limited trial on a lightweight GLM model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key in Settings → API Keys anytime.
+        This single key runs <strong style={{ color: "#c8d2e0" }}>everything</strong>, research, debates, the graph, you don't need any others. It's a <strong style={{ color: "#c8d2e0" }}>time-limited trial on a lightweight GLM model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key in Settings → API Keys anytime.
       </p>
     </div>
   );
@@ -180,8 +180,8 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
         </Section>
 
         {/* What each key is used for */}
-        <Section id="info-onekey" icon="help" accent={C.purple} title="You only need ONE API key — that's it" delay={0.05}
-          subtitle="To be crystal clear: it's ONE key total — not two, not three. A single LLM key from any one provider below powers research, debates, the knowledge graph, PDF analysis — everything. You never need a separate key per feature. (Tavily and Voyage are optional extras, not requirements — web search is already built in.) POLYNOUS never charges you; it runs on the one key you provide, so the cost and rate limits stay yours.">
+        <Section id="info-onekey" icon="help" accent={C.purple} title="You only need ONE API key, that's it" delay={0.05}
+          subtitle="To be crystal clear: it's ONE key total, not two, not three. A single LLM key from any one provider below powers research, debates, the knowledge graph, PDF analysis, everything. You never need a separate key per feature. (Tavily and Voyage are optional extras, not requirements, web search is already built in.) POLYNOUS never charges you; it runs on the one key you provide, so the cost and rate limits stay yours.">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {KEY_ROLES.map(r => (
               <div key={r.title} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "14px 16px",

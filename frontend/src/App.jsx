@@ -1,4 +1,5 @@
 import ProfileSetup from './components/ProfileSetup'
+import TrialWelcome from './components/TrialWelcome'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, lazy, Suspense } from 'react';
 import PageTransition from './components/PageTransition';
@@ -123,6 +124,8 @@ export default function App() {
 
   // ✅ NEW: Controls whether ProfileSetup is shown
   const [needsProfileSetup, setNeedsProfileSetup] = useState(false)
+  // One-time premium free-trial welcome, shown right after a new user finishes setup.
+  const [showTrialWelcome, setShowTrialWelcome] = useState(false)
 
   // ✅ NEW: Detect OAuth new user flag on mount
   useEffect(() => {
@@ -306,6 +309,12 @@ export default function App() {
           localStorage.removeItem('polynous_needs_setup')
           setNeedsProfileSetup(false)
 
+          // ✅ Premium free-trial welcome, once per account.
+          if (localStorage.getItem('polynous_seen_trial_welcome') !== '1') {
+            localStorage.setItem('polynous_seen_trial_welcome', '1')
+            setShowTrialWelcome(true)
+          }
+
           // ✅ Load preferences now that profile is complete
           if (user?.email) loadUserPreferences(user.email)
         }}
@@ -324,6 +333,7 @@ export default function App() {
           landing / auth / static pages (handled inside NavDock). */}
       {isLoggedIn && <NavDock />}
       {isLoggedIn && <AdminLauncher />}
+      {isLoggedIn && showTrialWelcome && <TrialWelcome user={user} onClose={() => setShowTrialWelcome(false)} />}
       <Suspense fallback={
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#08060f', color: '#c084fc', fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, letterSpacing: '0.08em' }}>
           <div style={{ width: 26, height: 26, border: '2px solid rgba(168,85,247,0.25)', borderTopColor: '#a855f7', borderRadius: '50%', animation: 'pn-spin 0.7s linear infinite', marginRight: 12 }} />

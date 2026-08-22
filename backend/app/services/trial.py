@@ -109,6 +109,7 @@ def state(user, db=None) -> dict:
         "model": m.get("model"),
         "claimed_at": m.get("claimed_at"),
         "expires_at": expires_at.isoformat() if expires_at else None,
+        "days": days or None,
         "days_left": days_left,
         "runs_cap": runs_cap or None,
         "runs_used": runs_used,

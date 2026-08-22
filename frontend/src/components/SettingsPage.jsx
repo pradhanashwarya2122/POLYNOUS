@@ -1634,7 +1634,7 @@ function ApiKeysSection({ push }) {
 
   return (
     <Card>
-      <SectionHead icon="key" title="API Keys" subtitle="You only need ONE key total — not two or three. A single LLM key from any one provider below runs research, debates, the graph and everything else. (Tavily & Voyage are optional extras — web search is built in.)" />
+      <SectionHead icon="key" title="API Keys" subtitle="You only need ONE key total, not two or three. A single LLM key from any one provider below runs research, debates, the graph and everything else. (Tavily & Voyage are optional extras, web search is built in.)" />
 
       {showRotatedBanner && (
         <div style={{ marginBottom: 20, padding: "16px 18px", borderRadius: 12,
@@ -1645,7 +1645,7 @@ function ApiKeysSection({ push }) {
               🔄 Your free key was updated
             </div>
             <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.5, maxWidth: 460 }}>
-              We rotated the shared free {freeStatus?.claimed_provider ? freeStatus.claimed_provider : ""} key. Click to switch to the new one — completely free, nothing to pay.
+              We rotated the shared free {freeStatus?.claimed_provider ? freeStatus.claimed_provider : ""} key. Click to switch to the new one, completely free, nothing to pay.
             </div>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 9, cursor: "pointer", fontFamily: C.fontMono, fontSize: 11, color: C.onSurfaceVariant }}>
               <input type="checkbox" checked={autoSwap}
@@ -1672,7 +1672,7 @@ function ApiKeysSection({ push }) {
               🎁 Claim your free GLM trial key
             </div>
             <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55, maxWidth: 480 }}>
-              New here? Get a free trial key and see POLYNOUS work instantly — no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial on a lightweight model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key anytime.
+              New here? Get a free trial key and see POLYNOUS work instantly, no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial on a lightweight model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key anytime.
             </div>
           </div>
           <button onClick={claimFree} disabled={claiming} style={{
@@ -1714,14 +1714,19 @@ function ApiKeysSection({ push }) {
               )}
             </div>
             {t.runs_cap ? (
-              <div style={{ height: 6, borderRadius: 9999, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginBottom: 12 }}>
+              <div style={{ height: 6, borderRadius: 9999, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginBottom: 10 }}>
                 <div style={{ height: "100%", width: `${runsPct}%`, background: accent, borderRadius: 9999, transition: "width 0.5s cubic-bezier(0.23,1,0.32,1)" }} />
               </div>
             ) : null}
+            {!t.expired && (
+              <div style={{ fontFamily: C.fontMono, fontSize: 10.5, letterSpacing: "0.04em", color: C.textSecondary, marginBottom: 10 }}>
+                Expires after <strong style={{ color: "#fff" }}>{t.runs_cap || 15} queries</strong> or <strong style={{ color: "#fff" }}>{t.days || 7} days</strong>, whichever comes first.
+              </div>
+            )}
             <p style={{ fontFamily: C.fontBody, fontSize: 12.5, lineHeight: 1.6, color: C.onSurfaceVariant, margin: 0 }}>
               {t.expired
-                ? "Your trial is over. Add your own API key below to keep researching — it takes under a minute."
-                : (<>This is a <strong style={{ color: "#fff" }}>lightweight trial model</strong> for exploring POLYNOUS. Stronger providers — <strong style={{ color: "#fff" }}>Claude, GPT, Gemini</strong> — give noticeably better, more reliable results. Add your own key anytime below.</>)}
+                ? "Your trial is over. Add your own API key below to keep researching, it takes under a minute."
+                : (<>This is a <strong style={{ color: "#fff" }}>lightweight trial model</strong> for exploring POLYNOUS. Stronger providers (<strong style={{ color: "#fff" }}>Claude, GPT, Gemini</strong>) give noticeably better, more reliable results. Add your own key anytime below.</>)}
             </p>
           </div>
         );
@@ -1792,7 +1797,7 @@ function ApiKeysSection({ push }) {
         <ErrorBanner msg={loadErr} onRetry={load} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Saved keys — a compact list of providers you've already configured.
+          {/* Saved keys, a compact list of providers you've already configured.
               Clicking one opens ONLY its key card below (never all at once). */}
           {(() => {
             const savedIds = Object.keys(PROVIDERS).filter(id => connected[id]);
