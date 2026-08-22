@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { API_BASE_URL } from '../config'
+import TopicSelector from './ui/TopicSelector'
 
 // ─── Keyframe injection (runs once) ──────────────────────────────────────────
 const STYLES = `
@@ -531,6 +532,7 @@ export default function ProfileSetup({ onComplete, email, token }) {
   const [inputFocused, setFocused]      = useState(false)
   const [btnLabel, setBtnLabel]         = useState('INITIALIZE →')
   const [responseStyle, setResponseStyle] = useState('academic')
+  const [interests, setInterests]       = useState([])
   const [savingKeys, setSavingKeys]     = useState(false)
   const inputRef = useRef(null)
 
@@ -629,15 +631,19 @@ export default function ProfileSetup({ onComplete, email, token }) {
         setError(`Could not save: ${failed.map(f => f.provider).join(', ')}. You can add these later in Settings.`)
       }
 
+      // Cache interests locally so personalisation works instantly, before the
+      // preferences round-trip completes.
+      try { localStorage.setItem('polynous_interests', JSON.stringify(interests)) } catch (_) {}
+
       // Then complete setup
       setBtnLabel('SYNCHRONIZING...')
-      if (onComplete) await onComplete(trimmed, responseStyle)
+      if (onComplete) await onComplete(trimmed, responseStyle, interests)
     } catch (err) {
       setError(err?.message || 'Failed to initialize. Try again.')
       setLoading(false)
       setBtnLabel('INITIALIZE →')
     }
-  }, [loading, username, responseStyle, onComplete, saveAllKeys])
+  }, [loading, username, responseStyle, interests, onComplete, saveAllKeys])
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter') handleSubmit()
@@ -685,6 +691,16 @@ export default function ProfileSetup({ onComplete, email, token }) {
             </div>
 
             <StyleDial selected={responseStyle} onChange={setResponseStyle} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.16em', color: '#444', textTransform: 'uppercase' }}>Personalise</span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+            </div>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, letterSpacing: '0.04em', color: '#8294a8', lineHeight: 1.6, textAlign: 'center', margin: '-8px 0 0' }}>
+              Pick the topics you care about. POLYNOUS tailors research, debate and search suggestions to your mix.
+            </p>
+            <TopicSelector value={interests} onChange={setInterests} min={3} />
 
             <ApiKeysSection
               keys={apiKeys}

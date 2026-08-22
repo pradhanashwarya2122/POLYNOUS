@@ -1,9 +1,10 @@
 import * as THREE from 'three'
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { API_BASE_URL, apiFetch } from '../config';
 import ScrapeCountControl from './ScrapeCountControl';
 import DebateEngine from './DebateEngine';
 import SideRail from './react-bits/SideRail';
+import { getPersonalizedSuggestions } from '../personalize';
 
 const DEBATE_RAIL = [
   { label: "Proposition", id: "deb-topic" },
@@ -688,17 +689,28 @@ function shuffle(arr) {
 const TOPIC_VISIBLE = 6;
 
 function TopicCards({ onSelect }) {
-  const [cards, setCards] = useState(() => shuffle(ALL_TOPICS).slice(0, TOPIC_VISIBLE));
+  // Personalised: lead with debate propositions from the user's interest mix,
+  // then fill from the default pool. Falls back to defaults for new users.
+  const { personal, extras } = useMemo(() => {
+    const p = getPersonalizedSuggestions("debate", 20)
+      .filter(s => s.personalized)
+      .map(s => ({ icon: s.icon, label: s.text, abbr: (s.name || "").slice(0, 3).toUpperCase() }));
+    const seen = new Set(p.map(x => x.label));
+    return { personal: p, extras: ALL_TOPICS.filter(c => !seen.has(c.label)) };
+  }, []);
+  const compose = () => {
+    if (!personal.length) return shuffle(extras).slice(0, TOPIC_VISIBLE);
+    const keep = Math.min(personal.length, TOPIC_VISIBLE);
+    return shuffle([...shuffle(personal).slice(0, keep), ...shuffle(extras).slice(0, TOPIC_VISIBLE - keep)]);
+  };
+
+  const [cards, setCards] = useState(() => compose());
   const [phase, setPhase] = useState("in"); // in | out - drives the staggered crossfade
 
   const reshuffle = useCallback(() => {
     setPhase("out");
     setTimeout(() => {
-      setCards(prev => {
-        const shown = new Set(prev.map(c => c.label));
-        const pool  = shuffle(ALL_TOPICS.filter(c => !shown.has(c.label)));
-        return (pool.length >= TOPIC_VISIBLE ? pool : shuffle(ALL_TOPICS)).slice(0, TOPIC_VISIBLE);
-      });
+      setCards(compose());
       setPhase("in");
     }, 480);
   }, []);

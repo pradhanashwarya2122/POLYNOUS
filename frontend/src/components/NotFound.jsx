@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 
 // Themed 404 — matches the POLYNOUS dark/purple aesthetic. Rendered by the
 // catch-all route so unknown URLs get a real page instead of a silent redirect.
 export default function NotFound() {
   useEffect(() => {
-    document.title = 'Page not found — Polynous'
+    document.title = 'Page not found, Polynous'
+    toast.error('Page not found', { id: 'not-found', description: "That link doesn't lead anywhere in POLYNOUS." })
   }, [])
 
   return (

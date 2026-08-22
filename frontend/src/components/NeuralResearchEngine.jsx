@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { toast } from "sonner";
 import { deepMerge } from "./shared/deepMerge";
 import { useTypewriter } from "./shared/useTypewriter";
 import { useLiveStream } from "./shared/useLiveStream";
@@ -537,9 +538,18 @@ export default function NeuralResearchEngine({ data: dataProp, apiUrl, query, re
   useEffect(() => {
     if (liveError && !errorFiredRef.current) {
       errorFiredRef.current = true;
+      const msg = String(liveError);
+      if (/api key|no key|add your (own )?key/i.test(msg)) {
+        toast.error("No API key configured", { id: "no-key", description: "Add your key in Settings → API Keys, or claim your free trial key." });
+      } else if (/trial/i.test(msg)) {
+        toast.error("Free trial ended", { id: "trial-ended", description: msg.slice(0, 140) });
+      } else {
+        toast.error("Research could not run", { id: "research-err", description: msg.slice(0, 140) });
+      }
       if (typeof onError === "function") onError(liveError);
     }
   }, [liveError, onError]);
+  useEffect(() => { errorFiredRef.current = false; }, [query]);
 
   const data = useMemo(() => {
     const merged = deepMerge(DEFAULT_DATA, dataProp || liveData || {});

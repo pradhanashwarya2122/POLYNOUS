@@ -1,5 +1,6 @@
 import ProfileSetup from './components/ProfileSetup'
 import TrialWelcome from './components/TrialWelcome'
+import { Toaster } from './components/ui/Toaster'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, lazy, Suspense } from 'react';
 import PageTransition from './components/PageTransition';
@@ -265,10 +266,12 @@ export default function App() {
   // ═══════════════════════════════════════════════════════════
   if (needsProfileSetup && isLoggedIn) {
     return (
-      <ProfileSetup 
+      <>
+      <Toaster />
+      <ProfileSetup
         email={user?.email}
         token={localStorage.getItem('polynous_token')}
-        onComplete={async (username, responseStyle) => {
+        onComplete={async (username, responseStyle, interests) => {
           // ✅ Update username on backend
           const token = localStorage.getItem('polynous_token')
           try {
@@ -284,21 +287,25 @@ export default function App() {
             console.error('Failed to update username on backend', e)
           }
 
-          // ✅ Persist the chosen response style - without this, the
-          // style picked during onboarding never reached the backend and
-          // had zero effect on generated answers.
-          if (responseStyle) {
+          // ✅ Persist the chosen response style AND onboarding interests, so
+          // the style affects generated answers and the interest mix drives
+          // personalised suggestions across research / debate / search.
+          if (responseStyle || (Array.isArray(interests) && interests.length)) {
             try {
+              if (Array.isArray(interests)) localStorage.setItem('polynous_interests', JSON.stringify(interests))
               await fetch(`${API_BASE_URL}/settings/preferences`, {
                 method: 'PUT',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ response_style: responseStyle })
+                body: JSON.stringify({
+                  ...(responseStyle ? { response_style: responseStyle } : {}),
+                  ...(Array.isArray(interests) ? { interests } : {}),
+                })
               })
             } catch (e) {
-              console.error('Failed to save response style', e)
+              console.error('Failed to save preferences', e)
             }
           }
 
@@ -319,6 +326,7 @@ export default function App() {
           if (user?.email) loadUserPreferences(user.email)
         }}
       />
+      </>
     )
   }
 
@@ -327,6 +335,7 @@ export default function App() {
   // ═══════════════════════════════════════════════════════════
   return (
     <Router>
+      <Toaster />
       <RouteTitles />
       <PageTransition />
       {/* Global premium dock: floats over every authenticated page, hidden on

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from app.database import get_db
 from app.models.user import User
 
@@ -15,6 +16,7 @@ class PreferencesUpdate(BaseModel):
     streaming_enabled: Optional[bool] = None  # True/False
     auto_save: Optional[bool] = None          # True/False
     confidence_threshold: Optional[int] = None # 0-100
+    interests: Optional[List[str]] = None      # onboarding topic keys → personalisation
 
 class PreferencesResponse(BaseModel):
     """What we return to the frontend"""
@@ -23,6 +25,7 @@ class PreferencesResponse(BaseModel):
     streaming_enabled: bool = True
     auto_save: bool = True
     confidence_threshold: int = 70
+    interests: List[str] = []
 
 # ─── GET PREFERENCES ──────────────────────────────
 @router.get("", response_model=PreferencesResponse)
@@ -46,7 +49,8 @@ async def get_preferences(request: Request, db: Session = Depends(get_db)):
         response_style=user.response_style or "academic",
         streaming_enabled=user.streaming_enabled if user.streaming_enabled is not None else True,
         auto_save=user.auto_save if user.auto_save is not None else True,
-        confidence_threshold=user.confidence_threshold or 70
+        confidence_threshold=user.confidence_threshold or 70,
+        interests=((user.preferences or {}).get("interests") or []),
     )
 
 # ─── SAVE PREFERENCES ─────────────────────────────
@@ -85,6 +89,12 @@ async def update_preferences(
     if prefs.confidence_threshold is not None:
         user.confidence_threshold = prefs.confidence_threshold
         updated.append(f"confidence_threshold={prefs.confidence_threshold}")
+    if prefs.interests is not None:
+        p = user.preferences or {}
+        p["interests"] = [str(x) for x in prefs.interests][:60]
+        user.preferences = p
+        flag_modified(user, "preferences")
+        updated.append(f"interests={len(p['interests'])}")
 
     db.commit()
 

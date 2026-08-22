@@ -22,6 +22,11 @@ const TERMS = [
 ];
 
 export default function TrialWelcome({ user, onClose }) {
+  // Guard against a garbage username (e.g. an API URL wrongly stored as the name):
+  // only greet by name if it looks like a real, short handle.
+  const rawName = (user && user.username) || "";
+  const safeName = (!/[:/@]|https?/i.test(rawName) && rawName.length > 0 && rawName.length <= 24) ? rawName : "";
+
   const [phase, setPhase] = useState("intro"); // intro | claiming | done | skip
   const [msg, setMsg] = useState("");
   const [trial, setTrial] = useState(null);
@@ -70,7 +75,7 @@ export default function TrialWelcome({ user, onClose }) {
 
         {phase !== "done" && (
           <>
-            <div style={kicker}><span style={{ color: C.acc }}>◆</span> POLYNOUS · WELCOME{user?.username ? `, ${user.username.toUpperCase()}` : ""}</div>
+            <div style={kicker}><span style={{ color: C.acc }}>◆</span> POLYNOUS · WELCOME{safeName ? `, ${safeName.toUpperCase()}` : ""}</div>
             <h1 style={h1}>Your free trial<br />is ready.</h1>
             <p style={sub}>We've set aside a free starter key so you can see POLYNOUS work right now, no card, no setup. Here's the deal, in plain terms:</p>
 

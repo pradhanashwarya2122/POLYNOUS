@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from "react";
+import { toast } from "sonner";
 import ProfileSetup from './ProfileSetup'
 import { API_BASE_URL } from '../config'
 import OnboardingOverlay from './OnboardingOverlay'
@@ -211,6 +212,9 @@ function NeuralCanvas() {
 // ─── Focused Input ────────────────────────────────────────────
 function NeuralInput({ type, placeholder, icon, label, value, onChange }) {
   const [focused, setFocused] = useState(false);
+  const [reveal, setReveal] = useState(false);
+  const isPassword = type === "password";
+  const effectiveType = isPassword && reveal ? "text" : type;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <label style={{
@@ -229,7 +233,7 @@ function NeuralInput({ type, placeholder, icon, label, value, onChange }) {
           }}
         />
         <input
-          type={type}
+          type={effectiveType}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
@@ -240,7 +244,7 @@ function NeuralInput({ type, placeholder, icon, label, value, onChange }) {
             background: "rgba(12,12,32,0.5)",
             border: `1px solid ${focused ? C.cyan : C.white10}`,
             borderRadius: 9999,
-            padding: "12px 24px 12px 48px",
+            padding: isPassword ? "12px 52px 12px 48px" : "12px 24px 12px 48px",
             color: "#fff",
             fontFamily: "'Hanken Grotesk', sans-serif",
             fontSize: 16,
@@ -249,6 +253,22 @@ function NeuralInput({ type, placeholder, icon, label, value, onChange }) {
             transition: "border-color 0.2s, box-shadow 0.2s",
           }}
         />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setReveal(r => !r)}
+            aria-label={reveal ? "Hide password" : "Show password"}
+            title={reveal ? "Hide password" : "Show password"}
+            style={{
+              position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+              background: "transparent", border: "none", cursor: "pointer",
+              color: reveal ? C.green : C.onSurfaceVariant, padding: 6, display: "flex",
+              alignItems: "center", justifyContent: "center", transition: "color 0.2s",
+            }}
+          >
+            <Icon name={reveal ? "visibility_off" : "visibility"} style={{ fontSize: 20 }} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -385,7 +405,7 @@ function LoginCard({ onLogin, oauthError }) {
 
   const handleSubmit = async () => {
     setError(""); setSuccess("");
-    if (!email || !password) { setError("All fields are required."); return; }
+    if (!email || !password) { setError("All fields are required."); toast.error("Missing details", { description: "Enter both your email and password." }); return; }
     setLoading(true);
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register'
@@ -411,16 +431,31 @@ function LoginCard({ onLogin, oauthError }) {
             errorMsg = data.detail.msg;
           }
         }
+        // Email-already-exists on sign-up → clear, friendly guidance + switch to Login.
+        if (!isLogin && (res.status === 400 || res.status === 409) && /already (exists|registered)/i.test(String(errorMsg))) {
+          setLoading(false);
+          setError("That email is already registered. Please log in instead.");
+          toast.error("Email already registered", { description: "An account with this email exists. Switching you to Login." });
+          setIsLogin(true);
+          return;
+        }
+        if (isLogin && res.status === 401) {
+          toast.error("Sign-in failed", { description: "Wrong email or password. Please try again." });
+        } else {
+          toast.error(isLogin ? "Sign-in failed" : "Sign-up failed", { description: String(errorMsg).slice(0, 140) });
+        }
         throw new Error(errorMsg);
       }
-      
+
       const token = data.access_token || data.token;
       window.__POLYNOUS_ACCESS_TOKEN__ = token;
       localStorage.setItem('polynous_token', token);
-      
+
       if (data.refresh_token) {
         window.__POLYNOUS_REFRESH_TOKEN__ = data.refresh_token;
+        localStorage.setItem('polynous_refresh_token', data.refresh_token);
       }
+      toast.success(isLogin ? "Signed in" : "Account created", { description: isLogin ? "Welcome back to POLYNOUS." : "Welcome to POLYNOUS." });
       
       localStorage.setItem('polynous_user', JSON.stringify({ 
           username: data.username || email.split('@')[0], 
@@ -444,6 +479,9 @@ function LoginCard({ onLogin, oauthError }) {
       }
     } catch (err) {
       setError(err.message || "Authentication failed.");
+      if (/connect|network|fetch|reach/i.test(err.message || "")) {
+        toast.error("Connection problem", { description: "Cannot reach the server. Please try again." });
+      }
     } finally {
       setLoading(false);
     }

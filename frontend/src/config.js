@@ -1,6 +1,8 @@
 // frontend/src/config.js
 // Central API client for all frontend requests
 
+import { toast } from 'sonner';
+
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -14,10 +16,15 @@ function _refreshBlockedUntil() {
 }
 async function _sharedRefresh() {
   if (_refreshInFlight) return _refreshInFlight;
+  // Send the stored refresh token as a Bearer header too — the backend accepts
+  // it there as a fallback for when the cross-site refresh COOKIE is blocked
+  // (Safari/iOS/third-party-cookie blocking) or lost on a hard page reload.
+  // This is the key fix for "signed out too often".
+  const stored = localStorage.getItem('polynous_refresh_token') || window.__POLYNOUS_REFRESH_TOKEN__ || '';
   _refreshInFlight = fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(stored ? { Authorization: `Bearer ${stored}` } : {}) },
   })
     .then((res) => {
       if (!res.ok) _refreshFailedUntil = Date.now() + 30000; // back off 30s
@@ -56,16 +63,23 @@ export async function apiFetch(url, options = {}) {
       credentials: 'include', // required for cross‑site cookie
     });
 
-    // If 401 and we had a token, try refreshing it. Concurrent 401s share a
+    // Guests can't make authed calls — never try to refresh/logout them.
+    const isGuest = (token || '').startsWith('guest_');
+
+    // If 401 and we had a real token, try refreshing it. Concurrent 401s share a
     // single in-flight refresh, and a recent failure is cached briefly, so we
     // never spam /auth/refresh (which produced a wall of console 401s).
-    if (response.status === 401 && token && !_refreshBlockedUntil()) {
+    if (response.status === 401 && token && !isGuest && !_refreshBlockedUntil()) {
       const refreshResponse = await _sharedRefresh();
 
       if (refreshResponse && refreshResponse.ok) {
         const data = await refreshResponse.json();
         const newToken = data.access_token;
-        
+        if (data.refresh_token) {
+          localStorage.setItem('polynous_refresh_token', data.refresh_token);
+          window.__POLYNOUS_REFRESH_TOKEN__ = data.refresh_token;
+        }
+
         if (newToken) {
           localStorage.setItem('polynous_token', newToken);
           window.__POLYNOUS_ACCESS_TOKEN__ = newToken;
@@ -79,9 +93,18 @@ export async function apiFetch(url, options = {}) {
           });
         }
       } else {
-        // Refresh failed → force logout
+        // Refresh genuinely failed → the session has expired. Tell the user
+        // clearly (instead of a silent redirect), then send them to sign in.
+        try {
+          toast.error('Session expired', {
+            id: 'session-expired',
+            description: 'Please sign in again to continue.',
+          });
+        } catch (_) { /* toast host may not be mounted yet */ }
         localStorage.clear();
-        window.location.href = '/auth';
+        delete window.__POLYNOUS_ACCESS_TOKEN__;
+        delete window.__POLYNOUS_REFRESH_TOKEN__;
+        setTimeout(() => { if (!window.location.pathname.startsWith('/auth')) window.location.href = '/auth'; }, 1100);
         throw new Error('Session expired');
       }
     }
@@ -99,6 +122,7 @@ export async function apiFetch(url, options = {}) {
     // Network errors (offline, DNS failure, etc.)
     if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
       console.error('Network error - backend may be offline');
+      try { toast.error('Connection problem', { id: 'net-offline', description: 'Cannot reach the server. Check your connection and try again.' }); } catch (_) {}
       throw new Error('Unable to connect to server. Please check your connection.');
     }
     throw error;

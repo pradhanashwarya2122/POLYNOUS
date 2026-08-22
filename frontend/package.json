@@ -19,6 +19,7 @@
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
     "recharts": "^3.10.1",
+    "sonner": "^2.0.8",
     "three": "^0.184.0",
     "vanta": "^0.5.24"
   },

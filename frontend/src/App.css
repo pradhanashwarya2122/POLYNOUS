@@ -14,6 +14,10 @@
   font-display: swap;
 }
 
+/* Hide scrollbar utility (used by TopicSelector and scroll trays) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* ========== BRICOLAGE GROTESQUE — opt-in only ==========
    The Bricolage font is loaded (see @import at top) and available across the app,
    but it is NOT force-applied to existing headings — those keep their original

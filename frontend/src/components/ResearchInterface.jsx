@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { getPersonalizedSuggestions } from "../personalize";
 import { C } from "../design/researchColors";
 import { Icon } from "./shared/Icon";
 import { NeuralSynthesisReport } from "./report/NeuralSynthesisReport";
@@ -855,24 +856,36 @@ const SUGG_CARDS = [
 const SUGG_VISIBLE = 6;
 
 function SuggestionCards({ onSelect }) {
-  const [cards, setCards]   = useState(() => shuffle(SUGG_CARDS).slice(0, SUGG_VISIBLE));
+  // Personalised: the user's onboarding interests dominate the deck, topped up
+  // with the default deck for variety. Falls back to defaults for new users.
+  const { personal, extras } = useMemo(() => {
+    const p = getPersonalizedSuggestions("research", 20)
+      .filter(s => s.personalized)
+      .map(s => ({ icon: s.icon, text: s.text }));
+    const seen = new Set(p.map(x => x.text));
+    return { personal: p, extras: SUGG_CARDS.filter(c => !seen.has(c.text)) };
+  }, []);
+
+  // Compose a view that leads with the user's own topics, then fills the rest.
+  const compose = () => {
+    if (!personal.length) return shuffle(extras).slice(0, SUGG_VISIBLE);
+    const keep = Math.min(personal.length, SUGG_VISIBLE);
+    const lead = shuffle(personal).slice(0, keep);
+    const fill = shuffle(extras).slice(0, SUGG_VISIBLE - keep);
+    return shuffle([...lead, ...fill]);
+  };
+
+  const [cards, setCards]   = useState(() => compose());
   const [phase, setPhase]   = useState("in"); // in | out
 
   useEffect(() => {
     const id = setInterval(() => {
       setPhase("out");
-      setTimeout(() => {
-        setCards(prev => {
-          // Prefer questions not currently on screen for genuine variety.
-          const shown = new Set(prev.map(c => c.text));
-          const pool  = shuffle(SUGG_CARDS.filter(c => !shown.has(c.text)));
-          return (pool.length >= SUGG_VISIBLE ? pool : shuffle(SUGG_CARDS)).slice(0, SUGG_VISIBLE);
-        });
-        setPhase("in");
-      }, 460);
+      setTimeout(() => { setCards(compose()); setPhase("in"); }, 460);
     }, 5500);
     return () => clearInterval(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personal, extras]);
 
   return (
     <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:14, width:"100%", maxWidth:760 }}>
