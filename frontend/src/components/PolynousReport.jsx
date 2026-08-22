@@ -19,13 +19,19 @@ import SideRail from "./react-bits/SideRail";
 import { API_BASE_URL as APP_API_BASE, getAuthToken } from "../config";
 
 const REPORT_RAIL = [
+  { label: "Key takeaways", id: "rp-sec-00" },
   { label: "Executive summary", id: "rp-sec-01" },
-  { label: "Key findings", id: "rp-sec-03" },
-  { label: "Evidence", id: "rp-sec-04" },
-  { label: "Confidence", id: "rp-sec-05" },
-  { label: "Perspectives", id: "rp-sec-06" },
-  { label: "Provenance", id: "rp-sec-10" },
-  { label: "Interrogate", id: "rp-sec-11" },
+  { label: "Scenarios", id: "rp-sec-02" },
+  { label: "Key findings", id: "rp-sec-04" },
+  { label: "Evidence", id: "rp-sec-05" },
+  { label: "Source scorecard", id: "rp-sec-06" },
+  { label: "Confidence", id: "rp-sec-07" },
+  { label: "Sensitivity", id: "rp-sec-08" },
+  { label: "Perspectives", id: "rp-sec-09" },
+  { label: "Counter-argument", id: "rp-sec-10" },
+  { label: "Assumptions", id: "rp-sec-12" },
+  { label: "Citations", id: "rp-sec-16" },
+  { label: "Interrogate", id: "rp-sec-17" },
 ];
 
 /* ---------- recharts confidence-over-time chart (in Polynous colours) ---------- */
@@ -139,6 +145,37 @@ const DEMO_CONDITIONS = [
   { n: "03", title: "Source consensus shifts", desc: "New high-trust evidence substantially shifts the balance of independent sources.", need: ["Peer-reviewed journals", "Official reports", "Expert testimony"], sources: ["5"], strength: 8 },
 ];
 
+/* ---------- institutional-grade demo data ---------- */
+const DEMO_SCENARIOS = [
+  { key: "Optimistic", tone: "pos", weight: 20, title: "Attribution overstated", body: "If natural variability is larger than current models allow, the human-driver share is smaller and mitigation urgency eases.", drivers: ["Higher natural forcing", "Model over-sensitivity"] },
+  { key: "Central", tone: "info", weight: 62, title: "Human activity dominant", body: "On the weight of independent evidence, recent warming is predominantly human-driven and consistent across datasets.", drivers: ["Multi-dataset agreement", "Isolated anthropogenic signal"] },
+  { key: "Skeptical", tone: "warn", weight: 18, title: "Worse than modelled", body: "If feedbacks (clouds, methane, AMOC) are stronger than expected, warming and impacts exceed the central projection.", drivers: ["Feedback tipping points", "Underestimated sensitivity"] },
+];
+const DEMO_DISSENT = {
+  claim: "Recent warming is driven primarily by natural solar and ocean cycles, not human emissions.",
+  held: "Held by a minority position in 1 of 5 sources; not the peer consensus.",
+  why: "Rejected because the observed rate of warming exceeds any natural forcing on record, and independent attribution studies isolate the human signal across every major dataset [3][4].",
+  strength: 22,
+};
+const DEMO_ASSUMPTIONS = [
+  { a: "Independent datasets measure the same underlying climate signal", depends: "Cross-dataset calibration", breaks: "Systematic instrument bias across all records", risk: "Low" },
+  { a: "Attribution methods correctly separate natural from human forcing", depends: "Validated attribution models", breaks: "A novel natural forcing absent from current models", risk: "Medium" },
+  { a: "Source trust scores reflect real authority", depends: "Domain and recency heuristics", breaks: "A high-trust source is later retracted", risk: "Low" },
+  { a: "Regional projections inherit global-trend confidence", depends: "Downscaling validity", breaks: "Regional models diverge from observations", risk: "High" },
+];
+const DEMO_REVISIONS = [
+  { v: "v1.2", date: "22 AUG 2026", note: "Added 2 current sources; headline confidence +4 points" },
+  { v: "v1.1", date: "18 AUG 2026", note: "Re-ran Critic; regional-magnitude contradiction resolved" },
+  { v: "v1.0", date: "12 AUG 2026", note: "Initial synthesis across 3 sources" },
+];
+const DEMO_GLOSSARY = [
+  { t: "Grounding", d: "Share of sentences carrying a citation that traces back to a retrieved source." },
+  { t: "Critic consensus", d: "Agreement among independent sources after the Critic agent stress-tests each claim." },
+  { t: "Entailment (NLI)", d: "Whether a source's text logically supports a claim, judged beyond bare citation counting." },
+  { t: "Trust score", d: "A 0 to 1 authority estimate from source type (gov, academic, org) and recency." },
+  { t: "Confidence band", d: "The plausible range around the headline confidence given the spread of evidence." },
+];
+
 /* ---------- data derivation (real props → view model, demo fallbacks) ---------- */
 function deriveReport(p) {
   const report = p.report || {};
@@ -196,9 +233,39 @@ function deriveReport(p) {
     "No material contradictions detected across the independent sources. A minor tension on the magnitude of regional effects was resolved in favour of the higher-trust, more recent datasets.");
   const analysisFallback = "Recent climate change is, on the balance of evidence, predominantly driven by human activity, chiefly the combustion of fossil fuels and the resulting rise in atmospheric greenhouse gases [1][2]. Across five independent, high-trust sources this conclusion holds consistently, and no source in the set disputes the dominant human-driver finding.\n\nThe mechanism is well established. Rising CO₂ concentrations increase radiative forcing, warming the lower atmosphere and the oceans, which have absorbed the majority of the excess heat since 1970 [5]. Attribution studies repeatedly isolate this anthropogenic signal from natural variability, and the observed rate of change is faster than any natural forcing on record can explain [3][4].\n\nNatural forcings, solar variation, volcanic aerosols, ocean cycles, remain important for longer-term and regional variability, but they do not account for the rapid, sustained warming of the modern era [4]. Where sources differ, it is on emphasis and on the precise magnitude of regional effects, not on the core attribution.\n\nConfidence in this synthesis is moderate: source agreement and grounding are strong, while a mix of publication dates and coarse regional resolution introduce measured uncertainty. The conclusion is robust to reasonable challenge, and would weaken only if independent datasets began to contradict the current attribution [3].";
 
+  // ── institutional-grade extras ──────────────────────────────────────────
+  const yearsFromLedger = ledger.map((r) => r.fresh && r.fresh.year).filter(Boolean);
+  const newestYear = yearsFromLedger.length ? Math.max(...yearsFromLedger) : 2025;
+  const ciMargin = Math.max(3, Math.round((100 - Math.min(96, breakdown.Agreement)) / 6) + (band === "MODERATE" ? 5 : band === "LOW" || band === "TENTATIVE" ? 9 : 3));
+  const ci = { low: Math.max(0, conf - ciMargin), high: Math.min(100, conf + ciMargin), margin: ciMargin };
+
+  const takeaways = (findings.length ? findings : DEMO_FINDINGS).slice(0, 4).map((f, i) => {
+    const c = Math.max(30, conf - i * 9);
+    const tag = c >= 80 ? "HIGH" : c >= 60 ? "MODERATE" : c >= 45 ? "TENTATIVE" : "LOW";
+    return { text: String(f).replace(/\s*\[\d+\]/g, ""), cites: String(f).match(/\[(\d+)\]/g) || [], conf: c, tag };
+  });
+
+  const scenarios = DEMO_SCENARIOS.map((s) => ({ ...s }));
+
+  const tierOf = (r) => { const t = r.trust || 0; const nm = String(r.name || ""); if (/\.gov|\.edu|ipcc|nasa|noaa|usgs|epa/i.test(nm) || t >= 0.85) return 1; if (/\.org|survey|institute/i.test(nm) || t >= 0.6) return 2; return 3; };
+  const scored = ledger.map((r) => ({ ...r, tier: tierOf(r) }));
+  const tierCounts = { 1: 0, 2: 0, 3: 0 }; scored.forEach((r) => { tierCounts[r.tier]++; });
+  const recency = { current: 0, aging: 0, outdated: 0 }; ledger.forEach((r) => { const l = String((r.fresh && r.fresh.label) || "").toUpperCase(); if (l === "CURRENT") recency.current++; else if (l === "AGING") recency.aging++; else recency.outdated++; });
+  const independentDomains = new Set(ledger.map((r) => String(r.name).replace(/^www\./, ""))).size;
+  const avgTrust = ledger.length ? ledger.reduce((a, r) => a + (r.trust || 0), 0) / ledger.length : 0;
+  const scorecard = { scored, tierCounts, recency, independentDomains, total: ledger.length, avgTrust };
+
+  const perspBalA = (DEMO_PERSPECTIVES.balance && DEMO_PERSPECTIVES.balance.a) || 54;
+  const sensitivity = { base: 50, flipAt: 72, leadA: perspBalA };
+
   return {
     query: pick(p.query, report.query, "What actually causes climate change?"),
     date: fmtDate(new Date()), sources, model, conf, band, breakdown, critic, findings, ledger,
+    ci, takeaways, scenarios, scorecard, sensitivity,
+    dissent: DEMO_DISSENT, assumptions: DEMO_ASSUMPTIONS,
+    dataAsOf: { generated: fmtDate(new Date()), current: newestYear, revisions: DEMO_REVISIONS },
+    glossary: DEMO_GLOSSARY,
+    footnotes: ledger.map((r, i) => ({ n: i + 1, name: r.name, url: r.url || (String(r.name).includes(".") ? "https://" + String(r.name).replace(/^https?:\/\//, "") : ""), trust: r.trust, year: r.fresh && r.fresh.year, fresh: r.fresh && r.fresh.label, tier: tierOf(r) })),
     stats: { confidence: conf, sources, passages: pick(Array.isArray(p.sourceSummaries) ? p.sourceSummaries.length : undefined, 42), insights: pick(kf.length || undefined, 19), claims: pick(kf.length || undefined, 23), consensus: cs },
     faithful, ungrounded, claims, trajectory, boundaries, telemetry, tools, constellation, provenance,
     analysisText: pick(answer, analysisFallback), coverage, landscape, contradiction,
@@ -223,8 +290,14 @@ function sMasthead(d) {
     <h1 class="rp-query">${esc(d.query)}</h1>
     <p class="rp-verdict">${cite(d.verdict)}</p>
     <div class="rp-headrow">
-      <div class="rp-conf"><span class="rp-fig rp-count" data-target="${d.conf}" data-suffix="%">${d.conf}%</span><span class="rp-conf-meta"><span class="rp-band">${esc(d.band)} CONFIDENCE</span>${bar(d.conf)}</span></div>
+      <div class="rp-conf"><span class="rp-fig rp-count" data-target="${d.conf}" data-suffix="%">${d.conf}%</span><span class="rp-conf-meta"><span class="rp-band">${esc(d.band)} CONFIDENCE</span><span class="rp-ciband" title="Plausible range given the spread of evidence"><i class="rp-ciband-lo" style="left:${d.ci.low}%"></i><i class="rp-ciband-fill" style="left:${d.ci.low}%;right:${100 - d.ci.high}%"></i><i class="rp-ciband-mid" style="left:${d.conf}%"></i></span><span class="rp-ci"><span class="rp-dim">CONFIDENCE BAND</span> ${d.ci.low} to ${d.ci.high}% <span class="rp-dim">(±${d.ci.margin})</span></span></span></div>
       <div class="rp-critic"><span class="rp-dim">CRITIC CONSENSUS</span><span><b>${d.critic.pct}%</b>, ${d.critic.agree}/${d.critic.total} sources agree</span><span class="rp-mut">${esc(d.critic.position)}</span></div>
+    </div>
+    <div class="rp-asof">
+      <span>Generated <b>${d.dataAsOf.generated}</b></span><span class="rp-asof-sep">·</span>
+      <span>Sources current to <b>${d.dataAsOf.current}</b></span><span class="rp-asof-sep">·</span>
+      <button class="rp-asof-btn" onclick="pnRev(this)">Revision history <span class="rp-caret">▾</span></button>
+      <div class="rp-revs">${d.dataAsOf.revisions.map((r) => `<div class="rp-rev"><span class="rp-mono rp-acc-t">${esc(r.v)}</span><span class="rp-mono rp-dim">${esc(r.date)}</span><span>${esc(r.note)}</span></div>`).join("")}</div>
     </div>
   </header>`;
 }
@@ -239,7 +312,7 @@ function sGlance(d) {
   const s = d.stats;
   const items = [["Confidence", s.confidence, "%"], ["Sources", s.sources, ""], ["Passages", s.passages, ""], ["Insights", s.insights, ""], ["Claims", s.claims, ""], ["Consensus", s.consensus, "%"]];
   const cells = items.map(([l, v, suf]) => `<div class="rp-stat"><span class="rp-fig rp-count" data-target="${v}"${suf ? ` data-suffix="${suf}"` : ""}>${v}${suf}</span><span class="rp-stat-l">${l}</span></div>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("02", "At a glance")}<div class="rp-stats">${cells}</div>
+  return `<section class="rp-sec rp-rev">${eye("03", "At a glance")}<div class="rp-stats">${cells}</div>
     <p class="rp-cap">${s.passages} passages analysed across ${s.sources} sources to produce ${s.claims} synthesised claims.</p></section>`;
 }
 
@@ -256,7 +329,7 @@ function sFindings(d) {
       <span class="rp-inspect">Inspect →</span>
     </li>`;
   }).join("");
-  return `<section class="rp-sec rp-rev">${eye("03", "Key findings")}<p class="rp-sublede">The core claims this synthesis stands behind, each one traceable to its supporting evidence.</p><ol class="rp-findlist">${rows}</ol></section>`;
+  return `<section class="rp-sec rp-rev">${eye("04", "Key findings")}<p class="rp-sublede">The core claims this synthesis stands behind, each one traceable to its supporting evidence.</p><ol class="rp-findlist">${rows}</ol></section>`;
 }
 
 function sEvidence(d) {
@@ -265,7 +338,7 @@ function sEvidence(d) {
     <td class="rp-fresh ${toneCls[r.fresh.tone]}">${r.fresh.label} <span class="rp-dim">${r.fresh.year}</span></td>
     <td class="rp-trust"><span class="rp-mono">${r.trust.toFixed(2)}</span>${bar(r.trust * 100)}</td></tr>`).join("");
   const land = d.landscape.map((l) => `<div class="rp-land"><span>${esc(l.label)}</span><span class="rp-mono">${l.pct}%</span>${bar(l.pct)}</div>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("04", "Evidence")}<div class="rp-split">
+  return `<section class="rp-sec rp-rev">${eye("05", "Evidence")}<div class="rp-split">
     <div><div class="rp-subh">Ledger, ${d.ledger.length} sources</div><table class="rp-table"><thead><tr><th>Source</th><th>Freshness</th><th>Trust</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div><div class="rp-subh">Landscape, composition</div><div class="rp-landwrap">${land}</div></div>
   </div></section>`;
@@ -277,7 +350,7 @@ function sConfidence(d) {
     ? d.ungrounded.map((s) => `<li class="rp-flag"><span class="rp-warn rp-mono">UNGROUNDED</span> "${esc(s.slice(0, 150))}"</li>`).join("")
     : `<li class="rp-flag rp-mut">Every sampled sentence carries a supporting citation.</li>`;
   const cl = d.claims.map((c, i) => `<div class="rp-claim" role="button" tabindex="0" ${inspData(d, c.text, String(c.text).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)"><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-claim-t">${cite(c.text)}</span><span class="rp-mono">${c.pct}%</span>${bar(c.pct, c.pct >= 70 ? "pos" : c.pct >= 45 ? null : "warn")}</div>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("05", "Confidence &amp; grounding")}<div class="rp-split">
+  return `<section class="rp-sec rp-rev">${eye("07", "Confidence &amp; grounding")}<div class="rp-split">
     <div><div class="rp-subh">How the score is built</div>${fac}
       <div class="rp-faith"><span class="rp-fig-s rp-count" data-target="${d.faithful.pct}" data-suffix="%">${d.faithful.pct}%</span><span><b>${d.faithful.grounded}/${d.faithful.total}</b> sentences grounded</span></div>
       <ul class="rp-flags">${flags}</ul></div>
@@ -288,7 +361,7 @@ function sConfidence(d) {
 function sPerspectives(d) {
   const pr = d.perspectives;
   const pos = (k, x, tone) => `<div class="rp-pos"><div class="rp-pos-h"><span>Position ${k}</span><span class="rp-dim">${x.sources} sources</span></div><p>${esc(x.label)}</p><div class="rp-pos-m"><span class="rp-mono">${x.strength}% strength</span><span class="${tone}">${x.support}</span></div>${bar(x.strength, tone)}</div>`;
-  return `<section class="rp-sec rp-rev">${eye("06", "Perspectives")}
+  return `<section class="rp-sec rp-rev">${eye("09", "Perspectives")}
     <div class="rp-vs">${pos("A", pr.a, "pos")}<span class="rp-vsmark">vs</span>${pos("B", pr.b, "warn")}</div>
     <p class="rp-note"><span class="rp-acc-t">Evidence favours Position ${pr.leader}.</span> ${esc(pr.note)}</p>
     <div class="rp-balance"><span class="rp-dim">EVIDENCE BALANCE</span><span class="rp-split2"><i style="width:${pr.balance.a}%"></i><b style="width:${pr.balance.b}%"></b></span><span class="rp-mono">A ${pr.balance.a}% · B ${pr.balance.b}%</span></div>
@@ -302,7 +375,7 @@ function sKUU(d) {
     return `<div class="rp-kcol"><div class="rp-ktitle ${tone}">${title}</div><ul>${rows}</ul></div>`;
   };
   const k = d.kuu;
-  return `<section class="rp-sec rp-rev">${eye("07", "Known · Uncertain · Unknown")}<div class="rp-kuu">
+  return `<section class="rp-sec rp-rev">${eye("11", "Known · Uncertain · Unknown")}<div class="rp-kuu">
     ${col("Known", "pos", k.known, true)}${col("Uncertain", "warn", k.uncertain, true)}${col("Unknown", "neg", k.unknown, false)}
   </div><p class="rp-cap">Evidence status, ${k.known.length} well-supported · ${k.uncertain.length} uncertain · ${k.unknown.length} unresolved.</p></section>`;
 }
@@ -320,7 +393,7 @@ function sChange(d) {
       <div class="rp-cond-foot"><span class="rp-dim">RELEVANT SOURCES</span> ${c.sources.map((s) => `<a class="rp-cite" onclick="event.stopPropagation();pnOpen()">[${esc(s)}]</a>`).join(" ")}</div>
     </div></div>
   </div>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("08", "What would change our mind")}
+  return `<section class="rp-sec rp-rev">${eye("13", "What would change our mind")}
     <div class="rp-synth"><span class="rp-dim">CURRENT SYNTHESIS</span><p>Recent climate change is predominantly driven by human activity, while natural factors contribute to longer-term variability.</p><span class="rp-synth-c"><span class="rp-dim">CONFIDENCE</span><b>${d.conf}%</b></span></div>
     <div class="rp-conds">${conds}</div>
     <p class="rp-note"><span class="rp-acc-t">Moderately robust.</span> The conclusion is supported by multiple independent sources, but would weaken if stronger evidence materially changed the attribution of recent warming.</p>
@@ -330,7 +403,7 @@ function sChange(d) {
 function sTrajectory(d) {
   const traj = d.trajectory.map((t, i) => `<li><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-traj-lk" role="button" tabindex="0" ${inspData(d, t, String(t).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">${cite(t)} <span class="rp-traj-arrow">↗</span></span></li>`).join("");
   const bnd = d.boundaries.map((b) => `<li>${cite(b)}</li>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("09", "Trajectory &amp; boundaries")}<div class="rp-split">
+  return `<section class="rp-sec rp-rev">${eye("14", "Trajectory &amp; boundaries")}<div class="rp-split">
     <div><div class="rp-subh">Where the research goes next</div><ol class="rp-traj">${traj}</ol></div>
     <div><div class="rp-subh">Honest boundaries</div><ul class="rp-bound">${bnd}</ul></div>
   </div></section>`;
@@ -344,7 +417,7 @@ function sProvenance(d) {
   const pipe = ["Input", "Search", "Summarise", "Critic", "Evidence", "Synthesis", "Insights"].map((s, i, a) => `<span class="rp-step">${s}</span>${i < a.length - 1 ? '<span class="rp-steprule"></span>' : ""}`).join("");
   const prov = d.provenance.map((s) => `<div class="rp-provrow"><span>${esc(s.name)}</span><span class="rp-mono rp-dim">${s.tokens ? s.tokens.toLocaleString() + " tok" : ""}</span></div>`).join("");
   const cons = d.constellation.map((c) => `<li role="button" tabindex="0" onclick="pnOpen()"><span class="rp-num">${c.n}</span>${esc(c.t)}</li>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("10", "Provenance")}
+  return `<section class="rp-sec rp-rev">${eye("15", "Provenance")}
     <div class="rp-pipe">${pipe}</div>
     <div class="rp-subh" style="margin-top:34px">Confidence of the field over time</div>
     <div id="rp-confchart" class="rp-chart-mount"></div>
@@ -359,7 +432,7 @@ function sProvenance(d) {
 
 function sChat(d) {
   const chips = ["What's the strongest evidence here?", "Where do the sources disagree?", "What are the biggest uncertainties?", "Summarise this in one line"];
-  return `<section class="rp-sec rp-rev rp-chatsec">${eye("11", "Interrogate this report")}
+  return `<section class="rp-sec rp-rev rp-chatsec">${eye("17", "Interrogate this report")}
     <div class="rp-chat"><div id="pn-chat-msgs" class="rp-msgs">
       <div class="rp-msg rp-msg-a">Ask anything about this report, every answer stays grounded strictly in the sources above.</div>
       <div class="rp-chiprow">${chips.map((q) => `<button class="rp-chip rp-chipbtn" onclick="pnAsk(this)">${q}</button>`).join("")}</div>
@@ -394,9 +467,111 @@ function sInspector() {
   </aside>`;
 }
 
+/* ---------- institutional-grade section builders ---------- */
+function sTakeaways(d) {
+  const rows = d.takeaways.map((t, i) => {
+    const tone = t.tag === "HIGH" ? "pos" : t.tag === "MODERATE" ? "info" : t.tag === "TENTATIVE" ? "warn" : "neg";
+    const cites = t.cites.length ? " " + t.cites.map((c) => `<a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">${c}</a>`).join(" ") : "";
+    return `<li class="rp-take" ${inspData(d, t.text, t.cites)} role="button" tabindex="0" onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">
+      <span class="rp-take-n">${String(i + 1).padStart(2, "0")}</span>
+      <p class="rp-take-t">${esc(t.text)}${cites}</p>
+      <span class="rp-tag ${tone}">${t.tag} · ${t.conf}%</span>
+    </li>`;
+  }).join("");
+  return `<section class="rp-sec rp-rev rp-lead" id="rp-sec-00" style="scroll-margin-top:20px">
+    <div class="rp-lead-eye"><span class="rp-mono rp-acc-t">◆ KEY TAKEAWAYS</span><span class="rp-dim rp-mono">${esc(d.band)} CONFIDENCE · BAND ${d.ci.low} TO ${d.ci.high}%</span></div>
+    <ol class="rp-takes">${rows}</ol>
+  </section>`;
+}
+
+function sScenarios(d) {
+  const cards = d.scenarios.map((s) => `<div class="rp-scen">
+    <div class="rp-scen-h"><span class="rp-scen-k ${s.tone}">${esc(s.key)}</span><span class="rp-scen-w rp-mono ${s.tone}">${s.weight}%</span></div>
+    <div class="rp-scen-bar">${bar(s.weight, s.tone)}</div>
+    <h4>${esc(s.title)}</h4><p>${esc(s.body)}</p>
+    <div class="rp-scen-d">${s.drivers.map((x) => `<span class="rp-chip">${esc(x)}</span>`).join("")}</div>
+  </div>`).join("");
+  return `<section class="rp-sec rp-rev">${eye("02", "Scenarios &amp; weights")}<p class="rp-sublede">How the conclusion could break in either direction, with a rough probability weight on each reading.</p>
+    <div class="rp-scens">${cards}</div></section>`;
+}
+
+function sScorecard(d) {
+  const sc = d.scorecard;
+  const tierRow = (n, label, cnt, tone) => `<div class="rp-tier"><span class="rp-tier-b ${tone}">TIER ${n}</span><span class="rp-tier-l">${label}</span><span class="rp-mono">${cnt}</span><span class="rp-tier-bar">${bar(sc.total ? (cnt / sc.total) * 100 : 0, tone)}</span></div>`;
+  const rec = (label, cnt, tone) => `<div class="rp-recrow"><span>${label}</span><span class="rp-mono">${cnt}</span>${bar(sc.total ? (cnt / sc.total) * 100 : 0, tone)}</div>`;
+  return `<section class="rp-sec rp-rev">${eye("06", "Source quality scorecard")}<div class="rp-split">
+    <div><div class="rp-subh">Authority tiers</div>
+      ${tierRow(1, "Government, peer-reviewed", sc.tierCounts[1], "pos")}
+      ${tierRow(2, "Institutions, established orgs", sc.tierCounts[2], "info")}
+      ${tierRow(3, "General web, unverified", sc.tierCounts[3], "warn")}
+      <div class="rp-scorekpi"><div><span class="rp-fig-s">${(sc.avgTrust * 100).toFixed(0)}%</span><span class="rp-stat-l">Avg trust</span></div><div><span class="rp-fig-s">${sc.independentDomains}</span><span class="rp-stat-l">Independent sources</span></div></div>
+    </div>
+    <div><div class="rp-subh">Recency &amp; independence</div>
+      ${rec("Current (0 to 2 yrs)", sc.recency.current, "pos")}
+      ${rec("Aging (3 to 6 yrs)", sc.recency.aging, "warn")}
+      ${rec("Outdated (over 6 yrs)", sc.recency.outdated, "neg")}
+      <p class="rp-cap">Independence check: ${sc.independentDomains} of ${sc.total} sources come from distinct domains, reducing single-source bias.</p>
+    </div></div></section>`;
+}
+
+function sSensitivity(d) {
+  const s = d.sensitivity;
+  return `<section class="rp-sec rp-rev">${eye("08", "Sensitivity analysis")}<p class="rp-sublede">The verdict blends measured evidence with argument quality. Drag to re-weight and watch it move; a flip means the conclusion is fragile to that assumption.</p>
+    <div class="rp-sens">
+      <div class="rp-sens-row"><span class="rp-dim">EVIDENCE WEIGHT</span><span class="rp-mono" id="rp-sens-w">50%</span></div>
+      <input id="rp-sens-slider" class="rp-slider" type="range" min="0" max="100" value="50" oninput="pnSens(this.value)" aria-label="Evidence weight"/>
+      <div class="rp-sens-out">
+        <div class="rp-sens-score"><span class="rp-dim">RESULTING LEAN</span><span class="rp-fig-s" id="rp-sens-score">${s.leadA}%</span><span class="rp-dim">toward the primary conclusion</span></div>
+        <div class="rp-sens-flag" id="rp-sens-flag">Stable. The conclusion holds across reasonable weightings.</div>
+      </div>
+      <div class="rp-sens-note">Flip point: below <b id="rp-sens-flip">${100 - s.flipAt}%</b> evidence weight, the alternative position would lead instead.</div>
+    </div></section>`;
+}
+
+function sDissent(d) {
+  const ds = d.dissent;
+  return `<section class="rp-sec rp-rev">${eye("10", "The strongest counter-argument")}<p class="rp-sublede">Every honest analysis names its best opposing case. Here is the strongest challenge to the conclusion, and why it does not currently hold.</p>
+    <div class="rp-dissent">
+      <div class="rp-dissent-h"><span class="rp-tag neg">DISSENT</span><span class="rp-dim rp-mono">CHALLENGE STRENGTH ${ds.strength}%</span></div>
+      <blockquote class="rp-dissent-q">${cite(ds.claim)}</blockquote>
+      <p class="rp-mut">${esc(ds.held)}</p>
+      <div class="rp-dissent-why"><span class="rp-dim">WHY IT DOES NOT HOLD</span><p>${cite(ds.why)}</p></div>
+      ${bar(ds.strength, "neg")}
+    </div></section>`;
+}
+
+function sAssumptions(d) {
+  const rows = d.assumptions.map((a) => { const tone = a.risk === "High" ? "neg" : a.risk === "Medium" ? "warn" : "pos"; return `<tr><td class="rp-asm-a">${esc(a.a)}</td><td>${esc(a.depends)}</td><td>${esc(a.breaks)}</td><td><span class="rp-tag ${tone}">${esc(a.risk)}</span></td></tr>`; }).join("");
+  return `<section class="rp-sec rp-rev">${eye("12", "Assumptions &amp; risks")}<p class="rp-sublede">What the conclusion depends on, and exactly what would break each link.</p>
+    <div class="rp-tablewrap"><table class="rp-table rp-asmtable"><thead><tr><th>Assumption</th><th>Depends on</th><th>Breaks if</th><th>Risk</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+function sAppendix(d) {
+  const rows = d.footnotes.map((f) => `<div class="rp-fnrow"${f.url ? ` data-url="${escAttr(f.url)}" role="button" tabindex="0" onclick="pnGo(this)"` : ""}>
+    <span class="rp-fn-n rp-mono">[${f.n}]</span>
+    <div class="rp-fn-meta"><b>${esc(f.name)}</b>${f.url ? `<span class="rp-dim rp-mono">${esc(f.url)}</span>` : ""}</div>
+    <span class="rp-tag ${f.tier === 1 ? "pos" : f.tier === 2 ? "info" : "warn"}">TIER ${f.tier}</span>
+    <span class="rp-mono rp-dim rp-fn-y">${f.year || ""}</span>
+    <span class="rp-mono rp-fn-t">${f.trust != null ? f.trust.toFixed(2) : ""}</span>
+  </div>`).join("");
+  return `<section class="rp-sec rp-rev">${eye("16", "Citations appendix")}<p class="rp-sublede">Full metadata for every source cited above. Click a row to open the source.</p><div class="rp-fns">${rows}</div></section>`;
+}
+
+function sMethodology(d) {
+  const t = d.telemetry;
+  const gl = d.glossary.map((g) => `<div class="rp-gl"><dt>${esc(g.t)}</dt><dd>${esc(g.d)}</dd></div>`).join("");
+  return `<section class="rp-sec rp-rev">${eye("18", "Methodology &amp; glossary")}<div class="rp-split">
+    <div><div class="rp-subh">How this report was produced</div>
+      <p class="rp-method">POLYNOUS ran a multi-agent pipeline (Search, then Summarise, then Critic, then Writer) over ${d.sources} sources: isolating claims, scoring each against its highest-trust source, and computing a grounded confidence from source agreement, diversity, recency and citation coverage. Every figure is derived from the run, never fabricated; costs are estimates.</p>
+      <div class="rp-method-kpi"><span><b class="rp-mono">${esc(d.model)}</b><span class="rp-stat-l">model</span></span><span><b class="rp-mono">${t.tokens ? t.tokens.toLocaleString() : "n/a"}</b><span class="rp-stat-l">tokens</span></span><span><b class="rp-mono">${t.cost ? "$" + t.cost.toFixed(4) : "n/a"}</b><span class="rp-stat-l">est. cost</span></span></div>
+    </div>
+    <div><div class="rp-subh">Glossary</div><dl class="rp-glossary">${gl}</dl></div>
+  </div></section>`;
+}
+
 function buildReport(d) {
   return `<div class="rp-progress" id="rp-prog"></div><div class="rp-wrap">
-    ${sMasthead(d)}${sExec(d)}${sGlance(d)}${sFindings(d)}${sEvidence(d)}${sConfidence(d)}${sPerspectives(d)}${sKUU(d)}${sChange(d)}${sTrajectory(d)}${sProvenance(d)}${sChat(d)}
+    ${sMasthead(d)}${sTakeaways(d)}${sExec(d)}${sScenarios(d)}${sGlance(d)}${sFindings(d)}${sEvidence(d)}${sScorecard(d)}${sConfidence(d)}${sSensitivity(d)}${sPerspectives(d)}${sDissent(d)}${sKUU(d)}${sAssumptions(d)}${sChange(d)}${sTrajectory(d)}${sProvenance(d)}${sAppendix(d)}${sChat(d)}${sMethodology(d)}
     <footer class="rp-foot"><span>◆ POLYNOUS</span><span class="rp-dim">Transparent · Auditable · Grounded research</span></footer>
   </div>${sInspector()}`;
 }
@@ -728,6 +903,121 @@ const RP_CSS = `
 .rp-traj-arrow { font-family: var(--mono); font-size: 0.72em; color: var(--acc); opacity: 0; transition: opacity .2s ease; }
 .rp-traj-lk:hover .rp-traj-arrow { opacity: 1; }
 
+/* colour helpers */
+.rp .info { color: var(--info); }
+
+/* confidence-interval band (masthead) */
+.rp-ci { font-family: var(--mono); font-size: 10.5px; color: var(--tx); letter-spacing: 0.02em; margin-top: 2px; }
+.rp-ci .rp-dim { font-size: 9px; letter-spacing: 0.14em; margin-right: 4px; }
+.rp-ciband { position: relative; display: block; height: 8px; margin: 6px 0 4px; }
+.rp-ciband i { position: absolute; top: 50%; transform: translateY(-50%); }
+.rp-ciband-fill { height: 6px; background: linear-gradient(90deg, rgba(0,255,71,0.18), rgba(0,255,71,0.5)); border-radius: 3px; }
+.rp-ciband-mid { width: 2px; height: 12px; background: var(--acc); border-radius: 2px; box-shadow: 0 0 8px rgba(0,255,71,0.7); }
+.rp-ciband-lo { width: 1px; height: 8px; background: var(--dim); }
+
+/* data-as-of + revision history */
+.rp-asof { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 30px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; color: var(--dim); }
+.rp-asof b { color: var(--tx); font-weight: 600; }
+.rp-asof-sep { opacity: 0.5; }
+.rp-asof-btn { background: transparent; border: 0; color: var(--acc); font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 0; }
+.rp-asof-btn .rp-caret { transition: transform .3s ease; display: inline-block; }
+.rp-asof.open .rp-asof-btn .rp-caret { transform: rotate(180deg); }
+.rp-revs { flex-basis: 100%; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .34s cubic-bezier(.16,1.3,1); }
+.rp-asof.open .rp-revs { grid-template-rows: 1fr; }
+.rp-revs > * { overflow: hidden; min-height: 0; }
+.rp-rev { display: grid; grid-template-columns: 44px 92px 1fr; gap: 14px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line2); font-size: 11px; }
+.rp-rev span:last-child { color: var(--tx); font-family: var(--sans); font-size: 12.5px; letter-spacing: 0; }
+.rp-revs > div { padding-top: 6px; }
+
+/* tags */
+.rp-tag { display: inline-flex; align-items: center; font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; padding: 3px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.rp-tag.pos { color: var(--pos); } .rp-tag.warn { color: var(--warn); } .rp-tag.neg { color: var(--neg); } .rp-tag.info { color: var(--info); }
+.rp-fig-s.pos { color: var(--pos); } .rp-fig-s.neg { color: var(--neg); }
+
+/* key takeaways (lead) */
+.rp-lead { border-top: 0; padding-top: 40px; }
+.rp-lead-eye { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; font-size: 11px; letter-spacing: 0.14em; margin-bottom: 22px; }
+.rp-takes { list-style: none; border-left: 2px solid var(--acc); }
+.rp-take { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 20px; align-items: start; padding: 20px 4px 20px 24px; border-bottom: 1px solid var(--line2); cursor: pointer; transition: transform .3s cubic-bezier(.16,1.3,1), background .3s ease; }
+.rp-take:last-child { border-bottom: 0; }
+.rp-take:hover { transform: translateX(6px); background: rgba(0,255,71,0.02); }
+.rp-take-n { font-family: var(--mono); font-size: 13px; color: var(--acc); padding-top: 3px; }
+.rp-take-t { font-family: var(--serif); font-size: 19px; font-weight: 500; color: var(--hi); line-height: 1.4; letter-spacing: -0.015em; }
+.rp-take .rp-tag { align-self: center; }
+
+/* scenarios */
+.rp-scens { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.rp-scen { padding: 20px 20px 18px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); display: flex; flex-direction: column; gap: 10px; transition: border-color .3s ease, transform .4s cubic-bezier(.16,1.3,1); }
+.rp-scen:hover { border-color: rgba(200,216,234,0.22); transform: translateY(-3px); }
+.rp-scen-h { display: flex; justify-content: space-between; align-items: baseline; }
+.rp-scen-k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+.rp-scen-w { font-size: 22px; font-weight: 600; }
+.rp-scen h4 { font-family: var(--serif); font-size: 16px; color: var(--hi); font-weight: 600; letter-spacing: -0.01em; }
+.rp-scen p { font-size: 13px; color: var(--tx); line-height: 1.55; flex: 1; }
+.rp-scen-d { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* source scorecard */
+.rp-tier { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 12px; align-items: center; margin-bottom: 16px; font-size: 13px; }
+.rp-tier-b { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; padding: 3px 8px; border: 1px solid currentColor; border-radius: 4px; }
+.rp-tier-l { color: var(--tx); }
+.rp-tier-bar { grid-column: 1 / -1; }
+.rp-scorekpi { display: flex; gap: 32px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line2); }
+.rp-scorekpi > div { display: flex; flex-direction: column; gap: 6px; }
+.rp-recrow { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; margin-bottom: 15px; font-size: 13px; }
+.rp-recrow .rp-bar { grid-column: 1 / -1; }
+
+/* sensitivity */
+.rp-sens { max-width: 640px; }
+.rp-sens-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; }
+.rp-sens-row .rp-mono { font-size: 16px; color: var(--hi); }
+.rp-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 3px; background: linear-gradient(90deg, var(--neg), var(--warn), var(--pos)); outline: none; }
+.rp-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--hi); border: 3px solid var(--acc); cursor: grab; box-shadow: 0 0 14px rgba(0,255,71,0.5); }
+.rp-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--hi); border: 3px solid var(--acc); cursor: grab; }
+.rp-sens-out { display: flex; align-items: center; gap: 24px; margin: 24px 0 14px; flex-wrap: wrap; }
+.rp-sens-score { display: flex; flex-direction: column; gap: 2px; }
+.rp-sens-score .rp-fig-s { font-size: 40px; }
+.rp-sens-score .rp-dim:first-child { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; }
+.rp-sens-flag { flex: 1; min-width: 200px; font-size: 13.5px; line-height: 1.5; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.02); }
+.rp-sens-flag.pos { color: var(--pos); border-color: rgba(62,240,127,0.28); } .rp-sens-flag.warn { color: var(--warn); border-color: rgba(255,182,74,0.28); } .rp-sens-flag.neg { color: var(--neg); border-color: rgba(255,107,138,0.3); }
+.rp-sens-note { font-size: 12px; color: var(--dim); } .rp-sens-note b { color: var(--tx); font-family: var(--mono); }
+
+/* dissent / counter-argument */
+.rp-dissent { border-left: 2px solid var(--neg); padding: 4px 0 4px 24px; }
+.rp-dissent-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.rp-dissent-q { font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--hi); line-height: 1.4; letter-spacing: -0.015em; }
+.rp-dissent .rp-mut { margin: 12px 0 20px; }
+.rp-dissent-why { padding-top: 18px; border-top: 1px solid var(--line2); margin-bottom: 16px; }
+.rp-dissent-why .rp-dim { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; }
+.rp-dissent-why p { font-size: 14px; color: var(--tx); line-height: 1.6; margin-top: 8px; max-width: 76ch; }
+
+/* assumptions table */
+.rp-tablewrap { overflow-x: auto; }
+.rp-asmtable { table-layout: fixed; }
+.rp-asmtable th, .rp-asmtable td { padding: 13px 14px 13px 0; vertical-align: top; }
+.rp-asmtable td { font-size: 12.5px; line-height: 1.5; color: var(--tx); }
+.rp-asm-a { color: var(--hi); font-weight: 500; }
+.rp-asmtable th:nth-child(1), .rp-asmtable td:nth-child(1) { width: 30%; }
+.rp-asmtable th:nth-child(4), .rp-asmtable td:nth-child(4) { width: 78px; }
+
+/* citations appendix */
+.rp-fns { display: flex; flex-direction: column; }
+.rp-fnrow { display: grid; grid-template-columns: 40px 1fr auto auto auto; gap: 14px; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--line2); transition: background .25s ease, transform .25s cubic-bezier(.16,1.3,1); }
+.rp-fnrow[role="button"] { cursor: pointer; }
+.rp-fnrow[role="button"]:hover { background: rgba(255,255,255,0.02); transform: translateX(4px); }
+.rp-fn-n { color: var(--acc); font-size: 13px; }
+.rp-fn-meta b { color: var(--hi); font-size: 14px; display: block; }
+.rp-fn-meta span { font-size: 11px; }
+.rp-fn-y { font-size: 11px; } .rp-fn-t { color: var(--tx); font-size: 12px; }
+
+/* methodology + glossary */
+.rp-method { font-size: 14.5px; line-height: 1.7; color: var(--tx); max-width: 60ch; }
+.rp-method-kpi { display: flex; gap: 28px; margin-top: 22px; }
+.rp-method-kpi > span { display: flex; flex-direction: column; gap: 4px; }
+.rp-method-kpi b { font-size: 15px; color: var(--hi); }
+.rp-glossary { display: flex; flex-direction: column; gap: 14px; }
+.rp-gl dt { font-family: var(--serif); font-size: 14.5px; color: var(--hi); font-weight: 600; margin-bottom: 3px; }
+.rp-gl dd { font-size: 12.5px; color: var(--dim); line-height: 1.5; }
+
 /* print / Save-as-PDF */
 @media print {
   .rp-progress, .rp-backdrop, .rp-drawer, .side-rail, .rp-actions, .rp-chatbar, .rp-toast { display: none !important; }
@@ -737,11 +1027,15 @@ const RP_CSS = `
 
 @media (max-width: 820px) {
   .rp-wrap { padding: 0 22px 60px; }
-  .rp-split.rp-kuu.rp-provgrid { grid-template-columns: 1fr; gap: 30px; }
+  .rp-split, .rp-kuu, .rp-provgrid, .rp-scens { grid-template-columns: 1fr; gap: 30px; }
   .rp-stats { grid-template-columns: repeat(3, 1fr); gap: 24px 16px; }
   .rp-stat:nth-child(3) { border-right: 0; }
   .rp-vs { grid-template-columns: 1fr; }
   .rp-vsmark { justify-self: center; }
+  .rp-take { grid-template-columns: auto 1fr; }
+  .rp-take .rp-tag { grid-column: 2; justify-self: start; }
+  .rp-fnrow { grid-template-columns: 34px 1fr auto; }
+  .rp-fn-y, .rp-fn-t { display: none; }
 }
 `;
 
@@ -818,6 +1112,31 @@ function installHandlers() {
     t.textContent = msg; t.classList.add("show");
     clearTimeout(window.__pnToastT); window.__pnToastT = setTimeout(() => t.classList.remove("show"), 2600);
   };
+
+  // revision-history disclosure in the masthead
+  window.pnRev = (btn) => { const wrap = btn && btn.closest(".rp-asof"); if (wrap) wrap.classList.toggle("open"); };
+
+  // open a citation-appendix / footnote source
+  window.pnGo = (el) => { const u = el && el.getAttribute("data-url"); if (u && /^https?:/.test(u)) window.open(u, "_blank", "noopener"); };
+
+  // sensitivity slider: re-weight measured evidence vs argument quality and
+  // recompute the lean toward the primary conclusion, flagging a verdict flip.
+  window.pnSens = (v) => {
+    v = Math.max(0, Math.min(100, Number(v) || 0));
+    setTxt("rp-sens-w", v + "%");
+    // base lean at 50% weight comes from the perspectives balance; each point of
+    // evidence weight nudges the lean by 0.5 toward the evidence-favoured side.
+    const base = (window.__rpSens && window.__rpSens.leadA) || 54;
+    const lean = Math.max(2, Math.min(98, Math.round(base + (v - 50) * 0.5)));
+    setTxt("rp-sens-score", lean + "%");
+    const flag = $("rp-sens-flag"), score = $("rp-sens-score");
+    if (score) score.className = "rp-fig-s " + (lean >= 50 ? "pos" : "neg");
+    if (flag) {
+      if (lean < 50) { flag.className = "rp-sens-flag neg"; flag.textContent = "Flipped. At this weighting the alternative position would lead, the conclusion is fragile here."; }
+      else if (lean < 55) { flag.className = "rp-sens-flag warn"; flag.textContent = "Marginal. The lean is thin at this weighting."; }
+      else { flag.className = "rp-sens-flag pos"; flag.textContent = "Stable. The conclusion holds across reasonable weightings."; }
+    }
+  };
   window.pnAsk = (btn) => { const i = document.getElementById("pn-chat-input"); if (!i) return; i.value = (btn.textContent || "").trim(); window.pnSend(); };
   window.pnSend = async () => {
     const input = document.getElementById("pn-chat-input"), box = document.getElementById("pn-chat-msgs");
@@ -854,7 +1173,7 @@ export default function PolynousReport(props) {
   const chartStore = useRef({ root: null, node: null });
   const d = deriveReport(props);
   const html = buildReport(d);
-  if (typeof window !== "undefined") window.__rpCtx = { answer: d.chatAnswer, sources: d.sourceSummaries };
+  if (typeof window !== "undefined") { window.__rpCtx = { answer: d.chatAnswer, sources: d.sourceSummaries }; window.__rpSens = { leadA: d.sensitivity.leadA }; }
   useEffect(() => { injectAssets(); installHandlers(); }, []);
   useEffect(() => {
     const t = setTimeout(() => runCounters(ref.current), 500);
