@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import { API_BASE_URL, apiFetch } from '../config';
 import ScrapeCountControl from './ScrapeCountControl';
 import DebateEngine from './DebateEngine';
@@ -1612,9 +1612,11 @@ ${sources.map(s => `  [${s.id}] ${s.title} - ${s.domain} · trust ${s.trust_scor
               ["Argument density", "argument_density", v => v],
               ["Hallucinated citations", "hallucinated_citations", v => v],
             ].map(([label, key, fmt]) => (
-              [<span key={label} style={{ color: C.onSurfaceVariant }}>{label}</span>,
-               <span key={label + "f"} style={{ color: C.onSurface, textAlign: "right" }}>{fmt(comp.FOR?.[key])}</span>,
-               <span key={label + "a"} style={{ color: C.onSurface, textAlign: "right" }}>{fmt(comp.AGAINST?.[key])}</span>]
+              <Fragment key={label}>
+                <span style={{ color: C.onSurfaceVariant }}>{label}</span>
+                <span style={{ color: C.onSurface, textAlign: "right" }}>{fmt(comp.FOR?.[key])}</span>
+                <span style={{ color: C.onSurface, textAlign: "right" }}>{fmt(comp.AGAINST?.[key])}</span>
+              </Fragment>
             ))}
           </div>
           {judged && (
@@ -1682,7 +1684,58 @@ ${sources.map(s => `  [${s.id}] ${s.title} - ${s.domain} · trust ${s.trust_scor
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
-export default function DebateChamber({ user, onNavigate, onLogout }) {
+// Backend-free demo verdict so the debate REPORT can be designed locally
+// (npm run dev) without running the pipeline. Rendered by <DebateInterface preview/>.
+const DEMO_TOPIC = "Should we colonize Mars, or fix Earth first?";
+const DEMO_DEBATE_RESULT = {
+  verdict: {
+    winner: "FOR", for_score: 7.6, against_score: 6.3, margin: "Clear", judge_certainty: 78,
+    scoring: "50% measured evidence + 50% argument quality", persona: "impartial",
+    reasoning: "The FOR case rests on stronger empirical grounding, citing concrete mission milestones and the strategic value of a multi-planetary backup [1][3]. The AGAINST case raises valid resource-allocation concerns but leans more on principle than on evidence. On balance the evidence favours pursuing both in parallel, with a measured lead for continued Mars investment.",
+    strongest_point: "A self-sustaining off-world settlement is the only known hedge against a planet-wide catastrophe, a risk with low probability but unbounded cost.",
+    rubric_for: { distinct_sources_cited: 4, grounded_sentences: 11, sentences: 13, hallucinated_citations: 0, computed_score: 7.6 },
+    rubric_against: { distinct_sources_cited: 3, grounded_sentences: 8, sentences: 12, hallucinated_citations: 0, computed_score: 6.3 },
+    follow_up_questions: [
+      "What share of a national budget is a reasonable ceiling for crewed Mars programs?",
+      "Do Mars technologies produce meaningful spillover benefits for Earth?",
+      "How do we weigh a low-probability, high-impact extinction risk against present needs?",
+    ],
+    minority_report: "A minority view holds that framing this as either/or is a false dichotomy, and that the real question is one of sequencing and funding ratios, not exclusivity.",
+    framing_check: { verdict: "balanced", note: "The proposition invites a false either/or; both advocates were steered toward the underlying trade-off." },
+  },
+  for_points: [
+    "A self-sustaining settlement is a genuine insurance policy against planet-wide catastrophe, from asteroid impact to runaway climate feedbacks [1].",
+    "Mars programs have historically produced large spillover benefits for Earth, from materials science to closed-loop life support [3].",
+    "The engineering forcing-function of survival on Mars accelerates exactly the sustainability tech Earth needs.",
+  ],
+  against_points: [
+    "Every dollar spent reaching Mars is a dollar not spent on the climate, poverty and health crises already killing people today [2].",
+    "No Mars colony is remotely self-sufficient this century, so it cannot serve as a near-term backup.",
+    "Terraforming and radiation shielding remain unsolved at scale, making optimistic timelines misleading [4].",
+  ],
+  for_rebuttal: "The trade-off is not zero-sum: space budgets are a small fraction of climate spending, and the two agendas share core technologies.",
+  against_rebuttal: "Shared technology does not justify diverting scarce attention and capital from problems with certain, present-day victims.",
+  citations: [
+    { n: 1, url: "https://www.nasa.gov/humans-in-space/" },
+    { n: 2, url: "https://www.un.org/sustainabledevelopment/" },
+    { n: 3, url: "https://www.jpl.nasa.gov/" },
+    { n: 4, url: "https://science.nasa.gov/mars/" },
+  ],
+  debate: {
+    analytics: { rounds: 3, total_citations: 9, distinct_sources: 7, avg_confidence: 0.72 },
+    sources: [
+      { id: 1, title: "NASA, Humans in Space", url: "https://www.nasa.gov/humans-in-space/", domain: "nasa.gov", trust_score: 0.96, freshness: "current", cited_count: 3 },
+      { id: 2, title: "UN Sustainable Development", url: "https://www.un.org/sustainabledevelopment/", domain: "un.org", trust_score: 0.9, freshness: "current", cited_count: 2 },
+      { id: 3, title: "NASA JPL", url: "https://www.jpl.nasa.gov/", domain: "jpl.nasa.gov", trust_score: 0.94, freshness: "recent", cited_count: 2 },
+      { id: 4, title: "NASA Mars Science", url: "https://science.nasa.gov/mars/", domain: "science.nasa.gov", trust_score: 0.93, freshness: "recent", cited_count: 2 },
+    ],
+    steelman: { for: "The strongest FOR case is existential risk reduction.", against: "The strongest AGAINST case is present-day opportunity cost." },
+  },
+  trackRecord: null,
+  telemetry: { total_tokens: 8420, estimated_cost: { total: 0.0132 }, steps: [{ name: "search" }, { name: "for" }, { name: "against" }, { name: "judge" }], providers: [{ model: "glm-4.7" }] },
+};
+
+export default function DebateChamber({ user, onNavigate, onLogout, preview = false }) {
   const [topic, setTopic] = useState("");
   const [answerLength, setAnswerLength] = useState("detailed");
   const [loading, setLoading] = useState(false);
@@ -1707,6 +1760,12 @@ export default function DebateChamber({ user, onNavigate, onLogout }) {
       document.head.appendChild(tag);
     }
   }, []);
+
+  // Backend-free preview: seed a demo verdict so the debate REPORT renders
+  // immediately (no pipeline, no sign-in) for local design iteration.
+  useEffect(() => {
+    if (preview) { setActiveTopic(DEMO_TOPIC); setResult(DEMO_DEBATE_RESULT); setView("report"); }
+  }, [preview]);
 
   const sidebarW = sidebarCollapsed ? 56 : 320;
 

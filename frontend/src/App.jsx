@@ -399,7 +399,11 @@ export default function App() {
         {/* New report design — reachable by direct URL for signed-in owners/reviewers,
             but never linked in the client nav (only surfaced in the admin console),
             so clients don't stumble onto in-progress work. */}
-        <Route path="/report-preview" element={isLoggedIn ? <PolynousReport /> : <Navigate to="/auth" replace />} />
+        {/* Public, backend-free design previews — render with built-in demo data
+            so both reports can be iterated on locally (npm run dev) with no
+            sign-in and no backend. */}
+        <Route path="/report-preview" element={<PolynousReport />} />
+        <Route path="/debate-preview" element={<DebateInterface preview onNavigate={navigateTo} onLogout={handleLogout} user={{ username: 'Preview' }} />} />
 
         {/* ── CATCH-ALL: themed 404 page ────────────────── */}
         <Route path="*" element={<NotFound />} />
