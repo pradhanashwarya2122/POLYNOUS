@@ -2978,50 +2978,6 @@ function StorySection(){
 /* ══════════════════════════════════════════════════════════════════════════
    ROOT APP
 ══════════════════════════════════════════════════════════════════════════ */
-/* ── Service maintenance notice (premium, dismissible, once per session) ────── */
-function ServiceNotice(){
-  const [open,setOpen]=useState(false);
-  const [mounted,setMounted]=useState(false);
-  useEffect(()=>{
-    if(sessionStorage.getItem("pn_service_notice")==="1") return;
-    const t=setTimeout(()=>{ setOpen(true); requestAnimationFrame(()=>setMounted(true)); }, 700);
-    return ()=>clearTimeout(t);
-  },[]);
-  const close=()=>{ setMounted(false); sessionStorage.setItem("pn_service_notice","1"); setTimeout(()=>setOpen(false),320); };
-  if(!open) return null;
-  const bric="'Bricolage Grotesque','Sora',sans-serif";
-  return (
-    <div onClick={(e)=>{ if(e.target===e.currentTarget) close(); }} style={{
-      position:"fixed", inset:0, zIndex:4000, display:"flex", alignItems:"center", justifyContent:"center",
-      padding:24, background:"rgba(2,6,4,0.66)", backdropFilter:"blur(7px)", WebkitBackdropFilter:"blur(7px)",
-      opacity:mounted?1:0, transition:"opacity .32s ease",
-    }}>
-      <div role="dialog" aria-modal="true" aria-label="Service notice" style={{
-        position:"relative", width:"100%", maxWidth:460,
-        background:"linear-gradient(180deg,#0e1a12 0%,#080d0a 70%)",
-        border:"1px solid rgba(0,255,15,0.22)", borderRadius:20, padding:"38px 36px 30px",
-        boxShadow:"0 40px 120px -44px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.02) inset",
-        transform:mounted?"none":"translateY(16px) scale(0.985)", transition:"transform .42s cubic-bezier(.16,1,.3,1)",
-        textAlign:"center",
-      }}>
-        <button onClick={close} aria-label="Close" style={{ position:"absolute", top:16, right:16, width:32, height:32, borderRadius:9, border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.04)", color:"#8a9a90", fontSize:17, cursor:"pointer", lineHeight:1 }}>×</button>
-        {/* top accent line */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:"linear-gradient(90deg,transparent,#00ff0f,transparent)", opacity:0.85 }}/>
-        <div style={{ width:60, height:60, margin:"0 auto 20px", borderRadius:16, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,255,15,0.08)", border:"1px solid rgba(0,255,15,0.28)", boxShadow:"0 0 28px -6px rgba(0,255,15,0.5)" }}>
-          <span className="material-symbols-outlined" style={{ fontFamily:"Material Symbols Outlined", fontSize:28, color:"#00ff0f" }}>build</span>
-        </div>
-        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, letterSpacing:"0.24em", textTransform:"uppercase", color:"#00ff0f", marginBottom:12 }}>Scheduled Maintenance</div>
-        <h2 style={{ fontFamily:bric, fontWeight:700, fontSize:"clamp(1.5rem,4vw,1.95rem)", lineHeight:1.08, letterSpacing:"-0.025em", color:"#fff", margin:0 }}>The service is briefly offline.</h2>
-        <p style={{ fontFamily:"'Hanken Grotesk',sans-serif", fontSize:14.5, lineHeight:1.65, color:"#b6c6bd", margin:"14px auto 0", maxWidth:"38ch" }}>
-          POLYNOUS is undergoing maintenance and will be <strong style={{ color:"#fff" }}>fully restored by the 26th</strong>. You can still explore the site, thanks for your patience.
-        </p>
-        <button onClick={close} style={{ marginTop:26, width:"100%", padding:"14px 22px", borderRadius:12, border:"none", background:"#00ff0f", color:"#04120b", fontFamily:"'Hanken Grotesk',sans-serif", fontSize:14.5, fontWeight:700, cursor:"pointer" }}>
-          Got it
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function LandingPage(){
   useEffect(()=>{
