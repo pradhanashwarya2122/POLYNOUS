@@ -16,8 +16,6 @@ import { MaskContainer } from "./react-bits/MaskContainer";
 import Lenis from "lenis";
 import ResearchChamberSection from "./ResearchChamberSection";
 import DebateChamberSection from "./DebateChamberSection";
-import ConstellationExplorer from "./react-bits/ConstellationExplorer";
-import { makeTile } from "./react-bits/constellationTiles";
 import { CoverflowCarousel } from "./ui/CoverflowCarousel";
 
 // The 8 chambers, used by the "Explore Chambers" InfiniteMenu hero.
@@ -1971,7 +1969,7 @@ function TechHighlights(){
               <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13.5px",lineHeight:1.6,color:"rgba(150,166,186,0.82)",margin:"14px 0 0",flex:1}}>{t.desc}</p>
               {t.route && (
                 <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10.5px",letterSpacing:"0.1em",color:t.color,marginTop:"16px",opacity:isActive?0.95:0.45,transition:"opacity 0.3s ease"}}>
-                  {isActive ? "OPEN →" : " "}
+                  {isActive ? "OPEN →" : " "}
                 </span>
               )}
             </article>
@@ -2978,6 +2976,103 @@ function StorySection(){
 /* ══════════════════════════════════════════════════════════════════════════
    ROOT APP
 ══════════════════════════════════════════════════════════════════════════ */
+/* ── Announcement modal (premium, dismissible, once per session) ────────────
+   Currently used to surface the free-API-key rollout for hands-on testers. */
+function ServiceNotice(){
+  const [open,setOpen]=useState(false);
+  const [mounted,setMounted]=useState(false);
+  useEffect(()=>{
+    if(sessionStorage.getItem("pn_service_notice")==="1") return;
+    const t=setTimeout(()=>{ setOpen(true); requestAnimationFrame(()=>setMounted(true)); }, 700);
+    return ()=>clearTimeout(t);
+  },[]);
+  const close=()=>{ setMounted(false); sessionStorage.setItem("pn_service_notice","1"); setTimeout(()=>setOpen(false),320); };
+  if(!open) return null;
+  return (
+    <div onClick={(e)=>{ if(e.target===e.currentTarget) close(); }} style={{
+      position:"fixed", inset:0, zIndex:4000, display:"flex", alignItems:"center", justifyContent:"center",
+      padding:24, background:"radial-gradient(ellipse 80% 60% at 50% 20%,rgba(0,255,15,0.05),rgba(2,4,3,0.82) 60%)",
+      backdropFilter:"blur(9px)", WebkitBackdropFilter:"blur(9px)",
+      opacity:mounted?1:0, transition:"opacity .32s ease",
+    }}>
+      <div role="dialog" aria-modal="true" aria-label="Announcement" style={{
+        position:"relative", width:"100%", maxWidth:460,
+        borderRadius:24, padding:2,
+        background:"linear-gradient(155deg,rgba(0,255,15,0.55),rgba(0,204,255,0.22),rgba(168,85,247,0.16),rgba(0,255,15,0.06))",
+        boxShadow:"0 60px 140px -40px rgba(0,0,0,0.95), 0 0 90px -20px rgba(0,255,15,0.18)",
+        transform:mounted?"none":"translateY(18px) scale(0.98)",
+        transition:"transform .45s cubic-bezier(.16,1,.3,1)",
+      }}>
+        <div style={{
+          position:"relative", borderRadius:22, overflow:"hidden",
+          background:"linear-gradient(180deg,#0b1410 0%,#060a08 55%,#050807 100%)",
+          padding:"40px 34px 30px", textAlign:"center",
+        }}>
+          {/* ambient corner glow */}
+          <div style={{ position:"absolute", top:-80, left:"50%", transform:"translateX(-50%)", width:280, height:200, background:"radial-gradient(ellipse,rgba(0,255,15,0.16),transparent 70%)", pointerEvents:"none" }}/>
+          {/* faint grid texture */}
+          <div style={{ position:"absolute", inset:0, opacity:0.05, pointerEvents:"none", backgroundImage:"linear-gradient(rgba(0,255,15,0.4) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,15,0.4) 1px,transparent 1px)", backgroundSize:"26px 26px", maskImage:"radial-gradient(ellipse 70% 55% at 50% 30%,black 20%,transparent 100%)" }}/>
+
+          <button onClick={close} aria-label="Close" style={{
+            position:"absolute", top:16, right:16, width:30, height:30, borderRadius:9,
+            border:"1px solid rgba(255,255,255,0.09)", background:"rgba(255,255,255,0.04)",
+            color:"rgba(180,198,190,0.7)", fontSize:16, cursor:"pointer", lineHeight:1,
+            display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s",
+          }}
+          onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.22)";e.currentTarget.style.color="#fff";}}
+          onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(180,198,190,0.7)";}}>×</button>
+
+          <div style={{ position:"relative", width:58, height:58, margin:"0 auto 22px" }}>
+            <div style={{ position:"absolute", inset:-8, borderRadius:20, border:"1px solid rgba(0,255,15,0.3)", animation:"memoryRipple 2.4s ease-out infinite" }}/>
+            <div style={{
+              width:58, height:58, borderRadius:16, display:"flex", alignItems:"center", justifyContent:"center",
+              background:"linear-gradient(150deg,rgba(0,255,15,0.16),rgba(0,204,255,0.06))",
+              border:"1px solid rgba(0,255,15,0.35)", boxShadow:"0 0 34px -6px rgba(0,255,15,0.55)",
+            }}>
+              <span style={{ fontFamily:"Material Symbols Outlined", fontSize:27, color:C.green }}>vpn_key</span>
+            </div>
+          </div>
+
+          <div style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"5px 14px", borderRadius:9999, border:"1px solid rgba(0,255,15,0.32)", background:"rgba(0,255,15,0.07)", marginBottom:16 }}>
+            <span style={{ width:5, height:5, borderRadius:"50%", background:C.green, boxShadow:`0 0 8px ${C.green}`, animation:"pulse 1.6s ease-in-out infinite" }}/>
+            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, letterSpacing:"0.2em", textTransform:"uppercase", color:C.green }}>Now rolling out</span>
+          </div>
+
+          <h2 style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:"clamp(1.5rem,4vw,1.9rem)", lineHeight:1.12, letterSpacing:"-0.025em", color:"#fff", margin:0 }}>
+            Free pooled API keys for hands-on testing
+          </h2>
+          <p style={{ fontFamily:"'Hanken Grotesk',sans-serif", fontSize:14.5, lineHeight:1.68, color:"rgba(178,196,188,0.82)", margin:"14px auto 0", maxWidth:"36ch" }}>
+            We're gradually rolling out <strong style={{ color:"#fff", fontWeight:600 }}>free starter keys</strong> so you can run real research with zero setup. Availability is expanding in stages, bring your own key anytime from Settings.
+          </p>
+
+          <div style={{ display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap", margin:"20px 0 4px" }}>
+            {[
+              {icon:"bolt",label:"Zero setup"},
+              {icon:"science",label:"Live pipelines"},
+              {icon:"swap_horiz",label:"Swap keys anytime"},
+            ].map(c=>(
+              <span key={c.label} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:9999, border:"1px solid rgba(0,255,15,0.2)", background:"rgba(0,255,15,0.04)", fontFamily:"'JetBrains Mono',monospace", fontSize:10.5, color:"rgba(200,220,210,0.85)", letterSpacing:"0.02em" }}>
+                <span style={{ fontFamily:"Material Symbols Outlined", fontSize:12, color:C.green }}>{c.icon}</span>{c.label}
+              </span>
+            ))}
+          </div>
+
+          <button onClick={close} style={{
+            marginTop:24, width:"100%", padding:"14px 22px", borderRadius:13, border:"none",
+            background:`linear-gradient(135deg,${C.green},#19e81f)`, color:"#04120b",
+            fontFamily:"'Sora',sans-serif", fontSize:14.5, fontWeight:800, letterSpacing:"0.01em", cursor:"pointer",
+            boxShadow:"0 0 30px rgba(0,255,15,0.28), 0 6px 20px rgba(0,255,15,0.14)",
+            transition:"transform 0.2s ease, box-shadow 0.2s ease",
+          }}
+          onMouseOver={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 0 40px rgba(0,255,15,0.4), 0 8px 24px rgba(0,255,15,0.18)";}}
+          onMouseOut={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 0 30px rgba(0,255,15,0.28), 0 6px 20px rgba(0,255,15,0.14)";}}>
+            Try it now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LandingPage(){
   useEffect(()=>{
