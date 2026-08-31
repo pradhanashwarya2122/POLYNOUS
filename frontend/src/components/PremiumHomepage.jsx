@@ -3107,7 +3107,6 @@ export default function LandingPage(){
   },[]);
   return(
     <>
-      <ServiceNotice/>
       <div className="noise-overlay"/>
       <NeuralCanvas/>
       <ScrollProgressBar/>

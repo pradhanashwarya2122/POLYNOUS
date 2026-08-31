@@ -6,7 +6,7 @@ OpenAI-compatible protocol, so they all route through the OpenAI client
 with a per-provider base_url — no extra SDK dependencies.
 """
 
-LLM_PROVIDERS = ("anthropic", "openai", "google", "mistral", "groq", "nvidia", "deepseek")
+LLM_PROVIDERS = ("anthropic", "openai", "google", "mistral", "groq", "nvidia", "deepseek", "zhipu")
 ALL_KEY_PROVIDERS = LLM_PROVIDERS + ("tavily", "voyage")
 
 # OpenAI-compatible endpoints for non-OpenAI providers
@@ -18,6 +18,9 @@ OPENAI_COMPATIBLE_BASE_URLS = {
     "nvidia":   "https://integrate.api.nvidia.com/v1",
     # DeepSeek native API (OpenAI-compatible)
     "deepseek": "https://api.deepseek.com",
+    # Zhipu AI / Z.ai — international OpenAI-compatible endpoint for GLM models.
+    # (Mainland-China accounts use https://open.bigmodel.cn/api/paas/v4 instead.)
+    "zhipu":    "https://api.z.ai/api/openai/v1",
 }
 
 # Selectable models per provider (kept in sync with the frontend registry)
@@ -31,6 +34,7 @@ PROVIDER_MODELS = {
                   "nvidia/llama-3.3-nemotron-super-49b-v1", "openai/gpt-oss-120b",
                   "deepseek-ai/deepseek-v4-flash"],
     "deepseek":  ["deepseek-chat", "deepseek-reasoner"],
+    "zhipu":     ["glm-4.7", "glm-4.6", "glm-5.1", "glm-5.2"],
 }
 
 DEFAULT_MODELS = {
@@ -41,6 +45,7 @@ DEFAULT_MODELS = {
     "groq":      "llama-3.3-70b-versatile",
     "nvidia":    "meta/llama-3.3-70b-instruct",
     "deepseek":  "deepseek-chat",
+    "zhipu":     "glm-4.7",
 }
 
 # Key-format prefixes for quick client-side-style validation
@@ -52,6 +57,7 @@ KEY_PREFIXES = {
     "mistral":   None,     # Mistral keys have no fixed prefix
     "nvidia":    "nvapi-",
     "deepseek":  "sk-",
+    "zhipu":     None,     # Zhipu/Z.ai keys have no fixed prefix
     "tavily":    "tvly-",
     "voyage":    None,
 }
@@ -96,6 +102,12 @@ PRICING = {
     "deepseek": {
         "deepseek-chat":     (0.27, 1.10),
         "deepseek-reasoner": (0.55, 2.19),
+    },
+    "zhipu": {
+        "glm-4.6": (0.60, 2.20),
+        "glm-4.7": (0.60, 2.20),
+        "glm-5.1": (1.40, 4.40),
+        "glm-5.2": (1.40, 4.40),
     },
 }
 

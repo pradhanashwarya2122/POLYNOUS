@@ -39,15 +39,29 @@ def _load_pool() -> list[dict]:
     """
     valid, seen = [], set()
 
-    # 1) env-var free key — listed first so pick_unclaimed hands it out first
-    env_key = (os.getenv("FREE_KEY") or "").strip()
-    env_provider = (os.getenv("FREE_KEY_PROVIDER") or "").strip().lower()
-    if env_key and not env_key.startswith("PASTE_") and env_provider in LLM_PROVIDERS:
-        fp = _fingerprint(env_key)
-        valid.append({"provider": env_provider, "key": env_key, "fp": fp})
+    def _add(provider: str, key: str):
+        key = (key or "").strip()
+        provider = (provider or "").strip().lower()
+        if not key or key.startswith("PASTE_") or provider not in LLM_PROVIDERS:
+            return
+        fp = _fingerprint(key)
+        if fp in seen:
+            return
         seen.add(fp)
+        valid.append({"provider": provider, "key": key, "fp": fp})
 
-    # 2) file pool
+    # 1) legacy single env-var free key (FREE_KEY + FREE_KEY_PROVIDER)
+    _add(os.getenv("FREE_KEY_PROVIDER") or "", os.getenv("FREE_KEY") or "")
+
+    # 2) per-provider env-var free keys — set any of these in Railway to roll out
+    #    free keys for everyone. e.g. FREE_KEY_GROQ, FREE_KEY_ZHIPU, FREE_KEY_GOOGLE.
+    #    Friendly aliases: FREE_KEY_GEMINI → google, FREE_KEY_GROK → groq.
+    for provider in LLM_PROVIDERS:
+        _add(provider, os.getenv(f"FREE_KEY_{provider.upper()}") or "")
+    _add("google", os.getenv("FREE_KEY_GEMINI") or "")   # alias
+    _add("groq",   os.getenv("FREE_KEY_GROK") or "")      # alias (common spelling)
+
+    # 3) file pool
     path = os.getenv("FREE_KEYS_PATH", str(_POOL_PATH))
     try:
         with open(path, "r", encoding="utf-8") as f:
