@@ -24,6 +24,7 @@ const InfoPage = lazy(() => import('./components/InfoPage'))
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'))
 const PolynousReport = lazy(() => import('./components/PolynousReport'))
 const PolynousDebateReport = lazy(() => import('./components/PolynousDebateReport'))
+const SharedReportView = lazy(() => import('./components/SharedReportView'))
 const PrivacyPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.TermsPage })))
 const DocsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.DocsPage })))
@@ -405,6 +406,10 @@ export default function App() {
             sign-in and no backend. */}
         <Route path="/report-preview" element={<PolynousReport />} />
         <Route path="/debate-report-preview" element={<PolynousDebateReport />} />
+
+        {/* Public, no-sign-in shared report views (from Copy-link). */}
+        <Route path="/r/:id" element={<SharedReportView kind="research" />} />
+        <Route path="/d/:id" element={<SharedReportView kind="debate" />} />
         <Route path="/debate-preview" element={<DebateInterface preview onNavigate={navigateTo} onLogout={handleLogout} user={{ username: 'Preview' }} />} />
 
         {/* ── CATCH-ALL: themed 404 page ────────────────── */}

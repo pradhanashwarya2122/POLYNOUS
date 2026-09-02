@@ -355,7 +355,7 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass  # user stays None → guest policy below
 
-    # ── FREE-TRIAL GATE: block + disable an expired/used-up GLM trial before
+    # ── FREE-TRIAL GATE: block + disable an expired/used-up Gemini trial before
     #    the run so a pooled key can't be abused past its window / run cap.
     if user is not None:
         from app.services import trial as trial_svc
@@ -654,7 +654,7 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
             pass  # user stays None → guest policy below
 
     # ── FREE-TRIAL GATE: same policy as /ask-visual — block + disable an
-    #    expired/used-up GLM trial before the debate runs.
+    #    expired/used-up Gemini trial before the debate runs.
     if user is not None:
         from app.services import trial as trial_svc
         _ok, _trial_msg = trial_svc.enforce(user, db)

@@ -159,6 +159,8 @@ app.include_router(system_router)
 app.include_router(admin_router)
 app.include_router(report_chat_router)
 app.include_router(debate_followup_router)
+from app.routes.shares import router as shares_router
+app.include_router(shares_router)
 register_exception_handlers(app)
 
 

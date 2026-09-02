@@ -1733,7 +1733,7 @@ const DEMO_DEBATE_RESULT = {
     steelman: { for: "The strongest FOR case is existential risk reduction.", against: "The strongest AGAINST case is present-day opportunity cost." },
   },
   trackRecord: null,
-  telemetry: { total_tokens: 8420, estimated_cost: { total: 0.0132 }, steps: [{ name: "search" }, { name: "for" }, { name: "against" }, { name: "judge" }], providers: [{ model: "glm-4.7" }] },
+  telemetry: { total_tokens: 8420, estimated_cost: { total: 0.0132 }, steps: [{ name: "search" }, { name: "for" }, { name: "against" }, { name: "judge" }], providers: [{ model: "gemini-2.5-flash" }] },
 };
 
 export default function DebateChamber({ user, onNavigate, onLogout, preview = false }) {

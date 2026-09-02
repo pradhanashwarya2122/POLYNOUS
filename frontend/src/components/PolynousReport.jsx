@@ -289,7 +289,7 @@ function deriveReport(p) {
 
   const tel = p.telemetry || {};
   const steps = Array.isArray(tel.steps) ? tel.steps : [];
-  const telemetry = { tokens: Number(pick(tel.total_tokens, 0)) || 0, cost: Number(pick(tel.estimated_cost && tel.estimated_cost.total, tel.cost, 0)) || 0, steps, providers: Array.isArray(tel.providers) ? tel.providers : [] };
+  const telemetry = { tokens: Number(pick(tel.total_tokens, 0)) || 0, cost: Number(pick(tel.estimated_cost && (tel.estimated_cost.usd != null ? tel.estimated_cost.usd : tel.estimated_cost.total), tel.cost, 0)) || 0, steps, providers: Array.isArray(tel.providers) ? tel.providers : [] };
   const tools = steps.length ? [...new Set(steps.map((s) => s.name).filter(Boolean))].slice(0, 5) : ["Search", "Summarise", "Critic", "Writer"];
   const constellation = srcArr.length ? srcArr.slice(0, 6).map((s, i) => ({ n: i + 1, t: pick(s.title, domain(s.url), "Source " + (i + 1)) })) : (real ? [] : DEMO_CONSTELL);
   const provenance = steps.length ? steps.slice(0, 6).map((s) => ({ name: s.name || "step", tokens: (Number(s.input_tokens) || 0) + (Number(s.output_tokens) || 0) })) : (real ? [] : DEMO_PROV);
@@ -337,9 +337,10 @@ function deriveReport(p) {
       : age <= 6 ? { label: "RECENT", tone: "warn", year: yr }
       : { label: "AGING", tone: "neg", year: yr };
   };
+  const tierName = { 1: "Government / peer-reviewed", 2: "Institutional / established", 3: "General web" };
   const ledger = cites.length
-    ? cites.slice(0, 8).map((c) => ({ name: c.domain || c.title, cite: String(c.n), url: c.url, trust: c.trust, tier: c.tier, fresh: freshFor(c.year) }))
-    : (real ? [] : DEMO_LEDGER);
+    ? cites.slice(0, 8).map((c) => ({ name: c.domain || c.title, title: c.title, cite: String(c.n), url: c.url, trust: c.trust, tier: c.tier, tierName: tierName[c.tier] || "", snippet: c.snippet || "", fresh: freshFor(c.year) }))
+    : (real ? [] : DEMO_LEDGER.map((r, i) => ({ ...r, title: r.name, tier: 1, tierName: tierName[1], snippet: (DEMO_CITES[i] && DEMO_CITES[i].snippet) || "" })));
 
   const contradiction = pick(typeof report.contradiction_resolution === "string" ? report.contradiction_resolution : undefined,
     real ? "" : "No material contradictions detected across the independent sources. A minor tension on the magnitude of regional effects was resolved in favour of the higher-trust, more recent datasets.");
@@ -490,13 +491,29 @@ function sSourceQuality(d) { if (!d.sourceQuality) return "";
 }
 
 function sEvidence(d) { if (!d.ledger.length && !d.landscape.length) return "";
-  const rows = d.ledger.map((r) => `<tr role="button" tabindex="0" ${inspData(d, "Source assessment: " + r.name, r.cite ? ["[" + r.cite + "]"] : [])} onclick="pnOpen(this)">
-    <td class="rp-src">${esc(r.name)}${r.cite ? ` <a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">[${esc(r.cite)}]</a>` : ""}</td>
-    <td class="rp-fresh ${toneCls[r.fresh.tone]}">${r.fresh.label} <span class="rp-dim">${r.fresh.year}</span></td>
-    <td class="rp-trust"><span class="rp-mono">${r.trust.toFixed(2)}</span>${bar(r.trust * 100)}</td></tr>`).join("");
+  const L = d.ledger;
+  const avgTrust = L.length ? L.reduce((a, r) => a + (r.trust || 0), 0) / L.length : 0;
+  const years = L.map((r) => r.fresh && r.fresh.year).filter((y) => y && !isNaN(y));
+  const span = years.length ? (Math.min(...years) === Math.max(...years) ? `${Math.min(...years)}` : `${Math.min(...years)}–${Math.max(...years)}`) : "undated";
+  const tier1 = L.filter((r) => r.tier === 1).length;
+  const tierTone = { 1: "pos", 2: "info", 3: "warn" };
+  const rows = L.map((r) => `<div class="rp-ev" role="button" tabindex="0" ${inspData(d, "Source assessment: " + r.name, r.cite ? ["[" + r.cite + "]"] : [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">
+    <div class="rp-ev-top">
+      <span class="rp-ev-name">${esc(r.name)}${r.cite ? ` <a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">[${esc(r.cite)}]</a>` : ""}</span>
+      <span class="rp-ev-trust"><span class="rp-mono">${(r.trust || 0).toFixed(2)}</span>${bar((r.trust || 0) * 100, r.trust >= 0.8 ? "pos" : r.trust >= 0.6 ? "info" : "warn")}</span>
+    </div>
+    <div class="rp-ev-meta">
+      ${r.tierName ? `<span class="rp-tag ${tierTone[r.tier] || "warn"}" style="transform:scale(.82)">${esc(r.tierName)}</span>` : ""}
+      <span class="rp-fresh ${toneCls[r.fresh.tone]}">${r.fresh.label}${r.fresh.year ? ` <span class="rp-dim">${r.fresh.year}</span>` : ""}</span>
+    </div>
+    ${r.snippet ? `<p class="rp-ev-snip">${esc(stripEmoji(String(r.snippet)).slice(0, 220))}</p>` : ""}
+  </div>`).join("");
   const land = d.landscape.map((l) => `<div class="rp-land"><span>${esc(l.label)}</span><span class="rp-mono">${l.pct}%</span>${bar(l.pct)}</div>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("05", "Evidence")}<div class="rp-split">
-    <div><div class="rp-subh">Ledger, ${d.ledger.length} sources</div><table class="rp-table"><thead><tr><th>Source</th><th>Freshness</th><th>Trust</th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<section class="rp-sec rp-rev">${eye("05", "Evidence")}
+    <p class="rp-sublede">Every source the synthesis drew on, with its trust score, authority tier, freshness and the passage it contributed.</p>
+    <div class="rp-ev-kpis"><div class="rp-ev-kpi"><span class="rp-fig-s">${L.length}</span><span class="rp-stat-l">Sources</span></div><div class="rp-ev-kpi"><span class="rp-fig-s">${Math.round(avgTrust * 100)}%</span><span class="rp-stat-l">Avg trust</span></div><div class="rp-ev-kpi"><span class="rp-fig-s">${tier1}</span><span class="rp-stat-l">Top-tier</span></div><div class="rp-ev-kpi"><span class="rp-fig-s">${span}</span><span class="rp-stat-l">Year span</span></div></div>
+    <div class="rp-split rp-ev-split">
+    <div><div class="rp-subh">Source ledger</div><div class="rp-evlist">${rows}</div></div>
     <div><div class="rp-subh">Landscape, composition</div><div class="rp-landwrap">${land}</div></div>
   </div></section>`;
 }
@@ -509,15 +526,16 @@ function sConfidence(d) {
     ? `<div class="rp-subh">How the score is built</div>${Object.entries(d.breakdown).map(([k, v]) => `<div class="rp-fac"><span>${k} <span class="rp-dim">(${CONF_WEIGHTS[k] != null ? CONF_WEIGHTS[k] + "%" : "weight"})</span></span><span class="rp-mono">${v}%</span>${bar(v)}</div>`).join("")}<p class="rp-cap" style="margin-top:14px;font-style:normal">Confidence = 30% source agreement + 20% domain diversity + 20% recency + 30% citation grounding.</p>`
     : "";
   const faithBlock = d.faithful
-    ? `<div class="rp-faith"><span class="rp-fig-s rp-count" data-target="${d.faithful.pct}" data-suffix="%">${d.faithful.pct}%</span><span><b>${d.faithful.grounded}/${d.faithful.total}</b> sentences carry a citation</span></div>
-       <ul class="rp-flags">${(d.ungrounded && d.ungrounded.length) ? d.ungrounded.map((s) => `<li class="rp-flag"><span class="rp-warn rp-mono">UNGROUNDED</span> "${esc(s.slice(0, 150))}"</li>`).join("") : `<li class="rp-flag rp-mut">Every sampled sentence carries a supporting citation.</li>`}</ul>`
+    ? `<div class="rp-subh">Sentence-level grounding</div>
+       <div class="rp-faith"><span class="rp-fig-s rp-count" data-target="${d.faithful.pct}" data-suffix="%">${d.faithful.pct}%</span><div class="rp-faith-meta"><b>${d.faithful.grounded} of ${d.faithful.total}</b> sampled sentences cite a source.<div class="rp-faith-bar">${bar(d.faithful.pct, d.faithful.pct >= 70 ? "pos" : d.faithful.pct >= 45 ? "warn" : "neg")}</div></div></div>
+       ${(d.ungrounded && d.ungrounded.length) ? `<div class="rp-subh" style="margin-top:22px">Sentences without a citation</div><ol class="rp-flags">${d.ungrounded.map((s, i) => `<li class="rp-flag"><span class="rp-num warn">${String(i + 1).padStart(2, "0")}</span><span class="rp-flag-t">${esc(stripEmoji(String(s)).slice(0, 200))}</span></li>`).join("")}</ol><p class="rp-cap">These synthesised statements are reasonable given the sources but are not directly tied to a specific citation.</p>` : `<p class="rp-flag rp-mut">Every sampled sentence carries a supporting citation.</p>`}`
     : "";
   // Claim-level: show REAL grounding status, not a fabricated per-claim %.
   const cl = d.claims.map((c, i) => {
     const g = /\[\d+\]/.test(c.text);
-    return `<div class="rp-claim" role="button" tabindex="0" ${inspData(d, c.text, String(c.text).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)"><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-claim-t">${cite(c.text)}</span><span class="rp-tag ${g ? "pos" : "warn"}">${g ? "GROUNDED" : "SYNTHESISED"}</span></div>`;
+    return `<div class="rp-claim" role="button" tabindex="0" ${inspData(d, c.text, String(c.text).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)"><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-claim-t">${cite(stripEmoji(c.text))}</span><span class="rp-tag ${g ? "pos" : "warn"}">${g ? "GROUNDED" : "SYNTHESISED"}</span></div>`;
   }).join("");
-  const claimBlock = d.claims.length ? `<div><div class="rp-subh">Claims &amp; grounding</div><div class="rp-claims">${cl}</div></div>` : "";
+  const claimBlock = d.claims.length ? `<div><div class="rp-subh">Claims &amp; grounding</div><div class="rp-claims">${cl}</div><p class="rp-cap"><span class="rp-tag pos" style="transform:scale(.85)">GROUNDED</span> cites a source directly · <span class="rp-tag warn" style="transform:scale(.85)">SYNTHESISED</span> inferred across sources</p></div>` : "";
   if (!facBlock && !faithBlock && !claimBlock) return "";
   return `<section class="rp-sec rp-rev">${eye("07", "Confidence &amp; grounding")}<div class="rp-split">
     <div>${facBlock}${faithBlock}</div>
@@ -568,12 +586,13 @@ function sChange(d) { if (!d.conditions.length) return "";
 }
 
 function sTrajectory(d) { if (!d.trajectory.length && !d.boundaries.length) return "";
-  const traj = d.trajectory.map((t, i) => `<li><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-traj-lk" role="button" tabindex="0" ${inspData(d, t, String(t).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">${cite(t)} <span class="rp-traj-arrow">↗</span></span></li>`).join("");
-  const bnd = d.boundaries.map((b) => `<li>${cite(b)}</li>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("14", "Trajectory &amp; boundaries")}<div class="rp-split">
-    <div><div class="rp-subh">Where the research goes next</div><ol class="rp-traj">${traj}</ol></div>
-    <div><div class="rp-subh">Honest boundaries</div><ul class="rp-bound">${bnd}</ul></div>
-  </div></section>`;
+  const traj = d.trajectory.map((t, i) => { const s = stripEmoji(t); return `<li><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-traj-lk" role="button" tabindex="0" ${inspData(d, s, String(s).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">${cite(s)} <span class="rp-traj-arrow">↗</span></span></li>`; }).join("");
+  const bnd = d.boundaries.map((b) => `<li><span class="rp-bound-i">!</span><span>${cite(stripEmoji(b))}</span></li>`).join("");
+  const trajBlock = d.trajectory.length ? `<div><div class="rp-subh">Where the research goes next</div><ol class="rp-traj">${traj}</ol></div>` : "";
+  const bndBlock = d.boundaries.length ? `<div><div class="rp-subh">Honest boundaries</div><ul class="rp-bound">${bnd}</ul></div>` : "";
+  return `<section class="rp-sec rp-rev">${eye("14", "Trajectory &amp; boundaries")}
+    <p class="rp-sublede">The open questions this synthesis points toward, and the limits it is honest about.</p>
+    <div class="rp-split">${trajBlock}${bndBlock}</div></section>`;
 }
 
 function sProvenance(d) { if (!d.telemetry.tokens && !d.timeline.length && !d.provenance.length && !d.constellation.length) return "";
@@ -666,20 +685,39 @@ function sScenarios(d) { if (!d.scenarios.length) return "";
 
 function sScorecard(d) { if (!d.scorecard || !d.scorecard.total) return "";
   const sc = d.scorecard;
-  const tierRow = (n, label, cnt, tone) => `<div class="rp-tier"><span class="rp-tier-b ${tone}">TIER ${n}</span><span class="rp-tier-l">${label}</span><span class="rp-mono">${cnt}</span><span class="rp-tier-bar">${bar(sc.total ? (cnt / sc.total) * 100 : 0, tone)}</span></div>`;
-  const rec = (label, cnt, tone) => `<div class="rp-recrow"><span>${label}</span><span class="rp-mono">${cnt}</span>${bar(sc.total ? (cnt / sc.total) * 100 : 0, tone)}</div>`;
-  return `<section class="rp-sec rp-rev">${eye("06", "Source quality scorecard")}<div class="rp-split">
+  const T = sc.total || 1;
+  const p = (n) => Math.round((n / T) * 100);
+  const tierRow = (n, label, cnt, tone) => `<div class="rp-tier"><span class="rp-tier-b ${tone}">TIER ${n}</span><span class="rp-tier-l">${label}</span><span class="rp-mono">${cnt} <span class="rp-dim">· ${p(cnt)}%</span></span><span class="rp-tier-bar">${bar(p(cnt), tone)}</span></div>`;
+  const rec = (label, cnt, tone) => `<div class="rp-recrow"><span>${label}</span><span class="rp-mono">${cnt} <span class="rp-dim">· ${p(cnt)}%</span></span>${bar(p(cnt), tone)}</div>`;
+  // Composite quality index from the real signals we have.
+  const grounding = d.faithful ? d.faithful.pct : null;
+  const idx = Math.round(
+    0.35 * (sc.avgTrust * 100) +
+    0.25 * p(sc.tierCounts[1]) +
+    0.20 * p(sc.recency.current) +
+    0.20 * (grounding != null ? grounding : sc.avgTrust * 100)
+  );
+  const grade = idx >= 82 ? "A" : idx >= 68 ? "B" : idx >= 52 ? "C" : "D";
+  const gradeTone = idx >= 82 ? "pos" : idx >= 68 ? "info" : idx >= 52 ? "warn" : "neg";
+  const hall = d.claims ? 0 : 0;
+  return `<section class="rp-sec rp-rev">${eye("06", "Source quality scorecard")}
+    <p class="rp-sublede">A composite read on how much the evidence base can be trusted: authority, recency, independence and grounding.</p>
+    <div class="rp-scgrade">
+      <div class="rp-scgrade-badge ${gradeTone}"><span class="rp-scgrade-l">${grade}</span></div>
+      <div class="rp-scgrade-body"><div class="rp-scgrade-idx"><span class="rp-fig-s">${idx}</span><span class="rp-stat-l">Quality index / 100</span></div><div class="rp-scgrade-bar">${bar(idx, gradeTone)}</div><p class="rp-cap" style="margin-top:8px">Index = 35% average trust + 25% top-tier share + 20% recency${grounding != null ? " + 20% citation grounding" : ""}.</p></div>
+    </div>
+    <div class="rp-split" style="margin-top:8px">
     <div><div class="rp-subh">Authority tiers</div>
       ${tierRow(1, "Government, peer-reviewed", sc.tierCounts[1], "pos")}
       ${tierRow(2, "Institutions, established orgs", sc.tierCounts[2], "info")}
       ${tierRow(3, "General web, unverified", sc.tierCounts[3], "warn")}
-      <div class="rp-scorekpi"><div><span class="rp-fig-s">${(sc.avgTrust * 100).toFixed(0)}%</span><span class="rp-stat-l">Avg trust</span></div><div><span class="rp-fig-s">${sc.independentDomains}</span><span class="rp-stat-l">Independent sources</span></div></div>
+      <div class="rp-scorekpi"><div><span class="rp-fig-s">${(sc.avgTrust * 100).toFixed(0)}%</span><span class="rp-stat-l">Avg trust</span></div><div><span class="rp-fig-s">${sc.independentDomains}</span><span class="rp-stat-l">Independent sources</span></div>${grounding != null ? `<div><span class="rp-fig-s">${grounding}%</span><span class="rp-stat-l">Sentences grounded</span></div>` : ""}</div>
     </div>
     <div><div class="rp-subh">Recency &amp; independence</div>
       ${rec("Current (0 to 2 yrs)", sc.recency.current, "pos")}
       ${rec("Aging (3 to 6 yrs)", sc.recency.aging, "warn")}
       ${rec("Outdated (over 6 yrs)", sc.recency.outdated, "neg")}
-      <p class="rp-cap">Independence check: ${sc.independentDomains} of ${sc.total} sources come from distinct domains, reducing single-source bias.</p>
+      <p class="rp-cap">Independence: ${sc.independentDomains} of ${sc.total} sources come from distinct domains (${p(sc.independentDomains)}%), reducing single-source bias.</p>
     </div></div></section>`;
 }
 
@@ -779,11 +817,15 @@ const RP_CSS = `
   --acc:#3ef07f; --acc-soft:rgba(0,255,71,0.12);
   --pos:#3ef07f; --warn:#ffb64a; --neg:#ff6b8a; --info:#00ccff;
   --serif:'Bricolage Grotesque',sans-serif; --sans:'Hanken Grotesk',-apple-system,sans-serif; --mono:'JetBrains Mono',monospace;
-  background: var(--ink);
+  --scrim: rgba(9,10,26,0.60);
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15); backdrop-filter: blur(20px) saturate(1.15);
   color: var(--tx); font-family: var(--sans); font-size: 16px; line-height: 1.62;
   letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; height: auto; overflow: visible; position: relative;
 }
-.rp-wrap { max-width: 940px; margin: 0 auto; padding: 0 40px 80px; }
+.rp-wrap { max-width: min(1320px, 94vw); margin: 0 auto; padding: 0 clamp(20px, 4vw, 72px) 80px; }
+/* keep pure-prose columns readable even when the shell goes full-bleed */
+.rp-lede, .rp-sublede, .rp-method, .rp-cap, .rp-find-t, .rp-contra p, .rp-dissent-q { max-width: 82ch; }
 .rp ::selection { background: var(--acc-soft); }
 .rp-mono { font-family: var(--mono); }
 .rp-dim { color: var(--dim); }
@@ -872,14 +914,32 @@ const RP_CSS = `
 .rp-landwrap { display: flex; flex-direction: column; gap: 16px; }
 .rp-land { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; font-size: 13px; }
 .rp-land .rp-bar { grid-column: 1 / -1; }
+.rp-ev-kpis { display: flex; flex-wrap: wrap; gap: 30px; margin: 6px 0 26px; }
+.rp-ev-kpi { display: flex; flex-direction: column; gap: 4px; }
+.rp-ev-split { align-items: start; }
+.rp-evlist { display: flex; flex-direction: column; }
+.rp-ev { padding: 15px 4px; border-top: 1px solid var(--line2); cursor: pointer; transition: transform .25s cubic-bezier(.16,1,.3,1); }
+.rp-ev:first-child { border-top: 0; }
+.rp-ev:hover { transform: translateX(3px); }
+.rp-ev-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.rp-ev-name { color: var(--hi); font-weight: 600; font-size: 14px; }
+.rp-ev-trust { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+.rp-ev-trust .rp-bar { width: 80px; }
+.rp-ev-meta { display: flex; align-items: center; gap: 12px; margin-top: 7px; flex-wrap: wrap; }
+.rp-ev-snip { margin-top: 8px; font-size: 12.5px; line-height: 1.5; color: var(--dim); max-width: 62ch; }
 
 /* confidence */
 .rp-fac { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; margin-bottom: 15px; font-size: 13px; }
 .rp-fac .rp-bar { grid-column: 1 / -1; }
-.rp-faith { display: flex; align-items: baseline; gap: 14px; margin: 26px 0 14px; padding-top: 20px; border-top: 1px solid var(--line2); }
+.rp-faith { display: flex; align-items: center; gap: 18px; margin: 14px 0 8px; }
 .rp-faith b { color: var(--hi); }
-.rp-flags { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.rp-flag { font-size: 12.5px; line-height: 1.5; font-style: italic; color: var(--tx); }
+.rp-faith-meta { flex: 1; font-size: 13.5px; color: var(--tx); }
+.rp-faith-bar { margin-top: 8px; max-width: 320px; }
+.rp-flags { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.rp-flag { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.55; color: var(--tx); }
+.rp-flag .rp-num { padding-top: 1px; }
+.rp-flag-t { flex: 1; }
+.rp-flag.rp-mut { display: block; font-style: italic; color: var(--dim); }
 .rp-flag .rp-warn.rp-flag.rp-mono { font-style: normal; }
 .rp-flag .rp-mono.rp-flag .rp-warn { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--warn); margin-right: 6px; }
 .rp-claims { display: flex; flex-direction: column; gap: 16px; }
@@ -948,8 +1008,9 @@ const RP_CSS = `
 /* trajectory */
 .rp-traj { list-style: none; display: flex; flex-direction: column; gap: 16px; }
 .rp-traj li { display: flex; gap: 14px; font-size: 14px; color: var(--tx); line-height: 1.45; }
-.rp-bound { list-style: none; display: flex; flex-direction: column; gap: 14px; }
-.rp-bound li { font-size: 14px; color: var(--tx); padding-left: 16px; border-left: 2px solid var(--warn); line-height: 1.45; }
+.rp-bound { list-style: none; display: flex; flex-direction: column; gap: 16px; }
+.rp-bound li { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; color: var(--tx); line-height: 1.5; }
+.rp-bound-i { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: rgba(255,182,74,0.14); color: var(--warn); font-family: var(--mono); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
 
 /* provenance */
 .rp-pipe { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -1146,6 +1207,16 @@ const RP_CSS = `
 .rp-scen-d { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* source scorecard */
+.rp-scgrade { display: flex; align-items: center; gap: 22px; margin: 8px 0 26px; padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.rp-scgrade-badge { width: 62px; height: 62px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1.5px solid; }
+.rp-scgrade-badge.pos { border-color: var(--pos); background: rgba(0,255,71,0.08); }
+.rp-scgrade-badge.info { border-color: var(--info); background: rgba(0,204,255,0.08); }
+.rp-scgrade-badge.warn { border-color: var(--warn); background: rgba(255,182,74,0.08); }
+.rp-scgrade-badge.neg { border-color: var(--neg); background: rgba(255,107,138,0.08); }
+.rp-scgrade-l { font-family: var(--serif); font-size: 34px; font-weight: 700; color: var(--hi); line-height: 1; }
+.rp-scgrade-body { flex: 1; }
+.rp-scgrade-idx { display: flex; align-items: baseline; gap: 10px; }
+.rp-scgrade-bar { margin-top: 8px; max-width: 360px; }
 .rp-tier { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 12px; align-items: center; margin-bottom: 16px; font-size: 13px; }
 .rp-tier-b { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; padding: 3px 8px; border: 1px solid currentColor; border-radius: 4px; }
 .rp-tier-l { color: var(--tx); }
@@ -1227,34 +1298,53 @@ const RP_CSS = `
    sections flow across pages, keep only small atomic blocks intact, and never
    orphan a heading at the foot of a page. */
 @media print {
-  @page { margin: 12mm; }
-  /* interactive-only chrome never prints */
-  .rp-progress, .rp-backdrop, .rp-drawer, .side-rail, .rp-actions, .rp-chatbar,
-  .rp-toast, .rp-inspect, .rp-caret, .rp-slider, .rp-asof-btn, .rp-dfoot, .rp-hovercard { display: none !important; }
-  .rp {
-    height: auto !important; overflow: visible !important; position: static !important;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact; background: var(--ink) !important;
+  @page { margin: 14mm 13mm; }
+  /* PREMIUM PRINT: flip the whole report to a light-paper theme by redefining
+     the design tokens. Everything downstream (bars, tags, rules, charts) recolours
+     automatically because it all reads from these variables. */
+  .rp, .rp.dbr {
+    --ink:#ffffff; --ink2:#ffffff; --panel:#f6f7f9; --panel2:#eef1f5;
+    --line:#d6dbe3; --line2:#e9ecf1;
+    --tx:#242832; --dim:#6b7280; --hi:#0b0d16;
+    --acc:#0b8a43; --acc-soft:rgba(11,138,67,0.10);
+    --pos:#0b8a43; --warn:#b26b00; --neg:#c0392b; --info:#0369a1;
+    background:#ffffff !important; color:#242832 !important;
+    height:auto !important; overflow:visible !important; position:static !important;
+    -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    font-size:11pt; line-height:1.5;
   }
-  .rp-wrap { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-  /* sections flow (no forced page shove) but tighten the rhythm for paper */
-  .rp-sec { break-inside: auto; padding: 20px 0 !important; }
-  .rp-masthead { padding: 0 0 22px !important; }
+  /* interactive-only chrome never prints */
+  .rp-progress, .rp-backdrop, .rp-drawer, .side-rail, [class*="side-rail"], .rp-actions,
+  .rp-chatsec, .rp-chatbar, .rp-toast, .rp-inspect, .rp-caret, .rp-slider, .rp-sens,
+  .rp-asof-btn, .rp-dfoot, .rp-hovercard, .rp-chiprow, .dbr-vote,
+  .rp-act, .dbr-follows { display:none !important; }
+  .rp-wrap { max-width:100% !important; padding:0 !important; margin:0 !important; }
+  /* single column on paper: multi-column grids are unreliable across page breaks */
+  .rp-split, .rp-kuu, .rp-provgrid, .rp-scens, .rp-vs, .rp-cases, .rp-ev-split,
+  .rp-qas, .dbr-cases { grid-template-columns:1fr !important; display:block !important; }
+  .rp-split > div, .dbr-cases > .dbr-case { margin-bottom:20px; }
+  /* white cards/panels with hairline borders */
+  .rp-pos, .rp-synth, .rp-scgrade, .dbr-reb, .dbr-qa, .rp-dissent, .rp-scen,
+  .rp-take, .rp-cond { background:#fbfcfd !important; border-color:#e2e6ec !important; }
+  .rp-sec { break-inside:auto; padding:16px 0 !important; border-top-color:#e9ecf1 !important; }
+  .rp-masthead { padding:0 0 20px !important; border-bottom-color:#d6dbe3 !important; }
+  .rp-query, .rp-stitle, h1, h2, h3, h4 { color:#0b0d16 !important; }
   /* headings stay glued to the content that follows them */
-  .rp-shead, .rp-subh, .rp-stitle, .rp-lead-eye, .rp-scen h4, .dbr-case-h { break-after: avoid; page-break-after: avoid; }
+  .rp-shead, .rp-subh, .rp-stitle, .rp-lead-eye, .rp-scen h4, .dbr-case-h,
+  .dbr-openlabel, .dbr-reb-l { break-after:avoid; page-break-after:avoid; }
   /* atomic blocks never split across a page boundary */
   .rp-find, .rp-take, .rp-scen, .rp-claim, .rp-cond, .rp-fnrow, .rp-tel, .rp-tier,
   .rp-revrow, .rp-pos, .rp-dsrc, .rp-dquote, .rp-scorekpi, .rp-recrow, .rp-fac,
   .rp-land, .rp-provrow, .rp-kcol, .rp-dissent, .rp-synth, .rp-nli, .rp-tlmile,
-  .rp-stat, .rp-conf, .rp-critic, .rp-msg, .rp-gl,
-  .dbr-case, .dbr-arg, .dbr-reason, .dbr-key, .dbr-follow, .dbr-verdict, .dbr-score { break-inside: avoid; page-break-inside: avoid; }
-  .rp-table tr, .rp-asmtable tr, .rp-rub tr { break-inside: avoid; page-break-inside: avoid; }
+  .rp-stat, .rp-conf, .rp-critic, .rp-gl, .rp-ev, .rp-scgrade, .rp-flag,
+  .dbr-case, .dbr-arg, .dbr-reason, .dbr-key, .dbr-verdict, .dbr-score, .dbr-reb, .dbr-qa { break-inside:avoid; page-break-inside:avoid; }
+  .rp-table tr, .rp-asmtable tr, .rp-rub tr, .dbr-rub tr { break-inside:avoid; page-break-inside:avoid; }
   /* no lonely single lines at page edges */
-  .rp-lede p, .rp-method, .rp-note, .rp-mut, .rp-sublede, .rp-dissent-q, p, li { orphans: 3; widows: 3; }
-  /* let chat + chart show fully in print, no inner clipping */
-  .rp-msgs { max-height: none !important; overflow: visible !important; }
-  .rp-chart-mount { break-inside: avoid; page-break-inside: avoid; }
-  .rp-chatsec, .rp-chat { break-inside: avoid; }
-  a[href], .rp-cite { text-decoration: none; }
+  .rp-lede p, .rp-method, .rp-note, .rp-mut, .rp-sublede, .rp-dissent-q, p, li { orphans:3; widows:3; }
+  /* the evidence chart is an SVG island: give it a fixed print height so it renders */
+  .rp-chart-mount { break-inside:avoid; page-break-inside:avoid; min-height:220px; }
+  a[href], .rp-cite { text-decoration:none; color:#0b8a43 !important; }
 }
 
 @media (max-width: 820px) {
@@ -1334,13 +1424,21 @@ function installHandlers() {
   };
 
   window.pnShare = async () => {
-    // A shareable, re-runnable link: opening it re-runs the research and
-    // regenerates this report for the recipient (works cross-device, no backend
-    // save needed). Falls back to the current URL if the query is unknown.
+    // Persist a public, no-sign-in snapshot and copy its short link. Anyone can
+    // open it read-only and then choose to sign in to run their own research.
+    // Falls back to a re-runnable /research?query= link if the save fails.
     const q = window.__rpQuery || "";
-    const url = q ? (location.origin + "/research?query=" + encodeURIComponent(q)) : location.href;
-    try { await navigator.clipboard.writeText(url); window.pnToast("Shareable report link copied. Opening it re-runs this research."); }
-    catch { window.pnToast("Copy failed, this is the link: " + url); }
+    const fallback = q ? (location.origin + "/research?query=" + encodeURIComponent(q)) : location.href;
+    const copy = async (url, msg) => { try { await navigator.clipboard.writeText(url); window.pnToast(msg); } catch { window.pnToast("Copy failed, link: " + url); } };
+    const snap = window.__rpSnapshot;
+    if (!snap) { return copy(fallback, "Shareable link copied."); }
+    window.pnToast("Creating a shareable link…");
+    try {
+      const tok = getAuthToken();
+      const res = await fetch(APP_API_BASE + "/share", { method: "POST", headers: { "Content-Type": "application/json", ...(tok ? { Authorization: "Bearer " + tok } : {}) }, body: JSON.stringify({ kind: "research", title: q, payload: snap }) });
+      if (res.ok) { const data = await res.json(); return copy(location.origin + (data.url_path || ("/r/" + data.id)), "Public link copied. Anyone can view it, no sign-in needed."); }
+      return copy(fallback, "Shareable link copied.");
+    } catch { return copy(fallback, "Shareable link copied (offline fallback)."); }
   };
   window.pnPdf = () => { window.pnToast("Opening print dialog, choose “Save as PDF”."); setTimeout(() => { try { window.print(); } catch (e) {} }, 260); };
 
@@ -1406,17 +1504,36 @@ function installHandlers() {
     }
   };
   window.pnAsk = (btn) => { const i = document.getElementById("pn-chat-input"); if (!i) return; i.value = (btn.textContent || "").trim(); window.pnSend(); };
+  // Grounded local answer from the report's own data — used when the backend
+  // assistant is unreachable, so "interrogate" always returns something useful.
+  window.pnLocalAnswer = (q, ctx) => {
+    const s = String(q || "").toLowerCase();
+    const first = (arr, n) => (arr || []).slice(0, n).map((x) => "• " + String(typeof x === "string" ? x : (x.text || x)).replace(/\s*\[\d+\]/g, "").trim()).join("\n");
+    if (/(strong|best|key).*(evidence|finding|point)|strongest/.test(s) && (ctx.findings || []).length) return "The strongest supported findings:\n" + first(ctx.findings, 3);
+    if (/(disagree|diverg|conflict|contradict|tension)/.test(s)) return ctx.divergence ? String(ctx.divergence).replace(/\s*\[\d+\]/g, "") : (ctx.contradiction ? String(ctx.contradiction).replace(/\s*\[\d+\]/g, "") : "The sources broadly agree; no material contradictions were flagged.");
+    if (/(uncertain|unknown|limit|caveat|weak|gap|boundar)/.test(s) && (ctx.boundaries || []).length) return "The main uncertainties and boundaries:\n" + first(ctx.boundaries, 3);
+    if (/(source|quality|trust|reliab)/.test(s) && ctx.sourceQuality) return String(ctx.sourceQuality).replace(/\s*\[\d+\]/g, "");
+    if (/(confiden|how sure|certain)/.test(s) && ctx.conf != null) return "Overall confidence in this synthesis is about " + ctx.conf + "%, blending source agreement, diversity, recency and citation grounding.";
+    if (/(summar|one line|tl;?dr|in short|briefly)/.test(s)) { const a = String(ctx.answer || "").split(/(?<=[.!?])\s+/)[0]; return a || (ctx.findings && ctx.findings[0] ? String(ctx.findings[0]).replace(/\s*\[\d+\]/g, "") : "This report synthesises the cited sources into a single grounded conclusion."); }
+    const a = String(ctx.answer || "").split(/(?<=[.!?])\s+/).slice(0, 2).join(" ");
+    return a || "I can answer from this report's findings, divergence, uncertainties and sources. Try one of the suggested questions above.";
+  };
   window.pnSend = async () => {
     const input = document.getElementById("pn-chat-input"), box = document.getElementById("pn-chat-msgs");
     if (!input || !box) return; const q = input.value.trim(); if (!q) return; input.value = "";
     const add = (cls, txt) => { const el = document.createElement("div"); el.className = "rp-msg " + cls; el.textContent = txt; box.appendChild(el); box.scrollTop = box.scrollHeight; return el; };
     add("rp-msg-u", q); const pend = add("rp-msg-a", "thinking…");
+    const ctx = window.__rpCtx || {};
     try {
-      const tok = getAuthToken(); const ctx = window.__rpCtx || {};
+      const tok = getAuthToken();
       const res = await fetch(APP_API_BASE + "/report/chat", { method: "POST", headers: { "Content-Type": "application/json", ...(tok ? { Authorization: "Bearer " + tok } : {}) }, body: JSON.stringify({ question: q, report_answer: ctx.answer || "", source_summaries: ctx.sources || [] }) });
-      const data = res.ok ? await res.json() : {};
-      pend.textContent = data.answer || (res.status === 401 ? "Please sign in to ask follow-ups." : "Couldn't answer that, please try again.");
-    } catch { pend.textContent = "Couldn't reach the assistant. Try again."; }
+      if (res.ok) { const data = await res.json(); if (data && data.answer) { pend.textContent = data.answer; return; } }
+      // backend reachable but no answer (or auth) → fall through to local
+      pend.textContent = window.pnLocalAnswer(q, ctx);
+    } catch {
+      // backend unreachable → grounded local answer, clearly labelled
+      pend.textContent = window.pnLocalAnswer(q, ctx);
+    }
   };
 }
 function runCounters(root) {
@@ -1441,7 +1558,10 @@ export default function PolynousReport(props) {
   const chartStore = useRef({ root: null, node: null });
   const d = deriveReport(props);
   const { html, rail } = buildReport(d);
-  if (typeof window !== "undefined") { window.__rpCtx = { answer: d.chatAnswer, sources: d.sourceSummaries }; window.__rpSens = { leadA: (d.sensitivity && d.sensitivity.leadA) || 54 }; window.__rpCites = d.citeMap || {}; window.__rpQuery = d.query || ""; }
+  if (typeof window !== "undefined") { window.__rpCtx = { answer: d.chatAnswer, sources: d.sourceSummaries, query: d.query, findings: d.findings || [], divergence: d.divergence || "", boundaries: d.boundaries || [], sourceQuality: d.sourceQuality || "", contradiction: d.contradiction || "", conf: d.conf, sourceCount: d.sources }; window.__rpSens = { leadA: (d.sensitivity && d.sensitivity.leadA) || 54 }; window.__rpCites = d.citeMap || {}; window.__rpQuery = d.query || "";
+    // A serialisable snapshot of the exact props this report was built from, so
+    // Copy-link can persist it for a public, no-auth view.
+    window.__rpSnapshot = { answer: props.answer, report: props.report, sourceSummaries: props.sourceSummaries, citations: props.citations, telemetry: props.telemetry, query: props.query || d.query }; }
   useEffect(() => { injectAssets(); installHandlers(); }, []);
   useEffect(() => {
     const t = setTimeout(() => runCounters(ref.current), 500);

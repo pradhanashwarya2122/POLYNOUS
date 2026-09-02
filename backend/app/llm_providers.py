@@ -62,6 +62,24 @@ KEY_PREFIXES = {
     "voyage":    None,
 }
 
+# Friendly, user-facing names (the free starter key currently runs on Gemini, so
+# "google" must read as "Gemini" everywhere it is shown to a user).
+PROVIDER_LABELS = {
+    "anthropic": "Claude",
+    "openai":    "OpenAI",
+    "google":    "Gemini",
+    "groq":      "Groq",
+    "mistral":   "Mistral",
+    "nvidia":    "NVIDIA",
+    "deepseek":  "DeepSeek",
+    "zhipu":     "Zhipu",
+}
+
+
+def provider_label(provider: str) -> str:
+    """Friendly display name for a provider id, e.g. 'google' -> 'Gemini'."""
+    return PROVIDER_LABELS.get((provider or "").strip().lower(), (provider or "").title())
+
 
 # ============================================================
 # PRICING — ESTIMATED USD per 1,000,000 tokens (input, output)

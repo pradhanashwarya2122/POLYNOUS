@@ -13,13 +13,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useEffect, useRef } from "react";
 import { ensureReportStyles } from "./PolynousReport";
+import { API_BASE_URL } from "../config";
 import SideRail from "./react-bits/SideRail";
 
 /* ---------- helpers (shared idiom with the research report) ---------- */
 const pick = (...v) => { for (const x of v) if (x !== undefined && x !== null && x !== "") return x; return undefined; };
-const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Coerce any value to text, so an object field never renders as "[object Object]".
+const flat = (s) => {
+  if (s == null) return "";
+  if (typeof s === "string") return s;
+  if (typeof s === "number" || typeof s === "boolean") return String(s);
+  if (Array.isArray(s)) return s.map(flat).filter(Boolean).join(". ");
+  if (typeof s === "object") return flat(s.text ?? s.value ?? s.reasoning ?? s.note ?? s.position ?? s.argument ?? s.summary ?? s.content ?? s.label ?? "");
+  return String(s);
+};
+const esc = (s) => flat(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{2300}-\u{23FF}]/gu;
-const stripEmoji = (s) => String(s == null ? "" : s).replace(EMOJI_RE, "").replace(/—/g, ", ").replace(/[ \t]{2,}/g, " ").trim();
+const stripEmoji = (s) => flat(s).replace(EMOJI_RE, "").replace(/—/g, ", ").replace(/[ \t]{2,}/g, " ").trim();
 const cite = (s) => esc(s).replace(/\[(\d+)\]/g, '<a class="rp-cite" role="button" tabindex="0" onclick="pnbCite(this)" data-n="$1">[$1]</a>');
 const pct = (n) => Math.max(0, Math.min(100, Math.round(n || 0)));
 const fmtDate = (d) => { try { return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase(); } catch { return "21 AUG 2026"; } };
@@ -35,8 +45,8 @@ const DEMO = {
       scoring: "50% measured evidence + 50% argument quality",
       reasoning: "The FOR case rests on stronger empirical grounding, citing concrete mission milestones and the strategic value of a multi-planetary backup [1][3]. The AGAINST case raises valid resource-allocation concerns but leans more on principle than on evidence. On balance the evidence favours pursuing both in parallel, with a measured lead for continued Mars investment.",
       strongest_point: "A self-sustaining off-world settlement is the only known hedge against a planet-wide catastrophe, a risk with low probability but unbounded cost.",
-      rubric_for: { distinct_sources_cited: 4, grounded_sentences: 11, sentences: 13, hallucinated_citations: 0, computed_score: 7.6 },
-      rubric_against: { distinct_sources_cited: 3, grounded_sentences: 8, sentences: 12, hallucinated_citations: 0, computed_score: 6.3 },
+      rubric_for: { distinct_sources_cited: 4, grounded_sentences: 9, sentences: 13, hallucinated_citations: 0, computed_score: 6.4 },
+      rubric_against: { distinct_sources_cited: 3, grounded_sentences: 11, sentences: 12, hallucinated_citations: 0, computed_score: 7.4 },
       follow_up_questions: [
         "What share of a national budget is a reasonable ceiling for crewed Mars programs?",
         "Do Mars technologies produce meaningful spillover benefits for Earth?",
@@ -73,7 +83,7 @@ const DEMO = {
         { id: 4, title: "NASA Mars Science", url: "https://science.nasa.gov/mars/", domain: "science.nasa.gov", trust_score: 0.93, freshness: "recent" },
       ],
     },
-    telemetry: { total_tokens: 8420, estimated_cost: { total: 0.0132 }, providers: [{ model: "glm-4.7" }] },
+    telemetry: { total_tokens: 8420, estimated_cost: { total: 0.0132 }, providers: [{ model: "gemini-2.5-flash" }] },
     cross_exam: {
       for_asks: { question: "If a Mars colony cannot be self-sufficient this century, how is it a backup?", answer: "It is a long-horizon hedge: the value is in starting the capability curve now, not in immediate self-sufficiency." },
       against_asks: { question: "Do Mars technologies not also advance Earth sustainability?", answer: "Some do, but the same capital applied directly to Earth problems would advance them faster and with certain beneficiaries." },
@@ -125,7 +135,7 @@ function deriveDebate(p) {
   const rubF = v.rubric_for || {}, rubA = v.rubric_against || {};
   const cert = pick(v.judge_certainty, 70);
   const ciMargin = winner === "UNSCORED" ? 12 : Math.max(4, Math.round((100 - cert) / 4));
-  const model = pick(r.telemetry && r.telemetry.providers && r.telemetry.providers[0] && r.telemetry.providers[0].model, "glm-4.7");
+  const model = pick(r.telemetry && r.telemetry.providers && r.telemetry.providers[0] && r.telemetry.providers[0].model, "gemini-2.5-flash");
   const tel = r.telemetry || {};
   return {
     topic, forScore, againstScore, winner, balance,
@@ -147,7 +157,7 @@ function deriveDebate(p) {
     trackRecord: r.trackRecord || r.judge_track_record || (r.debate && r.debate.track_record) || null,
     sources, model,
     tokens: Number(pick(tel.total_tokens, 0)) || 0,
-    cost: Number(pick(tel.estimated_cost && tel.estimated_cost.total, tel.cost, 0)) || 0,
+    cost: Number(pick(tel.estimated_cost && (tel.estimated_cost.usd != null ? tel.estimated_cost.usd : tel.estimated_cost.total), tel.cost, 0)) || 0,
     ci: { low: Math.max(0, cert - ciMargin), high: Math.min(100, cert + ciMargin), margin: ciMargin },
     date: fmtDate(new Date()),
     winnerLabel: winner === "FOR" ? "Supporting arguments prevail" : winner === "AGAINST" ? "Counter arguments prevail" : winner === "UNSCORED" ? "Verdict unscored" : "Both sides are balanced",
@@ -185,13 +195,16 @@ function sVerdict(d) {
 }
 
 function sCases(d) {
+  const list = (pts, tone) => pts.length
+    ? `<ol class="dbr-args">${pts.map((t, i) => `<li class="dbr-arg"><span class="rp-num ${tone}">${String(i + 1).padStart(2, "0")}</span><p>${cite(t)}</p></li>`).join("")}</ol>`
+    : `<p class="dbr-arg rp-mut">No arguments recorded.</p>`;
   const col = (label, tone, score, pts, reb) => {
-    const args = pts.length ? pts.map((t, i) => `<li class="dbr-arg"><span class="rp-num ${tone}">${String(i + 1).padStart(2, "0")}</span><p>${cite(t)}</p></li>`).join("") : `<li class="dbr-arg rp-mut">No arguments recorded.</li>`;
-    const rebBlock = reb ? `<div class="dbr-reb"><span class="dbr-reb-l ${tone}">Rebuttal</span><p>${cite(reb)}</p></div>` : "";
+    const rebPts = toPoints(reb, 3);
+    const rebBlock = rebPts.length ? `<div class="dbr-reb"><span class="dbr-reb-l ${tone}">Rebuttal, answering the other side</span>${list(rebPts, tone)}</div>` : "";
     return `<div class="dbr-case">
       <div class="dbr-case-h"><span class="dbr-side ${tone}">${label}</span><span class="rp-mono ${tone}">${score}/10</span></div>
       ${bar((score / 10) * 100, tone)}
-      <ol class="dbr-args">${args}</ol>${rebBlock}</div>`;
+      <div class="dbr-openlabel rp-dim">Opening argument</div>${list(pts, tone)}${rebBlock}</div>`;
   };
   return `<section class="rp-sec rp-rev">${eye("02", "The cases")}
     <p class="rp-sublede">Each advocate's opening points, then the rebuttal that answered the other side, traceable to the sources they cited.</p>
@@ -260,7 +273,7 @@ function sMethod(d) {
 
 function sFollow(d) {
   if (!d.followUps.length) return "";
-  const rows = d.followUps.map((q) => `<button class="dbr-follow" onclick="pnbNew(this)">${esc(q)}<span class="dbr-follow-a">→</span></button>`).join("");
+  const rows = d.followUps.map((q) => `<button class="dbr-follow" data-q="${esc(q)}" onclick="pnbNew(this)">${esc(q)}<span class="dbr-follow-a">→</span></button>`).join("");
   return `<section class="rp-sec rp-rev">${eye("09", "Continue the debate")}
     <p class="rp-sublede">The judge's follow-up questions, each opens as a fresh debate.</p>
     <div class="dbr-follows">${rows}</div></section>`;
@@ -320,6 +333,7 @@ const DBR_CSS = `
   --tx:#b9c2e4; --dim:#8899aa; --hi:#e2e0fc;
   --acc:#ff2040; --acc-soft:rgba(255,32,64,0.13);
   --pos:#00e64d; --neg:#ff2040; --warn:#ffd700; --info:#a855f7;
+  --scrim: rgba(8,9,24,0.60);
 }
 .rp.dbr ::selection { background: var(--acc-soft); }
 .dbr-scorepair { display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; margin-top: 36px; }
@@ -345,7 +359,10 @@ const DBR_CSS = `
 .dbr-arg { display: flex; gap: 14px; align-items: flex-start; padding: 15px 2px; border-bottom: 1px solid var(--line2); }
 .dbr-arg:last-child { border-bottom: 0; }
 .dbr-arg p { font-size: 14px; line-height: 1.6; color: var(--tx); }
-.dbr-reb { margin-top: 14px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line2); border-left: 2px solid; border-radius: 3px; }
+.dbr-openlabel { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; margin: 8px 0 2px; }
+.dbr-reb { margin-top: 16px; padding: 14px 16px 6px; background: var(--panel); border: 1px solid var(--line2); border-left: 2px solid; border-radius: 3px; }
+.dbr-reb .dbr-args { margin-top: 4px; }
+.dbr-reb .dbr-arg { padding: 9px 2px; }
 .dbr-reb-l { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 7px; }
 .dbr-reb-l.pos { color: var(--pos); } .dbr-reb-l.neg { color: var(--neg); }
 .dbr-case:has(.dbr-reb-l.pos) .dbr-reb { border-left-color: var(--pos); }
@@ -394,31 +411,67 @@ function installDbrHandlers() {
   window.pnbGo = (el) => { const u = el && el.getAttribute("data-url"); if (u && /^https?:/.test(u)) window.open(u, "_blank", "noopener"); };
   window.pnbShare = async () => {
     const t = window.__dbrTopic || "";
-    const url = t ? (location.origin + "/debate?query=" + encodeURIComponent(t)) : location.href;
-    try { await navigator.clipboard.writeText(url); } catch (_) {}
+    const fallback = t ? (location.origin + "/debate?query=" + encodeURIComponent(t)) : location.href;
+    const copy = async (url) => { try { await navigator.clipboard.writeText(url); } catch (_) {} };
+    const snap = window.__dbrSnapshot; const api = (window.__dbrVote && window.__dbrVote.api) || "";
+    if (!snap || !api) { return copy(fallback); }
+    try {
+      const headers = { "Content-Type": "application/json" };
+      try { const tk = localStorage.getItem("polynous_token"); if (tk) headers.Authorization = "Bearer " + tk; } catch (_) {}
+      const res = await fetch(api + "/share", { method: "POST", headers, body: JSON.stringify({ kind: "debate", title: t, payload: snap }) });
+      if (res.ok) { const data = await res.json(); return copy(location.origin + (data.url_path || ("/d/" + data.id))); }
+      return copy(fallback);
+    } catch { return copy(fallback); }
   };
   window.pnbPdf = () => { setTimeout(() => { try { window.print(); } catch (e) {} }, 200); };
-  window.pnbNew = (el) => { const q = (el.textContent || "").replace("→", "").trim(); if (window.__dbrNew) window.__dbrNew(q); };
+  window.pnbNew = (el) => {
+    const q = (el && (el.getAttribute("data-q") || el.textContent || "")).replace("→", "").trim();
+    if (!q) return;
+    if (typeof window.__dbrNew === "function") window.__dbrNew(q);
+    else window.location.href = "/debate?query=" + encodeURIComponent(q);
+  };
   window.pnbSens = (v) => {
     v = Math.max(0, Math.min(100, Number(v) || 0));
-    const s = window.__dbrSens || { a: 54 };
+    const s = window.__dbrSens || { a: 54, fE: 5, aE: 5, fQ: 5, aQ: 5 };
+    const w = v / 100;                                   // evidence weight
+    const fNew = w * s.fE + (1 - w) * s.fQ;
+    const aNew = w * s.aE + (1 - w) * s.aQ;
+    const tot = fNew + aNew;
+    const lean = tot > 0 ? Math.max(1, Math.min(99, Math.round((fNew / tot) * 100))) : 50;
     const wEl = $("dbr-sens-w"); if (wEl) wEl.textContent = v + "%";
-    const lean = Math.max(2, Math.min(98, Math.round(s.a + (v - 50) * 0.5)));
     const score = $("dbr-sens-score"), flag = $("dbr-sens-flag");
     if (score) { score.textContent = lean + "%"; score.className = "rp-fig-s " + (lean >= 50 ? "pos" : "neg"); }
-    if (score) score.nextElementSibling.textContent = lean >= 50 ? "toward Supporting" : "toward Counter";
+    if (score && score.nextElementSibling) score.nextElementSibling.textContent = lean >= 50 ? "toward Supporting" : "toward Counter";
+    // Does the lean cross 50 anywhere across the full weight range? If so the verdict is fragile.
+    const leanAt = (ww) => { const f = ww * s.fE + (1 - ww) * s.fQ, a = ww * s.aE + (1 - ww) * s.aQ; return (f + a) > 0 ? (f / (f + a)) * 100 : 50; };
+    const base = leanAt(0.5) >= 50;
+    let flips = false; for (let ww = 0; ww <= 1.001; ww += 0.1) { if ((leanAt(ww) >= 50) !== base) { flips = true; break; } }
     if (flag) {
-      if (lean < 50) { flag.className = "rp-sens-flag neg"; flag.textContent = "Flipped. At this weighting the Counter case would lead, the verdict is fragile here."; }
-      else if (lean < 55) { flag.className = "rp-sens-flag warn"; flag.textContent = "Marginal. The lean is thin at this weighting."; }
-      else { flag.className = "rp-sens-flag pos"; flag.textContent = "Stable. The verdict holds across reasonable weightings."; }
+      if ((lean >= 50) !== base) { flag.className = "rp-sens-flag neg"; flag.textContent = `Flipped. At ${v}% evidence weight the ${lean >= 50 ? "Supporting" : "Counter"} case leads instead, the verdict is fragile to this assumption.`; }
+      else if (flips) { flag.className = "rp-sens-flag warn"; flag.textContent = "Fragile. The verdict flips at some weightings, so it depends on how much you trust measured evidence over rhetoric."; }
+      else if (Math.abs(lean - 50) < 6) { flag.className = "rp-sens-flag warn"; flag.textContent = "Marginal. The lean is thin at this weighting."; }
+      else { flag.className = "rp-sens-flag pos"; flag.textContent = "Stable. The verdict holds across every reasonable weighting of evidence versus argument."; }
     }
   };
   window.pnbVote = (btn, choice) => {
     const wrap = btn && btn.closest(".dbr-vote"); if (!wrap) return;
-    wrap.querySelectorAll(".dbr-vote-b").forEach((b) => b.classList.remove("on"));
+    wrap.querySelectorAll(".dbr-vote-b").forEach((b) => { b.classList.remove("on"); b.disabled = true; });
     btn.classList.add("on");
     const msg = document.getElementById("dbr-vote-msg");
-    if (msg) msg.textContent = choice === "agree" ? "You agreed with the verdict. Thanks, your vote sharpens the judge's track record." : "You disagreed. Noted, dissent is how the tribunal stays honest.";
+    if (msg) msg.textContent = choice === "agree" ? "You agreed with the verdict. Recording your vote…" : "You disagreed. Recording your vote…";
+    const ctx = window.__dbrVote || {};
+    if (!ctx.topic || !ctx.api) { if (msg) msg.textContent = choice === "agree" ? "You agreed with the verdict. Thanks, your vote sharpens the judge's track record." : "You disagreed. Noted, dissent is how the tribunal stays honest."; return; }
+    const headers = { "Content-Type": "application/json" };
+    try { const t = localStorage.getItem("polynous_token"); if (t) headers.Authorization = "Bearer " + t; } catch (_) {}
+    fetch(ctx.api + "/debate-vote", { method: "POST", headers, body: JSON.stringify({ topic: ctx.topic, judge_winner: ctx.winner, agree: choice === "agree" }) })
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((res) => {
+        const rate = res && res.agreement_rate_with_users != null ? Math.round(res.agreement_rate_with_users * 100) : null;
+        const trEl = document.querySelector(".dbr-tr");
+        if (trEl && rate != null) trEl.innerHTML = `<span class="rp-fig-s pos">${rate}%</span><span class="rp-dim">reader agreement across ${res.sample_size || 0} debates</span>`;
+        if (msg) msg.textContent = (choice === "agree" ? "Vote recorded, you agreed with the judge. " : "Vote recorded, you disagreed. ") + (rate != null ? `Readers now agree ${rate}% of the time across ${res.sample_size} debates.` : "You are the first vote on record.");
+      })
+      .catch(() => { if (msg) msg.textContent = "Vote noted locally, but it could not be saved right now."; });
   };
 }
 function runCounters(root) {
@@ -446,10 +499,20 @@ export default function PolynousDebateReport(props) {
   const d = deriveDebate(hasData ? props : DEMO);
   const { html, rail } = buildDebateReport(d);
   if (typeof window !== "undefined") {
-    window.__dbrSens = { a: d.balance.a };
+    // Real sensitivity inputs: each side's final score = 50% evidence rubric
+    // + 50% argument quality, so quality = 2*final - evidence. The slider then
+    // recomputes the lean at any evidence weight from these real components.
+    const clamp10 = (x) => Math.max(0, Math.min(10, x));
+    window.__dbrSens = {
+      a: d.balance.a,
+      fE: clamp10(d.rubF.score), aE: clamp10(d.rubA.score),
+      fQ: clamp10(2 * d.forScore - d.rubF.score), aQ: clamp10(2 * d.againstScore - d.rubA.score),
+    };
     window.__dbrUrls = d.sourceUrls;
     window.__dbrTopic = d.topic || "";
     window.__dbrNew = typeof props.onNewDebate === "function" ? props.onNewDebate : null;
+    window.__dbrVote = { topic: d.topic || "", winner: (d.winner === "FOR" || d.winner === "AGAINST") ? d.winner : "TIE", api: API_BASE_URL };
+    window.__dbrSnapshot = { result: props.result, activeTopic: props.activeTopic || d.topic, topic: d.topic };
   }
   useEffect(() => { ensureReportStyles(); injectDbr(); installDbrHandlers(); }, []);
   useEffect(() => {

@@ -1645,7 +1645,7 @@ function ApiKeysSection({ push }) {
               🔄 Your free key was updated
             </div>
             <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.5, maxWidth: 460 }}>
-              We rotated the shared free {freeStatus?.claimed_provider ? freeStatus.claimed_provider : ""} key. Click to switch to the new one, completely free, nothing to pay.
+              We rotated the shared free {freeStatus?.claimed_provider_label || freeStatus?.claimed_provider || "Gemini"} key. Click to switch to the new one, completely free, nothing to pay.
             </div>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 9, cursor: "pointer", fontFamily: C.fontMono, fontSize: 11, color: C.onSurfaceVariant }}>
               <input type="checkbox" checked={autoSwap}
@@ -1669,10 +1669,10 @@ function ApiKeysSection({ push }) {
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontFamily: "'Bricolage Grotesque','Sora',sans-serif", fontWeight: 700, fontSize: 15, color: C.cyan, marginBottom: 4, letterSpacing: "-0.01em" }}>
-              🎁 Claim your free GLM trial key
+              🎁 Claim your free {freeStatus?.offer_provider_label || "Gemini"} trial key
             </div>
             <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55, maxWidth: 480 }}>
-              New here? Get a free trial key and see POLYNOUS work instantly, no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial on a lightweight model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key anytime.
+              New here? Get a free {freeStatus?.offer_provider_label || "Gemini"} trial key and see POLYNOUS work instantly, no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial on a lightweight model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key anytime.
             </div>
           </div>
           <button onClick={claimFree} disabled={claiming} style={{

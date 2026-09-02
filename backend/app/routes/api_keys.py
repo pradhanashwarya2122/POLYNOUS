@@ -232,6 +232,11 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
     # swapped the pool key — their key is now stale and a fresh one is waiting.
     rotated = bool(own_claim and own_claim.key_fingerprint not in current_fps)
     from app.services import trial as trial_svc
+    from app.llm_providers import provider_label
+    # The provider the pool is currently handing out (so the "Claim your free X
+    # key" button names the right one before a claim exists).
+    pool = fk._load_pool()
+    offer_provider = pool[0]["provider"] if pool else None
     return {
         "pool_configured": fk.pool_configured(),
         "available": fk.available_count(claimed_fps),
@@ -239,6 +244,9 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
         "has_own_key": _has_any_llm_key(user),
         "rotated": rotated,
         "claimed_provider": own_claim.provider if own_claim else None,
+        "claimed_provider_label": provider_label(own_claim.provider) if own_claim else None,
+        "offer_provider": offer_provider,
+        "offer_provider_label": provider_label(offer_provider) if offer_provider else None,
         "trial": trial_svc.state(user, db),
     }
 
@@ -292,14 +300,17 @@ async def claim_free_key(user: User = Depends(get_current_db_user), db: Session 
     db.commit()
 
     st = trial_svc.state(user, db)
+    from app.llm_providers import provider_label
+    label = provider_label(provider)
     return {
         "status": "claimed",
         "provider": provider,
+        "provider_label": label,
         "rotated": is_rotated,
         "trial": st,
-        "message": (f"Your free {provider.title()} key was updated to the latest one — completely free. You're all set!"
+        "message": (f"Your free {label} key was updated to the latest one — completely free. You're all set!"
                     if is_rotated else
-                    f"Free {provider.title()} starter key added to your account. You're ready to research!"),
+                    f"Free {label} starter key added to your account. You're ready to research!"),
     }
 
 # ============================================================

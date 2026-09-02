@@ -23,6 +23,22 @@ class DebateVote(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class SharedReport(Base):
+    """A public, no-auth snapshot of a rendered report (research or debate).
+    Copy-link saves the report's view payload here and returns a short id; the
+    public /r/<id> and /d/<id> routes fetch it and render read-only. No API key
+    is spent to view, so anyone with the link can read it and then choose to
+    sign in to run their own."""
+    __tablename__ = "shared_reports"
+    id = Column(String(24), primary_key=True, index=True)   # url-safe short id
+    kind = Column(String(16), nullable=False)               # "research" | "debate"
+    title = Column(Text, nullable=True)                     # topic/query, for previews
+    payload = Column(JSON, nullable=False)                  # the report view props
+    owner_id = Column(String, nullable=True)                # public_id or null (guest)
+    views = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class FreeKeyClaim(Base):
     """Tracks which free starter-key each user has claimed, so each user
     gets exactly one and pool keys are never handed out twice. Stores a

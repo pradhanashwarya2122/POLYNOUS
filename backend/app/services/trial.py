@@ -1,5 +1,5 @@
 """
-app/services/trial.py — Free Z.AI (Zhipu/GLM) trial policy & enforcement.
+app/services/trial.py — Free Gemini (Google) starter-key trial policy & enforcement.
 
 The free starter key (see app/services/free_keys.py) is handed out as a
 TIME + RUN limited trial so a shared pool key can't be abused:
@@ -80,7 +80,7 @@ def state(user, db=None) -> dict:
     if not m:
         return {"active": False}
 
-    provider = m.get("provider", "zhipu")
+    provider = m.get("provider", "google")
     days = trial_days()
     runs_cap = trial_runs()
 
@@ -161,7 +161,7 @@ def enforce(user, db) -> tuple[bool, Optional[str]]:
     if not st.get("expired"):
         return True, None
 
-    provider = st.get("provider", "zhipu")
+    provider = st.get("provider", "google")
     # Disable: strip the pooled key so the normal path reports "no key".
     try:
         if getattr(user, f"{provider}_api_key", None):
@@ -176,12 +176,14 @@ def enforce(user, db) -> tuple[bool, Optional[str]]:
         except Exception:
             pass
 
+    from app.llm_providers import provider_label
+    label = provider_label(provider)
     if st.get("reason") == "runs":
-        msg = (f"Your free GLM trial is used up ({st.get('runs_used')} runs). "
+        msg = (f"Your free {label} trial is used up ({st.get('runs_used')} runs). "
                "Add your own API key in Settings → API Keys to keep going — "
-               "stronger models like Claude, GPT or Gemini give noticeably better results.")
+               "stronger models like Claude, GPT or a paid Gemini tier give noticeably better results.")
     else:
-        msg = ("Your free GLM trial has ended. "
+        msg = (f"Your free {label} trial has ended. "
                "Add your own API key in Settings → API Keys to keep researching — "
-               "stronger models like Claude, GPT or Gemini give noticeably better results.")
+               "stronger models like Claude, GPT or a paid Gemini tier give noticeably better results.")
     return False, msg
