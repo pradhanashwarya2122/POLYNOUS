@@ -239,8 +239,23 @@ function sSensitivity(d) {
 function sIntegrity(d) {
   const framing = d.framing ? `<div><div class="rp-subh">Framing check</div><p class="dbr-mut">${esc(stripEmoji(d.framing.note || d.framing.verdict || "The proposition was checked for loaded or false-dichotomy framing."))}</p></div>` : "";
   const steel = d.steelman ? `<div><div class="rp-subh">Steelman, both sides</div><div class="dbr-steel"><p><span class="rp-tag pos">FOR</span> ${esc(stripEmoji(d.steelman.for || ""))}</p><p><span class="rp-tag neg">AGAINST</span> ${esc(stripEmoji(d.steelman.against || ""))}</p></div></div>` : "";
-  if (!framing && !steel) return "";
-  return `<section class="rp-sec rp-rev">${eye("05", "Tribunal integrity")}<div class="rp-split">${framing}${steel}</div></section>`;
+  // Always-present, computed checks from the real rubric — so the section carries
+  // substance even when the judge didn't emit a framing/steelman pass.
+  const hall = (Number(d.rubF.hall) || 0) + (Number(d.rubA.hall) || 0);
+  const fg = `${d.rubF.grounded || 0}/${d.rubF.sentences || 0}`;
+  const ag = `${d.rubA.grounded || 0}/${d.rubA.sentences || 0}`;
+  const scored = d.winner !== "UNSCORED";
+  const rows = [
+    { ok: scored, label: "Scored on a real rubric", note: scored ? "Both sides were scored on measured evidence plus argument quality; no fabricated tie." : "The judge could not score this debate, so the verdict is UNSCORED, never a made-up result." },
+    { ok: hall === 0, label: "Citation integrity", note: hall === 0 ? "No hallucinated citations in either case; every cited source is real." : `${hall} hallucinated citation${hall > 1 ? "s" : ""} were flagged and scored zero.` },
+    { ok: true, label: "Evidence grounding", note: `FOR grounded ${fg} of its sentences in cited sources; AGAINST grounded ${ag}. Both cases argued from the same shared evidence pool.` },
+    { ok: (Number(d.certainty) || 0) >= 60, label: "Judge certainty", note: `${d.certainty}% certainty, with a confidence band of ${d.ci.low}% to ${d.ci.high}%.` },
+  ];
+  const checks = `<div><div class="rp-subh">Integrity checks</div>${rows.map((c) => `<div class="dbr-check"><span class="dbr-check-i ${c.ok ? "pos" : "warn"}">${c.ok ? "✓" : "!"}</span><div class="dbr-check-b"><b>${esc(c.label)}</b><p class="rp-dim">${esc(c.note)}</p></div></div>`).join("")}</div>`;
+  const right = (framing || steel) ? `<div>${framing}${steel}</div>` : "";
+  return `<section class="rp-sec rp-rev">${eye("05", "Tribunal integrity")}
+    <p class="rp-sublede">The checks that keep the verdict honest: a real rubric, no invented citations, transparent grounding and a stated certainty.</p>
+    <div class="rp-split">${checks}${right}</div></section>`;
 }
 
 function sDissent(d) {
@@ -359,6 +374,13 @@ const DBR_CSS = `
 .dbr-arg { display: flex; gap: 14px; align-items: flex-start; padding: 15px 2px; border-bottom: 1px solid var(--line2); }
 .dbr-arg:last-child { border-bottom: 0; }
 .dbr-arg p { font-size: 14px; line-height: 1.6; color: var(--tx); }
+.dbr-check { display: flex; gap: 13px; align-items: flex-start; padding: 13px 0; border-top: 1px solid var(--line2); }
+.dbr-check:first-of-type { border-top: 0; }
+.dbr-check-i { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; font-size: 12px; margin-top: 1px; }
+.dbr-check-i.pos { background: rgba(0,230,77,0.12); color: var(--pos); }
+.dbr-check-i.warn { background: rgba(255,215,0,0.14); color: var(--warn); }
+.dbr-check-b b { display: block; font-size: 14px; color: var(--hi); margin-bottom: 2px; }
+.dbr-check-b p { font-size: 12.5px; line-height: 1.5; }
 .dbr-openlabel { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; margin: 8px 0 2px; }
 .dbr-reb { margin-top: 16px; padding: 14px 16px 6px; background: var(--panel); border: 1px solid var(--line2); border-left: 2px solid; border-radius: 3px; }
 .dbr-reb .dbr-args { margin-top: 4px; }

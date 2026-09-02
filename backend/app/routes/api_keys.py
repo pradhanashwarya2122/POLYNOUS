@@ -151,13 +151,30 @@ async def save_api_key(
         user.preferences = prefs
         flag_modified(user, "preferences")
 
+    # ── Bringing your OWN key ends the free trial ────────────────────────────
+    # Otherwise a trial user who adds their own key would keep preferred_provider
+    # pointing at the pooled free key (so runs still burn the free key) and stay
+    # daily-rate-limited. Saving a real key is an explicit opt-out: end the trial,
+    # drop the pooled key if it was a different provider, and make the new key active.
+    from app.services import trial as trial_svc
+    ended_trial = False
+    if trial_svc.is_on_trial(user):
+        tprov = (trial_svc.state(user, db) or {}).get("provider")
+        if tprov and tprov != provider and getattr(user, f"{tprov}_api_key", None):
+            setattr(user, f"{tprov}_api_key", None)   # remove the pooled free key
+        trial_svc._clear_marker(user)
+        user.preferred_provider = provider            # use the key they just added
+        ended_trial = True
+
     db.commit()
 
     return {
         "message": f"{provider.upper()} API key saved successfully",
         "provider": provider,
         "preview": mask_api_key(api_key),
-        "validated": True
+        "validated": True,
+        "trial_ended": ended_trial,
+        "using_own_key": True,
     }
 
 @router.delete("/{provider}")
@@ -247,6 +264,10 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
         "claimed_provider_label": provider_label(own_claim.provider) if own_claim else None,
         "offer_provider": offer_provider,
         "offer_provider_label": provider_label(offer_provider) if offer_provider else None,
+        # Trial limits, surfaced even before a claim so the banner can name them.
+        "daily_cap": trial_svc.daily_runs(),
+        "trial_days": trial_svc.trial_days(),
+        "trial_runs": trial_svc.trial_runs(),
         "trial": trial_svc.state(user, db),
     }
 

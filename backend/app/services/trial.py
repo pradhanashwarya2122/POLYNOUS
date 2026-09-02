@@ -39,6 +39,12 @@ def trial_runs() -> int:
     return _int_env("FREE_TRIAL_RUNS", 15)
 
 
+def daily_runs() -> int:
+    """Per-day cap on free-key research/debate runs (rate limit, resets each UTC
+    day). The binding limit most days; overridable via FREE_TRIAL_DAILY_RUNS."""
+    return _int_env("FREE_TRIAL_DAILY_RUNS", 3)
+
+
 def _marker(user) -> Optional[dict]:
     """The trial marker stored in preferences at claim time, or None."""
     try:
@@ -74,6 +80,23 @@ def _runs_used(user, db) -> int:
         return 0
 
 
+def _runs_today(user, db) -> int:
+    """Completed research/debate runs by this user since 00:00 UTC today.
+    UsageLog holds one row per completed non-cached run, so counting these
+    before the next run gives a correct per-day rate limit."""
+    if db is None:
+        return 0
+    try:
+        from app.models import UsageLog
+        start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        return (db.query(UsageLog)
+                  .filter(UsageLog.user_id == str(user.public_id))
+                  .filter(UsageLog.created_at >= start)
+                  .count())
+    except Exception:
+        return 0
+
+
 def state(user, db=None) -> dict:
     """Full trial state for the status endpoint and the UI countdown."""
     m = _marker(user)
@@ -100,6 +123,13 @@ def state(user, db=None) -> dict:
     runs_left = max(0, runs_cap - runs_used) if runs_cap else None
     runs_expired = bool(runs_cap and runs_used >= runs_cap)
 
+    daily_cap = daily_runs()
+    runs_today = _runs_today(user, db)
+    daily_left = max(0, daily_cap - runs_today) if daily_cap else None
+    daily_reached = bool(daily_cap and runs_today >= daily_cap)
+
+    # "expired" = the trial is permanently over (time or total-run cap).
+    # The daily cap is a rate limit that resets, so it is tracked separately.
     expired = time_expired or runs_expired
     reason = "time" if time_expired else ("runs" if runs_expired else None)
 
@@ -114,6 +144,10 @@ def state(user, db=None) -> dict:
         "runs_cap": runs_cap or None,
         "runs_used": runs_used,
         "runs_left": runs_left,
+        "daily_cap": daily_cap or None,
+        "runs_today": runs_today,
+        "daily_left": daily_left,
+        "daily_reached": daily_reached,
         "expired": expired,
         "reason": reason,
     }
@@ -158,6 +192,25 @@ def enforce(user, db) -> tuple[bool, Optional[str]]:
     st = state(user, db)
     if not st.get("active"):
         return True, None
+
+    # Robustness: if the user is running on a DIFFERENT provider than the trial's
+    # pooled key and actually has their own key there, the trial does not apply —
+    # never rate-limit someone using their own key, even if a stale marker exists.
+    tprov = st.get("provider")
+    pref = getattr(user, "preferred_provider", None)
+    if pref and tprov and pref != tprov and getattr(user, f"{pref}_api_key", None):
+        return True, None
+
+    # Daily rate limit: block for today WITHOUT ending the trial (resets at UTC
+    # midnight). Checked before the permanent-expiry path so a same-day 4th run
+    # is rate-limited, not permanently disabled.
+    if not st.get("expired") and st.get("daily_reached"):
+        cap = st.get("daily_cap") or daily_runs()
+        msg = (f"You've used all {cap} free runs for today. Your free key resets at "
+               "midnight UTC, or add your own API key in Settings → API Keys to keep "
+               "going right now.")
+        return False, msg
+
     if not st.get("expired"):
         return True, None
 

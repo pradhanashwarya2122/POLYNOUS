@@ -1672,7 +1672,7 @@ function ApiKeysSection({ push }) {
               🎁 Claim your free {freeStatus?.offer_provider_label || "Gemini"} trial key
             </div>
             <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55, maxWidth: 480 }}>
-              New here? Get a free {freeStatus?.offer_provider_label || "Gemini"} trial key and see POLYNOUS work instantly, no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial on a lightweight model</strong>; for stronger, more reliable results, add your own Claude / GPT / Gemini key anytime.
+              New here? Get a free {freeStatus?.offer_provider_label || "Gemini"} trial key and see POLYNOUS work instantly, no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial, capped at {freeStatus?.daily_cap || 3} research or debate runs per day</strong>; for unlimited use and stronger results, add your own Claude / GPT / Gemini key anytime.
             </div>
           </div>
           <button onClick={claimFree} disabled={claiming} style={{
@@ -1688,7 +1688,8 @@ function ApiKeysSection({ push }) {
       {freeStatus?.trial?.active && (() => {
         const t = freeStatus.trial;
         const runsPct = t.runs_cap ? Math.min(100, Math.round((t.runs_used / t.runs_cap) * 100)) : 0;
-        const low = (t.days_left != null && t.days_left <= 2) || (t.runs_left != null && t.runs_left <= 3);
+        const dailyPct = t.daily_cap ? Math.min(100, Math.round(((t.runs_today || 0) / t.daily_cap) * 100)) : 0;
+        const low = (t.days_left != null && t.days_left <= 2) || (t.runs_left != null && t.runs_left <= 3) || (t.daily_left != null && t.daily_left <= 1);
         const accent = t.expired ? "#ff6b8a" : low ? "#ffb64a" : "#00ff47";
         const bric = "'Bricolage Grotesque','Sora',sans-serif";
         return (
@@ -1702,14 +1703,14 @@ function ApiKeysSection({ push }) {
                   {t.expired ? "Free trial ended" : "Free trial active"}
                 </h3>
                 <span style={{ fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 9999, padding: "3px 9px" }}>
-                  {(t.provider || "glm").toUpperCase()}{t.model ? ` · ${t.model}` : ""}
+                  {(freeStatus?.claimed_provider_label || t.provider || "Gemini").toUpperCase()}{t.model ? ` · ${t.model}` : ""}
                 </span>
               </div>
               {!t.expired && (
                 <div style={{ fontFamily: C.fontMono, fontSize: 12, color: accent, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {t.daily_left != null ? `${t.daily_left} of ${t.daily_cap} run${t.daily_cap === 1 ? "" : "s"} left today` : ""}
+                  {t.daily_left != null && t.days_left != null ? " · " : ""}
                   {t.days_left != null ? `${t.days_left} day${t.days_left === 1 ? "" : "s"} left` : ""}
-                  {t.days_left != null && t.runs_left != null ? " · " : ""}
-                  {t.runs_left != null ? `${t.runs_left} run${t.runs_left === 1 ? "" : "s"} left` : ""}
                 </div>
               )}
             </div>
