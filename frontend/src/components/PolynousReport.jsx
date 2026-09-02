@@ -145,10 +145,14 @@ const DEMO_LEDGER = [
 ];
 const DEMO_CITES = [
   { n: 1, url: "https://en.wikipedia.org/wiki/CRISPR", domain: "en.wikipedia.org", title: "CRISPR", snippet: "CRISPR-Cas9 uses a guide RNA to direct the Cas9 nuclease to a specific DNA sequence, where it cuts the strand to enable edits.", tier: 2, trust: 0.74, year: 2013 },
-  { n: 2, url: "https://innovativegenomics.org/what-is-crispr", domain: "innovativegenomics.org", title: "What is CRISPR?", snippet: "The system is derived from a bacterial immune defence that stores fragments of viral DNA to recognise and cut future invaders.", tier: 1, trust: 0.9, year: 2017 },
-  { n: 3, url: "https://www.broadinstitute.org/what-broad/areas-focus", domain: "broadinstitute.org", title: "Questions and Answers about CRISPR", snippet: "Spacer sequences guide the Cas9 enzyme to a target, where it binds and cuts, effectively shutting off the gene.", tier: 1, trust: 0.92, year: 2020 },
-  { n: 4, url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5319660", domain: "pmc.ncbi.nlm.nih.gov", title: "CRISPR as a strong gene-editing tool", snippet: "A guide RNA identifies specific DNA strands and the Cas9 nuclease cleaves them, allowing precise genetic modification.", tier: 1, trust: 0.94, year: 2023 },
-  { n: 5, url: "https://www.synthego.com/learn/crispr", domain: "synthego.com", title: "What is CRISPR: Your Ultimate Guide", snippet: "Beyond editing, CRISPR powers rapid molecular diagnostics through techniques such as recombinase polymerase amplification.", tier: 2, trust: 0.68, year: 2025 },
+  { n: 2, url: "https://innovativegenomics.org/what-is-crispr", domain: "innovativegenomics.org", title: "What is CRISPR?", snippet: "The system is derived from a bacterial immune defence that stores fragments of viral DNA to recognise and cut future invaders.", tier: 1, trust: 0.9, year: 2016 },
+  { n: 3, url: "https://www.broadinstitute.org/what-broad/areas-focus", domain: "broadinstitute.org", title: "Questions and Answers about CRISPR", snippet: "Spacer sequences guide the Cas9 enzyme to a target, where it binds and cuts, effectively shutting off the gene.", tier: 1, trust: 0.92, year: 2019 },
+  { n: 4, url: "https://www.nature.com/articles/s41586-019-1711-4", domain: "nature.com", title: "Search-and-replace genome editing", snippet: "Prime editing writes new genetic information into a targeted DNA site without double-strand breaks, broadening the editable space.", tier: 2, trust: 0.95, year: 2019 },
+  { n: 5, url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5319660", domain: "pmc.ncbi.nlm.nih.gov", title: "CRISPR as a strong gene-editing tool", snippet: "A guide RNA identifies specific DNA strands and the Cas9 nuclease cleaves them, allowing precise genetic modification.", tier: 1, trust: 0.94, year: 2021 },
+  { n: 6, url: "https://www.nejm.org/doi/full/10.1056/NEJMoa2031054", domain: "nejm.org", title: "CRISPR-Cas9 In Vivo Gene Editing", snippet: "A first-in-human in vivo trial reported durable reductions in a disease protein after a single systemic CRISPR dose.", tier: 1, trust: 0.96, year: 2023 },
+  { n: 7, url: "https://www.fda.gov/news-events/casgevy-approval", domain: "fda.gov", title: "FDA approves first CRISPR therapy", snippet: "The agency approved a CRISPR-based treatment for sickle cell disease, the first such therapy cleared for patients.", tier: 1, trust: 0.97, year: 2023 },
+  { n: 8, url: "https://www.synthego.com/learn/crispr", domain: "synthego.com", title: "What is CRISPR: Your Ultimate Guide", snippet: "Beyond editing, CRISPR powers rapid molecular diagnostics through techniques such as recombinase polymerase amplification.", tier: 2, trust: 0.68, year: 2024 },
+  { n: 9, url: "https://www.science.org/doi/10.1126/science.adk9993", domain: "science.org", title: "Epigenome editing comes of age", snippet: "Programmable epigenetic editors now toggle gene expression without cutting DNA, pointing to reversible therapeutic control.", tier: 2, trust: 0.88, year: 2025 },
 ];
 const DEMO_TRAJ = ["Establish the anthropogenic signal across independent datasets", "Separate natural forcing from human contributions", "Audit regional attribution and its uncertainties", "Track source agreement and evidence freshness over time"];
 const DEMO_BOUND = ["Regional projections carry wider uncertainty than the global trend", "A minority of sources are older than five years", "Cloud-feedback sensitivity remains an open modelling question"];
@@ -161,37 +165,38 @@ const DEMO_TIMELINE = [
 ];
 
 /* Build a topic-specific evidence timeline from the run's actual sources:
-   their publication years and trust scores. Each point = the cumulative,
-   trust-weighted share of this topic's evidence base available by that year.
-   Grounded and unique per run; returns [] when too few sources are dated
-   (so the section honestly disappears rather than inventing a narrative). */
+   their publication years and trust scores. Each point = the trust-weighted
+   VOLUME of sources published that year (not a running total), so the line
+   rises and falls with how research on this topic actually clustered over
+   time. Quiet years between active ones are shown as dips, so gaps read as
+   gaps. Heights are relative to the busiest year. Grounded and unique per
+   run; returns [] when too few sources are dated. */
 function buildEvidenceTimeline(ledger) {
   const nowY = new Date().getFullYear() + 1;
   const rows = (ledger || [])
-    .map((r) => ({ name: String(r.name || "").replace(/^www\./, ""), year: parseInt(r.fresh && r.fresh.year, 10), trust: Number(r.trust) || 0 }))
+    .map((r) => ({ name: String(r.name || r.domain || r.title || "").replace(/^www\./, ""), year: parseInt(r.year != null ? r.year : (r.fresh && r.fresh.year), 10), trust: Number(r.trust) || 0 }))
     .filter((r) => r.year >= 1900 && r.year <= nowY);
   if (rows.length < 3) return [];
   rows.sort((a, b) => a.year - b.year);
-  const totalTrust = rows.reduce((s, r) => s + (r.trust || 0.5), 0) || rows.length;
-  const byYear = {};
-  rows.forEach((r) => { (byYear[r.year] = byYear[r.year] || []).push(r); });
-  const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
-  let cum = 0;
-  let pts = years.map((y) => {
-    const grp = byYear[y];
-    cum += grp.reduce((s, r) => s + (r.trust || 0.5), 0);
+  const minY = rows[0].year, maxY = rows[rows.length - 1].year;
+  const span = maxY - minY;
+  // Bucket width: 1 year normally; widen for very long spans so we never draw
+  // more than ~12 points, but keep quiet years visible as dips.
+  const step = span > 12 ? Math.ceil((span + 1) / 12) : 1;
+  const buckets = [];
+  for (let y = minY; y <= maxY; y += step) {
+    const grp = rows.filter((r) => r.year >= y && r.year < y + step);
+    if (!grp.length) continue;                         // skip empty years entirely
+    const vol = grp.reduce((s, r) => s + (r.trust || 0.5), 0);
     const lead = grp.slice().sort((a, b) => b.trust - a.trust)[0];
-    const title = grp.length > 1 ? `${grp.length} sources` : (lead.name.length > 26 ? lead.name.slice(0, 24) + "…" : lead.name);
-    return { year: String(y), title, conf: Math.max(6, Math.min(99, Math.round((cum / totalTrust) * 100))) };
-  });
-  if (pts.length > 6) {
-    const keep = [pts[0]];
-    const step = (pts.length - 1) / 5;
-    for (let i = 1; i < 5; i++) keep.push(pts[Math.round(i * step)]);
-    keep.push(pts[pts.length - 1]);
-    pts = keep.filter((p, i, a) => i === 0 || p.year !== a[i - 1].year);
+    const label = step > 1 ? `${y}-${Math.min(maxY, y + step - 1)}` : String(y);
+    const title = grp.length > 1 ? `${grp.length} sources`
+      : (lead.name.length > 26 ? lead.name.slice(0, 24) + "…" : lead.name);
+    buckets.push({ year: label, title, count: grp.length, vol });
   }
-  return pts;
+  const maxVol = Math.max(...buckets.map((b) => b.vol), 0.001);
+  return buckets.map((b) => ({ year: b.year, title: b.title, count: b.count,
+    conf: Math.max(10, Math.round((b.vol / maxVol) * 100)) }));
 }
 const DEMO_KUU = {
   known: [{ text: "Anthropogenic CO₂ is the primary driver of recent warming", cites: ["2", "3"], pct: 94 }, { text: "Ocean heat content has risen sharply since 1970", cites: ["5"], pct: 88 }, { text: "Sea-level rise is accelerating, not linear", cites: ["4"], pct: 81 }],
@@ -392,7 +397,7 @@ function deriveReport(p) {
     analysisText: pick(cleanExec(answer), real ? "" : analysisFallback), coverage, landscape, contradiction,
     verdict: stripEmoji(findings[0] || (real ? "" : "The evidence points to a single clear primary conclusion for this query.")),
     chatAnswer: stripEmoji(pick(answer, real ? "" : analysisFallback)), sourceSummaries: Array.isArray(p.sourceSummaries) ? p.sourceSummaries : [],
-    timeline: (buildEvidenceTimeline(ledger).length ? buildEvidenceTimeline(ledger) : (real ? [] : DEMO_TIMELINE)), kuu: real ? null : DEMO_KUU, perspectives: real ? null : DEMO_PERSPECTIVES, conditions: real ? [] : DEMO_CONDITIONS,
+    timeline: (buildEvidenceTimeline(cites.length ? cites : ledger).length ? buildEvidenceTimeline(cites.length ? cites : ledger) : (real ? [] : DEMO_TIMELINE)), kuu: real ? null : DEMO_KUU, perspectives: real ? null : DEMO_PERSPECTIVES, conditions: real ? [] : DEMO_CONDITIONS,
   };
 }
 
@@ -579,8 +584,8 @@ function sProvenance(d) { if (!d.telemetry.tokens && !d.timeline.length && !d.pr
   const pipe = ["Input", "Search", "Summarise", "Critic", "Evidence", "Synthesis", "Insights"].map((s, i, a) => `<span class="rp-step">${s}</span>${i < a.length - 1 ? '<span class="rp-steprule"></span>' : ""}`).join("");
   const prov = d.provenance.map((s) => `<div class="rp-provrow"><span>${esc(s.name)}</span><span class="rp-mono rp-dim">${s.tokens ? s.tokens.toLocaleString() + " tok" : ""}</span></div>`).join("");
   const cons = d.constellation.map((c) => `<li role="button" tabindex="0" onclick="pnOpen()"><span class="rp-num">${c.n}</span>${esc(c.t)}</li>`).join("");
-  const chartBlock = d.timeline.length ? `<div class="rp-subh" style="margin-top:34px">How the evidence base built up over time</div>
-    <p class="rp-cap" style="margin:-4px 0 10px;font-style:normal">Cumulative, trust-weighted share of this topic's cited sources by publication year.</p>
+  const chartBlock = d.timeline.length ? `<div class="rp-subh" style="margin-top:34px">Evidence published per year</div>
+    <p class="rp-cap" style="margin:-4px 0 10px;font-style:normal">Trust-weighted volume of this topic's cited sources by publication year, relative to the busiest year. Peaks are where research clustered; dips are quieter years.</p>
     <div id="rp-confchart" class="rp-chart-mount"></div>
     <div class="rp-tlmiles">${miles}</div>` : "";
   return `<section class="rp-sec rp-rev">${eye("15", "Provenance")}
