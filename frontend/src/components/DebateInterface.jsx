@@ -4,6 +4,7 @@ import { API_BASE_URL, apiFetch } from '../config';
 import ScrapeCountControl from './ScrapeCountControl';
 import DebateEngine from './DebateEngine';
 import SideRail from './react-bits/SideRail';
+import PolynousDebateReport from './PolynousDebateReport';
 import { getPersonalizedSuggestions } from '../personalize';
 
 const DEBATE_RAIL = [
@@ -1960,192 +1961,21 @@ export default function DebateChamber({ user, onNavigate, onLogout, preview = fa
             )}
 
             {/* ─── DEBATE RESULTS ────────────────────────────────────── */}
-            {result && verdict && !loading && view === "report" && (() => {
-              const forScore = verdict.for_score || 0;
-              const againstScore = verdict.against_score || 0;
-              const forPts = result.for_points || [];
-              const againstPts = result.against_points || [];
-              // DBT-02: resolve a citation number [n] to its source URL so the
-              // [n] chips inside argument points are clickable. Sources may be
-              // keyed by id/number or fall back to positional order.
-              const citeSources = result?.debate?.sources || result?.citations || [];
-              const citeUrl = (n) => {
-                const s = citeSources.find((x) => (x?.id ?? x?.number) === n) || citeSources[n - 1];
-                return (s && s.url) ? s.url : null;
-              };
-
-              return (
-                <div style={{ animation: "fadeUp 0.5s ease both" }}>
-
-                  {/* Topic banner */}
-                  <div id="deb-topic" style={{ scrollMarginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", background: "rgba(168,85,247,0.04)", border: "1px solid rgba(168,85,247,0.18)", borderRadius: 14, marginBottom: 28, animation: "dropIn 0.4s ease both" }}>
-                    <div>
-                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: C.purple, marginBottom: 5 }}>Proposition Under Review</div>
-                      <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 600, color: "#e2e0fc", lineHeight: 1.4 }}>{activeTopic}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 10, marginLeft: 16, flexShrink: 0 }}>
-                      {/* Flip up to the finished live engine (no re-run) */}
-                      <button onClick={showEngineView} style={{ padding: "8px 18px", borderRadius: 30, border: "1px solid rgba(168,85,247,0.3)", background: "rgba(168,85,247,0.07)", color: C.purple, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", whiteSpace: "nowrap", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5 }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(168,85,247,0.14)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(168,85,247,0.07)"; }}
-                      >
-                        <Icon name="expand_less" style={{ fontSize: 15 }} />
-                        View Live Engine
-                      </button>
-                      <button onClick={handleNewDebate} style={{ padding: "8px 18px", borderRadius: 30, border: `1px solid rgba(255,32,64,0.28)`, background: "rgba(255,32,64,0.06)", color: C.crimson, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", whiteSpace: "nowrap", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5 }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,32,64,0.12)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,32,64,0.06)"; }}
-                      >
-                        <Icon name="refresh" style={{ fontSize: 13 }} />
-                        New Debate
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Framing + Steelman checks (tribunal integrity strip) */}
-                  <PreVerdictStrips verdict={verdict} debate={result.debate}
-                    onReframe={(alt) => fireDebate(`${activeTopic} — reframed through a ${alt} lens`)} />
-
-                  {/* Two-column podiums */}
-                  <div id="deb-cases" style={{ scrollMarginTop: 20, display: "grid", gridTemplateColumns: "1fr 64px 1fr", gap: 18, alignItems: "start", marginBottom: 28 }}>
-
-                    {/* FOR column */}
-                    <div style={{ background: "rgba(0,230,77,0.015)", border: "1px solid rgba(0,230,77,0.14)", borderRadius: 18, overflow: "hidden", animation: "fadeLeft 0.5s 0.1s ease both" }}>
-                      <div style={{ background: "rgba(0,230,77,0.05)", padding: "14px 20px", borderBottom: "1px solid rgba(0,230,77,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ width: 9, height: 9, borderRadius: "50%", background: C.green, boxShadow: `0 0 8px ${C.green}`, display: "inline-block" }} />
-                          <span style={{ fontFamily: "'Sora',sans-serif", color: C.green, fontWeight: 700, fontSize: 14 }}>Supporting</span>
-                        </div>
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.green, fontWeight: 700, fontSize: 13, background: "rgba(0,230,77,0.08)", padding: "4px 12px", borderRadius: 14 }}>{forScore}/10</span>
-                      </div>
-                      <AdvocateEvidence rubric={verdict.rubric_for} color={C.green} />
-                      <div style={{ padding: "16px 14px", overflowY: "auto", maxHeight: 480, scrollbarWidth: "thin" }}>
-                        {forPts.length > 0 ? forPts.map((pt, i) => <PointCard key={i} text={pt} index={i} side="for" citeUrl={citeUrl} />) : <p style={{ color: C.textSecondary, textAlign: "center", padding: 32, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>No arguments found.</p>}
-                      </div>
-                    </div>
-
-                    {/* VS divider */}
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 80, gap: 10 }}>
-                      <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 800, color: C.purple }}>VS</div>
-                      <Icon name="bolt" style={{ fontSize: 20, color: "rgba(168,85,247,0.4)" }} />
-                      <Icon name="bolt" style={{ fontSize: 20, color: "rgba(168,85,247,0.28)" }} />
-                      <Icon name="bolt" style={{ fontSize: 20, color: "rgba(168,85,247,0.16)" }} />
-                    </div>
-
-                    {/* AGAINST column */}
-                    <div style={{ background: "rgba(255,32,64,0.015)", border: "1px solid rgba(255,32,64,0.14)", borderRadius: 18, overflow: "hidden", animation: "fadeRight 0.5s 0.1s ease both" }}>
-                      <div style={{ background: "rgba(255,32,64,0.05)", padding: "14px 20px", borderBottom: "1px solid rgba(255,32,64,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ width: 9, height: 9, borderRadius: "50%", background: C.crimson, boxShadow: `0 0 8px ${C.crimson}`, display: "inline-block" }} />
-                          <span style={{ fontFamily: "'Sora',sans-serif", color: C.crimson, fontWeight: 700, fontSize: 14 }}>Counter</span>
-                        </div>
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.crimson, fontWeight: 700, fontSize: 13, background: "rgba(255,32,64,0.08)", padding: "4px 12px", borderRadius: 14 }}>{againstScore}/10</span>
-                      </div>
-                      <AdvocateEvidence rubric={verdict.rubric_against} color={C.crimson} />
-                      <div style={{ padding: "16px 14px", overflowY: "auto", maxHeight: 480, scrollbarWidth: "thin" }}>
-                        {againstPts.length > 0 ? againstPts.map((pt, i) => <PointCard key={i} text={pt} index={i} side="against" citeUrl={citeUrl} />) : <p style={{ color: C.textSecondary, textAlign: "center", padding: 32, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>No arguments found.</p>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Score comparison */}
-                  <div id="deb-clash" style={{ scrollMarginTop: 20, background: "rgba(10,10,30,0.55)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 16, padding: "20px 26px", marginBottom: 24, animation: "dropIn 0.4s 0.2s ease both" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-                      <Icon name="sports_kabaddi" style={{ fontSize: 16, color: C.purple }} />
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: C.textSecondary }}>Clash Meter</span>
-                    </div>
-                    <ClashMeter forScore={forScore} againstScore={againstScore} />
-                    <div style={{ marginTop: 18 }}>
-                      <ScoreBar label="Supporting" score={forScore} color={C.green} fillGradient={`linear-gradient(90deg, rgba(0,230,77,0.5), ${C.green})`} delay={300} />
-                      <ScoreBar label="Counter" score={againstScore} color={C.crimson} fillGradient={`linear-gradient(90deg, rgba(255,32,64,0.5), ${C.crimson})`} delay={450} />
-                    </div>
-                  </div>
-
-                  {/* Verdict panel */}
-                  <div id="deb-verdict" style={{ scrollMarginTop: 20, background: "rgba(10,10,30,0.75)", border: `1px solid ${winColor}28`, borderRadius: 20, padding: "32px 36px", marginBottom: 28, textAlign: "center", animation: "dropIn 0.5s 0.3s ease both" }}>
-                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-                      <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg, #ffe566, #ffd700)", display: "flex", alignItems: "center", justifyContent: "center", animation: "none" }}>
-                        <Icon name="balance" style={{ fontSize: 26, color: "#7a5800" }} />
-                      </div>
-                    </div>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: C.textSecondary, marginBottom: 12 }}>Analysis Verdict</div>
-                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(1.3rem,3vw,1.9rem)", fontWeight: 900, color: verdict.winner === "UNSCORED" ? "#ffd700" : winColor, letterSpacing: "-0.02em", animation: "none", marginBottom: 20 }}>
-                      {verdict.winner === "FOR" ? "Supporting Arguments Prevail"
-                        : verdict.winner === "AGAINST" ? "Counter Arguments Prevail"
-                        : verdict.winner === "UNSCORED" ? "Verdict Unscored"
-                        : "Both Sides Are Balanced"}
-                    </div>
-                    {verdict.winner === "UNSCORED" && (
-                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#ffd700", background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 10, padding: "10px 16px", margin: "0 auto 20px", maxWidth: 520, lineHeight: 1.6 }}>
-                        The judge could not score this debate - the numbers shown are the computed evidence rubric only, not a quality verdict.
-                      </div>
-                    )}
-                    {verdict.winner !== "UNSCORED" && (verdict.margin || verdict.judge_certainty != null) && (
-                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.onSurfaceVariant, marginBottom: 18, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                        {verdict.margin && <>Margin: <span style={{ color: winColor, fontWeight: 700 }}>{verdict.margin}</span></>}
-                        {verdict.margin && verdict.judge_certainty != null && " · "}
-                        {verdict.judge_certainty != null && <>Judge certainty: <span style={{ color: winColor, fontWeight: 700 }}>{verdict.judge_certainty}%</span></>}
-                      </div>
-                    )}
-                    <div style={{ width: 48, height: 2, background: `${winColor}40`, borderRadius: 2, margin: "0 auto 22px" }} />
-
-                    {/* Reasoning sentences */}
-                    {verdict.reasoning && (
-                      <div style={{ maxWidth: 640, margin: "0 auto 20px", textAlign: "left" }}>
-                        {(verdict.reasoning.match(/[^.!?]+[.!?]+/g) || [verdict.reasoning]).map((s, i) => (
-                          <div key={i} style={{ display: "flex", gap: 12, marginBottom: 10, padding: "10px 14px", background: "rgba(255,255,255,0.015)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.04)" }}>
-                            <span style={{ color: winColor, fontWeight: 700, fontSize: 11, minWidth: 20, opacity: 0.55, flexShrink: 0 }}>{i + 1}.</span>
-                            <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, lineHeight: 1.8, color: "#9aabb8" }}>{s.trim()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Strongest point */}
-                    {verdict.strongest_point && (
-                      <div style={{ background: "rgba(255,215,0,0.03)", border: "1px solid rgba(255,215,0,0.14)", borderRadius: 12, padding: "16px 22px", maxWidth: 580, margin: "0 auto" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                          <Icon name="star" style={{ fontSize: 14, color: C.gold }} />
-                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "1.5px", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>Key Insight</span>
-                        </div>
-                        <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 14, color: "#e2d98a", lineHeight: 1.8, margin: 0 }}>{verdict.strongest_point}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tribunal report sections: minority report, track record +
-                      vote, analytics, sources cited, follow-ups, case file */}
-                  <div id="deb-followups" style={{ scrollMarginTop: 20 }}>
-                    <DebateFollowups query={activeTopic} result={result}
-                      onVerdict={(v) => setResult((r) => ({ ...r, verdict: { ...(r?.verdict || {}), ...v } }))} />
-                  </div>
-                  <DebateExtras result={result} activeTopic={activeTopic} onNewDebate={(q) => { setTopic(q); fireDebate(q); }} />
-
-                  {/* Action row */}
-                  <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 64 }}>
-                    {[
-                      { label: "New Debate", icon: "add_circle", primary: true, onClick: handleNewDebate },
-                      { label: "Export JSON", icon: "download", onClick: () => { const b = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "debate.json"; a.click(); } },
-                      { label: "Copy", icon: "content_copy", onClick: () => navigator.clipboard.writeText(JSON.stringify(result, null, 2)) },
-                    ].map(({ label, icon, primary, onClick }) => (
-                      <button key={label} onClick={onClick} style={{ padding: "10px 22px", borderRadius: 28, border: `1px solid ${primary ? "rgba(255,32,64,0.3)" : "rgba(255,255,255,0.08)"}`, background: primary ? "rgba(255,32,64,0.08)" : "rgba(255,255,255,0.02)", color: primary ? C.crimson : "#aaa", cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 12, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 7 }}
-                        onMouseEnter={e => { e.currentTarget.style.background = primary ? "rgba(255,32,64,0.14)" : "rgba(255,255,255,0.05)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = primary ? "rgba(255,32,64,0.08)" : "rgba(255,255,255,0.02)"; e.currentTarget.style.transform = "translateY(0)"; }}
-                      >
-                        <Icon name={icon} style={{ fontSize: 14, color: "inherit" }} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+            {result && verdict && !loading && view === "report" && (
+              <div style={{ animation: "fadeUp 0.5s ease both", paddingBottom: 40 }}>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+                  <button onClick={showEngineView} style={{ padding: "8px 18px", borderRadius: 30, border: "1px solid rgba(168,85,247,0.3)", background: "rgba(168,85,247,0.07)", color: C.purple, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 5 }}><Icon name="expand_less" style={{ fontSize: 15 }} /> View Live Engine</button>
+                  <button onClick={handleNewDebate} style={{ padding: "8px 18px", borderRadius: 30, border: "1px solid rgba(255,32,64,0.28)", background: "rgba(255,32,64,0.06)", color: C.crimson, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 5 }}><Icon name="refresh" style={{ fontSize: 13 }} /> New Debate</button>
+                  <button onClick={() => { const b = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "debate.json"; a.click(); }} style={{ padding: "8px 18px", borderRadius: 30, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)", color: "#aaa", cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}><Icon name="download" style={{ fontSize: 13 }} /> Export JSON</button>
                 </div>
-              );
-            })()}
+                <PolynousDebateReport result={result} activeTopic={activeTopic} onNewDebate={(q) => fireDebate(q)} showRail={sidebarCollapsed} />
+              </div>
+            )}
 
           </div>
         </div>
       </main>
 
-      {result && <SideRail items={DEBATE_RAIL} accentColor="#ff2040" getContainer={() => scrollRef.current} />}
     </div>
   );
 }

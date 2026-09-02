@@ -23,6 +23,7 @@ const PolynousDashboard = lazy(() => import('./components/PolynousDashboard'))
 const InfoPage = lazy(() => import('./components/InfoPage'))
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'))
 const PolynousReport = lazy(() => import('./components/PolynousReport'))
+const PolynousDebateReport = lazy(() => import('./components/PolynousDebateReport'))
 const PrivacyPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.TermsPage })))
 const DocsPage = lazy(() => import('./components/StaticPages').then(m => ({ default: m.DocsPage })))
@@ -403,6 +404,7 @@ export default function App() {
             so both reports can be iterated on locally (npm run dev) with no
             sign-in and no backend. */}
         <Route path="/report-preview" element={<PolynousReport />} />
+        <Route path="/debate-report-preview" element={<PolynousDebateReport />} />
         <Route path="/debate-preview" element={<DebateInterface preview onNavigate={navigateTo} onLogout={handleLogout} user={{ username: 'Preview' }} />} />
 
         {/* ── CATCH-ALL: themed 404 page ────────────────── */}

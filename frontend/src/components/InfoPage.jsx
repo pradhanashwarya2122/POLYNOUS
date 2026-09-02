@@ -252,7 +252,7 @@ export default function InfoPage({ user, onNavigate, onLogout }) {
         </p>
       </main>
 
-      <SideRail items={HELP_RAIL} />
+      {collapsed && <SideRail items={HELP_RAIL} />}
     </div>
   );
 }

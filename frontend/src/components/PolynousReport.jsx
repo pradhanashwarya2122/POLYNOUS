@@ -31,7 +31,7 @@ const REPORT_RAIL = [
   { label: "Counter-argument", id: "rp-sec-10" },
   { label: "Assumptions", id: "rp-sec-12" },
   { label: "Citations", id: "rp-sec-16" },
-  { label: "Interrogate", id: "rp-sec-17" },
+  { label: "Interrogate", id: "rp-sec-18" },
 ];
 
 /* ---------- recharts confidence-over-time chart (in Polynous colours) ---------- */
@@ -72,11 +72,35 @@ function ConfidenceChart({ data }) {
 /* ---------- helpers ---------- */
 const pick = (...v) => { for (const x of v) if (x !== undefined && x !== null && x !== "") return x; return undefined; };
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const cite = (s) => esc(s).replace(/\[(\d+)\]/g, '<a class="rp-cite" role="button" tabindex="0" onclick="pnOpen()">[$1]</a>');
+const cite = (s) => esc(s).replace(/\[(\d+)\]/g, '<a class="rp-cite" role="button" tabindex="0" data-n="$1" onclick="pnCiteClick(this)" onmouseenter="pnHover(this)" onmouseleave="pnHoverOut()" onfocus="pnHover(this)" onblur="pnHoverOut()">[$1]</a>');
 const domain = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return String(u || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]; } };
 const fmtDate = (d) => { try { return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase(); } catch { return "21 AUG 2026"; } };
 const pct = (n) => Math.max(0, Math.min(100, Math.round(n || 0)));
 const escAttr = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Strip every emoji / pictograph / variation-selector from model output so the
+// report never renders 📋 📚 🔑 etc. (arrows used in the UI templates are added
+// AFTER this, so they are untouched).
+const EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{2190}-\u{21FF}\u{2300}-\u{23FF}]/gu;
+const stripEmoji = (s) => String(s == null ? "" : s).replace(EMOJI_RE, "").replace(/[ \t]{2,}/g, " ").replace(/^\s*[·•*-]\s*/, "").trim();
+
+// Section headers the backend digest emits inside the raw answer blob. We keep
+// only the executive-summary text and drop the raw SOURCE INTELLIGENCE /
+// CONSENSUS MAP / BIBLIOGRAPHY / CONFIDENCE ANALYSIS dumps that follow it — the
+// report renders those as its own designed sections.
+const SECTION_RE = /(SOURCE INTELLIGENCE|KEY FINDINGS|CONSENSUS MAP|DIVERGENCE MAP|UNIQUE INSIGHTS|SOURCE QUALITY|COVERAGE AUDIT|LIMITATIONS|RESEARCH TRAJECTORY|SOURCE BIBLIOGRAPHY|CONFIDENCE ANALYSIS|CRITIC CONSENSUS|SIGNAL BREAKDOWN)/i;
+function cleanExec(answer) {
+  let s = stripEmoji(String(answer || ""));
+  if (!s) return "";
+  // Drop a leading "EXECUTIVE SUMMARY" label if present.
+  s = s.replace(/^\s*EXECUTIVE SUMMARY[:\s-]*/i, "");
+  // Keep only the text BEFORE the first structured section header.
+  const parts = s.split(SECTION_RE);
+  s = parts[0] || s;
+  // Remove em dashes (house style) and tidy whitespace.
+  s = s.replace(/—/g, ", ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return s;
+}
 
 // Resolve the factual context for a claim so the citation inspector can show a
 // real source, matched passage, trust and metrics n/a not one hard-coded example.
@@ -118,6 +142,13 @@ const DEMO_LEDGER = [
   { name: "usgs.gov", cite: null, fresh: FRESH[2], trust: 0.71 },
   { name: "nrdc.org", cite: null, fresh: FRESH[3], trust: 0.55 },
   { name: "Archive Source", cite: null, fresh: FRESH[4], trust: 0.4 },
+];
+const DEMO_CITES = [
+  { n: 1, url: "https://en.wikipedia.org/wiki/CRISPR", domain: "en.wikipedia.org", title: "CRISPR", snippet: "CRISPR-Cas9 uses a guide RNA to direct the Cas9 nuclease to a specific DNA sequence, where it cuts the strand to enable edits.", tier: 2, trust: 0.74 },
+  { n: 2, url: "https://innovativegenomics.org/what-is-crispr", domain: "innovativegenomics.org", title: "What is CRISPR?", snippet: "The system is derived from a bacterial immune defence that stores fragments of viral DNA to recognise and cut future invaders.", tier: 1, trust: 0.9 },
+  { n: 3, url: "https://www.broadinstitute.org/what-broad/areas-focus", domain: "broadinstitute.org", title: "Questions and Answers about CRISPR", snippet: "Spacer sequences guide the Cas9 enzyme to a target, where it binds and cuts, effectively shutting off the gene.", tier: 1, trust: 0.92 },
+  { n: 4, url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5319660", domain: "pmc.ncbi.nlm.nih.gov", title: "CRISPR as a strong gene-editing tool", snippet: "A guide RNA identifies specific DNA strands and the Cas9 nuclease cleaves them, allowing precise genetic modification.", tier: 1, trust: 0.94 },
+  { n: 5, url: "https://www.synthego.com/learn/crispr", domain: "synthego.com", title: "What is CRISPR: Your Ultimate Guide", snippet: "Beyond editing, CRISPR powers rapid molecular diagnostics through techniques such as recombinase polymerase amplification.", tier: 2, trust: 0.68 },
 ];
 const DEMO_TRAJ = ["Establish the anthropogenic signal across independent datasets", "Separate natural forcing from human contributions", "Audit regional attribution and its uncertainties", "Track source agreement and evidence freshness over time"];
 const DEMO_BOUND = ["Regional projections carry wider uncertainty than the global trend", "A minority of sources are older than five years", "Cloud-feedback sensitivity remains an open modelling question"];
@@ -183,7 +214,12 @@ function deriveReport(p) {
   const conf = pct(pick(p.confidence, ca.overall, 61));
   const band = pick(ca.band, conf >= 80 ? "HIGH" : conf >= 60 ? "MODERATE" : conf >= 40 ? "TENTATIVE" : "LOW");
   const srcArr = Array.isArray(p.sources) ? p.sources : [];
-  const sources = srcArr.length || 5;
+  const sums = Array.isArray(p.sourceSummaries) ? p.sourceSummaries : [];
+  // REAL mode = the report was handed actual research props. In real mode we
+  // NEVER substitute the built-in climate demo; a section with no real data is
+  // simply omitted. Demo data is used ONLY for the /report-preview route.
+  const real = !!(p.answer || (p.report && Object.keys(p.report).length) || srcArr.length || (Array.isArray(p.sourceSummaries) && p.sourceSummaries.length));
+  const sources = srcArr.length || (real ? 0 : 5);
   const model = pick(p.telemetry && p.telemetry.providers && p.telemetry.providers[0] && p.telemetry.providers[0].model,
     p.telemetry && p.telemetry.steps && p.telemetry.steps[0] && p.telemetry.steps[0].model, "gpt-4o-mini");
 
@@ -193,44 +229,71 @@ function deriveReport(p) {
 
   const cc = ca.critic_consensus || {};
   let cs = Number(cc.score); if (cs <= 1) cs *= 100; cs = Math.round(cs || 75);
-  const critic = { pct: cs, agree: pick(cc.agree, 3), total: pick(cc.total, 4), position: pick(cc.explanation, typeof report.consensus_map === "string" ? report.consensus_map : undefined, "Human activity is the dominant driver of recent rapid warming.") };
+  const critic = { pct: cs, agree: pick(cc.agree, 3), total: pick(cc.total, 4), position: pick(cc.explanation, typeof report.consensus_map === "string" ? report.consensus_map : undefined, real ? "" : "Human activity is the dominant driver of recent rapid warming.") };
 
   const kf = Array.isArray(report.key_findings) ? report.key_findings : [];
-  const findings = (kf.length ? kf.slice(0, 6).map((f) => (typeof f === "string" ? f : (f.text || f.finding || ""))) : DEMO_FINDINGS).filter(Boolean);
+  const findings = (kf.length ? kf.slice(0, 6).map((f) => stripEmoji(typeof f === "string" ? f : (f.text || f.finding || ""))) : (real ? [] : DEMO_FINDINGS)).filter(Boolean);
 
   const answer = pick(p.answer, report.executive_summary, "");
   const asent = String(answer || "").split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
   const grd = asent.filter((s) => /\[\d+\]/.test(s)).length;
   const ungrounded = asent.filter((s) => !/\[\d+\]/.test(s)).slice(0, 3);
-  const faithful = asent.length ? { grounded: grd, total: asent.length, pct: pct((grd / asent.length) * 100) } : { grounded: 12, total: 14, pct: 86 };
+  const faithful = asent.length ? { grounded: grd, total: asent.length, pct: pct((grd / asent.length) * 100) } : (real ? null : { grounded: 12, total: 14, pct: 86 });
+  const breakdownReal = factors.length > 0;
 
-  const claims = (findings.length ? findings : DEMO_FINDINGS).slice(0, 6).map((f, i) => ({ text: f, pct: Math.max(28, conf - i * 12) }));
+  const claims = findings.slice(0, 6).map((f, i) => ({ text: f, pct: Math.max(28, conf - i * 12) }));
 
   const listish = (v) => Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : (x.text || x.label || x.name || String(x)))).filter(Boolean)
     : (typeof v === "string" ? v.split(/\n+|(?:^|\s)[•\-–]\s+/).map((s) => s.trim()).filter((s) => s.length > 3) : []);
-  const trajectory = (listish(report.research_trajectory).slice(0, 5).length ? listish(report.research_trajectory).slice(0, 5) : DEMO_TRAJ);
-  const boundaries = (listish(report.limitations).slice(0, 4).length ? listish(report.limitations).slice(0, 4) : DEMO_BOUND);
+  const trajectory = (listish(report.research_trajectory).slice(0, 5).length ? listish(report.research_trajectory).slice(0, 5) : (real ? [] : DEMO_TRAJ));
+  const boundaries = (listish(report.limitations).slice(0, 4).length ? listish(report.limitations).slice(0, 4) : (real ? [] : DEMO_BOUND));
 
   const tel = p.telemetry || {};
   const steps = Array.isArray(tel.steps) ? tel.steps : [];
   const telemetry = { tokens: Number(pick(tel.total_tokens, 0)) || 0, cost: Number(pick(tel.estimated_cost && tel.estimated_cost.total, tel.cost, 0)) || 0, steps, providers: Array.isArray(tel.providers) ? tel.providers : [] };
   const tools = steps.length ? [...new Set(steps.map((s) => s.name).filter(Boolean))].slice(0, 5) : ["Search", "Summarise", "Critic", "Writer"];
-  const constellation = srcArr.length ? srcArr.slice(0, 6).map((s, i) => ({ n: i + 1, t: pick(s.title, domain(s.url), "Source " + (i + 1)) })) : DEMO_CONSTELL;
-  const provenance = steps.length ? steps.slice(0, 6).map((s) => ({ name: s.name || "step", tokens: (Number(s.input_tokens) || 0) + (Number(s.output_tokens) || 0) })) : DEMO_PROV;
+  const constellation = srcArr.length ? srcArr.slice(0, 6).map((s, i) => ({ n: i + 1, t: pick(s.title, domain(s.url), "Source " + (i + 1)) })) : (real ? [] : DEMO_CONSTELL);
+  const provenance = steps.length ? steps.slice(0, 6).map((s) => ({ name: s.name || "step", tokens: (Number(s.input_tokens) || 0) + (Number(s.output_tokens) || 0) })) : (real ? [] : DEMO_PROV);
 
   const covSrc = listish(report.coverage_audit);
-  const coverage = covSrc.length ? covSrc.slice(0, 5).map((t, i) => ({ label: t, pct: Math.max(42, 96 - i * 13) })) :
-    [{ label: "Causes & mechanisms", pct: 92 }, { label: "Attribution science", pct: 78 }, { label: "Regional impacts", pct: 64 }, { label: "Mitigation pathways", pct: 48 }, { label: "Open uncertainties", pct: 100 }];
+  const coverage = covSrc.length ? covSrc.slice(0, 5).map((t, i) => ({ label: t, pct: Math.max(42, 96 - i * 13) })) : (real ? [] :
+    [{ label: "Causes & mechanisms", pct: 92 }, { label: "Attribution science", pct: 78 }, { label: "Regional impacts", pct: 64 }, { label: "Mitigation pathways", pct: 48 }, { label: "Open uncertainties", pct: 100 }]);
 
   const tld = (u) => { const dm = domain(u); if (/\.gov/.test(dm)) return "Government"; if (/\.edu/.test(dm)) return "Academic"; if (/\.org/.test(dm)) return "Institutions"; if (/(news|times|post|bbc|guardian|reuters|cnn)/.test(dm)) return "News & media"; return "Web sources"; };
   let landscape;
   if (srcArr.length) { const c = {}; srcArr.forEach((s) => { const k = tld(s.url); c[k] = (c[k] || 0) + 1; }); landscape = Object.entries(c).map(([k, v]) => ({ label: k, pct: pct((v / srcArr.length) * 100) })); }
-  else landscape = [{ label: "Government / .gov", pct: 40 }, { label: "Scientific bodies", pct: 35 }, { label: "News & analysis", pct: 25 }];
+  else landscape = real ? [] : [{ label: "Government / .gov", pct: 40 }, { label: "Scientific bodies", pct: 35 }, { label: "News & analysis", pct: 25 }];
 
-  const ledger = srcArr.length ? srcArr.slice(0, 8).map((s, i) => ({ name: pick(domain(s.url), s.title, "Source " + (i + 1)), cite: pick(s.citationId, s.n, null), fresh: FRESH[i % FRESH.length], trust: [0.94, 0.78, 0.71, 0.55, 0.4][i % 5] })) : DEMO_LEDGER;
+  // ── Real citation map (P1): every [n] resolves to an actual source with its
+  // title, domain, retrieved snippet and a transparently-derived trust/tier.
+  // Powers the footnotes, the evidence ledger, and the hover previews.
+  const tierFor = (dm) => /\.gov|\.edu|\.ac\.|ipcc|nasa|noaa|nih|cdc|who|europa\.eu|un\.org/i.test(dm) ? 1 : /\.org|institute|university|journal|pubmed|ncbi|nature\.com|science|arxiv/i.test(dm) ? 2 : 3;
+  const nMax = Math.max(sums.length, srcArr.length);
+  let cites;
+  if (nMax) {
+    cites = [];
+    for (let i = 0; i < nMax; i++) {
+      const sm = sums[i] || {}, s = srcArr[i] || {};
+      const url = pick(sm.url, s.url, "");
+      const dm = domain(url);
+      const title = stripEmoji(pick(sm.title, s.title, dm, "Source " + (i + 1)));
+      const snippet = stripEmoji(pick(sm.summary, sm.text, sm.snippet, s.snippet, "")).replace(/\s+/g, " ").slice(0, 300);
+      const tier = tierFor(dm);
+      const trust = s.trust_score != null ? Number(s.trust_score) : (sm.trust != null ? Number(sm.trust) : (tier === 1 ? 0.92 : tier === 2 ? 0.74 : 0.56));
+      cites.push({ n: i + 1, url, domain: dm, title, snippet, tier, trust });
+    }
+  } else {
+    cites = real ? [] : DEMO_CITES;
+  }
+  const citeMap = {};
+  cites.forEach((c) => { citeMap[c.n] = c; });
+
+  const ledger = cites.length
+    ? cites.slice(0, 8).map((c) => ({ name: c.domain || c.title, cite: String(c.n), url: c.url, trust: c.trust, tier: c.tier, fresh: { label: "UNDATED", tone: "warn", year: "" } }))
+    : (real ? [] : DEMO_LEDGER);
 
   const contradiction = pick(typeof report.contradiction_resolution === "string" ? report.contradiction_resolution : undefined,
-    "No material contradictions detected across the independent sources. A minor tension on the magnitude of regional effects was resolved in favour of the higher-trust, more recent datasets.");
+    real ? "" : "No material contradictions detected across the independent sources. A minor tension on the magnitude of regional effects was resolved in favour of the higher-trust, more recent datasets.");
   const analysisFallback = "Recent climate change is, on the balance of evidence, predominantly driven by human activity, chiefly the combustion of fossil fuels and the resulting rise in atmospheric greenhouse gases [1][2]. Across five independent, high-trust sources this conclusion holds consistently, and no source in the set disputes the dominant human-driver finding.\n\nThe mechanism is well established. Rising CO₂ concentrations increase radiative forcing, warming the lower atmosphere and the oceans, which have absorbed the majority of the excess heat since 1970 [5]. Attribution studies repeatedly isolate this anthropogenic signal from natural variability, and the observed rate of change is faster than any natural forcing on record can explain [3][4].\n\nNatural forcings, solar variation, volcanic aerosols, ocean cycles, remain important for longer-term and regional variability, but they do not account for the rapid, sustained warming of the modern era [4]. Where sources differ, it is on emphasis and on the precise magnitude of regional effects, not on the core attribution.\n\nConfidence in this synthesis is moderate: source agreement and grounding are strong, while a mix of publication dates and coarse regional resolution introduce measured uncertainty. The conclusion is robust to reasonable challenge, and would weaken only if independent datasets began to contradict the current attribution [3].";
 
   // ── institutional-grade extras ──────────────────────────────────────────
@@ -239,13 +302,13 @@ function deriveReport(p) {
   const ciMargin = Math.max(3, Math.round((100 - Math.min(96, breakdown.Agreement)) / 6) + (band === "MODERATE" ? 5 : band === "LOW" || band === "TENTATIVE" ? 9 : 3));
   const ci = { low: Math.max(0, conf - ciMargin), high: Math.min(100, conf + ciMargin), margin: ciMargin };
 
-  const takeaways = (findings.length ? findings : DEMO_FINDINGS).slice(0, 4).map((f, i) => {
+  const takeaways = findings.slice(0, 4).map((f, i) => {
     const c = Math.max(30, conf - i * 9);
     const tag = c >= 80 ? "HIGH" : c >= 60 ? "MODERATE" : c >= 45 ? "TENTATIVE" : "LOW";
     return { text: String(f).replace(/\s*\[\d+\]/g, ""), cites: String(f).match(/\[(\d+)\]/g) || [], conf: c, tag };
   });
 
-  const scenarios = DEMO_SCENARIOS.map((s) => ({ ...s }));
+  const scenarios = real ? [] : DEMO_SCENARIOS.map((s) => ({ ...s }));
 
   const tierOf = (r) => { const t = r.trust || 0; const nm = String(r.name || ""); if (/\.gov|\.edu|ipcc|nasa|noaa|usgs|epa/i.test(nm) || t >= 0.85) return 1; if (/\.org|survey|institute/i.test(nm) || t >= 0.6) return 2; return 3; };
   const scored = ledger.map((r) => ({ ...r, tier: tierOf(r) }));
@@ -256,22 +319,23 @@ function deriveReport(p) {
   const scorecard = { scored, tierCounts, recency, independentDomains, total: ledger.length, avgTrust };
 
   const perspBalA = (DEMO_PERSPECTIVES.balance && DEMO_PERSPECTIVES.balance.a) || 54;
-  const sensitivity = { base: 50, flipAt: 72, leadA: perspBalA };
+  const sensitivity = real ? null : { base: 50, flipAt: 72, leadA: perspBalA };
 
   return {
     query: pick(p.query, report.query, "What actually causes climate change?"),
-    date: fmtDate(new Date()), sources, model, conf, band, breakdown, critic, findings, ledger,
-    ci, takeaways, scenarios, scorecard, sensitivity,
-    dissent: DEMO_DISSENT, assumptions: DEMO_ASSUMPTIONS,
-    dataAsOf: { generated: fmtDate(new Date()), current: newestYear, revisions: DEMO_REVISIONS },
+    date: fmtDate(new Date()), sources, model, conf, band, breakdown, breakdownReal, real, critic, findings, ledger,
+    ci: real ? null : ci, takeaways, scenarios, scorecard, sensitivity,
+    dissent: real ? null : DEMO_DISSENT, assumptions: real ? [] : DEMO_ASSUMPTIONS,
+    dataAsOf: { generated: fmtDate(new Date()), current: (real && !yearsFromLedger.length) ? "" : newestYear, revisions: real ? [] : DEMO_REVISIONS },
     glossary: DEMO_GLOSSARY,
-    footnotes: ledger.map((r, i) => ({ n: i + 1, name: r.name, url: r.url || (String(r.name).includes(".") ? "https://" + String(r.name).replace(/^https?:\/\//, "") : ""), trust: r.trust, year: r.fresh && r.fresh.year, fresh: r.fresh && r.fresh.label, tier: tierOf(r) })),
-    stats: { confidence: conf, sources, passages: pick(Array.isArray(p.sourceSummaries) ? p.sourceSummaries.length : undefined, 42), insights: pick(kf.length || undefined, 19), claims: pick(kf.length || undefined, 23), consensus: cs },
+    cites, citeMap,
+    footnotes: cites.map((c) => ({ n: c.n, name: c.title, domain: c.domain, url: c.url, trust: c.trust, tier: c.tier, snippet: c.snippet })),
+    stats: { confidence: conf, sources, passages: pick(Array.isArray(p.sourceSummaries) ? p.sourceSummaries.length : undefined, real ? sources : 42), insights: real ? (kf.length || 0) : 19, claims: real ? (kf.length || 0) : 23, consensus: cs },
     faithful, ungrounded, claims, trajectory, boundaries, telemetry, tools, constellation, provenance,
-    analysisText: pick(answer, analysisFallback), coverage, landscape, contradiction,
-    verdict: (findings[0] || "The evidence points to a single clear primary conclusion for this query."),
-    chatAnswer: pick(answer, analysisFallback), sourceSummaries: Array.isArray(p.sourceSummaries) ? p.sourceSummaries : [],
-    timeline: DEMO_TIMELINE, kuu: DEMO_KUU, perspectives: DEMO_PERSPECTIVES, conditions: DEMO_CONDITIONS,
+    analysisText: pick(cleanExec(answer), real ? "" : analysisFallback), coverage, landscape, contradiction,
+    verdict: stripEmoji(findings[0] || (real ? "" : "The evidence points to a single clear primary conclusion for this query.")),
+    chatAnswer: stripEmoji(pick(answer, real ? "" : analysisFallback)), sourceSummaries: Array.isArray(p.sourceSummaries) ? p.sourceSummaries : [],
+    timeline: real ? [] : DEMO_TIMELINE, kuu: real ? null : DEMO_KUU, perspectives: real ? null : DEMO_PERSPECTIVES, conditions: real ? [] : DEMO_CONDITIONS,
   };
 }
 
@@ -281,6 +345,10 @@ const bar = (p, tone) => `<span class="rp-bar"><i style="width:${pct(p)}%${tone 
 const toneCls = { pos: "pos", warn: "warn", neg: "neg" };
 
 function sMasthead(d) {
+  const ciBand = d.ci ? `<span class="rp-ciband" title="Plausible range given the spread of evidence"><i class="rp-ciband-lo" style="left:${d.ci.low}%"></i><i class="rp-ciband-fill" style="left:${d.ci.low}%;right:${100 - d.ci.high}%"></i><i class="rp-ciband-mid" style="left:${d.conf}%"></i></span><span class="rp-ci"><span class="rp-dim">CONFIDENCE BAND</span> ${d.ci.low} to ${d.ci.high}% <span class="rp-dim">(±${d.ci.margin})</span></span>` : "";
+  const revs = (d.dataAsOf.revisions || []);
+  const revBtn = revs.length ? `<span class="rp-asof-sep">·</span><button class="rp-asof-btn" onclick="pnRev(this)">Revision history <span class="rp-caret">▾</span></button>` : "";
+  const revBody = revs.length ? `<div class="rp-revs"><div class="rp-revs-inner">${revs.map((r) => `<div class="rp-revrow"><span class="rp-mono rp-acc-t">${esc(r.v)}</span><span class="rp-mono rp-dim">${esc(r.date)}</span><span>${esc(r.note)}</span></div>`).join("")}</div></div>` : "";
   return `<header class="rp-masthead rp-rev">
     <div class="rp-brandline"><span class="rp-mark">◆ POLYNOUS</span><span class="rp-dim">RESEARCH DOSSIER</span><span class="rp-dim rp-right">${d.date} · ${d.sources} SOURCES · ${esc(d.model).toUpperCase()}</span></div>
     <div class="rp-actions">
@@ -288,23 +356,20 @@ function sMasthead(d) {
       <button class="rp-act rp-act-p" onclick="pnPdf()" title="Save this report as a PDF"><span class="rp-act-i">⭳</span> Save PDF</button>
     </div>
     <h1 class="rp-query">${esc(d.query)}</h1>
-    <p class="rp-verdict">${cite(d.verdict)}</p>
+    ${d.verdict ? `<p class="rp-verdict">${cite(d.verdict)}</p>` : ""}
     <div class="rp-headrow">
-      <div class="rp-conf"><span class="rp-fig rp-count" data-target="${d.conf}" data-suffix="%">${d.conf}%</span><span class="rp-conf-meta"><span class="rp-band">${esc(d.band)} CONFIDENCE</span><span class="rp-ciband" title="Plausible range given the spread of evidence"><i class="rp-ciband-lo" style="left:${d.ci.low}%"></i><i class="rp-ciband-fill" style="left:${d.ci.low}%;right:${100 - d.ci.high}%"></i><i class="rp-ciband-mid" style="left:${d.conf}%"></i></span><span class="rp-ci"><span class="rp-dim">CONFIDENCE BAND</span> ${d.ci.low} to ${d.ci.high}% <span class="rp-dim">(±${d.ci.margin})</span></span></span></div>
-      <div class="rp-critic"><span class="rp-dim">CRITIC CONSENSUS</span><span><b>${d.critic.pct}%</b>, ${d.critic.agree}/${d.critic.total} sources agree</span><span class="rp-mut">${esc(d.critic.position)}</span></div>
+      <div class="rp-conf"><span class="rp-fig rp-count" data-target="${d.conf}" data-suffix="%">${d.conf}%</span><span class="rp-conf-meta"><span class="rp-band">${esc(d.band)} CONFIDENCE</span>${ciBand}</span></div>
+      ${d.critic.position ? `<div class="rp-critic"><span class="rp-dim">CRITIC CONSENSUS</span><span><b>${d.critic.pct}%</b>, ${d.critic.agree}/${d.critic.total} sources agree</span><span class="rp-mut">${esc(d.critic.position)}</span></div>` : ""}
     </div>
     <div class="rp-asof">
       <div class="rp-asof-line">
-        <span>Generated <b>${d.dataAsOf.generated}</b></span><span class="rp-asof-sep">·</span>
-        <span>Sources current to <b>${d.dataAsOf.current}</b></span><span class="rp-asof-sep">·</span>
-        <button class="rp-asof-btn" onclick="pnRev(this)">Revision history <span class="rp-caret">▾</span></button>
-      </div>
-      <div class="rp-revs"><div class="rp-revs-inner">${d.dataAsOf.revisions.map((r) => `<div class="rp-revrow"><span class="rp-mono rp-acc-t">${esc(r.v)}</span><span class="rp-mono rp-dim">${esc(r.date)}</span><span>${esc(r.note)}</span></div>`).join("")}</div></div>
+        <span>Generated <b>${d.dataAsOf.generated}</b></span>${d.dataAsOf.current ? `<span class="rp-asof-sep">·</span><span>Sources current to <b>${d.dataAsOf.current}</b></span>` : ""}${revBtn}
+      </div>${revBody}
     </div>
   </header>`;
 }
 
-function sExec(d) {
+function sExec(d) { if (!d.analysisText) return "";
   const paras = String(d.analysisText || "").split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
   const body = (paras.length ? paras : [d.analysisText]).map((p) => `<p>${cite(p)}</p>`).join("");
   return `<section class="rp-sec rp-rev">${eye("01", "Executive summary")}<div class="rp-lede">${body}</div></section>`;
@@ -318,7 +383,7 @@ function sGlance(d) {
     <p class="rp-cap">${s.passages} passages analysed across ${s.sources} sources to produce ${s.claims} synthesised claims.</p></section>`;
 }
 
-function sFindings(d) {
+function sFindings(d) { if (!d.findings.length) return "";
   const rows = d.findings.map((f, i) => {
     const cites = String(f).match(/\[(\d+)\]/g) || [];
     const clean = String(f).replace(/\s*\[\d+\]/g, "");
@@ -334,7 +399,7 @@ function sFindings(d) {
   return `<section class="rp-sec rp-rev">${eye("04", "Key findings")}<p class="rp-sublede">The core claims this synthesis stands behind, each one traceable to its supporting evidence.</p><ol class="rp-findlist">${rows}</ol></section>`;
 }
 
-function sEvidence(d) {
+function sEvidence(d) { if (!d.ledger.length && !d.landscape.length) return "";
   const rows = d.ledger.map((r) => `<tr role="button" tabindex="0" ${inspData(d, "Source assessment: " + r.name, r.cite ? ["[" + r.cite + "]"] : [])} onclick="pnOpen(this)">
     <td class="rp-src">${esc(r.name)}${r.cite ? ` <a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">[${esc(r.cite)}]</a>` : ""}</td>
     <td class="rp-fresh ${toneCls[r.fresh.tone]}">${r.fresh.label} <span class="rp-dim">${r.fresh.year}</span></td>
@@ -346,32 +411,42 @@ function sEvidence(d) {
   </div></section>`;
 }
 
+const CONF_WEIGHTS = { Agreement: 30, Diversity: 20, Recency: 20, Grounding: 30 };
 function sConfidence(d) {
-  const fac = Object.entries(d.breakdown).map(([k, v]) => `<div class="rp-fac"><span>${k}</span><span class="rp-mono">${v}%</span>${bar(v)}</div>`).join("");
-  const flags = (d.ungrounded && d.ungrounded.length)
-    ? d.ungrounded.map((s) => `<li class="rp-flag"><span class="rp-warn rp-mono">UNGROUNDED</span> "${esc(s.slice(0, 150))}"</li>`).join("")
-    : `<li class="rp-flag rp-mut">Every sampled sentence carries a supporting citation.</li>`;
-  const cl = d.claims.map((c, i) => `<div class="rp-claim" role="button" tabindex="0" ${inspData(d, c.text, String(c.text).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)"><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-claim-t">${cite(c.text)}</span><span class="rp-mono">${c.pct}%</span>${bar(c.pct, c.pct >= 70 ? "pos" : c.pct >= 45 ? null : "warn")}</div>`).join("");
+  // Only surface the sub-score breakdown when it comes from a real confidence
+  // analysis. Never invent agreement/diversity/recency numbers.
+  const facBlock = d.breakdownReal
+    ? `<div class="rp-subh">How the score is built</div>${Object.entries(d.breakdown).map(([k, v]) => `<div class="rp-fac"><span>${k} <span class="rp-dim">(${CONF_WEIGHTS[k] != null ? CONF_WEIGHTS[k] + "%" : "weight"})</span></span><span class="rp-mono">${v}%</span>${bar(v)}</div>`).join("")}<p class="rp-cap" style="margin-top:14px;font-style:normal">Confidence = 30% source agreement + 20% domain diversity + 20% recency + 30% citation grounding.</p>`
+    : "";
+  const faithBlock = d.faithful
+    ? `<div class="rp-faith"><span class="rp-fig-s rp-count" data-target="${d.faithful.pct}" data-suffix="%">${d.faithful.pct}%</span><span><b>${d.faithful.grounded}/${d.faithful.total}</b> sentences carry a citation</span></div>
+       <ul class="rp-flags">${(d.ungrounded && d.ungrounded.length) ? d.ungrounded.map((s) => `<li class="rp-flag"><span class="rp-warn rp-mono">UNGROUNDED</span> "${esc(s.slice(0, 150))}"</li>`).join("") : `<li class="rp-flag rp-mut">Every sampled sentence carries a supporting citation.</li>`}</ul>`
+    : "";
+  // Claim-level: show REAL grounding status, not a fabricated per-claim %.
+  const cl = d.claims.map((c, i) => {
+    const g = /\[\d+\]/.test(c.text);
+    return `<div class="rp-claim" role="button" tabindex="0" ${inspData(d, c.text, String(c.text).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)"><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-claim-t">${cite(c.text)}</span><span class="rp-tag ${g ? "pos" : "warn"}">${g ? "GROUNDED" : "SYNTHESISED"}</span></div>`;
+  }).join("");
+  const claimBlock = d.claims.length ? `<div><div class="rp-subh">Claims &amp; grounding</div><div class="rp-claims">${cl}</div></div>` : "";
+  if (!facBlock && !faithBlock && !claimBlock) return "";
   return `<section class="rp-sec rp-rev">${eye("07", "Confidence &amp; grounding")}<div class="rp-split">
-    <div><div class="rp-subh">How the score is built</div>${fac}
-      <div class="rp-faith"><span class="rp-fig-s rp-count" data-target="${d.faithful.pct}" data-suffix="%">${d.faithful.pct}%</span><span><b>${d.faithful.grounded}/${d.faithful.total}</b> sentences grounded</span></div>
-      <ul class="rp-flags">${flags}</ul></div>
-    <div><div class="rp-subh">Claim-level confidence</div><div class="rp-claims">${cl}</div></div>
+    <div>${facBlock}${faithBlock}</div>
+    ${claimBlock}
   </div></section>`;
 }
 
-function sPerspectives(d) {
+function sPerspectives(d) { if (!d.perspectives) return "";
   const pr = d.perspectives;
   const pos = (k, x, tone) => `<div class="rp-pos"><div class="rp-pos-h"><span>Position ${k}</span><span class="rp-dim">${x.sources} sources</span></div><p>${esc(x.label)}</p><div class="rp-pos-m"><span class="rp-mono">${x.strength}% strength</span><span class="${tone}">${x.support}</span></div>${bar(x.strength, tone)}</div>`;
   return `<section class="rp-sec rp-rev">${eye("09", "Perspectives")}
     <div class="rp-vs">${pos("A", pr.a, "pos")}<span class="rp-vsmark">vs</span>${pos("B", pr.b, "warn")}</div>
     <p class="rp-note"><span class="rp-acc-t">Evidence favours Position ${pr.leader}.</span> ${esc(pr.note)}</p>
     <div class="rp-balance"><span class="rp-dim">EVIDENCE BALANCE</span><span class="rp-split2"><i style="width:${pr.balance.a}%"></i><b style="width:${pr.balance.b}%"></b></span><span class="rp-mono">A ${pr.balance.a}% · B ${pr.balance.b}%</span></div>
-    <div class="rp-contra"><div class="rp-subh">Contradiction resolution</div><p>${cite(d.contradiction)}</p></div>
+    ${d.contradiction ? `<div class="rp-contra"><div class="rp-subh">Contradiction resolution</div><p>${cite(d.contradiction)}</p></div>` : ""}
   </section>`;
 }
 
-function sKUU(d) {
+function sKUU(d) { if (!d.kuu) return "";
   const col = (title, tone, items, bars) => {
     const rows = items.map((it) => `<li><p>${cite(it.text)} ${(it.cites || []).map((c) => `<a class="rp-cite" onclick="pnOpen()">[${esc(c)}]</a>`).join(" ")}</p>${bars && it.pct != null ? `<div class="rp-kbar"><span class="rp-mono ${tone}">${it.pct}%</span>${bar(it.pct, tone)}</div>` : ""}</li>`).join("");
     return `<div class="rp-kcol"><div class="rp-ktitle ${tone}">${title}</div><ul>${rows}</ul></div>`;
@@ -382,7 +457,7 @@ function sKUU(d) {
   </div><p class="rp-cap">Evidence status, ${k.known.length} well-supported · ${k.uncertain.length} uncertain · ${k.unknown.length} unresolved.</p></section>`;
 }
 
-function sChange(d) {
+function sChange(d) { if (!d.conditions.length) return "";
   const conds = d.conditions.map((c) => `<div class="rp-cond" role="button" tabindex="0" onclick="pnCond(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();pnCond(this)}">
     <div class="rp-cond-head">
       <span class="rp-num">${c.n}</span>
@@ -402,7 +477,7 @@ function sChange(d) {
   </section>`;
 }
 
-function sTrajectory(d) {
+function sTrajectory(d) { if (!d.trajectory.length && !d.boundaries.length) return "";
   const traj = d.trajectory.map((t, i) => `<li><span class="rp-num">${String(i + 1).padStart(2, "0")}</span><span class="rp-traj-lk" role="button" tabindex="0" ${inspData(d, t, String(t).match(/\[(\d+)\]/g) || [])} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">${cite(t)} <span class="rp-traj-arrow">↗</span></span></li>`).join("");
   const bnd = d.boundaries.map((b) => `<li>${cite(b)}</li>`).join("");
   return `<section class="rp-sec rp-rev">${eye("14", "Trajectory &amp; boundaries")}<div class="rp-split">
@@ -411,7 +486,7 @@ function sTrajectory(d) {
   </div></section>`;
 }
 
-function sProvenance(d) {
+function sProvenance(d) { if (!d.telemetry.tokens && !d.timeline.length && !d.provenance.length && !d.constellation.length) return "";
   const miles = d.timeline.map((e) => `<div class="rp-tlmile"><span class="rp-tlyear">${e.year}</span><span class="rp-tltitle">${esc(e.title)}</span><span class="rp-tlconf">${e.conf}%</span></div>`).join("");
   const t = d.telemetry;
   const tel = [["Tokens", t.tokens ? t.tokens.toLocaleString() : "n/a"], ["Est. cost", t.cost ? "$" + t.cost.toFixed(4) : "n/a"], ["Steps", t.steps.length || d.provenance.length], ["Model", esc(d.model)]];
@@ -419,11 +494,12 @@ function sProvenance(d) {
   const pipe = ["Input", "Search", "Summarise", "Critic", "Evidence", "Synthesis", "Insights"].map((s, i, a) => `<span class="rp-step">${s}</span>${i < a.length - 1 ? '<span class="rp-steprule"></span>' : ""}`).join("");
   const prov = d.provenance.map((s) => `<div class="rp-provrow"><span>${esc(s.name)}</span><span class="rp-mono rp-dim">${s.tokens ? s.tokens.toLocaleString() + " tok" : ""}</span></div>`).join("");
   const cons = d.constellation.map((c) => `<li role="button" tabindex="0" onclick="pnOpen()"><span class="rp-num">${c.n}</span>${esc(c.t)}</li>`).join("");
+  const chartBlock = d.timeline.length ? `<div class="rp-subh" style="margin-top:34px">Confidence of the field over time</div>
+    <div id="rp-confchart" class="rp-chart-mount"></div>
+    <div class="rp-tlmiles">${miles}</div>` : "";
   return `<section class="rp-sec rp-rev">${eye("15", "Provenance")}
     <div class="rp-pipe">${pipe}</div>
-    <div class="rp-subh" style="margin-top:34px">Confidence of the field over time</div>
-    <div id="rp-confchart" class="rp-chart-mount"></div>
-    <div class="rp-tlmiles">${miles}</div>
+    ${chartBlock}
     <div class="rp-provgrid">
       <div><div class="rp-subh">Run telemetry</div><div class="rp-tels">${telCells}</div><div class="rp-tools">${d.tools.map((t) => `<span class="rp-chip">${esc(t)}</span>`).join("")}</div></div>
       <div><div class="rp-subh">Pipeline provenance</div>${prov}</div>
@@ -434,7 +510,7 @@ function sProvenance(d) {
 
 function sChat(d) {
   const chips = ["What's the strongest evidence here?", "Where do the sources disagree?", "What are the biggest uncertainties?", "Summarise this in one line"];
-  return `<section class="rp-sec rp-rev rp-chatsec">${eye("17", "Interrogate this report")}
+  return `<section class="rp-sec rp-rev rp-chatsec">${eye("18", "Interrogate this report")}
     <div class="rp-chat"><div id="pn-chat-msgs" class="rp-msgs">
       <div class="rp-msg rp-msg-a">Ask anything about this report, every answer stays grounded strictly in the sources above.</div>
       <div class="rp-chiprow">${chips.map((q) => `<button class="rp-chip rp-chipbtn" onclick="pnAsk(this)">${q}</button>`).join("")}</div>
@@ -470,7 +546,7 @@ function sInspector() {
 }
 
 /* ---------- institutional-grade section builders ---------- */
-function sTakeaways(d) {
+function sTakeaways(d) { if (!d.takeaways.length) return "";
   const rows = d.takeaways.map((t, i) => {
     const tone = t.tag === "HIGH" ? "pos" : t.tag === "MODERATE" ? "info" : t.tag === "TENTATIVE" ? "warn" : "neg";
     const cites = t.cites.length ? " " + t.cites.map((c) => `<a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">${c}</a>`).join(" ") : "";
@@ -481,12 +557,12 @@ function sTakeaways(d) {
     </li>`;
   }).join("");
   return `<section class="rp-sec rp-rev rp-lead" id="rp-sec-00" style="scroll-margin-top:20px">
-    <div class="rp-lead-eye"><span class="rp-mono rp-acc-t">◆ KEY TAKEAWAYS</span><span class="rp-dim rp-mono">${esc(d.band)} CONFIDENCE · BAND ${d.ci.low} TO ${d.ci.high}%</span></div>
+    <div class="rp-lead-eye"><span class="rp-mono rp-acc-t">◆ KEY TAKEAWAYS</span><span class="rp-dim rp-mono">${esc(d.band)} CONFIDENCE${d.ci ? ` · BAND ${d.ci.low} TO ${d.ci.high}%` : ""}</span></div>
     <ol class="rp-takes">${rows}</ol>
   </section>`;
 }
 
-function sScenarios(d) {
+function sScenarios(d) { if (!d.scenarios.length) return "";
   const cards = d.scenarios.map((s) => `<div class="rp-scen">
     <div class="rp-scen-h"><span class="rp-scen-k ${s.tone}">${esc(s.key)}</span><span class="rp-scen-w rp-mono ${s.tone}">${s.weight}%</span></div>
     <div class="rp-scen-bar">${bar(s.weight, s.tone)}</div>
@@ -497,7 +573,7 @@ function sScenarios(d) {
     <div class="rp-scens">${cards}</div></section>`;
 }
 
-function sScorecard(d) {
+function sScorecard(d) { if (!d.scorecard || !d.scorecard.total) return "";
   const sc = d.scorecard;
   const tierRow = (n, label, cnt, tone) => `<div class="rp-tier"><span class="rp-tier-b ${tone}">TIER ${n}</span><span class="rp-tier-l">${label}</span><span class="rp-mono">${cnt}</span><span class="rp-tier-bar">${bar(sc.total ? (cnt / sc.total) * 100 : 0, tone)}</span></div>`;
   const rec = (label, cnt, tone) => `<div class="rp-recrow"><span>${label}</span><span class="rp-mono">${cnt}</span>${bar(sc.total ? (cnt / sc.total) * 100 : 0, tone)}</div>`;
@@ -516,7 +592,7 @@ function sScorecard(d) {
     </div></div></section>`;
 }
 
-function sSensitivity(d) {
+function sSensitivity(d) { if (!d.sensitivity) return "";
   const s = d.sensitivity;
   return `<section class="rp-sec rp-rev">${eye("08", "Sensitivity analysis")}<p class="rp-sublede">The verdict blends measured evidence with argument quality. Drag to re-weight and watch it move; a flip means the conclusion is fragile to that assumption.</p>
     <div class="rp-sens">
@@ -530,7 +606,7 @@ function sSensitivity(d) {
     </div></section>`;
 }
 
-function sDissent(d) {
+function sDissent(d) { if (!d.dissent) return "";
   const ds = d.dissent;
   return `<section class="rp-sec rp-rev">${eye("10", "The strongest counter-argument")}<p class="rp-sublede">Every honest analysis names its best opposing case. Here is the strongest challenge to the conclusion, and why it does not currently hold.</p>
     <div class="rp-dissent">
@@ -542,18 +618,17 @@ function sDissent(d) {
     </div></section>`;
 }
 
-function sAssumptions(d) {
+function sAssumptions(d) { if (!d.assumptions || !d.assumptions.length) return "";
   const rows = d.assumptions.map((a) => { const tone = a.risk === "High" ? "neg" : a.risk === "Medium" ? "warn" : "pos"; return `<tr><td class="rp-asm-a">${esc(a.a)}</td><td>${esc(a.depends)}</td><td>${esc(a.breaks)}</td><td><span class="rp-tag ${tone}">${esc(a.risk)}</span></td></tr>`; }).join("");
   return `<section class="rp-sec rp-rev">${eye("12", "Assumptions &amp; risks")}<p class="rp-sublede">What the conclusion depends on, and exactly what would break each link.</p>
     <div class="rp-tablewrap"><table class="rp-table rp-asmtable"><thead><tr><th>Assumption</th><th>Depends on</th><th>Breaks if</th><th>Risk</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
-function sAppendix(d) {
+function sAppendix(d) { if (!d.footnotes.length) return "";
   const rows = d.footnotes.map((f) => `<div class="rp-fnrow"${f.url ? ` data-url="${escAttr(f.url)}" role="button" tabindex="0" onclick="pnGo(this)"` : ""}>
     <span class="rp-fn-n rp-mono">[${f.n}]</span>
-    <div class="rp-fn-meta"><b>${esc(f.name)}</b>${f.url ? `<span class="rp-dim rp-mono">${esc(f.url)}</span>` : ""}</div>
+    <div class="rp-fn-meta"><b>${esc(f.name)}</b>${f.url ? `<span class="rp-dim rp-mono">${esc(f.domain || f.url)}</span>` : ""}${f.snippet ? `<span class="rp-fn-snip">${esc(f.snippet)}</span>` : ""}</div>
     <span class="rp-tag ${f.tier === 1 ? "pos" : f.tier === 2 ? "info" : "warn"}">TIER ${f.tier}</span>
-    <span class="rp-mono rp-dim rp-fn-y">${f.year || ""}</span>
     <span class="rp-mono rp-fn-t">${f.trust != null ? f.trust.toFixed(2) : ""}</span>
   </div>`).join("");
   return `<section class="rp-sec rp-rev">${eye("16", "Citations appendix")}<p class="rp-sublede">Full metadata for every source cited above. Click a row to open the source.</p><div class="rp-fns">${rows}</div></section>`;
@@ -562,7 +637,7 @@ function sAppendix(d) {
 function sMethodology(d) {
   const t = d.telemetry;
   const gl = d.glossary.map((g) => `<div class="rp-gl"><dt>${esc(g.t)}</dt><dd>${esc(g.d)}</dd></div>`).join("");
-  return `<section class="rp-sec rp-rev">${eye("18", "Methodology &amp; glossary")}<div class="rp-split">
+  return `<section class="rp-sec rp-rev">${eye("17", "Methodology &amp; glossary")}<div class="rp-split">
     <div><div class="rp-subh">How this report was produced</div>
       <p class="rp-method">POLYNOUS ran a multi-agent pipeline (Search, then Summarise, then Critic, then Writer) over ${d.sources} sources: isolating claims, scoring each against its highest-trust source, and computing a grounded confidence from source agreement, diversity, recency and citation coverage. Every figure is derived from the run, never fabricated; costs are estimates.</p>
       <div class="rp-method-kpi"><span><b class="rp-mono">${esc(d.model)}</b><span class="rp-stat-l">model</span></span><span><b class="rp-mono">${t.tokens ? t.tokens.toLocaleString() : "n/a"}</b><span class="rp-stat-l">tokens</span></span><span><b class="rp-mono">${t.cost ? "$" + t.cost.toFixed(4) : "n/a"}</b><span class="rp-stat-l">est. cost</span></span></div>
@@ -572,10 +647,34 @@ function sMethodology(d) {
 }
 
 function buildReport(d) {
-  return `<div class="rp-progress" id="rp-prog"></div><div class="rp-wrap">
-    ${sMasthead(d)}${sTakeaways(d)}${sExec(d)}${sScenarios(d)}${sGlance(d)}${sFindings(d)}${sEvidence(d)}${sScorecard(d)}${sConfidence(d)}${sSensitivity(d)}${sPerspectives(d)}${sDissent(d)}${sKUU(d)}${sAssumptions(d)}${sChange(d)}${sTrajectory(d)}${sProvenance(d)}${sAppendix(d)}${sChat(d)}${sMethodology(d)}
+  // Build every section, drop the empty ones (P0: no fabricated demo sections in
+  // real mode), then renumber the surviving numbered sections sequentially and
+  // build the rail from what actually rendered, so there are never gaps.
+  const raw = [
+    sMasthead(d), sTakeaways(d), sExec(d), sScenarios(d), sGlance(d), sFindings(d), sEvidence(d),
+    sScorecard(d), sConfidence(d), sSensitivity(d), sPerspectives(d), sDissent(d), sKUU(d),
+    sAssumptions(d), sChange(d), sTrajectory(d), sProvenance(d), sAppendix(d), sMethodology(d), sChat(d),
+  ].filter((h) => h && h.trim());
+
+  let n = 0;
+  const rail = [];
+  const parts = raw.map((h) => {
+    // Key-takeaways lead is unnumbered but still a rail target.
+    if (/id="rp-sec-00"/.test(h)) { rail.push({ label: "Key takeaways", id: "rp-sec-00" }); return h; }
+    if (!/class="rp-shead"/.test(h)) return h; // masthead / non-section
+    n += 1;
+    const nn = String(n).padStart(2, "0");
+    const out = h.replace(/id="rp-sec-\d+"/, `id="rp-sec-${nn}"`).replace(/(<span class="rp-snum">)\d+(<\/span>)/, `$1${nn}$2`);
+    const tm = out.match(/<h2 class="rp-stitle">([^<]*)<\/h2>/);
+    if (tm) rail.push({ label: tm[1].replace(/&amp;/g, "&").replace(/&middot;| · Unknown/g, "").trim(), id: `rp-sec-${nn}` });
+    return out;
+  });
+
+  const html = `<div class="rp-progress" id="rp-prog"></div><div class="rp-wrap">
+    ${parts.join("")}
     <footer class="rp-foot"><span>◆ POLYNOUS</span><span class="rp-dim">Transparent · Auditable · Grounded research</span></footer>
   </div>${sInspector()}`;
+  return { html, rail };
 }
 
 /* ---------- CSS design system (hand-written, no framework) ---------- */
@@ -589,12 +688,9 @@ const RP_CSS = `
   --acc:#3ef07f; --acc-soft:rgba(0,255,71,0.12);
   --pos:#3ef07f; --warn:#ffb64a; --neg:#ff6b8a; --info:#00ccff;
   --serif:'Bricolage Grotesque',sans-serif; --sans:'Hanken Grotesk',-apple-system,sans-serif; --mono:'JetBrains Mono',monospace;
-  background:
-    radial-gradient(1200px 620px at 10% -10%, rgba(0,255,71,0.055), transparent 58%),
-    radial-gradient(1000px 700px at 94% 2%, rgba(0,204,255,0.05), transparent 54%),
-    var(--ink);
+  background: var(--ink);
   color: var(--tx); font-family: var(--sans); font-size: 16px; line-height: 1.62;
-  letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; height: 100vh; overflow-y: auto; position: relative;
+  letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; height: auto; overflow: visible; position: relative;
 }
 .rp-wrap { max-width: 940px; margin: 0 auto; padding: 0 40px 80px; }
 .rp ::selection { background: var(--acc-soft); }
@@ -606,12 +702,9 @@ const RP_CSS = `
 .rp-cite { color: var(--acc); font-family: var(--mono); font-size: 0.82em; font-weight: 600; cursor: pointer; padding: 0 1px; }
 .rp-cite:hover { text-shadow: 0 0 10px rgba(0,255,71,0.5); }
 
-/* reveal, transform-only so content is NEVER hidden even if frames don't composite */
-@keyframes rpIn { from { transform: translateY(14px); } to { transform: none; } }
-.rp-rev { animation: rpIn .6s cubic-bezier(.16,1.3,1) both; }
-.rp-wrap > .rp-rev:nth-child(2) { animation-delay: .05s; }
-.rp-wrap > .rp-rev:nth-child(3) { animation-delay: .1s; }
-.rp-wrap > .rp-rev:nth-child(4) { animation-delay: .15s; }
+/* No entrance/stagger animation — everything renders at once in one seamless
+   scroll (per request). Kept the class so builders/markup stay unchanged. */
+.rp-rev { animation: none; }
 @media (prefers-reduced-motion: reduce){ .rp-rev { animation: none; } }
 
 /* bars */
@@ -1007,13 +1100,26 @@ const RP_CSS = `
 
 /* citations appendix */
 .rp-fns { display: flex; flex-direction: column; }
-.rp-fnrow { display: grid; grid-template-columns: 40px 1fr auto auto auto; gap: 14px; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--line2); transition: background .25s ease, transform .25s cubic-bezier(.16,1.3,1); }
+.rp-fnrow { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 14px; align-items: start; padding: 15px 4px; border-bottom: 1px solid var(--line2); transition: background .25s ease, transform .25s cubic-bezier(.16,1.3,1); }
 .rp-fnrow[role="button"] { cursor: pointer; }
 .rp-fnrow[role="button"]:hover { background: rgba(255,255,255,0.02); transform: translateX(4px); }
-.rp-fn-n { color: var(--acc); font-size: 13px; }
+.rp-fn-n { color: var(--acc); font-size: 13px; padding-top: 1px; }
 .rp-fn-meta b { color: var(--hi); font-size: 14px; display: block; }
-.rp-fn-meta span { font-size: 11px; }
-.rp-fn-y { font-size: 11px; } .rp-fn-t { color: var(--tx); font-size: 12px; }
+.rp-fn-meta > span { font-size: 11px; display: block; margin-top: 2px; }
+.rp-fn-snip { font-family: var(--sans) !important; font-size: 12.5px !important; color: var(--dim); line-height: 1.5; margin-top: 6px !important; max-width: 68ch; }
+.rp-fn-t { color: var(--tx); font-size: 12px; align-self: center; }
+.rp-fnrow .rp-tag { align-self: center; }
+
+/* citation hover preview (Perplexity-style) */
+.rp-hovercard { position: fixed; z-index: 130; max-width: 340px; background: linear-gradient(180deg, #0e1434, #0a0a1e); border: 1px solid rgba(0,255,71,0.22); border-radius: 12px; padding: 14px 16px; box-shadow: 0 26px 60px -24px rgba(0,0,10,0.92); opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity .16s ease, transform .18s cubic-bezier(.16,1,.3,1); font-family: var(--sans); }
+.rp-hovercard.show { opacity: 1; transform: none; }
+.rp-hc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rp-hc-n { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--acc); }
+.rp-hc-dom { font-family: var(--mono); font-size: 10px; color: var(--dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-hc-head .rp-tag { font-size: 8.5px; padding: 2px 7px; }
+.rp-hc-title { font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--hi); line-height: 1.3; letter-spacing: -0.01em; }
+.rp-hc-snip { font-size: 12.5px; line-height: 1.55; color: var(--tx); margin-top: 7px; }
+.rp-hc-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line2); font-size: 10.5px; }
 
 /* methodology + glossary */
 .rp-method { font-size: 14.5px; line-height: 1.7; color: var(--tx); max-width: 60ch; }
@@ -1024,11 +1130,40 @@ const RP_CSS = `
 .rp-gl dt { font-family: var(--serif); font-size: 14.5px; color: var(--hi); font-weight: 600; margin-bottom: 3px; }
 .rp-gl dd { font-size: 12.5px; color: var(--dim); line-height: 1.5; }
 
-/* print / Save-as-PDF */
+/* ── Premium print / Save-as-PDF ──────────────────────────────────────────
+   The gap-free rule: NEVER break-inside:avoid a whole tall section (that is what
+   shoves a section to a fresh page and leaves the blank space). Instead let big
+   sections flow across pages, keep only small atomic blocks intact, and never
+   orphan a heading at the foot of a page. */
 @media print {
-  .rp-progress, .rp-backdrop, .rp-drawer, .side-rail, .rp-actions, .rp-chatbar, .rp-toast { display: none !important; }
-  .rp { height: auto !important; overflow: visible !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .rp-sec, .rp-masthead { break-inside: avoid; }
+  @page { margin: 12mm; }
+  /* interactive-only chrome never prints */
+  .rp-progress, .rp-backdrop, .rp-drawer, .side-rail, .rp-actions, .rp-chatbar,
+  .rp-toast, .rp-inspect, .rp-caret, .rp-slider, .rp-asof-btn, .rp-dfoot, .rp-hovercard { display: none !important; }
+  .rp {
+    height: auto !important; overflow: visible !important; position: static !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; background: var(--ink) !important;
+  }
+  .rp-wrap { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  /* sections flow (no forced page shove) but tighten the rhythm for paper */
+  .rp-sec { break-inside: auto; padding: 20px 0 !important; }
+  .rp-masthead { padding: 0 0 22px !important; }
+  /* headings stay glued to the content that follows them */
+  .rp-shead, .rp-subh, .rp-stitle, .rp-lead-eye, .rp-scen h4, .dbr-case-h { break-after: avoid; page-break-after: avoid; }
+  /* atomic blocks never split across a page boundary */
+  .rp-find, .rp-take, .rp-scen, .rp-claim, .rp-cond, .rp-fnrow, .rp-tel, .rp-tier,
+  .rp-revrow, .rp-pos, .rp-dsrc, .rp-dquote, .rp-scorekpi, .rp-recrow, .rp-fac,
+  .rp-land, .rp-provrow, .rp-kcol, .rp-dissent, .rp-synth, .rp-nli, .rp-tlmile,
+  .rp-stat, .rp-conf, .rp-critic, .rp-msg, .rp-gl,
+  .dbr-case, .dbr-arg, .dbr-reason, .dbr-key, .dbr-follow, .dbr-verdict, .dbr-score { break-inside: avoid; page-break-inside: avoid; }
+  .rp-table tr, .rp-asmtable tr, .rp-rub tr { break-inside: avoid; page-break-inside: avoid; }
+  /* no lonely single lines at page edges */
+  .rp-lede p, .rp-method, .rp-note, .rp-mut, .rp-sublede, .rp-dissent-q, p, li { orphans: 3; widows: 3; }
+  /* let chat + chart show fully in print, no inner clipping */
+  .rp-msgs { max-height: none !important; overflow: visible !important; }
+  .rp-chart-mount { break-inside: avoid; page-break-inside: avoid; }
+  .rp-chatsec, .rp-chat { break-inside: avoid; }
+  a[href], .rp-cite { text-decoration: none; }
 }
 
 @media (max-width: 820px) {
@@ -1051,6 +1186,8 @@ function injectAssets() {
   if (injected || typeof document === "undefined") return; injected = true;
   const st = document.createElement("style"); st.id = "rp-style"; st.textContent = RP_CSS; document.head.appendChild(st);
 }
+// Shared so the debate report can reuse the exact same .rp-* design system.
+export function ensureReportStyles() { injectAssets(); }
 
 /* ---------- interactions ---------- */
 function installHandlers() {
@@ -1106,9 +1243,13 @@ function installHandlers() {
   };
 
   window.pnShare = async () => {
-    const url = (typeof location !== "undefined" ? location.href : "");
-    try { await navigator.clipboard.writeText(url); window.pnToast("Report link copied to clipboard."); }
-    catch { window.pnToast("Copy failed, this is the URL: " + url); }
+    // A shareable, re-runnable link: opening it re-runs the research and
+    // regenerates this report for the recipient (works cross-device, no backend
+    // save needed). Falls back to the current URL if the query is unknown.
+    const q = window.__rpQuery || "";
+    const url = q ? (location.origin + "/research?query=" + encodeURIComponent(q)) : location.href;
+    try { await navigator.clipboard.writeText(url); window.pnToast("Shareable report link copied. Opening it re-runs this research."); }
+    catch { window.pnToast("Copy failed, this is the link: " + url); }
   };
   window.pnPdf = () => { window.pnToast("Opening print dialog, choose “Save as PDF”."); setTimeout(() => { try { window.print(); } catch (e) {} }, 260); };
 
@@ -1124,6 +1265,36 @@ function installHandlers() {
 
   // open a citation-appendix / footnote source
   window.pnGo = (el) => { const u = el && el.getAttribute("data-url"); if (u && /^https?:/.test(u)) window.open(u, "_blank", "noopener"); };
+
+  // ── Perplexity-style citation hover previews ─────────────────────────────
+  const hoverCard = () => {
+    let c = document.getElementById("rp-hovercard");
+    if (!c) { c = document.createElement("div"); c.id = "rp-hovercard"; c.className = "rp-hovercard"; document.body.appendChild(c); }
+    return c;
+  };
+  window.pnHover = (el) => {
+    const n = el && el.getAttribute("data-n"); const c = (window.__rpCites || {})[n];
+    if (!c) return;
+    clearTimeout(window.__rpHoverT);
+    const card = hoverCard();
+    const tierTone = c.tier === 1 ? "pos" : c.tier === 2 ? "info" : "warn";
+    card.innerHTML =
+      '<div class="rp-hc-head"><span class="rp-hc-n">[' + n + ']</span>' + (c.domain ? '<span class="rp-hc-dom">' + esc(c.domain) + '</span>' : "") + '<span class="rp-tag ' + tierTone + '">TIER ' + (c.tier || 3) + '</span></div>' +
+      (c.title ? '<div class="rp-hc-title">' + esc(c.title) + '</div>' : "") +
+      (c.snippet ? '<p class="rp-hc-snip">' + esc(c.snippet) + '</p>' : '<p class="rp-hc-snip rp-dim">No snippet was retrieved for this source.</p>') +
+      '<div class="rp-hc-foot"><span class="rp-mono ' + tierTone + '">trust ' + (c.trust != null ? Number(c.trust).toFixed(2) : "—") + '</span>' + (c.url ? '<span class="rp-mono rp-dim">click to open ↗</span>' : "") + '</div>';
+    // position: above the citation, clamped to the viewport
+    const r = el.getBoundingClientRect();
+    card.style.visibility = "hidden"; card.classList.add("show");
+    const cw = Math.min(340, window.innerWidth - 24), ch = card.offsetHeight;
+    let left = Math.min(Math.max(12, r.left + r.width / 2 - cw / 2), window.innerWidth - cw - 12);
+    let top = r.top - ch - 10;
+    if (top < 12) top = r.bottom + 10;
+    card.style.left = left + "px"; card.style.top = top + "px"; card.style.width = cw + "px";
+    card.style.visibility = "visible";
+  };
+  window.pnHoverOut = () => { clearTimeout(window.__rpHoverT); window.__rpHoverT = setTimeout(() => { const c = document.getElementById("rp-hovercard"); if (c) c.classList.remove("show"); }, 140); };
+  window.pnCiteClick = (el) => { const n = el && el.getAttribute("data-n"); const c = (window.__rpCites || {})[n]; if (c && c.url && /^https?:/.test(c.url)) window.open(c.url, "_blank", "noopener"); else window.pnOpen(); };
 
   // sensitivity slider: re-weight measured evidence vs argument quality and
   // recompute the lean toward the primary conclusion, flagging a verdict flip.
@@ -1178,8 +1349,8 @@ export default function PolynousReport(props) {
   const ref = useRef(null);
   const chartStore = useRef({ root: null, node: null });
   const d = deriveReport(props);
-  const html = buildReport(d);
-  if (typeof window !== "undefined") { window.__rpCtx = { answer: d.chatAnswer, sources: d.sourceSummaries }; window.__rpSens = { leadA: d.sensitivity.leadA }; }
+  const { html, rail } = buildReport(d);
+  if (typeof window !== "undefined") { window.__rpCtx = { answer: d.chatAnswer, sources: d.sourceSummaries }; window.__rpSens = { leadA: (d.sensitivity && d.sensitivity.leadA) || 54 }; window.__rpCites = d.citeMap || {}; window.__rpQuery = d.query || ""; }
   useEffect(() => { injectAssets(); installHandlers(); }, []);
   useEffect(() => {
     const t = setTimeout(() => runCounters(ref.current), 500);
@@ -1198,20 +1369,29 @@ export default function PolynousReport(props) {
         mount.__rpRoot = store.root;
       }
       store.root.render(<ConfidenceChart data={d.timeline} />);
+      // recharts' ResponsiveContainer can latch a 0 width if the report was
+      // still laying out (e.g. streaming re-renders) when it mounted. Nudge it
+      // to re-measure once layout settles so the line always draws.
+      [60, 240, 600].forEach((ms) => setTimeout(() => { try { window.dispatchEvent(new Event("resize")); } catch (e) {} }, ms));
     }
+    // The report now flows in the PAGE scroll (no nested 100vh container), so
+    // drive the progress bar from the window scroll position.
     const onScroll = () => {
-      if (!el) return;
-      const bar = el.querySelector("#rp-prog");
-      const max = el.scrollHeight - el.clientHeight;
-      if (bar) bar.style.transform = "scaleX(" + (max > 0 ? el.scrollTop / max : 0) + ")";
+      const bar = ref.current && ref.current.querySelector("#rp-prog");
+      if (!bar) return;
+      const doc = document.documentElement;
+      const max = (doc.scrollHeight || 0) - (doc.clientHeight || 0);
+      const y = window.scrollY || doc.scrollTop || 0;
+      bar.style.transform = "scaleX(" + (max > 0 ? Math.min(1, y / max) : 0) + ")";
     };
-    if (el) el.addEventListener("scroll", onScroll, { passive: true });
-    return () => { clearTimeout(t); if (el) el.removeEventListener("scroll", onScroll); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => { clearTimeout(t); window.removeEventListener("scroll", onScroll); };
   }, [html]);
   return (
     <>
       <div ref={ref} className="rp" dangerouslySetInnerHTML={{ __html: html }} />
-      <SideRail items={REPORT_RAIL} getContainer={() => ref.current} />
+      {rail.length > 2 && <SideRail items={rail} getContainer={() => ref.current} />}
     </>
   );
 }

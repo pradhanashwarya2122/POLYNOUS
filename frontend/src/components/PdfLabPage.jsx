@@ -2037,7 +2037,7 @@ export default function PDFNeuralLab({ user, onNavigate, onLogout }) {
         </div>
       </main>
 
-      <SideRail items={PDFLAB_RAIL} accentColor="#ffd60a" />
+      {sbCollapsed && <SideRail items={PDFLAB_RAIL} accentColor="#ffd60a" />}
       <Toast msg={toast} onClose={() => setToast("")} />
     </div>
   );

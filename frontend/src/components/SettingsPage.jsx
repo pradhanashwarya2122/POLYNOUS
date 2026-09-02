@@ -2599,7 +2599,7 @@ export default function SettingsPage({ user, onNavigate, onLogout }) {
         <div id="set-danger"       style={{ scrollMarginTop: 24 }}><DangerZone          push={push} /></div>
       </main>
 
-      <SideRail items={SETTINGS_RAIL} />
+      {collapsed && <SideRail items={SETTINGS_RAIL} />}
       <ToastBox toasts={toasts} />
     </div>
   );
