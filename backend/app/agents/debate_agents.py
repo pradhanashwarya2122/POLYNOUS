@@ -533,3 +533,125 @@ def _fallback_follow_ups(query: str) -> list:
         f"Which stakeholders are most affected by {q.lower()}, and how does that shift the trade-offs?",
         f"Under what conditions or timeframe would the stronger side of '{q}' flip?",
     ]
+
+
+# ============================================================
+# POST-DEBATE ANALYST — cross-examination + fallacy audit
+# ============================================================
+# A separate, impartial pass over the finished transcript. It never argued, so
+# it audits both sides with equal skepticism. Best-effort by design: any failure
+# returns {} and the verdict/report stand without it. Output is the exact shape
+# the report renders: cross_exam.{for_asks,against_asks}.{question,answer} and
+# fallacies.{for,against}[].{type,where,note}.
+
+MAX_TOKENS_ANALYST = 700
+TEMPERATURE_ANALYST = 0.3
+
+_ANALYST_SYSTEM = """You are a rigorous, impartial debate analyst. You did not argue either side; you audit both with equal skepticism using only the transcript.
+
+Produce two things:
+1. cross_exam: the single sharpest question each side would put to the other, plus the most defensible one-sentence answer the questioned side could give from its OWN case. Ground both in what was actually argued, not in outside knowledge.
+2. fallacies: real reasoning weaknesses in each side's case. Only flag a fallacy that is genuinely present. An empty list is the correct answer when a side reasoned cleanly. NEVER invent a fallacy for symmetry, and never flag a side merely for being wrong.
+
+Return ONLY this JSON object, first character '{' and last character '}', no prose, no code fences:
+{
+  "cross_exam": {
+    "for_asks":     {"question": "FOR's sharpest question to AGAINST", "answer": "AGAINST's best one-sentence reply from its own case"},
+    "against_asks": {"question": "AGAINST's sharpest question to FOR", "answer": "FOR's best one-sentence reply from its own case"}
+  },
+  "fallacies": {
+    "for":     [{"type": "fallacy name", "where": "short quoted locus", "note": "one sentence on why it is weak"}],
+    "against": [{"type": "fallacy name", "where": "short quoted locus", "note": "one sentence on why it is weak"}]
+  }
+}
+At most 2 fallacies per side. Keep every string under 40 words."""
+
+
+def _clean_str(v) -> str:
+    return str(v).strip() if v is not None else ""
+
+
+def _normalize_analysis(data: dict) -> dict:
+    """Coerce raw LLM JSON into the exact shape the report consumes; drop empties.
+    Returns only the keys that actually carry content, so the report's own
+    'return "" if no data' guards hide anything the analyst left blank."""
+    def _qa(x):
+        if not isinstance(x, dict):
+            return {}
+        q, a = _clean_str(x.get("question")), _clean_str(x.get("answer"))
+        return {"question": q, "answer": a} if (q or a) else {}
+
+    def _falls(lst):
+        out = []
+        if isinstance(lst, list):
+            for f in lst[:2]:
+                if not isinstance(f, dict):
+                    continue
+                t = _clean_str(f.get("type") or f.get("name"))
+                note = _clean_str(f.get("note") or f.get("description"))
+                if not (t or note):
+                    continue
+                out.append({"type": t or "Reasoning gap",
+                            "where": _clean_str(f.get("where")),
+                            "note": note})
+        return out
+
+    ce_raw = data.get("cross_exam") if isinstance(data.get("cross_exam"), dict) else {}
+    fa_raw = data.get("fallacies") if isinstance(data.get("fallacies"), dict) else {}
+    cross = {"for_asks": _qa(ce_raw.get("for_asks")), "against_asks": _qa(ce_raw.get("against_asks"))}
+    fall = {"for": _falls(fa_raw.get("for")), "against": _falls(fa_raw.get("against"))}
+
+    result = {}
+    if cross["for_asks"] or cross["against_asks"]:
+        result["cross_exam"] = cross
+    if fall["for"] or fall["against"]:
+        result["fallacies"] = fall
+    return result
+
+
+def analyze_debate(
+    query: str,
+    for_arg: str,
+    against_arg: str,
+    for_rebuttal: str = "",
+    against_rebuttal: str = "",
+    api_key: Optional[str] = None,
+    provider: str = "anthropic",
+    model: Optional[str] = None,
+    usage_sink: Optional[dict] = None,
+) -> dict:
+    """Cross-examination + fallacy audit over the finished transcript.
+
+    Best-effort: returns {} on missing input or any error, so a debate's verdict
+    and report never depend on this extra pass succeeding.
+    """
+    if not (for_arg or against_arg):
+        return {}
+
+    user_prompt = f"""Topic: {query}
+
+FOR OPENING:
+{for_arg[:1400]}
+FOR REBUTTAL:
+{(for_rebuttal or 'None')[:1000]}
+
+AGAINST OPENING:
+{against_arg[:1400]}
+AGAINST REBUTTAL:
+{(against_rebuttal or 'None')[:1000]}
+
+Audit and return JSON:"""
+
+    try:
+        client, client_type = _get_client(provider, api_key)
+        from app.utils.json_extract import extract_json_object
+        raw = _call_with_retry(client, client_type, _ANALYST_SYSTEM, user_prompt,
+                               MAX_TOKENS_ANALYST, TEMPERATURE_ANALYST, model=model,
+                               usage=usage_sink, stage="analyst", provider=provider)
+        data = extract_json_object(raw)
+        if not isinstance(data, dict):
+            return {}
+        return _normalize_analysis(data)
+    except Exception as e:
+        logger.warning("Debate analyst failed (non-fatal): %s", e)
+        return {}

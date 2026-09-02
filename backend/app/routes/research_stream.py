@@ -753,6 +753,11 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
         # save again here; the old /ask-stream path double-saved).
         final_patch = build_debate_patch(state, 'Final', time.time() - start_time)
         final_patch["judge_track_record"] = track_record
+        # Post-debate analyst output (best-effort; absent keys → report omits them)
+        if state.get("cross_exam"):
+            final_patch["cross_exam"] = state["cross_exam"]
+        if state.get("fallacies"):
+            final_patch["fallacies"] = state["fallacies"]
         from app.utils.usage import summarize_usage
         telemetry = summarize_usage(state.get("usage"))
         final_patch["telemetry"] = telemetry

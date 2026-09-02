@@ -56,6 +56,8 @@ const DEMO = {
       "No Mars colony is remotely self-sufficient this century, so it cannot serve as a near-term backup.",
       "Terraforming and radiation shielding remain unsolved at scale, making optimistic timelines misleading [4].",
     ],
+    for_rebuttal: "The opportunity-cost objection assumes a fixed pie: space budgets are a small fraction of climate spending, and the two agendas share core technologies [3]. Delaying the capability curve does not free those funds for Earth, it simply forfeits the hedge.",
+    against_rebuttal: "Shared technology does not justify diverting scarce attention and capital from problems with certain, present-day victims [2]. A hedge against a low-probability event cannot outrank harms that are already measurable and ongoing.",
     citations: [
       { n: 1, url: "https://www.nasa.gov/humans-in-space/" },
       { n: 2, url: "https://www.un.org/sustainabledevelopment/" },
@@ -84,6 +86,21 @@ const DEMO = {
   },
 };
 
+/* Split an advocate's prose argument (opening/rebuttal) into discrete points,
+   preserving [n] citations. Bullets/newlines first; else sentence-grouped. */
+function toPoints(text, cap = 6) {
+  const t = stripEmoji(String(text || "")).trim();
+  if (!t) return [];
+  let parts = t.split(/\n+/).map((s) => s.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim()).filter((s) => s.length > 3);
+  if (parts.length >= 2) return parts.slice(0, cap);
+  const sents = (t.match(/[^.!?]+[.!?]+(?=\s|$)/g) || [t]).map((s) => s.trim()).filter(Boolean);
+  if (sents.length <= cap) return sents;
+  const per = Math.ceil(sents.length / cap);
+  const out = [];
+  for (let i = 0; i < sents.length; i += per) out.push(sents.slice(i, i + per).join(" "));
+  return out.slice(0, cap);
+}
+
 /* ---------- derive view model ---------- */
 function deriveDebate(p) {
   const r = p.result || {};
@@ -94,8 +111,16 @@ function deriveDebate(p) {
   const winner = String(pick(v.winner, forScore >= againstScore ? "FOR" : "AGAINST")).toUpperCase();
   const total = forScore + againstScore || 1;
   const balance = { a: pct((forScore / total) * 100), b: pct((againstScore / total) * 100) };
-  const forPts = (Array.isArray(r.for_points) ? r.for_points : []).map(stripEmoji).filter(Boolean);
-  const againstPts = (Array.isArray(r.against_points) ? r.against_points : []).map(stripEmoji).filter(Boolean);
+  const dbt = r.debate || {};
+  const forOpen = stripEmoji(pick(r.for_opening, dbt.for_opening, ""));
+  const againstOpen = stripEmoji(pick(r.against_opening, dbt.against_opening, ""));
+  const forReb = stripEmoji(pick(r.for_rebuttal, dbt.for_rebuttal, ""));
+  const againstReb = stripEmoji(pick(r.against_rebuttal, dbt.against_rebuttal, ""));
+  const forPtsRaw = (Array.isArray(r.for_points) ? r.for_points : []).map(stripEmoji).filter(Boolean);
+  const againstPtsRaw = (Array.isArray(r.against_points) ? r.against_points : []).map(stripEmoji).filter(Boolean);
+  // Backend emits prose turns, not point arrays: fall back to splitting the opening.
+  const forPts = forPtsRaw.length ? forPtsRaw : toPoints(forOpen);
+  const againstPts = againstPtsRaw.length ? againstPtsRaw : toPoints(againstOpen);
   const sources = Array.isArray(r.debate && r.debate.sources) ? r.debate.sources : (Array.isArray(r.citations) ? r.citations : []);
   const rubF = v.rubric_for || {}, rubA = v.rubric_against || {};
   const cert = pick(v.judge_certainty, 70);
@@ -109,6 +134,7 @@ function deriveDebate(p) {
     reasoning: stripEmoji(pick(v.reasoning, "")),
     strongest: stripEmoji(pick(v.strongest_point, "")),
     forPts, againstPts,
+    forRebuttal: forReb, againstRebuttal: againstReb,
     rubF: { sources: pick(rubF.distinct_sources_cited, 0), grounded: pick(rubF.grounded_sentences, 0), sentences: pick(rubF.sentences, 0), hall: pick(rubF.hallucinated_citations, 0), score: pick(rubF.computed_score, forScore) },
     rubA: { sources: pick(rubA.distinct_sources_cited, 0), grounded: pick(rubA.grounded_sentences, 0), sentences: pick(rubA.sentences, 0), hall: pick(rubA.hallucinated_citations, 0), score: pick(rubA.computed_score, againstScore) },
     framing: v.framing_check || null,
@@ -159,16 +185,17 @@ function sVerdict(d) {
 }
 
 function sCases(d) {
-  const col = (label, tone, score, pts) => {
+  const col = (label, tone, score, pts, reb) => {
     const args = pts.length ? pts.map((t, i) => `<li class="dbr-arg"><span class="rp-num ${tone}">${String(i + 1).padStart(2, "0")}</span><p>${cite(t)}</p></li>`).join("") : `<li class="dbr-arg rp-mut">No arguments recorded.</li>`;
+    const rebBlock = reb ? `<div class="dbr-reb"><span class="dbr-reb-l ${tone}">Rebuttal</span><p>${cite(reb)}</p></div>` : "";
     return `<div class="dbr-case">
       <div class="dbr-case-h"><span class="dbr-side ${tone}">${label}</span><span class="rp-mono ${tone}">${score}/10</span></div>
       ${bar((score / 10) * 100, tone)}
-      <ol class="dbr-args">${args}</ol></div>`;
+      <ol class="dbr-args">${args}</ol>${rebBlock}</div>`;
   };
   return `<section class="rp-sec rp-rev">${eye("02", "The cases")}
-    <p class="rp-sublede">Each advocate's strongest points, traceable to the sources they cited.</p>
-    <div class="dbr-cases">${col("Supporting", "pos", d.forScore, d.forPts)}${col("Counter", "neg", d.againstScore, d.againstPts)}</div></section>`;
+    <p class="rp-sublede">Each advocate's opening points, then the rebuttal that answered the other side, traceable to the sources they cited.</p>
+    <div class="dbr-cases">${col("Supporting", "pos", d.forScore, d.forPts, d.forRebuttal)}${col("Counter", "neg", d.againstScore, d.againstPts, d.againstRebuttal)}</div></section>`;
 }
 
 function sRubric(d) {
@@ -318,6 +345,12 @@ const DBR_CSS = `
 .dbr-arg { display: flex; gap: 14px; align-items: flex-start; padding: 15px 2px; border-bottom: 1px solid var(--line2); }
 .dbr-arg:last-child { border-bottom: 0; }
 .dbr-arg p { font-size: 14px; line-height: 1.6; color: var(--tx); }
+.dbr-reb { margin-top: 14px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line2); border-left: 2px solid; border-radius: 3px; }
+.dbr-reb-l { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 7px; }
+.dbr-reb-l.pos { color: var(--pos); } .dbr-reb-l.neg { color: var(--neg); }
+.dbr-case:has(.dbr-reb-l.pos) .dbr-reb { border-left-color: var(--pos); }
+.dbr-case:has(.dbr-reb-l.neg) .dbr-reb { border-left-color: var(--neg); }
+.dbr-reb p { font-size: 13.5px; line-height: 1.58; color: var(--tx); }
 .dbr-rub td, .dbr-rub th { text-align: left; padding: 12px 14px 12px 0; }
 .dbr-rub th:not(:first-child), .dbr-rub td:not(:first-child) { text-align: right; width: 120px; }
 .dbr-rub-l { color: var(--hi); font-size: 13px; }

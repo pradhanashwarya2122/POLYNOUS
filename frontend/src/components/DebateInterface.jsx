@@ -1793,16 +1793,32 @@ export default function DebateChamber({ user, onNavigate, onLogout, preview = fa
   }, []);
 
   const handleEngineComplete = useCallback((data) => {
+    // The engine streams turns into data.panels.{FOR,AGAINST}; citations,
+    // telemetry and the judge track record arrive as top-level patches.
+    const panels = data?.panels || {};
+    const F = panels.FOR || {}, A = panels.AGAINST || {};
+    const sources = data?.citations || panels.Evidence?.recentSources || [];
     setResult({
       verdict: data?.verdict || {},
-      for_points: data?.debate?.for_points || [],
+      for_opening: F.openingText || "",
+      against_opening: A.openingText || "",
+      for_rebuttal: F.rebuttalText || "",
+      against_rebuttal: A.rebuttalText || "",
+      for_points: data?.debate?.for_points || [],       // backend sends prose; report splits it
       against_points: data?.debate?.against_points || [],
-      for_rebuttal: data?.debate?.for_rebuttal || "",
-      against_rebuttal: data?.debate?.against_rebuttal || "",
-      citations: data?.citations || [],
-      debate: data?.debate || {},               // steelman, analytics, sources
+      citations: sources,
+      debate: {
+        ...(data?.debate || {}),                          // steelman, analytics if present
+        for_opening: F.openingText || "",
+        against_opening: A.openingText || "",
+        for_rebuttal: F.rebuttalText || "",
+        against_rebuttal: A.rebuttalText || "",
+        sources,
+      },
       trackRecord: data?.judge_track_record || null,
       telemetry: data?.telemetry || null,        // Phase 6 run telemetry
+      cross_exam: data?.cross_exam || null,       // post-debate analyst
+      fallacies: data?.fallacies || null,
     });
     setLoading(false);
     setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100);

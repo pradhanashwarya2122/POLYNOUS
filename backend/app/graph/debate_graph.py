@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
 from app.state import AgentState
-from app.agents.debate_agents import argue_position, judge_debate
+from app.agents.debate_agents import argue_position, judge_debate, analyze_debate
 from app.search_agent import search_web
 from app.knowledge_graph.user_memory import user_memory
 from app.knowledge_graph.graph_manager import kg
@@ -191,6 +191,29 @@ def judge_node(state: AgentState) -> AgentState:
     else:
         emit(f"Verdict: {verdict.get('winner', '—')} "
              f"(FOR {verdict.get('for_score', 0)} / AGAINST {verdict.get('against_score', 0)})")
+
+    # ---------- Post-debate analyst: cross-examination + fallacy audit ----------
+    # A separate impartial pass over the transcript. Best-effort: on any failure
+    # `analysis` is {} and the report simply omits these sections.
+    emit("Auditing both cases for cross-examination and fallacies…")
+    try:
+        analysis = analyze_debate(
+            state['query'], for_arg, against_arg,
+            for_rebuttal=for_rebuttal, against_rebuttal=against_rebuttal,
+            api_key=api_key, provider=provider,
+            model=state.get('model'), usage_sink=_debate_usage_sink(state),
+        )
+    except Exception as e:
+        print(f"  ⚠️ Debate analyst error: {e}")
+        analysis = {}
+    if analysis.get('cross_exam'):
+        state['cross_exam'] = analysis['cross_exam']
+    if analysis.get('fallacies'):
+        state['fallacies'] = analysis['fallacies']
+    _ce = 'cross-exam' if analysis.get('cross_exam') else ''
+    _fa = 'fallacy audit' if analysis.get('fallacies') else ''
+    emit("Audit complete: " + (", ".join(x for x in (_ce, _fa) if x) or "no additional weaknesses flagged"))
+
     emit("Persisting debate to memory and knowledge graph…")
 
     winner = verdict.get('winner', 'UNSCORED')

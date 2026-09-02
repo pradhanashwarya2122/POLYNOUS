@@ -144,11 +144,11 @@ const DEMO_LEDGER = [
   { name: "Archive Source", cite: null, fresh: FRESH[4], trust: 0.4 },
 ];
 const DEMO_CITES = [
-  { n: 1, url: "https://en.wikipedia.org/wiki/CRISPR", domain: "en.wikipedia.org", title: "CRISPR", snippet: "CRISPR-Cas9 uses a guide RNA to direct the Cas9 nuclease to a specific DNA sequence, where it cuts the strand to enable edits.", tier: 2, trust: 0.74 },
-  { n: 2, url: "https://innovativegenomics.org/what-is-crispr", domain: "innovativegenomics.org", title: "What is CRISPR?", snippet: "The system is derived from a bacterial immune defence that stores fragments of viral DNA to recognise and cut future invaders.", tier: 1, trust: 0.9 },
-  { n: 3, url: "https://www.broadinstitute.org/what-broad/areas-focus", domain: "broadinstitute.org", title: "Questions and Answers about CRISPR", snippet: "Spacer sequences guide the Cas9 enzyme to a target, where it binds and cuts, effectively shutting off the gene.", tier: 1, trust: 0.92 },
-  { n: 4, url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5319660", domain: "pmc.ncbi.nlm.nih.gov", title: "CRISPR as a strong gene-editing tool", snippet: "A guide RNA identifies specific DNA strands and the Cas9 nuclease cleaves them, allowing precise genetic modification.", tier: 1, trust: 0.94 },
-  { n: 5, url: "https://www.synthego.com/learn/crispr", domain: "synthego.com", title: "What is CRISPR: Your Ultimate Guide", snippet: "Beyond editing, CRISPR powers rapid molecular diagnostics through techniques such as recombinase polymerase amplification.", tier: 2, trust: 0.68 },
+  { n: 1, url: "https://en.wikipedia.org/wiki/CRISPR", domain: "en.wikipedia.org", title: "CRISPR", snippet: "CRISPR-Cas9 uses a guide RNA to direct the Cas9 nuclease to a specific DNA sequence, where it cuts the strand to enable edits.", tier: 2, trust: 0.74, year: 2013 },
+  { n: 2, url: "https://innovativegenomics.org/what-is-crispr", domain: "innovativegenomics.org", title: "What is CRISPR?", snippet: "The system is derived from a bacterial immune defence that stores fragments of viral DNA to recognise and cut future invaders.", tier: 1, trust: 0.9, year: 2017 },
+  { n: 3, url: "https://www.broadinstitute.org/what-broad/areas-focus", domain: "broadinstitute.org", title: "Questions and Answers about CRISPR", snippet: "Spacer sequences guide the Cas9 enzyme to a target, where it binds and cuts, effectively shutting off the gene.", tier: 1, trust: 0.92, year: 2020 },
+  { n: 4, url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5319660", domain: "pmc.ncbi.nlm.nih.gov", title: "CRISPR as a strong gene-editing tool", snippet: "A guide RNA identifies specific DNA strands and the Cas9 nuclease cleaves them, allowing precise genetic modification.", tier: 1, trust: 0.94, year: 2023 },
+  { n: 5, url: "https://www.synthego.com/learn/crispr", domain: "synthego.com", title: "What is CRISPR: Your Ultimate Guide", snippet: "Beyond editing, CRISPR powers rapid molecular diagnostics through techniques such as recombinase polymerase amplification.", tier: 2, trust: 0.68, year: 2025 },
 ];
 const DEMO_TRAJ = ["Establish the anthropogenic signal across independent datasets", "Separate natural forcing from human contributions", "Audit regional attribution and its uncertainties", "Track source agreement and evidence freshness over time"];
 const DEMO_BOUND = ["Regional projections carry wider uncertainty than the global trend", "A minority of sources are older than five years", "Cloud-feedback sensitivity remains an open modelling question"];
@@ -159,6 +159,40 @@ const DEMO_TIMELINE = [
   { year: "1950", title: "Observed warming", conf: 45 }, { year: "2000", title: "Attribution evidence", conf: 72 },
   { year: "2026", title: "Current synthesis", conf: 92 },
 ];
+
+/* Build a topic-specific evidence timeline from the run's actual sources:
+   their publication years and trust scores. Each point = the cumulative,
+   trust-weighted share of this topic's evidence base available by that year.
+   Grounded and unique per run; returns [] when too few sources are dated
+   (so the section honestly disappears rather than inventing a narrative). */
+function buildEvidenceTimeline(ledger) {
+  const nowY = new Date().getFullYear() + 1;
+  const rows = (ledger || [])
+    .map((r) => ({ name: String(r.name || "").replace(/^www\./, ""), year: parseInt(r.fresh && r.fresh.year, 10), trust: Number(r.trust) || 0 }))
+    .filter((r) => r.year >= 1900 && r.year <= nowY);
+  if (rows.length < 3) return [];
+  rows.sort((a, b) => a.year - b.year);
+  const totalTrust = rows.reduce((s, r) => s + (r.trust || 0.5), 0) || rows.length;
+  const byYear = {};
+  rows.forEach((r) => { (byYear[r.year] = byYear[r.year] || []).push(r); });
+  const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+  let cum = 0;
+  let pts = years.map((y) => {
+    const grp = byYear[y];
+    cum += grp.reduce((s, r) => s + (r.trust || 0.5), 0);
+    const lead = grp.slice().sort((a, b) => b.trust - a.trust)[0];
+    const title = grp.length > 1 ? `${grp.length} sources` : (lead.name.length > 26 ? lead.name.slice(0, 24) + "…" : lead.name);
+    return { year: String(y), title, conf: Math.max(6, Math.min(99, Math.round((cum / totalTrust) * 100))) };
+  });
+  if (pts.length > 6) {
+    const keep = [pts[0]];
+    const step = (pts.length - 1) / 5;
+    for (let i = 1; i < 5; i++) keep.push(pts[Math.round(i * step)]);
+    keep.push(pts[pts.length - 1]);
+    pts = keep.filter((p, i, a) => i === 0 || p.year !== a[i - 1].year);
+  }
+  return pts;
+}
 const DEMO_KUU = {
   known: [{ text: "Anthropogenic CO₂ is the primary driver of recent warming", cites: ["2", "3"], pct: 94 }, { text: "Ocean heat content has risen sharply since 1970", cites: ["5"], pct: 88 }, { text: "Sea-level rise is accelerating, not linear", cites: ["4"], pct: 81 }],
   uncertain: [{ text: "Regional precipitation response differences", cites: ["8"], pct: 58 }, { text: "Cloud-feedback sensitivity in the tropics", cites: ["12"], pct: 42 }],
@@ -280,7 +314,10 @@ function deriveReport(p) {
       const snippet = stripEmoji(pick(sm.summary, sm.text, sm.snippet, s.snippet, "")).replace(/\s+/g, " ").slice(0, 300);
       const tier = tierFor(dm);
       const trust = s.trust_score != null ? Number(s.trust_score) : (sm.trust != null ? Number(sm.trust) : (tier === 1 ? 0.92 : tier === 2 ? 0.74 : 0.56));
-      cites.push({ n: i + 1, url, domain: dm, title, snippet, tier, trust });
+      const pub = String(pick(sm.published_date, s.published_date, sm.published, s.published, sm.date, s.date, "") || "");
+      const ym = pub.match(/(?:19|20)\d{2}/);
+      const year = ym ? parseInt(ym[0], 10) : null;
+      cites.push({ n: i + 1, url, domain: dm, title, snippet, tier, trust, year });
     }
   } else {
     cites = real ? [] : DEMO_CITES;
@@ -288,8 +325,15 @@ function deriveReport(p) {
   const citeMap = {};
   cites.forEach((c) => { citeMap[c.n] = c; });
 
+  const freshFor = (yr) => {
+    if (!yr) return { label: "UNDATED", tone: "warn", year: "" };
+    const age = new Date().getFullYear() - yr;
+    return age <= 2 ? { label: "CURRENT", tone: "pos", year: yr }
+      : age <= 6 ? { label: "RECENT", tone: "warn", year: yr }
+      : { label: "AGING", tone: "neg", year: yr };
+  };
   const ledger = cites.length
-    ? cites.slice(0, 8).map((c) => ({ name: c.domain || c.title, cite: String(c.n), url: c.url, trust: c.trust, tier: c.tier, fresh: { label: "UNDATED", tone: "warn", year: "" } }))
+    ? cites.slice(0, 8).map((c) => ({ name: c.domain || c.title, cite: String(c.n), url: c.url, trust: c.trust, tier: c.tier, fresh: freshFor(c.year) }))
     : (real ? [] : DEMO_LEDGER);
 
   const contradiction = pick(typeof report.contradiction_resolution === "string" ? report.contradiction_resolution : undefined,
@@ -321,7 +365,20 @@ function deriveReport(p) {
   const perspBalA = (DEMO_PERSPECTIVES.balance && DEMO_PERSPECTIVES.balance.a) || 54;
   const sensitivity = real ? null : { base: 50, flipAt: 72, leadA: perspBalA };
 
+  // ── real backend sections the report was not yet surfacing ──────────────
+  const asText = (v) => typeof v === "string" ? v : (Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : (x.text || x.point || ""))).filter(Boolean).join("\n\n") : "");
+  const divergence = pick(asText(report.divergence_map) || undefined,
+    real ? "" : "Sources diverge chiefly on the magnitude of regional effects and the weight given to near-term natural variability, not on the core attribution [3][4]. One dataset emphasises ocean-cycle contributions more heavily than the others, though it still affirms the dominant human driver.");
+  const insights = (listish(report.unique_insights).slice(0, 5).length ? listish(report.unique_insights).slice(0, 5)
+    : (real ? [] : [
+      "Only one source quantifies the ocean's share of absorbed excess heat since 1970, a figure absent from the others but material to the attribution [5].",
+      "A single high-trust dataset flags coarse regional resolution as the dominant uncertainty, an insight the consensus view understates [3].",
+    ]));
+  const sourceQuality = pick(asText(report.source_quality) || undefined,
+    real ? "" : "The evidence base is anchored by high-trust institutional sources, government and peer-reviewed, with strong recency and independent provenance [1][2]. No single outlet dominates the citation weight, which limits single-source bias; the main weakness is a spread of publication dates rather than any low-quality source.");
+
   return {
+    divergence, insights, sourceQuality,
     query: pick(p.query, report.query, "What actually causes climate change?"),
     date: fmtDate(new Date()), sources, model, conf, band, breakdown, breakdownReal, real, critic, findings, ledger,
     ci: real ? null : ci, takeaways, scenarios, scorecard, sensitivity,
@@ -335,7 +392,7 @@ function deriveReport(p) {
     analysisText: pick(cleanExec(answer), real ? "" : analysisFallback), coverage, landscape, contradiction,
     verdict: stripEmoji(findings[0] || (real ? "" : "The evidence points to a single clear primary conclusion for this query.")),
     chatAnswer: stripEmoji(pick(answer, real ? "" : analysisFallback)), sourceSummaries: Array.isArray(p.sourceSummaries) ? p.sourceSummaries : [],
-    timeline: real ? [] : DEMO_TIMELINE, kuu: real ? null : DEMO_KUU, perspectives: real ? null : DEMO_PERSPECTIVES, conditions: real ? [] : DEMO_CONDITIONS,
+    timeline: (buildEvidenceTimeline(ledger).length ? buildEvidenceTimeline(ledger) : (real ? [] : DEMO_TIMELINE)), kuu: real ? null : DEMO_KUU, perspectives: real ? null : DEMO_PERSPECTIVES, conditions: real ? [] : DEMO_CONDITIONS,
   };
 }
 
@@ -397,6 +454,34 @@ function sFindings(d) { if (!d.findings.length) return "";
     </li>`;
   }).join("");
   return `<section class="rp-sec rp-rev">${eye("04", "Key findings")}<p class="rp-sublede">The core claims this synthesis stands behind, each one traceable to its supporting evidence.</p><ol class="rp-findlist">${rows}</ol></section>`;
+}
+
+function sInsights(d) { if (!d.insights.length) return "";
+  const rows = d.insights.map((f, i) => {
+    const cites = String(f).match(/\[(\d+)\]/g) || [];
+    const clean = String(f).replace(/\s*\[\d+\]/g, "");
+    const meta = cites.length
+      ? `SINGLE-SOURCE · ${cites.map((c) => `<a class="rp-cite" onclick="event.stopPropagation();pnOpen(this.closest('[data-claim]'))">${c}</a>`).join(" ")}`
+      : "OUTLIER INSIGHT";
+    return `<li class="rp-find" role="button" tabindex="0" ${inspData(d, f, cites)} onclick="pnOpen(this)" onkeydown="if(event.key==='Enter')pnOpen(this)">
+      <span class="rp-num">${String(i + 1).padStart(2, "0")}</span>
+      <div class="rp-find-body"><p class="rp-find-t">${esc(clean)}</p><span class="rp-find-meta">${meta}</span></div>
+      <span class="rp-inspect">Inspect →</span>
+    </li>`;
+  }).join("");
+  return `<section class="rp-sec rp-rev">${eye("05", "Unique insights")}<p class="rp-sublede">Findings surfaced by only one source, kept visible rather than averaged away by the consensus.</p><ol class="rp-findlist">${rows}</ol></section>`;
+}
+
+function sDivergence(d) { if (!d.divergence) return "";
+  const paras = String(d.divergence).split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+  const body = (paras.length ? paras : [d.divergence]).map((p) => `<p>${cite(p)}</p>`).join("");
+  return `<section class="rp-sec rp-rev">${eye("06", "Where sources disagree")}<p class="rp-sublede">The points of genuine divergence across the evidence base, held apart from the consensus so the disagreement stays visible.</p><div class="rp-lede">${body}</div></section>`;
+}
+
+function sSourceQuality(d) { if (!d.sourceQuality) return "";
+  const paras = String(d.sourceQuality).split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+  const body = (paras.length ? paras : [d.sourceQuality]).map((p) => `<p>${cite(p)}</p>`).join("");
+  return `<section class="rp-sec rp-rev">${eye("07", "Source assessment")}<p class="rp-sublede">A qualitative read on how much weight the evidence base can bear, and where it is thinnest.</p><div class="rp-lede">${body}</div></section>`;
 }
 
 function sEvidence(d) { if (!d.ledger.length && !d.landscape.length) return "";
@@ -494,7 +579,8 @@ function sProvenance(d) { if (!d.telemetry.tokens && !d.timeline.length && !d.pr
   const pipe = ["Input", "Search", "Summarise", "Critic", "Evidence", "Synthesis", "Insights"].map((s, i, a) => `<span class="rp-step">${s}</span>${i < a.length - 1 ? '<span class="rp-steprule"></span>' : ""}`).join("");
   const prov = d.provenance.map((s) => `<div class="rp-provrow"><span>${esc(s.name)}</span><span class="rp-mono rp-dim">${s.tokens ? s.tokens.toLocaleString() + " tok" : ""}</span></div>`).join("");
   const cons = d.constellation.map((c) => `<li role="button" tabindex="0" onclick="pnOpen()"><span class="rp-num">${c.n}</span>${esc(c.t)}</li>`).join("");
-  const chartBlock = d.timeline.length ? `<div class="rp-subh" style="margin-top:34px">Confidence of the field over time</div>
+  const chartBlock = d.timeline.length ? `<div class="rp-subh" style="margin-top:34px">How the evidence base built up over time</div>
+    <p class="rp-cap" style="margin:-4px 0 10px;font-style:normal">Cumulative, trust-weighted share of this topic's cited sources by publication year.</p>
     <div id="rp-confchart" class="rp-chart-mount"></div>
     <div class="rp-tlmiles">${miles}</div>` : "";
   return `<section class="rp-sec rp-rev">${eye("15", "Provenance")}
@@ -651,7 +737,7 @@ function buildReport(d) {
   // real mode), then renumber the surviving numbered sections sequentially and
   // build the rail from what actually rendered, so there are never gaps.
   const raw = [
-    sMasthead(d), sTakeaways(d), sExec(d), sScenarios(d), sGlance(d), sFindings(d), sEvidence(d),
+    sMasthead(d), sTakeaways(d), sExec(d), sScenarios(d), sGlance(d), sFindings(d), sInsights(d), sDivergence(d), sEvidence(d), sSourceQuality(d),
     sScorecard(d), sConfidence(d), sSensitivity(d), sPerspectives(d), sDissent(d), sKUU(d),
     sAssumptions(d), sChange(d), sTrajectory(d), sProvenance(d), sAppendix(d), sMethodology(d), sChat(d),
   ].filter((h) => h && h.trim());
