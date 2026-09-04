@@ -111,7 +111,7 @@ function KeyGate({ onSubmit, error, checking }) {
           <button type="submit" disabled={checking || !val.trim()} style={{
             width: "100%", padding: "13px", borderRadius: 12, border: "none",
             background: checking || !val.trim() ? "rgba(168,85,247,0.3)" : `linear-gradient(135deg, ${C.purple}, #7c3aed)`,
-            color: "#fff", fontFamily: C.head, fontWeight: 800, fontSize: 14, cursor: checking || !val.trim() ? "default" : "pointer",
+            color: "var(--text)", fontFamily: C.head, fontWeight: 800, fontSize: 14, cursor: checking || !val.trim() ? "default" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}>
             {checking ? "Verifying…" : "Unlock console"}
@@ -351,7 +351,7 @@ export default function AdminDashboard({ onNavigate }) {
             <button key={k} onClick={() => setSortBy(k)} className="adm-chip" style={{
               background: sortBy === k ? `${C.purple}22` : C.surface2,
               borderColor: sortBy === k ? `${C.purple}66` : C.border2,
-              color: sortBy === k ? "#fff" : C.dim,
+              color: sortBy === k ? "var(--text)" : C.dim,
             }}>{lab}</button>
           ))}
         </div>
@@ -424,7 +424,7 @@ const styles = `
 .adm-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; cursor: pointer;
   background: ${C.surface2}; border: 1px solid ${C.border2}; color: ${C.dim};
   font-family: ${C.mono}; font-size: 12px; font-weight: 600; transition: all 0.2s; }
-.adm-btn:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.adm-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
 .adm-chip { padding: 8px 13px; border-radius: 9999px; cursor: pointer; border: 1px solid ${C.border2};
   font-family: ${C.mono}; font-size: 11px; font-weight: 600; transition: all 0.2s; }
 .adm-row { transition: background 0.18s; }

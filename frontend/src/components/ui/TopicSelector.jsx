@@ -12,7 +12,7 @@ import { TOPIC_CATEGORIES, topicByKey } from "../../data/topics";
 */
 
 const C = {
-  ink: "#0a0a1e", panel: "#0e1434", line: "rgba(200,216,234,0.12)", line2: "rgba(200,216,234,0.06)",
+  ink: "var(--bg)", panel: "#0e1434", line: "rgba(200,216,234,0.12)", line2: "rgba(200,216,234,0.06)",
   tx: "#c3d2e6", dim: "#6c7a97", hi: "#f2f6fb", acc: "#3ef07f",
   serif: "'Bricolage Grotesque','Sora',sans-serif", sans: "'Hanken Grotesk',sans-serif", mono: "'JetBrains Mono',monospace",
 };

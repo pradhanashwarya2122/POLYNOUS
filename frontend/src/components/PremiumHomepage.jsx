@@ -802,7 +802,7 @@ function UserProfileWidget() {
           {initials}
         </div>
         <span style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"13px",color:"rgba(200,215,225,0.75)",fontWeight:500}}>{user}</span>
-        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px",color:"rgba(255,255,255,0.25)"}}>expand_more</span>
+        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"14px",color: "var(--text-muted)"}}>expand_more</span>
       </div>
       <div className="user-dropdown">
         {items.map(item=>(
@@ -1053,7 +1053,7 @@ function MemoryTimeline() {
               </div>
 
               {/* Session index */}
-              <div style={{ position: "absolute", bottom: "16px", right: "16px", fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: "rgba(255,255,255,0.12)", letterSpacing: "0.06em" }}>#{String(i + 1).padStart(2, "0")}</div>
+              <div style={{ position: "absolute", bottom: "16px", right: "16px", fontFamily: "JetBrains Mono,monospace", fontSize: "9px", color: "var(--text-muted)", letterSpacing: "0.06em" }}>#{String(i + 1).padStart(2, "0")}</div>
             </div>
           );
         })}
@@ -1552,7 +1552,7 @@ function Header(){
           <UserProfileWidget/>
           <button
             onClick={()=>window.location.href="/auth"}
-            style={{padding:"7px 18px",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"9999px",background:"transparent",color:"rgba(255,255,255,0.45)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",fontWeight:500,cursor:"pointer",transition:"all 0.25s",letterSpacing:"0.01em"}}
+            style={{padding:"7px 18px",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"9999px",background:"transparent",color: "var(--text-secondary)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",fontWeight:500,cursor:"pointer",transition:"all 0.25s",letterSpacing:"0.01em"}}
             onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}}
             onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="rgba(255,255,255,0.45)";}}>
             Sign In
@@ -1597,7 +1597,7 @@ function HeroSection(){
       </div>
 
       <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"10px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
-        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:"rgba(255,255,255,0.18)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
+        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color: "var(--text-muted)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
         <input value={query} onChange={e=>setQuery(e.target.value)} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="What do you want to research?" style={{flex:1,height:"50px",padding:"0 8px",background:"transparent",border:"none",outline:"none",color:"#fff",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",fontWeight:400}}/>
         <button onClick={()=>go()} style={{height:"50px",padding:"0 26px",borderRadius:"9999px",border:"none",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,flexShrink:0,transition:"all 0.22s",letterSpacing:"0.04em",boxShadow:`0 0 20px rgba(0,255,15,0.3)`}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.5)`;}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.3)`;}}>Go →</button>
       </div>
@@ -1619,7 +1619,7 @@ function HeroSection(){
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.crimson,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.gold,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.green,opacity:0.7}}/>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous - neural-mesh</span>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color: "var(--text-muted)",marginLeft:"10px",lineHeight:"10px"}}>polynous - neural-mesh</span>
         </div>
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>uvicorn main:app --reload</div>
         <div style={{marginTop:"10px"}}>
@@ -1630,7 +1630,7 @@ function HeroSection(){
         </div>
       </div>
 
-      <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.15)",lineHeight:1.8,marginTop:"26px",letterSpacing:"0.09em"}}>
+      <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color: "var(--text-muted)",lineHeight:1.8,marginTop:"26px",letterSpacing:"0.09em"}}>
         7 specialized agents · Real-time web search · Cited & verified · Confidence scored · BYOK
       </p>
     </section>
@@ -1726,7 +1726,7 @@ function ApiSection(){
               <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.cyan}45,transparent)`}}/>
               <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px",borderBottom:"1px solid rgba(255,255,255,0.04)",paddingBottom:"12px"}}>
                 <span style={{fontFamily:"Material Symbols Outlined",color:C.green,fontSize:"17px"}}>settings_input_component</span>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:"rgba(255,255,255,0.5)"}}>mesh_config.yaml</span>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color: "var(--text-secondary)"}}>mesh_config.yaml</span>
               </div>
               <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2.2}}>
                 <p style={{color:C.cyan}}><ScrambledText inline radius={90} duration={1.1} speed={0.4} scrambleChars=".:*+=/" style={{color:C.cyan}}>agents:</ScrambledText></p>
@@ -2720,7 +2720,7 @@ function AgentPlayground(){
             {PLAYGROUND_AGENTS.map(agent=>{
               const isSel=selected===agent.id;
               return(
-                <button key={agent.id} className="agent-btn magic-bento-card--border-glow" onClick={()=>run(agent)} style={{"--glow-color":hexToRgb(agent.color),padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color:"rgba(255,255,255,0.06)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
+                <button key={agent.id} className="agent-btn magic-bento-card--border-glow" onClick={()=>run(agent)} style={{"--glow-color":hexToRgb(agent.color),padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color: "var(--text-muted)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
                   <div style={{fontFamily:"Material Symbols Outlined",fontSize:"21px",marginBottom:"6px",color:isSel?agent.color:"rgba(180,195,210,0.55)"}}>{agent.icon}</div>
                   <div style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11px",letterSpacing:"0.1em"}}>{agent.name}</div>
                   {isSel&&<div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8px",marginTop:"4px",opacity:0.55,color:agent.color}}>● ACTIVE</div>}
@@ -2736,20 +2736,20 @@ function AgentPlayground(){
                   <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(185,200,175,0.75)",lineHeight:1.65,margin:0}}>{active.desc}</p>
                 </div>
               ):(
-                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)",lineHeight:1.7,margin:0}}>← Select an agent to see its role briefing and watch it run.</p>
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color: "var(--text-muted)",lineHeight:1.7,margin:0}}>← Select an agent to see its role briefing and watch it run.</p>
               )}
             </div>
             <div ref={logRef} style={{flex:1,minHeight:"200px",maxHeight:"200px",overflowY:"auto",background:"#05050f",padding:"16px 20px",fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2,scrollbarWidth:"thin",scrollbarColor:"rgba(0,255,15,0.1) transparent"}}>
-              {log.length===0&&<span style={{color:"rgba(255,255,255,0.12)"}}>_</span>}
+              {log.length===0&&<span style={{color: "var(--text-muted)"}}>_</span>}
               {log.map((e,i)=>(
                 <div key={i} style={{animation:"fadeUp 0.28s ease",color:e.color,display:"flex",gap:"10px",alignItems:"baseline"}}>
-                  <span style={{color:"rgba(255,255,255,0.15)",fontSize:"10px",minWidth:"18px"}}>{i+1}</span>
+                  <span style={{color: "var(--text-muted)",fontSize:"10px",minWidth:"18px"}}>{i+1}</span>
                   <span>{(i===log.length-1&&running)?<TypedLine text={e.text}/>:e.text}</span>
                 </div>
               ))}
               {running&&(
                 <div style={{display:"flex",alignItems:"center",gap:"5px",marginTop:"4px"}}>
-                  <span style={{color:"rgba(255,255,255,0.15)",fontSize:"10px"}}>{log.length+1}</span>
+                  <span style={{color: "var(--text-muted)",fontSize:"10px"}}>{log.length+1}</span>
                   {[0,1,2].map(i=><div key={i} style={{width:"4px",height:"4px",borderRadius:"50%",background:active?.color||C.green,animation:`pulse 1.1s ${i*0.18}s ease-in-out infinite`}}/>)}
                 </div>
               )}
@@ -2757,11 +2757,11 @@ function AgentPlayground(){
             <div style={{padding:"12px 18px",background:"rgba(5,5,15,0.96)",borderTop:"1px solid rgba(255,255,255,0.03)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px"}}>
               <div style={{display:"flex",alignItems:"center",gap:"7px"}}>
                 <div style={{width:"5px",height:"5px",borderRadius:"50%",background:running?C.amber:done?C.green:"rgba(255,255,255,0.12)",animation:running?"pulse 0.8s ease-in-out infinite":"none",transition:"background 0.3s"}}/>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.28)"}}>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color: "var(--text-muted)"}}>
                   {running?`${active?.name} processing…`:done?`${active?.name} complete ✓`:"Awaiting selection"}
                 </span>
               </div>
-              {(selected||log.length>0)&&<button onClick={reset} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"7px",padding:"4px 12px",color:"rgba(255,255,255,0.28)",fontFamily:"JetBrains Mono,monospace",fontSize:"10px",cursor:"pointer",transition:"all 0.2s"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.2)";e.currentTarget.style.color="#fff";}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.07)";e.currentTarget.style.color="rgba(255,255,255,0.28)";}}>reset</button>}
+              {(selected||log.length>0)&&<button onClick={reset} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"7px",padding:"4px 12px",color: "var(--text-muted)",fontFamily:"JetBrains Mono,monospace",fontSize:"10px",cursor:"pointer",transition:"all 0.2s"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.2)";e.currentTarget.style.color="#fff";}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.07)";e.currentTarget.style.color="rgba(255,255,255,0.28)";}}>reset</button>}
             </div>
           </div>
         </div>

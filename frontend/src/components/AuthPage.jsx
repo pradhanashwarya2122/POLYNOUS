@@ -8,12 +8,12 @@ import OnboardingOverlay from './OnboardingOverlay'
 const C = {
   green:   "#00ff0f",
   cyan:    "#00ccff",
-  void:    "#0a0a1e",
-  surface: "#111125",
+  void:    "var(--bg)",
+  surface: "var(--surface)",
   surfaceContainerLowest: "#0c0c20",
-  surfaceContainer: "#1e1e32",
-  onSurface: "#e2e0fc",
-  onSurfaceVariant: "#b9ccb0",
+  surfaceContainer: "var(--surface-2)",
+  onSurface: "var(--text)",
+  onSurfaceVariant: "var(--text-secondary)",
   white10: "rgba(255,255,255,0.1)",
   white5:  "rgba(255,255,255,0.05)",
 };
@@ -27,8 +27,8 @@ function GlobalStyles() {
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
       body {
-        background: #0a0a1e;
-        color: #e2e0fc;
+        background: var(--bg);
+        color: var(--text);
         font-family: 'Hanken Grotesk', sans-serif;
         min-height: 100vh;
         /* allow the taller sign-up form to scroll instead of clipping;
@@ -245,7 +245,7 @@ function NeuralInput({ type, placeholder, icon, label, value, onChange }) {
             border: `1px solid ${focused ? C.cyan : C.white10}`,
             borderRadius: 9999,
             padding: isPassword ? "12px 52px 12px 48px" : "12px 24px 12px 48px",
-            color: "#fff",
+            color: "var(--text)",
             fontFamily: "'Hanken Grotesk', sans-serif",
             fontSize: 16,
             outline: "none",
@@ -295,7 +295,7 @@ function OAuthButton({ label, children, onClick }) {
       {children}
       <span style={{
         fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 13, color: "#fff",
+        fontSize: 13, color: "var(--text)",
       }}>
         {label}
       </span>
@@ -568,14 +568,14 @@ function LoginCard({ onLogin, oauthError }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <OAuthButton label="Google" onClick={() => handleOAuth("google")}>
             <svg width="20" height="20" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff" />
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff" />
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#fff" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff" />
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="var(--text)" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="var(--text)" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="var(--text)" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="var(--text)" />
             </svg>
           </OAuthButton>
           <OAuthButton label="GitHub" onClick={() => handleOAuth("github")}>
-            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style={{ color: "#fff" }}>
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style={{ color: "var(--text)" }}>
               <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.042-1.416-4.042-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22v3.293c0 .319.192.694.805.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
             </svg>
           </OAuthButton>

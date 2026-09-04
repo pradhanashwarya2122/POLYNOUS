@@ -417,7 +417,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
               width: 30,
               height: 30,
               borderRadius: "50%",
-              background: "#1e1e32",
+              background: "var(--surface-2)",
               border: "1px solid rgba(255,140,0,0.3)",
               display: "flex",
               alignItems: "center",
@@ -499,7 +499,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
             padding: 4,
             marginLeft: 8,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
           onMouseLeave={(e) => (e.currentTarget.style.color = C.textMuted)}
         >
           <Icon name="chevron_left" style={{ fontSize: 20 }} />
@@ -607,7 +607,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
               width: 40,
               height: 40,
               borderRadius: "50%",
-              background: "#1e1e32",
+              background: "var(--surface-2)",
               border: "1px solid rgba(255,140,0,0.3)",
               display: "flex",
               alignItems: "center",
@@ -623,7 +623,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
                 fontFamily: "'JetBrains Mono',monospace",
                 fontSize: 13,
                 fontWeight: 700,
-                color: "#fff",
+                color: "var(--text)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -672,7 +672,7 @@ function MetricCard({ value, label, sub, icon, delay = 0 }) {
         <Icon name={icon} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)",
                                     fontSize:11, color: C.orange, opacity:0.45 }} />
       )}
-      <div style={{ fontFamily: C.fontDisplay, fontSize:52, fontWeight:700, color:"#fff", lineHeight:1 }}>
+      <div style={{ fontFamily: C.fontDisplay, fontSize:52, fontWeight:700, color:"var(--text)", lineHeight:1 }}>
         {value}
       </div>
       <div style={{ fontFamily: C.fontMono, fontSize:10, color: C.textMuted,
@@ -1055,7 +1055,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
 
           {/* ── TABS ── */}
           <div className="reveal card-clip"
-            style={{ display:"inline-flex", border:`1px solid #222244`,
+            style={{ display:"inline-flex", border:`1px solid var(--surface-2)`,
                      borderRadius:6, overflow:"hidden", marginBottom:28, padding:2 }}>
             {TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
@@ -1063,9 +1063,9 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                   padding:"8px 28px", border:"none", cursor:"pointer",
                   fontFamily: C.fontMono, fontSize:11, textTransform:"uppercase", letterSpacing:"0.08em",
                   background: activeTab === tab ? C.orangeDark : "transparent",
-                  color:      activeTab === tab ? "#fff"       : C.textMuted,
+                  color:      activeTab === tab ? "var(--text)"       : C.textMuted,
                   boxShadow:  activeTab === tab ? "inset 0 0 10px rgba(255,140,0,0.15)" : "none",
-                  borderLeft: tab !== TABS[0] ? `1px solid #222244` : "none",
+                  borderLeft: tab !== TABS[0] ? `1px solid var(--surface-2)` : "none",
                   transition:"all 0.2s",
                 }}
               >
@@ -1077,20 +1077,20 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
           {/* ── ACTIVITY FEED / TIMELINE ── */}
           {(activeTab === "All Activity" || activeTab === "Research") && (
             <section style={{ marginBottom:44 }}>
-              <div style={{ border:`1px solid #222244`, borderRadius:8,
+              <div style={{ border:`1px solid var(--surface-2)`, borderRadius:8,
                             background: C.void, overflow:"hidden" }}>
                 {Object.entries(filteredGrouped()).length > 0 ? (
                   Object.entries(filteredGrouped()).map(([date, items], gi) => (
                     <div key={date}>
                       <div style={{ display:"flex", alignItems:"center", gap:14,
-                                    padding:"12px 20px", borderBottom:`1px solid #222244`,
+                                    padding:"12px 20px", borderBottom:`1px solid var(--surface-2)`,
                                     background:"rgba(18,18,43,0.6)" }}>
-                        <div style={{ flex:1, borderTop:`1px solid #222244` }} />
+                        <div style={{ flex:1, borderTop:`1px solid var(--surface-2)` }} />
                         <span style={{ fontFamily: C.fontMono, fontSize:10,
                                        color: C.textMuted, whiteSpace:"nowrap" }}>
                           {date}
                         </span>
-                        <div style={{ flex:1, borderTop:`1px solid #222244` }} />
+                        <div style={{ flex:1, borderTop:`1px solid var(--surface-2)` }} />
                       </div>
                       {items.map((item, i) => {
                         const isDebate    = item.kind === "debate";
@@ -1106,7 +1106,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                             onClick={() => handleTopicClick(item.query, item.mode || "research")}
                             style={{
                               padding:"20px 24px",
-                              borderBottom: isLast ? "none" : `1px solid #222244`,
+                              borderBottom: isLast ? "none" : `1px solid var(--surface-2)`,
                               display:"flex", alignItems:"center", justifyContent:"space-between",
                               cursor:"pointer", transition:"background 0.2s",
                               animationDelay:`${i * 60}ms`,
@@ -1120,7 +1120,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                                             }} />
                               <div>
                                 <h4 style={{ fontFamily: C.fontBody, fontSize:14, fontWeight:600,
-                                             color:"#fff", marginBottom:10 }}>
+                                             color:"var(--text)", marginBottom:10 }}>
                                   {item.query}
                                 </h4>
                                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -1193,7 +1193,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                     onMouseLeave={e => e.currentTarget.style.background = C.surface}
                   >
                     <h4 style={{ fontFamily: C.fontBody, fontSize:15, fontWeight:600,
-                                 color:"#fff", marginBottom:14 }}>
+                                 color:"var(--text)", marginBottom:14 }}>
                       {d.topic}
                     </h4>
                     <div style={{ display:"flex", gap:16, marginBottom:10 }}>
@@ -1242,7 +1242,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
           <section className="reveal" style={{ paddingBottom:40 }}>
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:24 }}>
               <h3 style={{ fontFamily: C.fontDisplay, fontSize:26, fontWeight:600,
-                           color:"#fff", textTransform:"uppercase", letterSpacing:"0.06em", margin:0 }}>
+                           color:"var(--text)", textTransform:"uppercase", letterSpacing:"0.06em", margin:0 }}>
                 Suggested Synaptic Paths
               </h3>
               <Icon name="auto_awesome" style={{ color: C.gold, fontSize:20 }} />
@@ -1271,7 +1271,7 @@ export default function MemoryBank({ user, onNavigate, onLogout }) {
                     </span>
                   </div>
                   <h4 style={{ fontFamily: C.fontBody, fontSize:14, fontWeight:600,
-                               color:"#fff", margin:"0 0 4px" }}>
+                               color:"var(--text)", margin:"0 0 4px" }}>
                     {s.topic}
                   </h4>
                   <p style={{ fontFamily: C.fontBody, fontSize:12, color: C.textMuted, margin:0 }}>

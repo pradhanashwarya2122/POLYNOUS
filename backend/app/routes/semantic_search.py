@@ -69,6 +69,41 @@ async def search_memories(
     }
 
 
+@router.get("/synthesize")
+async def synthesize(
+    request: Request,
+    query: str = Query(..., description="Query to answer from the user's own research"),
+    db: Session = Depends(get_db),
+):
+    """Phase 2: a GROUNDED synthesis answering the query strictly from the user's
+    own top results, with [n] citations to their past research entries."""
+    if not is_safe_input(query):
+        raise HTTPException(status_code=400, detail="Invalid search query")
+    query = sanitize_search_query(query)
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    from app.services.search_intel import synthesize_answer
+    user = _resolve_user(request, db)
+    try:
+        return synthesize_answer(user, query, user_id=get_user_id(request))
+    except Exception as e:
+        print(f"synthesize error: {e}")
+        return {"query": query, "synthesis": "", "grounded": False, "citations": [], "results": []}
+
+
+@router.get("/gaps")
+async def gaps(request: Request, db: Session = Depends(get_db)):
+    """Phase 2: gaps in the user's research — unexplored connections between their
+    topic clusters and under-explored sub-questions, each with a suggested query."""
+    from app.services.search_intel import detect_gaps
+    user = _resolve_user(request, db)
+    try:
+        return detect_gaps(user, user_id=get_user_id(request))
+    except Exception as e:
+        print(f"gaps error: {e}")
+        return {"gaps": [], "clusters": [], "count": 0}
+
+
 @router.get("/map")
 async def semantic_map(request: Request, db: Session = Depends(get_db)):
     """Phase E: 2D semantic map of the user's research (PCA projection +

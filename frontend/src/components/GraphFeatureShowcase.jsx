@@ -302,13 +302,13 @@ export default function GraphFeatureShowcase() {
             background: "rgba(10,8,20,0.88)", border: "1px solid rgba(255,255,255,0.07)",
             borderRadius: 12, padding: "12px 16px", backdropFilter: "blur(12px)",
           }}>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
               Sample Nodes
             </div>
             {["claim", "evidence", "argument", "topic", "concept", "entity", "core"].map(type => (
               <div key={type} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: (NODE_COLORS[type] || NODE_COLORS.default).fill, boxShadow: `0 0 6px ${(NODE_COLORS[type] || NODE_COLORS.default).glow}`, flexShrink: 0 }} />
-                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontFamily: "'JetBrains Mono',monospace", textTransform: "uppercase" }}>{type}</span>
+                <span style={{ fontSize: 9, color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace", textTransform: "uppercase" }}>{type}</span>
               </div>
             ))}
           </div>

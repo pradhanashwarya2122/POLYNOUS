@@ -14,10 +14,10 @@ function Icon({ name, style }) {
 
 const C = {
   purple: "#a855f7",
-  void: "#0a0a1e",
-  surfaceContainer: "#1e1e32",
-  onSurfaceVariant: "#b9ccb0",
-  textSecondary: "#8899aa",
+  void: "var(--bg)",
+  surfaceContainer: "var(--surface-2)",
+  onSurfaceVariant: "var(--text-secondary)",
+  textSecondary: "var(--text-muted)",
   white10: "rgba(255,255,255,0.1)",
   white5: "rgba(255,255,255,0.05)",
 };
@@ -163,7 +163,7 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
             background: "none", border: "none", color: C.textSecondary,
             cursor: "pointer", padding: 4, marginLeft: 8,
           }}
-          onMouseEnter={e => e.currentTarget.style.color = "#fff"}
+          onMouseEnter={e => e.currentTarget.style.color = "var(--text)"}
           onMouseLeave={e => e.currentTarget.style.color = C.textSecondary}
         >
           <Icon name="chevron_left" style={{ fontSize: 20 }} />
@@ -236,7 +236,7 @@ export default function Sidebar({ onNavigate, user, onLogout, collapsed, setColl
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{
               fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700,
-              color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
               {user?.username || "Guest"}
             </p>

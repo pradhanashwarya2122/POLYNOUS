@@ -18,9 +18,9 @@ const SETTINGS_RAIL = [
 // DESIGN TOKENS
 // ─────────────────────────────────────────────────────────────────────────────
 const C = {
-  silver:           "#c8cdd6",
+  silver:           "var(--text-secondary)",
   silverBright:     "#e8ecf2",
-  silverDim:        "#8e98a8",
+  silverDim:        "var(--text-muted)",
   silverFaint:      "rgba(200,205,214,0.07)",
   silverBorder:     "rgba(200,205,214,0.18)",
   silverFocus:      "rgba(200,205,214,0.38)",
@@ -35,14 +35,14 @@ const C = {
   green:            "#5ec97e",
   greenFaint:       "rgba(94,201,126,0.09)",
 
-  void:             "#0a0a1e",
+  void:             "var(--bg)",
   surface:          "rgba(38,38,52,0.90)",
   surfaceHigh:      "rgba(52,52,68,0.92)",
   inputBg:          "#0d0d22",
 
   onSurface:        "#dde1e9",
-  onSurfaceVariant: "#8e98a8",
-  textSecondary:    "#525c6e",
+  onSurfaceVariant: "var(--text-muted)",
+  textSecondary:    "var(--text-dim)",
 
   white10:          "rgba(255,255,255,0.08)",
   white5:           "rgba(255,255,255,0.04)",
@@ -134,7 +134,7 @@ function Styles() {
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html { font-size: 16px; }
       body {
-        background: #0a0a1e;
+        background: var(--bg);
         color: #dde1e9;
         font-family: 'Hanken Grotesk', sans-serif;
         overflow-x: hidden;
@@ -178,7 +178,7 @@ function Styles() {
       input[type=range]::-webkit-slider-thumb {
         -webkit-appearance: none;
         width: 16px; height: 16px; border-radius: 50%;
-        background: #c8cdd6; cursor: pointer;
+        background: var(--text-secondary); cursor: pointer;
         box-shadow: 0 0 6px rgba(200,205,214,0.5);
       }
       select {
@@ -188,7 +188,7 @@ function Styles() {
         background-position: right 0.85rem center;
         cursor: pointer;
       }
-      select option { background: #0a0a1e; color: #dde1e9; }
+      select option { background: var(--bg); color: #dde1e9; }
 
       .poly-btn-base {
         transition: background 0.18s, border-color 0.18s, color 0.18s, opacity 0.18s;
@@ -505,7 +505,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona 
             padding: 4,
             marginLeft: 8,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
           onMouseLeave={(e) => (e.currentTarget.style.color = C.textSecondary)}
         >
           <Icon name="chevron_left" style={{ fontSize: 20 }} />
@@ -644,7 +644,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed, persona 
                 fontFamily: "'JetBrains Mono',monospace",
                 fontSize: 13,
                 fontWeight: 700,
-                color: "#fff",
+                color: "var(--text)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -778,7 +778,7 @@ function ConfirmModal({ open, onClose, onConfirm, title, body, confirmLabel = "C
         <button onClick={onConfirm} disabled={loading} style={{
           padding: "9px 22px", borderRadius: 9999, border: "none",
           background: danger ? C.crimson : C.silver,
-          color: danger ? "#fff" : C.void,
+          color: danger ? "var(--text)" : C.void,
           cursor: loading ? "wait" : "pointer",
           fontFamily: C.fontHead, fontSize: 14, fontWeight: 700,
           opacity: loading ? 0.65 : 1, transition: "opacity 0.18s",
@@ -894,14 +894,14 @@ function Toggle({ on, onToggle, disabled }) {
 function Spinner({ size = 32 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "32px 0" }}>
-      <div style={{ width: size, height: size, border: "2px solid rgba(200,205,214,0.15)", borderTop: "2px solid #c8cdd6", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
+      <div style={{ width: size, height: size, border: "2px solid rgba(200,205,214,0.15)", borderTop: "2px solid var(--text-secondary)", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
       <span style={{ fontFamily: C.fontMono, fontSize: 12, color: C.textSecondary, letterSpacing: "0.08em" }}>Loading…</span>
     </div>
   );
 }
 
 function InlineSpinner() {
-  return <span style={{ display: "inline-block", width: 14, height: 14, border: "1.5px solid rgba(200,205,214,0.25)", borderTop: "1.5px solid #c8cdd6", borderRadius: "50%", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 6 }} />;
+  return <span style={{ display: "inline-block", width: 14, height: 14, border: "1.5px solid rgba(200,205,214,0.25)", borderTop: "1.5px solid var(--text-secondary)", borderRadius: "50%", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 6 }} />;
 }
 
 function ErrorBanner({ msg, onRetry }) {
@@ -1234,7 +1234,7 @@ function ProfileSection({ user: initialUser, push, activePersona, onPersonaChang
                 width: 64, height: 64, borderRadius: "50%",
                 background: currentPersona
                   ? currentPersona.gradient
-                  : "conic-gradient(from 200deg, #5a6272, #8e98a8, #c8cdd6, #e2e6ed, #c8cdd6, #8e98a8)",
+                  : "conic-gradient(from 200deg, #5a6272, var(--text-muted), var(--text-secondary), #e2e6ed, var(--text-secondary), var(--text-muted))",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontFamily: C.fontDisplay, fontWeight: 800, fontSize: 20,
                 color: currentPersona ? currentPersona.color : C.void,
@@ -1512,7 +1512,7 @@ function KeyCard({ providerId, connected, preview, savedModel, onSave, onRemove,
             onChange={e => setModel(e.target.value)}
             style={{ ...inputStyle, cursor: "pointer" }}
           >
-            {p.models.map(m => <option key={m} value={m} style={{ background: "#1e1e32" }}>{m}</option>)}
+            {p.models.map(m => <option key={m} value={m} style={{ background: "var(--surface-2)" }}>{m}</option>)}
           </select>
           <div style={{ fontSize: 10.5, color: C.textSecondary, fontFamily: C.fontMono, marginTop: 5 }}>
             Used by every agent when {p.label.split(" ")[0]} is your preferred provider · saved with the key
@@ -1672,7 +1672,7 @@ function ApiKeysSection({ push }) {
               🎁 Claim your free {freeStatus?.offer_provider_label || "Gemini"} trial key
             </div>
             <div style={{ fontFamily: C.fontBody, fontSize: 12.5, color: C.onSurfaceVariant, lineHeight: 1.55, maxWidth: 480 }}>
-              New here? Get a free {freeStatus?.offer_provider_label || "Gemini"} trial key and see POLYNOUS work instantly, no card, no setup. It's a <strong style={{ color: "#fff" }}>time-limited trial, capped at {freeStatus?.daily_cap || 3} research or debate runs per day</strong>; for unlimited use and stronger results, add your own Claude / GPT / Gemini key anytime.
+              New here? Get a free {freeStatus?.offer_provider_label || "Gemini"} trial key and see POLYNOUS work instantly, no card, no setup. It's a <strong style={{ color: "var(--text)" }}>time-limited trial, capped at {freeStatus?.daily_cap || 3} research or debate runs per day</strong>; for unlimited use and stronger results, add your own Claude / GPT / Gemini key anytime.
             </div>
           </div>
           <button onClick={claimFree} disabled={claiming} style={{
@@ -1698,9 +1698,9 @@ function ApiKeysSection({ push }) {
             border: `1px solid ${accent}38`, boxShadow: `0 20px 50px -30px ${accent}55` }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: t.runs_cap ? 12 : 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 20, color: accent }}>{t.expired ? "hourglass_disabled" : "hourglass_top"}</span>
-                <h3 style={{ fontFamily: bric, fontWeight: 700, fontSize: 16, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>
-                  {t.expired ? "Free trial ended" : "Free trial active"}
+                <span className="material-symbols-outlined" style={{ fontSize: 20, color: accent }}>{t.expired ? "hourglass_disabled" : "check_circle"}</span>
+                <h3 style={{ fontFamily: bric, fontWeight: 700, fontSize: 16, color: "var(--text)", margin: 0, letterSpacing: "-0.01em" }}>
+                  {t.expired ? "Free key ended" : `Free ${freeStatus?.claimed_provider_label || "Gemini"} key active`}
                 </h3>
                 <span style={{ fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 9999, padding: "3px 9px" }}>
                   {(freeStatus?.claimed_provider_label || t.provider || "Gemini").toUpperCase()}{t.model ? ` · ${t.model}` : ""}
@@ -1721,13 +1721,13 @@ function ApiKeysSection({ push }) {
             ) : null}
             {!t.expired && (
               <div style={{ fontFamily: C.fontMono, fontSize: 10.5, letterSpacing: "0.04em", color: C.textSecondary, marginBottom: 10 }}>
-                Expires after <strong style={{ color: "#fff" }}>{t.runs_cap || 15} queries</strong> or <strong style={{ color: "#fff" }}>{t.days || 7} days</strong>, whichever comes first.
+                Expires after <strong style={{ color: "var(--text)" }}>{t.runs_cap || 15} queries</strong> or <strong style={{ color: "var(--text)" }}>{t.days || 7} days</strong>, whichever comes first.
               </div>
             )}
             <p style={{ fontFamily: C.fontBody, fontSize: 12.5, lineHeight: 1.6, color: C.onSurfaceVariant, margin: 0 }}>
               {t.expired
                 ? "Your trial is over. Add your own API key below to keep researching, it takes under a minute."
-                : (<>This is a <strong style={{ color: "#fff" }}>lightweight trial model</strong> for exploring POLYNOUS. Stronger providers (<strong style={{ color: "#fff" }}>Claude, GPT, Gemini</strong>) give noticeably better, more reliable results. Add your own key anytime below.</>)}
+                : (<>This is a <strong style={{ color: "var(--text)" }}>lightweight trial model</strong> for exploring POLYNOUS. Stronger providers (<strong style={{ color: "var(--text)" }}>Claude, GPT, Gemini</strong>) give noticeably better, more reliable results. Add your own key anytime below.</>)}
             </p>
           </div>
         );
@@ -1751,7 +1751,7 @@ function ApiKeysSection({ push }) {
               }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: curCol }}>{cur?.icon || "smart_toy"}</span>
-                  <span style={{ fontFamily: C.fontHead, fontWeight: 700, fontSize: 14, color: "#fff" }}>{cur?.label || preferred}</span>
+                  <span style={{ fontFamily: C.fontHead, fontWeight: 700, fontSize: 14, color: "var(--text)" }}>{cur?.label || preferred}</span>
                   {savingPref && <InlineSpinner />}
                 </span>
                 <span className="material-symbols-outlined" style={{ fontSize: 20, color: C.onSurfaceVariant, transform: prefOpen ? "rotate(180deg)" : "none", transition: "transform 0.3s cubic-bezier(0.23,1,0.32,1)" }}>expand_more</span>
@@ -1781,7 +1781,7 @@ function ApiKeysSection({ push }) {
                       }}>
                         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span className="material-symbols-outlined" style={{ fontSize: 17, color: p.color }}>{p.icon}</span>
-                          <span style={{ fontFamily: C.fontHead, fontWeight: 600, fontSize: 13.5, color: "#fff" }}>{p.label}</span>
+                          <span style={{ fontFamily: C.fontHead, fontWeight: 600, fontSize: 13.5, color: "var(--text)" }}>{p.label}</span>
                         </span>
                         {active && <span className="material-symbols-outlined" style={{ fontSize: 16, color: p.color }}>check_circle</span>}
                       </div>
@@ -2051,7 +2051,7 @@ function PreferencesSection({ push }) {
 
 const INTEGRATION_DEFS = [
   { id: "google", monogram: "G",  monogramColor: "#4285F4", label: "Google OAuth",  sub: "Drive, Docs, Calendar"   },
-  { id: "github", monogram: "GH", monogramColor: "#8e98a8", label: "GitHub",        sub: "Repos, Issues, Actions"  },
+  { id: "github", monogram: "GH", monogramColor: "var(--text-muted)", label: "GitHub",        sub: "Repos, Issues, Actions"  },
   { id: "notion", monogram: "N",  monogramColor: "#e05068", label: "Notion",        sub: "Pages, Databases"        },
 ];
 
@@ -2514,7 +2514,7 @@ function AdminSection({ push }) {
           <tbody>
             {users.map((u) => (
               <tr key={u.public_id} style={{ borderTop: `1px solid ${C.white10}`, color: "#cfe" }}>
-                <td style={{ padding: "8px 10px", color: "#fff", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>
+                <td style={{ padding: "8px 10px", color: "var(--text)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {u.email}{!u.is_active && <span style={{ color: C.crimson, marginLeft: 6 }}>(inactive)</span>}
                 </td>
                 <td style={{ padding: "8px 10px", color: C.textSecondary }}>{u.tier}</td>
@@ -2551,7 +2551,7 @@ export default function SettingsPage({ user, onNavigate, onLogout }) {
   const personaObj = PERSONAS.find(p => p.id === activePersona) || null;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a1e", color: C.onSurface, fontFamily: C.fontBody, overflowX: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: C.onSurface, fontFamily: C.fontBody, overflowX: "hidden" }}>
       <Styles />
       <NeuralCanvas />
       <Sidebar onNavigate={onNavigate} user={user} onLogout={onLogout} collapsed={collapsed} setCollapsed={setCollapsed} persona={personaObj} />
@@ -2571,7 +2571,7 @@ export default function SettingsPage({ user, onNavigate, onLogout }) {
             fontSize: "clamp(3.4rem,7.5vw,6rem)",
             fontWeight: 400, textTransform: "uppercase",
             letterSpacing: "0.02em", lineHeight: 0.95, margin: 0,
-            background: "linear-gradient(180deg, #ffffff 0%, #e8ecf2 35%, #aab1bd 75%, #6f7787 100%)",
+            background: "linear-gradient(180deg, var(--text) 0%, #e8ecf2 35%, #aab1bd 75%, #6f7787 100%)",
             WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
             animation: "settingsGlow 3.5s ease-in-out infinite",
           }}>

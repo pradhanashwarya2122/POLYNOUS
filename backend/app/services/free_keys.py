@@ -103,3 +103,56 @@ def pick_unclaimed(claimed_fingerprints: set[str]) -> Optional[dict]:
         if e["fp"] not in claimed_fingerprints:
             return e
     return None
+
+
+def provision_free_key(user, db) -> Optional[dict]:
+    """Auto-claim ONE pooled free key for a user who has no key of their own, so
+    a brand-new user gets instant access instead of a 'add your key' error. Same
+    effect as POST /free-key/claim, but silent and idempotent-ish.
+
+    Returns {'provider', 'key'} (decrypted, ready to use) or None when: the user
+    already has any LLM key, their trial already ended, no pool is configured,
+    the pool is exhausted, or anything fails. Best-effort — never raises.
+    """
+    try:
+        from app.models import FreeKeyClaim
+        from app.utils.encryption import encrypt_api_key
+        from app.services import trial as trial_svc
+        from app.llm_providers import DEFAULT_MODELS, LLM_PROVIDERS
+
+        # 1) Already has their own (or a previously-claimed) key → nothing to do.
+        for p in LLM_PROVIDERS:
+            if getattr(user, f"{p}_api_key", None):
+                return None
+
+        # 2) A user whose trial ran out shouldn't be re-provisioned automatically.
+        st = trial_svc.state(user, db)
+        if st.get("active") and st.get("expired"):
+            return None
+
+        # 3) The free key is SHARED across all users (rate-limited per user), so a
+        #    key already claimed by OTHER users must NOT be excluded — only skip a
+        #    key THIS user has already claimed. Pick the first the user lacks.
+        user_fps = {c.key_fingerprint for c in
+                    db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).all()}
+        entry = next((e for e in _load_pool() if e["fp"] not in user_fps), None)
+        if not entry:
+            return None
+
+        provider, key, fp = entry["provider"], entry["key"], entry["fp"]
+        enc = encrypt_api_key(key, user.encryption_key)
+        if not enc:
+            return None
+
+        setattr(user, f"{provider}_api_key", enc)
+        user.preferred_provider = provider
+        db.add(FreeKeyClaim(user_id=user.public_id, key_fingerprint=fp, provider=provider))
+        trial_svc.mark_claimed(user, provider, DEFAULT_MODELS.get(provider))
+        db.commit()
+        return {"provider": provider, "key": key}
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None

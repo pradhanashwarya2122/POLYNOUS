@@ -1,0 +1,85 @@
+/* ============================================================================
+   POLYNOUS theme tokens — light + dark, SCOPED so any element can pin a theme.
+   Tokens live on both :root and [data-theme] attribute selectors, so wrapping a
+   subtree in <div data-theme="dark"> forces dark locally (used to keep the
+   dark-designed marketing pages dark even when the app is in light mode).
+   Dark is the default. WCAG AA in both modes.
+   ============================================================================ */
+:root, [data-theme="dark"] {
+  --bg: #0a0a1e;
+  --surface: #111125;
+  --surface-2: #1e1e32;
+  --surface-3: #262640;
+  --overlay: rgba(255, 255, 255, 0.05);
+  --overlay-2: rgba(255, 255, 255, 0.10);
+
+  --border: rgba(255, 255, 255, 0.10);
+  --border-soft: rgba(255, 255, 255, 0.05);
+
+  --text: #e2e0fc;
+  --text-secondary: #b9ccb0;
+  --text-muted: #8899aa;
+  --text-dim: #525c6e;
+
+  --accent: #ff2040;
+  --accent-ink: #ff2040;
+  --accent-soft: rgba(255, 32, 64, 0.12);
+  --green: #00e64d;
+  --green-fill: #00e64d;
+  --green-alt: #00ff47;
+  --cyan: #4FD1C5;
+  --purple: #a855f7;
+  --gold: #ffd700;
+  --amber: #ffaa00;
+
+  --shadow: 0 20px 50px -30px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 8px 24px -16px rgba(0, 0, 0, 0.7);
+  --glow-accent: 0 0 22px rgba(255, 32, 64, 0.28);
+
+  color-scheme: dark;
+}
+
+/* Soft, low-chroma cool paper — never harsh #fff — that sits well next to the
+   navy + crimson brand. Surfaces are barely-there steps, borders are hairline. */
+:root[data-theme="light"], [data-theme="light"] {
+  --bg: #eceef3;
+  --surface: #f7f8fb;
+  --surface-2: #e3e6ee;
+  --surface-3: #d7dbe7;
+  --overlay: rgba(20, 23, 42, 0.04);
+  --overlay-2: rgba(20, 23, 42, 0.08);
+
+  --border: #d8dce6;
+  --border-soft: #e4e7ef;
+
+  --text: #14172a;
+  --text-secondary: #454b5e;
+  --text-muted: #6b7280;
+  --text-dim: #9aa3b2;
+
+  --accent: #ff2040;
+  --accent-ink: #cc1030;
+  --accent-soft: rgba(255, 32, 64, 0.10);
+  --green: #0b8a43;
+  --green-fill: #12b358;
+  --green-alt: #0b8a43;
+  --cyan: #0e9b8e;
+  --purple: #7c3aed;
+  --gold: #b8860b;
+  --amber: #b26b00;
+
+  --shadow: 0 12px 30px rgba(20, 23, 42, 0.10);
+  --shadow-sm: 0 6px 18px rgba(20, 23, 42, 0.08);
+  --glow-accent: 0 6px 20px rgba(255, 32, 64, 0.18);
+
+  color-scheme: light;
+}
+
+/* Body follows the root theme; a [data-theme] wrapper re-scopes its subtree. */
+body { background: var(--bg); color: var(--text); }
+body, .theme-anim, .theme-anim * {
+  transition: background-color .25s ease, border-color .25s ease, color .2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  body, .theme-anim, .theme-anim * { transition: none; }
+}

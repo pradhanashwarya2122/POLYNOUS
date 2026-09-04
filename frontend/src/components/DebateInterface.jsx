@@ -6,6 +6,7 @@ import DebateEngine from './DebateEngine';
 import SideRail from './react-bits/SideRail';
 import PolynousDebateReport from './PolynousDebateReport';
 import { getPersonalizedSuggestions } from '../personalize';
+import { ThemeToggle } from '../theme/ThemeContext';
 
 const DEBATE_RAIL = [
   { label: "Proposition", id: "deb-topic" },
@@ -16,19 +17,19 @@ const DEBATE_RAIL = [
 ];
 
 const C = {
-  crimson: "#ff2040", green: "#00e64d", purple: "#a855f7", gold: "#ffd700",
-  void: "#0a0a1e", surface: "#111125", surfaceContainer: "#1e1e32",
-  onSurface: "#e2e0fc", onSurfaceVariant: "#b9ccb0",
-  textSecondary: "#8899aa", white10: "rgba(255,255,255,0.1)", white5: "rgba(255,255,255,0.05)",
+  crimson: "var(--accent)", green: "var(--green)", purple: "var(--purple)", gold: "var(--gold)",
+  void: "var(--bg)", surface: "var(--surface)", surfaceContainer: "var(--surface-2)",
+  onSurface: "var(--text)", onSurfaceVariant: "var(--text-secondary)",
+  textSecondary: "var(--text-muted)", white10: "var(--overlay-2)", white5: "var(--overlay)",
 };
 
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&family=Material+Symbols+Outlined&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;background:#0a0a1e;color:#e2e0fc;font-family:'Hanken Grotesk',sans-serif;overflow:hidden}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Hanken Grotesk',sans-serif;overflow:hidden}
   ::-webkit-scrollbar{width:4px}
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:rgba(255,32,64,0.2);border-radius:4px}
+  ::-webkit-scrollbar-thumb{background:var(--accent-soft);border-radius:4px}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
   @keyframes fadeLeft{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
@@ -593,7 +594,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
           <h1 style={{ fontFamily: "'Sora',sans-serif", fontSize: 28, fontWeight: 800, color: C.crimson, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>POLYNOUS</h1>
           <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.onSurfaceVariant, textTransform: "uppercase", letterSpacing: "0.2em", opacity: 0.7 }}>Cerebral Vitality Engine</p>
         </div>
-        <button onClick={() => setCollapsed(true)} style={{ background: "none", border: "none", color: C.textSecondary, cursor: "pointer", padding: 4, marginLeft: 8 }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = C.textSecondary}>
+        <button onClick={() => setCollapsed(true)} style={{ background: "none", border: "none", color: C.textSecondary, cursor: "pointer", padding: 4, marginLeft: 8 }} onMouseEnter={e => e.currentTarget.style.color = "var(--text)"} onMouseLeave={e => e.currentTarget.style.color = C.textSecondary}>
           <Icon name="chevron_left" style={{ fontSize: 20 }} />
         </button>
       </div>
@@ -616,9 +617,10 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
             <Icon name="face" style={{ color: C.crimson, fontSize: 22 }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.username || "Guest"}</p>
+            <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.username || "Guest"}</p>
             <button onClick={bye} style={{ fontSize: 10, color: C.crimson, background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", padding: 0 }}>Disconnect</button>
           </div>
+          <ThemeToggle />
         </div>
       </div>
     </aside>
@@ -781,7 +783,7 @@ function ArgText({ text, accent, citeUrl }) {
   return (
     <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15.5, lineHeight: 1.75, color: "#dbe3ee", margin: 0, fontWeight: 400 }}>
       {parts.map((p, i) => {
-        if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color: "#fff", fontWeight: 700 }}>{p.slice(2, -2)}</strong>;
+        if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i} style={{ color: "var(--text)", fontWeight: 700 }}>{p.slice(2, -2)}</strong>;
         if (/^\[\d{1,2}\]$/.test(p)) {
           const n = parseInt(p.slice(1, -1), 10);
           const url = citeUrl ? citeUrl(n) : null;
@@ -913,7 +915,7 @@ function ClashMeter({ forScore, againstScore }) {
         <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${forShare}%`, background: `linear-gradient(90deg, rgba(0,230,77,0.28), ${C.green})`, transition: ease, boxShadow: lead === "for" ? `inset 0 0 20px ${C.green}55` : "none" }} />
         <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: `${100 - forShare}%`, background: `linear-gradient(270deg, rgba(255,32,64,0.28), ${C.crimson})`, transition: ease, boxShadow: lead === "against" ? `inset 0 0 20px ${C.crimson}55` : "none" }} />
         {/* glowing seam at the true balance point */}
-        <div style={{ position: "absolute", top: -1, bottom: -1, left: `${forShare}%`, width: 3, transform: "translateX(-50%)", background: "#fff", boxShadow: `0 0 12px ${leadColor}, 0 0 4px #fff`, transition: ease, zIndex: 2, animation: "orbPulse 2.4s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", top: -1, bottom: -1, left: `${forShare}%`, width: 3, transform: "translateX(-50%)", background: "var(--text)", boxShadow: `0 0 12px ${leadColor}, 0 0 4px var(--text)`, transition: ease, zIndex: 2, animation: "orbPulse 2.4s ease-in-out infinite" }} />
       </div>
       {/* share footnote */}
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary }}>
@@ -1059,11 +1061,11 @@ function DebateTelemetryCard({ telemetry }) {
           </span>
         ))}
       </div>
-      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 800, color: "#fff", margin: "0 0 12px" }}>Run Telemetry</h3>
+      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 800, color: "var(--text)", margin: "0 0 12px" }}>Run Telemetry</h3>
       {/* Prominent, explicit spend headline for this debate */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", background: `${accent}12`, border: `1px solid ${accent}33`, borderRadius: 12, padding: "14px 18px", marginBottom: 14 }}>
         <Icon name="payments" style={{ fontSize: 22, color: accent, alignSelf: "center" }} />
-        <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 30, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{fmtCost(cost.usd)}</span>
+        <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 30, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>{fmtCost(cost.usd)}</span>
         <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary }}>
           spent on your key this debate{typeof cost.usd === "number" ? " · estimated from list prices" : " - provider didn't report token usage"}
         </span>
@@ -1072,7 +1074,7 @@ function DebateTelemetryCard({ telemetry }) {
         {tiles.map((tile) => (
           <div key={tile.label} style={{ background: C.white5, border: `1px solid ${C.white10}`, borderRadius: 12, padding: "12px 14px" }}>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.textSecondary, marginBottom: 5 }}>{tile.label}</div>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 19, fontWeight: 800, color: "#fff" }}>{tile.value}</div>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 19, fontWeight: 800, color: "var(--text)" }}>{tile.value}</div>
             {tile.sub && <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: C.textSecondary, marginTop: 2 }}>{tile.sub}</div>}
           </div>
         ))}
@@ -1092,7 +1094,7 @@ function DebateTelemetryCard({ telemetry }) {
             <tbody>
               {stages.map(([stage, s]) => (
                 <tr key={stage} style={{ borderTop: `1px solid ${C.white10}`, color: "#e6c9cf" }}>
-                  <td style={{ padding: "6px 8px", color: "#fff" }}>{STAGE_LABEL[stage] || stage}</td>
+                  <td style={{ padding: "6px 8px", color: "var(--text)" }}>{STAGE_LABEL[stage] || stage}</td>
                   <td style={{ padding: "6px 8px", textAlign: "right" }}>{s.calls ?? " - "}</td>
                   <td style={{ padding: "6px 8px", textAlign: "right" }}>{(s.input_tokens || s.output_tokens) ? `${fmtTok(s.input_tokens)} / ${fmtTok(s.output_tokens)}` : " - "}</td>
                   <td style={{ padding: "6px 8px", textAlign: "right" }}>{typeof s.latency_s === "number" ? `${s.latency_s.toFixed(1)}s` : " - "}</td>
@@ -1287,7 +1289,7 @@ function DebateFollowups({ query, result, onVerdict }) {
       <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.gold}`, borderRadius: 16, padding: "22px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
           <Icon name="gavel" style={{ fontSize: 19, color: C.gold }} />
-          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Judge's Lens</h3>
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "var(--text)", margin: 0 }}>Judge's Lens</h3>
         </div>
         <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
           Same debate, same evidence - re-scored through a different value frame. Watch who wins change.
@@ -1302,7 +1304,7 @@ function DebateFollowups({ query, result, onVerdict }) {
                   border: `1px solid ${active ? C.gold : "rgba(255,255,255,0.08)"}`, transition: "all 0.2s" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                   <Icon name={L.icon} style={{ fontSize: 17, color: active ? C.gold : C.textSecondary }} />
-                  <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 13.5, fontWeight: 700, color: active ? "#fff" : "#c9cfe0" }}>{L.label}</span>
+                  <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 13.5, fontWeight: 700, color: active ? "var(--text)" : "#c9cfe0" }}>{L.label}</span>
                   {lensBusy === L.key && <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.gold }}>re-judging…</span>}
                 </div>
                 <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11, color: C.textSecondary, lineHeight: 1.45 }}>{L.blurb}</span>
@@ -1318,7 +1320,7 @@ function DebateFollowups({ query, result, onVerdict }) {
         <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${flipWinColor}`, borderRadius: 16, padding: "22px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
             <Icon name="tune" style={{ fontSize: 19, color: flipWinColor }} />
-            <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>What flips this?</h3>
+            <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "var(--text)", margin: 0 }}>What flips this?</h3>
           </div>
           <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 18px", lineHeight: 1.6 }}>
             The verdict is 50% measured evidence + 50% judged argument quality. Drag to re-weight and watch the scores move - the verdict is reasoned, not decreed.
@@ -1343,14 +1345,14 @@ function DebateFollowups({ query, result, onVerdict }) {
       <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.crimson}`, borderRadius: 16, padding: "22px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
           <Icon name="contactless" style={{ fontSize: 19, color: C.crimson }} />
-          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Cross-examination</h3>
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "var(--text)", margin: 0 }}>Cross-examination</h3>
         </div>
         <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
           Each side puts its sharpest question to the other - and must answer. This is where weak arguments break.
         </p>
         {!crossEx && (
           <button onClick={runCrossExam} disabled={crossBusy}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: crossBusy ? "rgba(255,32,64,0.1)" : "rgba(255,32,64,0.12)", border: `1px solid ${C.crimson}`, borderRadius: 9999, color: crossBusy ? C.textSecondary : "#fff", cursor: crossBusy ? "wait" : "pointer", fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: crossBusy ? "rgba(255,32,64,0.1)" : "rgba(255,32,64,0.12)", border: `1px solid ${C.crimson}`, borderRadius: 9999, color: crossBusy ? C.textSecondary : "var(--text)", cursor: crossBusy ? "wait" : "pointer", fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
             <Icon name={crossBusy ? "hourglass_empty" : "swords"} style={{ fontSize: 15 }} /> {crossBusy ? "Cross-examining…" : "Run cross-examination"}
           </button>
         )}
@@ -1361,7 +1363,7 @@ function DebateFollowups({ query, result, onVerdict }) {
               <div key={idx} style={{ border: `1px solid ${sideColor(asker)}30`, borderRadius: 12, overflow: "hidden" }}>
                 <div style={{ background: `${sideColor(asker)}12`, padding: "11px 15px" }}>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: sideColor(asker), marginBottom: 5 }}>{asker === "for" ? "Supporting" : "Counter"} asks</div>
-                  <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, fontWeight: 600, color: "#fff", lineHeight: 1.55 }}>{qa.question}</div>
+                  <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, fontWeight: 600, color: "var(--text)", lineHeight: 1.55 }}>{qa.question}</div>
                 </div>
                 <div style={{ padding: "11px 15px" }}>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: sideColor(answerer), marginBottom: 5 }}>{answerer === "for" ? "Supporting" : "Counter"} answers</div>
@@ -1377,7 +1379,7 @@ function DebateFollowups({ query, result, onVerdict }) {
       <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.amber}`, borderRadius: 16, padding: "22px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
           <Icon name="gavel" style={{ fontSize: 19, color: C.amber }} />
-          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Fallacy Audit</h3>
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "var(--text)", margin: 0 }}>Fallacy Audit</h3>
         </div>
         <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 14px", lineHeight: 1.6 }}>
           A logic auditor scans both sides for real fallacies (strawman, false dilemma, ad hominem, and the like).
@@ -1396,7 +1398,7 @@ function DebateFollowups({ query, result, onVerdict }) {
                 {(!list || list.length === 0) && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary }}>No clear fallacies found.</div>}
                 {(list || []).map((f, i) => (
                   <div key={i} style={{ background: "rgba(255,255,255,0.025)", border: `1px solid ${col}30`, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
-                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{f.fallacy}</div>
+                    <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{f.fallacy}</div>
                     {f.quote && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11.5, fontStyle: "italic", color: "#c8d0dc", marginBottom: 4, lineHeight: 1.5 }}>"{f.quote}"</div>}
                     {f.why && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 11.5, color: C.textSecondary, lineHeight: 1.5 }}>{f.why}</div>}
                   </div>
@@ -1411,7 +1413,7 @@ function DebateFollowups({ query, result, onVerdict }) {
       <div style={{ background: "rgba(14,14,28,0.6)", border: `1px solid ${C.white10}`, borderLeft: `4px solid ${C.purple}`, borderRadius: 16, padding: "22px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
           <Icon name="record_voice_over" style={{ fontSize: 19, color: C.purple }} />
-          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>Join the debate</h3>
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "var(--text)", margin: 0 }}>Join the debate</h3>
         </div>
         <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
           Add your own argument. The opposing advocate will respond, and the judge re-scores with your point in play.
@@ -1435,7 +1437,7 @@ function DebateFollowups({ query, result, onVerdict }) {
             <button key={k} onClick={() => setSide(k)} disabled={joinBusy}
               style={{ flex: 1, cursor: "pointer", borderRadius: 10, padding: "9px 12px", fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700,
                 background: side === k ? `${sideColor(k)}18` : "rgba(255,255,255,0.03)",
-                border: `1px solid ${side === k ? sideColor(k) : "rgba(255,255,255,0.08)"}`, color: side === k ? "#fff" : "#aeb6c9" }}>
+                border: `1px solid ${side === k ? sideColor(k) : "rgba(255,255,255,0.08)"}`, color: side === k ? "var(--text)" : "#aeb6c9" }}>
               {lbl}
             </button>
           ))}
@@ -1443,11 +1445,11 @@ function DebateFollowups({ query, result, onVerdict }) {
         <textarea value={arg} onChange={(e) => setArg(e.target.value)} disabled={joinBusy}
           placeholder={`Make your case ${side === "for" ? "for" : "against"} - the ${side === "for" ? "counter" : "supporting"} advocate will reply…`}
           rows={3}
-          style={{ width: "100%", boxSizing: "border-box", background: "rgba(6,6,16,0.7)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, resize: "vertical", outline: "none" }} />
+          style={{ width: "100%", boxSizing: "border-box", background: "rgba(6,6,16,0.7)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "var(--text)", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, resize: "vertical", outline: "none" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, marginTop: 10 }}>
           {joinErr && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.crimson, marginRight: "auto" }}>{joinErr}</span>}
           <button onClick={submitArg} disabled={joinBusy || !arg.trim()}
-            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: C.purple, color: "#fff", fontWeight: 700, borderRadius: 9999, border: "none",
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: C.purple, color: "var(--text)", fontWeight: 700, borderRadius: 9999, border: "none",
               cursor: joinBusy || !arg.trim() ? "default" : "pointer", opacity: joinBusy || !arg.trim() ? 0.55 : 1, fontFamily: "'Sora',sans-serif", fontSize: 12.5 }}>
             <Icon name={joinBusy ? "hourglass_empty" : "send"} style={{ fontSize: 15 }} /> {joinBusy ? "Advocate responding…" : "Submit argument"}
           </button>
@@ -1867,9 +1869,9 @@ export default function DebateChamber({ user, onNavigate, onLogout, preview = fa
             <Reveal animation="fadeUp" delay={0}>
               <div style={{ position: "relative", display: "inline-block", marginBottom: 4 }}>
                 <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(72px,8vw,110px)", fontWeight: 800, color: C.crimson, fontStyle: "italic", transform: "skewX(-10deg)", letterSpacing: "-0.05em", lineHeight: 1, textShadow: "none", margin: 0 }}>DEBATE</h2>
-                <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(72px,8vw,110px)", fontWeight: 800, color: "#fff", fontStyle: "italic", transform: "skewX(-10deg)", letterSpacing: "-0.05em", lineHeight: 1, marginTop: "clamp(-28px,-3vw,-36px)", textShadow: "rgba(255,32,64,0.55) 0px -5px 20px, rgba(0,0,0,0.5) 0px 4px 14px", position: "relative", zIndex: 2 }}>CHAMBER</h2>
+                <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: "clamp(72px,8vw,110px)", fontWeight: 800, color: "var(--text)", fontStyle: "italic", transform: "skewX(-10deg)", letterSpacing: "-0.05em", lineHeight: 1, marginTop: "clamp(-28px,-3vw,-36px)", textShadow: "rgba(255,32,64,0.55) 0px -5px 20px, rgba(0,0,0,0.5) 0px 4px 14px", position: "relative", zIndex: 2 }}>CHAMBER</h2>
                 <div style={{ position: "absolute", left: "-8%", top: "43%", width: "116%", height: 5, background: C.crimson, transform: "rotate(-8deg)", opacity: 0.88, filter: "blur(2px)", boxShadow: "0 0 22px rgba(255,32,64,0.9)", zIndex: 1, pointerEvents: "none" }} />
-                <div style={{ position: "absolute", left: "-8%", top: "43%", width: "116%", height: 2, background: "#fff", transform: "rotate(-8deg)", zIndex: 3, pointerEvents: "none" }} />
+                <div style={{ position: "absolute", left: "-8%", top: "43%", width: "116%", height: 2, background: "var(--text)", transform: "rotate(-8deg)", zIndex: 3, pointerEvents: "none" }} />
               </div>
             </Reveal>
 
@@ -1894,26 +1896,26 @@ export default function DebateChamber({ user, onNavigate, onLogout, preview = fa
                     <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.crimson, textTransform: "uppercase", letterSpacing: "1.5px", fontWeight: 600 }}>Enter Proposition</label>
                     <div style={{ display: "flex", gap: 6 }}>
                       {[{ key: "concise", label: "Concise" }, { key: "detailed", label: "Detailed" }].map(({ key, label }) => (
-                        <button key={key} type="button" disabled={loading} onClick={() => setAnswerLength(key)} style={{ padding: "6px 18px", borderRadius: 20, border: `1px solid ${answerLength === key ? C.crimson : "rgba(255,255,255,0.1)"}`, background: answerLength === key ? "rgba(255,32,64,0.1)" : "transparent", color: answerLength === key ? C.crimson : "#8899aa", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.45 : 1, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", fontWeight: answerLength === key ? 700 : 400, transition: "all 0.2s" }}>{label}</button>
+                        <button key={key} type="button" disabled={loading} onClick={() => setAnswerLength(key)} style={{ padding: "6px 18px", borderRadius: 20, border: `1px solid ${answerLength === key ? C.crimson : "rgba(255,255,255,0.1)"}`, background: answerLength === key ? "rgba(255,32,64,0.1)" : "transparent", color: answerLength === key ? C.crimson : "var(--text-muted)", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.45 : 1, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", fontWeight: answerLength === key ? 700 : 400, transition: "all 0.2s" }}>{label}</button>
                       ))}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 14 }}>
                     <div style={{ flex: 1, position: "relative" }}>
                       <input ref={inputRef} type="text" value={topic} onChange={e => setTopic(e.target.value)} onKeyDown={handleKeyDown} disabled={loading} placeholder="e.g., Should AI be regulated by international treaties?"
-                        style={{ width: "100%", padding: "18px 54px 18px 22px", borderRadius: 14, border: "1px solid rgba(255,32,64,0.18)", background: "rgba(12,12,24,0.75)", backdropFilter: "blur(12px)", color: "#fff", fontSize: 15, fontFamily: "'Hanken Grotesk',sans-serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s,box-shadow 0.2s" }}
+                        style={{ width: "100%", padding: "18px 54px 18px 22px", borderRadius: 14, border: "1px solid rgba(255,32,64,0.18)", background: "rgba(12,12,24,0.75)", backdropFilter: "blur(12px)", color: "var(--text)", fontSize: 15, fontFamily: "'Hanken Grotesk',sans-serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s,box-shadow 0.2s" }}
                         onFocus={e => { e.target.style.borderColor = "rgba(255,32,64,0.55)"; e.target.style.boxShadow = "0 0 0 3px rgba(255,32,64,0.08)"; }}
                         onBlur={e => { e.target.style.borderColor = "rgba(255,32,64,0.18)"; e.target.style.boxShadow = "none"; }}
                       />
                       <button onClick={handleBeginDebate} disabled={loading} style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,32,64,0.45)", cursor: "pointer", fontSize: 20, lineHeight: 1 }}>↵</button>
                     </div>
-                    <button onClick={handleBeginDebate} disabled={loading || !topic.trim()} style={{ padding: "0 30px", borderRadius: 14, border: "none", background: loading ? "rgba(80,80,80,0.4)" : `linear-gradient(135deg, ${C.crimson}, #9a0015)`, color: "#fff", fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 14, cursor: loading || !topic.trim() ? "not-allowed" : "pointer", opacity: !topic.trim() && !loading ? 0.45 : 1, boxShadow: loading ? "none" : "0 4px 22px rgba(255,32,64,0.35)", transition: "all 0.3s", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap", flexShrink: 0 }}
+                    <button onClick={handleBeginDebate} disabled={loading || !topic.trim()} style={{ padding: "0 30px", borderRadius: 14, border: "none", background: loading ? "rgba(80,80,80,0.4)" : `linear-gradient(135deg, ${C.crimson}, #9a0015)`, color: "var(--text)", fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 14, cursor: loading || !topic.trim() ? "not-allowed" : "pointer", opacity: !topic.trim() && !loading ? 0.45 : 1, boxShadow: loading ? "none" : "0 4px 22px rgba(255,32,64,0.35)", transition: "all 0.3s", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap", flexShrink: 0 }}
                       onMouseEnter={e => { if (!loading && topic.trim()) e.currentTarget.style.transform = "translateY(-1px)"; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
                     >
                       {loading ? (
                         <>
-                          <span style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTop: "2px solid #fff", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
+                          <span style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTop: "2px solid var(--text)", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
                           <span style={{ fontSize: 12 }}>{agentStatus || "Analyzing..."}</span>
                         </>
                       ) : <>BEGIN DEBATE <span style={{ opacity: 0.7 }}>›</span></>}

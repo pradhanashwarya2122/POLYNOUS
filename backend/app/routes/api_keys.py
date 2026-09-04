@@ -242,7 +242,6 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
     """Is a free starter key available for this user to claim?"""
     from app.services import free_keys as fk
     from app.models import FreeKeyClaim
-    claimed_fps = {c.key_fingerprint for c in db.query(FreeKeyClaim).all()}
     own_claim = db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).first()
     current_fps = fk.current_fingerprints()
     # "rotated": the user claimed a free key earlier, but the owner has since
@@ -254,10 +253,22 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
     # key" button names the right one before a claim exists).
     pool = fk._load_pool()
     offer_provider = pool[0]["provider"] if pool else None
+    # Shared-key model: a key is "available" to THIS user unless they already hold
+    # the current one — other users' claims never use it up.
+    user_fps = {c.key_fingerprint for c in
+                db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).all()}
+    available_for_user = sum(1 for e in pool if e["fp"] not in user_fps)
+    trial_state = trial_svc.state(user, db)
+    # Explicit: is the user currently RUNNING on the free key right now?
+    free_key_active = bool(
+        own_claim and not rotated and trial_state.get("active")
+        and getattr(user, f"{own_claim.provider}_api_key", None)
+    )
     return {
         "pool_configured": fk.pool_configured(),
-        "available": fk.available_count(claimed_fps),
+        "available": available_for_user,
         "already_claimed": own_claim is not None,
+        "free_key_active": free_key_active,
         "has_own_key": _has_any_llm_key(user),
         "rotated": rotated,
         "claimed_provider": own_claim.provider if own_claim else None,
@@ -268,7 +279,7 @@ async def free_key_status(user: User = Depends(get_current_user), db: Session = 
         "daily_cap": trial_svc.daily_runs(),
         "trial_days": trial_svc.trial_days(),
         "trial_runs": trial_svc.trial_runs(),
-        "trial": trial_svc.state(user, db),
+        "trial": trial_state,
     }
 
 
@@ -293,13 +304,17 @@ async def claim_free_key(user: User = Depends(get_current_db_user), db: Session 
     if _has_any_llm_key(user) and not is_rotated:
         raise HTTPException(400, "You already have an API key configured — free keys are for new users.")
 
-    claimed_fps = {c.key_fingerprint for c in db.query(FreeKeyClaim).all()}
     if own_claim:                       # rotated: free up the stale claim so a fresh key can issue
-        claimed_fps.discard(own_claim.key_fingerprint)
         db.delete(own_claim)
-    entry = fk.pick_unclaimed(claimed_fps)
+    # The free key is SHARED across users (rate-limited per user), so pick the
+    # first pool key THIS user hasn't already claimed — not one unclaimed globally.
+    user_fps = {c.key_fingerprint for c in
+                db.query(FreeKeyClaim).filter(FreeKeyClaim.user_id == user.public_id).all()}
+    if own_claim:
+        user_fps.discard(own_claim.key_fingerprint)
+    entry = next((e for e in fk._load_pool() if e["fp"] not in user_fps), None)
     if not entry:
-        detail = ("No free keys are available right now — please add your own key in Settings."
+        detail = ("You've already claimed the current free key — you're all set."
                   if fk.pool_configured() else
                   "Free starter keys aren't set up yet — please add your own key in Settings.")
         raise HTTPException(404, detail)

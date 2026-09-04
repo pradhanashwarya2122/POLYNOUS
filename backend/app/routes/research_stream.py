@@ -129,7 +129,13 @@ async def ask_question(request: QueryRequest, req: Request, db=Depends(get_db)):
     else:
         print("⚠️ No user_public_id – guest session")
     
-    # Strict: no fallback to system key
+    # Instant free key for a keyless signed-in user, else the strict no-key error.
+    if user is not None and user_api_key is None:
+        from app.services.free_keys import provision_free_key
+        _prov = provision_free_key(user, db)
+        if _prov:
+            provider = _prov["provider"]
+            user_api_key = _prov["key"]
     if user_api_key is None:
         raise HTTPException(
             status_code=400,
@@ -354,6 +360,16 @@ async def ask_visual(request: Request, db: Session = Depends(get_db)):
                             break
         except Exception:
             pass  # user stays None → guest policy below
+
+    # ── INSTANT FREE KEY: a signed-in user with no key of their own is silently
+    #    given a pooled free starter key so they can research immediately, instead
+    #    of hitting an "add your API key" wall on their very first run.
+    if user is not None and user_api_key is None:
+        from app.services.free_keys import provision_free_key
+        _prov = provision_free_key(user, db)
+        if _prov:
+            provider = _prov["provider"]
+            user_api_key = _prov["key"]
 
     # ── FREE-TRIAL GATE: block + disable an expired/used-up Gemini trial before
     #    the run so a pooled key can't be abused past its window / run cap.
@@ -652,6 +668,15 @@ async def debate_visual(request: Request, db: Session = Depends(get_db)):
                             break
         except Exception:
             pass  # user stays None → guest policy below
+
+    # ── INSTANT FREE KEY: give a keyless signed-in user a pooled starter key so
+    #    the debate runs immediately instead of erroring out on their first try.
+    if user is not None and user_api_key is None:
+        from app.services.free_keys import provision_free_key
+        _prov = provision_free_key(user, db)
+        if _prov:
+            provider = _prov["provider"]
+            user_api_key = _prov["key"]
 
     # ── FREE-TRIAL GATE: same policy as /ask-visual — block + disable an
     #    expired/used-up Gemini trial before the debate runs.

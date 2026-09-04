@@ -3,6 +3,24 @@ import { API_BASE_URL } from '../config';
 import ConstellationExplorer from "./react-bits/ConstellationExplorer";
 import { makeTile } from "./react-bits/constellationTiles";
 import SemanticMap from "./react-bits/SemanticMap";
+import { getPersonalizedSuggestions } from "../personalize";
+
+// ── Recent searches (per-browser), so the user can re-run past queries fast ──
+const RECENT_KEY = "polynous_recent_searches";
+function getRecentSearches() {
+  try { const a = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); return Array.isArray(a) ? a.slice(0, 8) : []; }
+  catch { return []; }
+}
+function pushRecentSearch(q) {
+  q = String(q || "").trim();
+  if (!q) return getRecentSearches();
+  try {
+    const prev = getRecentSearches().filter((x) => x.toLowerCase() !== q.toLowerCase());
+    const next = [q, ...prev].slice(0, 8);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    return next;
+  } catch { return getRecentSearches(); }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // DESIGN TOKENS
@@ -11,12 +29,12 @@ const C = {
   green:            '#00ff0f',
   cyan:             '#00ccff',
   crimson:          '#ff2040',
-  void:             '#0a0a1e',
-  surface:          '#111125',
-  surfaceContainer: '#1e1e32',
-  onSurface:        '#e2e0fc',
-  onSurfaceVariant: '#b9ccb0',
-  textSecondary:    '#8899aa',
+  void:             'var(--bg)',
+  surface:          'var(--surface)',
+  surfaceContainer: 'var(--surface-2)',
+  onSurface:        'var(--text)',
+  onSurfaceVariant: 'var(--text-secondary)',
+  textSecondary:    'var(--text-muted)',
   white10:          'rgba(255,255,255,0.10)',
   white5:           'rgba(255,255,255,0.05)',
 }
@@ -628,7 +646,7 @@ function PremiumRightPanel() {
           width: 16, height: 16,
           transform: 'translate(-50%, -50%)',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, #fff 0%, #b8dcff 45%, rgba(100,180,255,0.2) 100%)',
+          background: 'radial-gradient(circle, var(--text) 0%, #b8dcff 45%, rgba(100,180,255,0.2) 100%)',
           boxShadow: '0 0 14px rgba(160,220,255,0.85), 0 0 36px rgba(80,160,255,0.45), 0 0 70px rgba(40,120,255,0.18)',
           zIndex: 10,
         }} />
@@ -709,14 +727,14 @@ function PremiumRightPanel() {
         }}>
           <Icon name={item.icon} style={{ fontSize: 16, color: item.color }} />
           <div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{item.label}</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--text-secondary)", textTransform: 'uppercase', letterSpacing: '0.1em' }}>{item.label}</div>
             <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: item.color }}>{item.value}</div>
           </div>
         </div>
       ))}
 
-      <div style={{ position: 'absolute', top: 0, left: 0, width: 160, height: '100%', background: 'linear-gradient(90deg, #0a0a1e 0%, transparent 100%)', zIndex: 20 }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(0deg, #0a0a1e 0%, transparent 100%)', zIndex: 20 }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 160, height: '100%', background: 'linear-gradient(90deg, var(--bg) 0%, transparent 100%)', zIndex: 20 }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(0deg, var(--bg) 0%, transparent 100%)', zIndex: 20 }} />
     </div>
   )
 }
@@ -753,7 +771,7 @@ function CornerInfoCard() {
       }}>
         <Icon name="close" style={{ fontSize: 16, color: '#667' }} />
       </button>
-      <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Icon name="compare_arrows" style={{ fontSize: 16, color: C.cyan }} />
         Constellation vs Graph
       </div>
@@ -782,7 +800,7 @@ function CornerInfoCard() {
           <span style={{
             fontFamily: i === 0 ? "'JetBrains Mono',monospace" : "'Hanken Grotesk',sans-serif",
             fontSize: i === 0 ? 10 : 11,
-            color: i === 0 ? '#a855f7' : '#8899aa',
+            color: i === 0 ? '#a855f7' : 'var(--text-muted)',
             fontWeight: i === 0 ? 700 : 400,
             textTransform: i === 0 ? 'uppercase' : 'none',
             letterSpacing: i === 0 ? '0.05em' : 0,
@@ -1177,7 +1195,7 @@ function NeuralConstellation({ results = [], filter = 'all', onStarClick, onFilt
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: detail.color, display: 'inline-block' }} />
-            <span style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>{detail.score}% match</span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>{detail.score}% match</span>
             <span style={{
               fontSize: 11, padding: '2px 10px', borderRadius: 10, marginLeft: 'auto',
               background: `${detail.color}22`, color: detail.color,
@@ -1316,7 +1334,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
             <button
               onClick={() => setCollapsed(true)}
               style={{ background: 'none', border: 'none', color: C.textSecondary, cursor: 'pointer', padding: 4, flexShrink: 0, marginLeft: 8 }}
-              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
               onMouseLeave={e => e.currentTarget.style.color = C.textSecondary}
             >
               <Icon name="chevron_left" style={{ fontSize: 20 }} />
@@ -1352,7 +1370,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{
                   fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700,
-                  color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0,
+                  color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0,
                 }}>{user?.username || 'Guest'}</p>
                 <button onClick={handleLogout} style={{
                   fontSize: 10, color: C.crimson, background: 'none', border: 'none',
@@ -1635,24 +1653,149 @@ function shuffle(arr) {
 // ═══════════════════════════════════════════════════════════════
 // QUICK CHIP
 // ═══════════════════════════════════════════════════════════════
-function QuickChip({ label, onClick }) {
+// ═══════════════════════════════════════════════════════════════
+// PHASE 2 — GROUNDED SYNTHESIS CARD
+// ═══════════════════════════════════════════════════════════════
+function SynthesisCard({ synthesis, loading, onCite }) {
+  // Render [n] citations in the synthesis text as clickable chips.
+  const renderText = (txt) => {
+    const parts = String(txt || '').split(/(\[\d+\])/g)
+    return parts.map((p, i) => {
+      const m = p.match(/^\[(\d+)\]$/)
+      if (m) {
+        const n = parseInt(m[1], 10)
+        return (
+          <span key={i} onClick={() => onCite && onCite(n)} role="button" tabIndex={0}
+            style={{ color: C.cyan, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.82em', fontWeight: 700, padding: '0 1px' }}>[{n}]</span>
+        )
+      }
+      return <span key={i}>{p}</span>
+    })
+  }
+  return (
+    <div style={{
+      marginBottom: 22, padding: '20px 22px', borderRadius: 16,
+      background: 'var(--overlay)', backdropFilter: 'blur(16px)',
+      border: '1px solid rgba(0,204,255,0.22)', boxShadow: '0 10px 40px -24px rgba(0,204,255,0.35)',
+      animation: 'fadeSlideUp 0.4s ease both',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <Icon name="auto_awesome" style={{ fontSize: 16, color: C.cyan }} />
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.cyan, fontWeight: 700 }}>
+          Synthesis from your research
+        </span>
+      </div>
+      {loading && !synthesis?.grounded ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-muted)', fontSize: 13.5, fontFamily: "'Hanken Grotesk',sans-serif" }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.cyan, animation: 'shimmer 1s ease-in-out infinite' }} />
+          Reading your past research…
+        </div>
+      ) : (
+        <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15, lineHeight: 1.62, color: 'var(--text)', margin: 0, maxWidth: '70ch' }}>
+          {renderText(synthesis?.synthesis)}
+        </p>
+      )}
+      {synthesis?.grounded && (
+        <div style={{ marginTop: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+          Grounded in {synthesis.citations?.length || 0} of your own research entries · click a [n] to open it
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 2 — RESEARCH GAPS PANEL
+// ═══════════════════════════════════════════════════════════════
+function GapsPanel({ gaps, loading, tried, onFind, onPick, onResearch }) {
+  if (!tried) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 26 }}>
+        <button onClick={onFind} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 9, padding: '11px 20px', borderRadius: 50,
+          background: 'var(--overlay)', backdropFilter: 'blur(16px)', border: '1px solid rgba(167,139,250,0.32)',
+          color: '#a78bfa', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 700,
+          transition: 'all .2s',
+        }}>
+          <Icon name="lightbulb" style={{ fontSize: 17 }} /> Find gaps in my research
+        </button>
+      </div>
+    )
+  }
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: 26, color: '#a78bfa', fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5 }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#a78bfa', display: 'inline-block', marginRight: 8, animation: 'shimmer 1s ease-in-out infinite' }} />
+        Mapping your research space…
+      </div>
+    )
+  }
+  if (!gaps || gaps.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: 26, color: 'var(--text-muted)', fontSize: 13, fontFamily: "'Hanken Grotesk',sans-serif" }}>
+        Research a few more topics to unlock gap detection.
+      </div>
+    )
+  }
+  return (
+    <div style={{ maxWidth: 760, margin: '0 auto 30px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 14 }}>
+        <Icon name="lightbulb" style={{ fontSize: 16, color: '#a78bfa' }} />
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#a78bfa', fontWeight: 700 }}>Gaps worth exploring</span>
+      </div>
+      <div style={{ display: 'grid', gap: 12 }}>
+        {gaps.map((g, i) => (
+          <div key={i} style={{
+            padding: '16px 18px', borderRadius: 14, background: 'var(--overlay)', backdropFilter: 'blur(14px)',
+            border: '1px solid var(--border)', animation: `fadeSlideUp 0.35s ease ${i * 0.06}s both`,
+          }}>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 5 }}>{g.title}</div>
+            {g.why && <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 11 }}>{g.why}</div>}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button onClick={() => onPick(g)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8,
+                background: 'rgba(0,204,255,0.08)', border: '1px solid rgba(0,204,255,0.28)', color: C.cyan,
+                cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, fontWeight: 600,
+              }}>
+                <Icon name="search" style={{ fontSize: 14 }} /> {g.suggested_query}
+              </button>
+              <button onClick={() => onResearch(g)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8,
+                background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)',
+                cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600,
+              }} title="Run a full research on this gap">
+                <Icon name={g.mode === 'debate' ? 'gavel' : 'auto_awesome'} style={{ fontSize: 13 }} /> {g.mode === 'debate' ? 'Debate' : 'Research'} it
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function QuickChip({ label, onClick, icon, tone }) {
   const [hovered, setHovered] = useState(false)
+  const accent = tone === 'recent' ? C.crimson : tone === 'foryou' ? '#a78bfa' : C.cyan
+  const accentSoft = tone === 'recent' ? 'rgba(255,32,64,0.09)' : tone === 'foryou' ? 'rgba(167,139,250,0.10)' : 'rgba(0,204,255,0.08)'
+  const accentBorder = tone === 'recent' ? 'rgba(255,32,64,0.3)' : tone === 'foryou' ? 'rgba(167,139,250,0.32)' : 'rgba(0,204,255,0.3)'
   return (
     <button
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        padding: '8px 20px', borderRadius: 50,
-        background: hovered ? 'rgba(0,204,255,0.08)' : 'rgba(10,10,30,0.6)',
+        padding: icon ? '8px 16px 8px 13px' : '8px 20px', borderRadius: 50,
+        background: hovered ? accentSoft : 'var(--overlay)',
         backdropFilter: 'blur(20px)',
-        border: `1px solid ${hovered ? 'rgba(0,204,255,0.3)' : C.white10}`,
-        color: hovered ? C.cyan : C.textSecondary,
+        border: `1px solid ${hovered ? accentBorder : 'var(--border)'}`,
+        color: hovered ? accent : 'var(--text-secondary)',
         cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace",
-        fontSize: 12, transition: 'all 0.2s',
+        fontSize: 12, transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 7,
         animation: 'fadeIn 0.3s ease both',
       }}
     >
+      {icon && <Icon name={icon} style={{ fontSize: 14, color: hovered ? accent : (tone === 'recent' ? C.crimson : tone === 'foryou' ? '#a78bfa' : 'var(--text-muted)') }} />}
       {label}
     </button>
   )
@@ -1670,7 +1813,7 @@ function SuggestionRow({ text, isLast, onClick }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         padding: '14px 20px', cursor: 'pointer',
-        color: hovered ? '#fff' : '#ccc',
+        color: hovered ? 'var(--text)' : '#ccc',
         background: hovered ? 'rgba(0,204,255,0.08)' : 'transparent',
         fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13,
         borderBottom: isLast ? 'none' : `1px solid ${C.white5}`,
@@ -1708,14 +1851,14 @@ function ResultPanel({ result, onClose, onStartResearch }) {
           }}>
             {isResearch ? 'Research Node' : 'Debate Node'}
           </span>
-          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: '1.3em', color: '#fff', margin: 0 }}>
+          <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: '1.3em', color: 'var(--text)', margin: 0 }}>
             {result.query}
           </h3>
         </div>
         <button
           onClick={onClose}
           style={{ background: 'none', border: 'none', color: C.textSecondary, cursor: 'pointer', padding: 4, lineHeight: 1 }}
-          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
           onMouseLeave={e => e.currentTarget.style.color = C.textSecondary}
         >
           <Icon name="close" style={{ fontSize: 20, color: 'inherit' }} />
@@ -1867,7 +2010,32 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
   const [suggestions,      setSuggestions]      = useState([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  // ── 25 quick chips that auto-shuffle every 5 seconds ──
+  // ── Personalized + recent suggestions ──
+  const [recent, setRecent] = useState(() => getRecentSearches())
+  const [personalChips] = useState(() => getPersonalizedSuggestions("research", 6).map((s) => s.name || s.text).filter(Boolean))
+
+  // ── Phase 2: grounded synthesis + research-gap detection ──
+  const [synthesis, setSynthesis] = useState(null)     // { synthesis, citations, grounded }
+  const [synthLoading, setSynthLoading] = useState(false)
+  const [gaps, setGaps] = useState([])
+  const [gapsLoading, setGapsLoading] = useState(false)
+  const [gapsTried, setGapsTried] = useState(false)
+
+  const authHeaders = () => {
+    const token = localStorage.getItem('polynous_token')
+    return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  }
+
+  const fetchGaps = useCallback(async () => {
+    setGapsLoading(true); setGapsTried(true)
+    try {
+      const res = await fetch(`${API_BASE_URL}/search/gaps`, { headers: authHeaders() })
+      if (res.ok) { const d = await res.json(); setGaps(d.gaps || []) }
+    } catch { /* best-effort */ }
+    finally { setGapsLoading(false) }
+  }, [])
+
+  // ── quick chips that auto-shuffle every 5 seconds ──
   const [visibleChips, setVisibleChips] = useState(() => shuffle(ALL_SUGGESTIONS).slice(0, 5))
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1894,28 +2062,36 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
   const handleSearch = async (searchQuery) => {
     const q = (searchQuery || query).trim();
     if (!q) return;
-    
+    setRecent(pushRecentSearch(q));   // remember it for quick re-search
+
     setLoading(true);
     setSearched(true);
     setSelectedResult(null);
     setShowSuggestions(false);
-    
+    setSynthesis(null);
+
     try {
-        const token = localStorage.getItem('polynous_token');
-        const headers = {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        };
-        
+        const headers = authHeaders();
         // Trailing slash matters: the backend route is `/search/`. Hitting
         // `/search` triggers a 307 redirect that can drop the Authorization
         // header cross-origin — which is why search returned nothing.
         const res = await fetch(`${API_BASE_URL}/search/?query=${encodeURIComponent(q)}&top_k=12`, { headers });
+        let gotResults = [];
         if (res.ok) {
             const data = await res.json();
-            setResults(data.results || []);
+            gotResults = data.results || [];
+            setResults(gotResults);
         } else {
             setResults([]);
+        }
+        // Phase 2: grounded synthesis from the user's OWN results (best-effort).
+        if (gotResults.length > 0) {
+            setSynthLoading(true);
+            fetch(`${API_BASE_URL}/search/synthesize?query=${encodeURIComponent(q)}`, { headers })
+              .then(r => r.ok ? r.json() : null)
+              .then(d => { if (d && d.grounded) setSynthesis(d); })
+              .catch(() => {})
+              .finally(() => setSynthLoading(false));
         }
     } catch (err) {
         console.error('Search error:', err);
@@ -2028,7 +2204,7 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
               fontSize: 'clamp(52px,9vw,88px)',
               marginBottom: 18, marginTop: 0,
             }}>
-              <span style={{ display: 'block', color: '#ffffff', textShadow: '0 2px 40px rgba(255,255,255,0.06)' }}>
+              <span style={{ display: 'block', color: 'var(--text)', textShadow: '0 2px 40px rgba(255,255,255,0.06)' }}>
                 NEURAL
               </span>
               <span style={{
@@ -2041,7 +2217,7 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
               }}>
                 SEMANTIC
               </span>
-              <span style={{ display: 'block', color: '#ffffff', textShadow: '0 2px 40px rgba(255,255,255,0.06)' }}>
+              <span style={{ display: 'block', color: 'var(--text)', textShadow: '0 2px 40px rgba(255,255,255,0.06)' }}>
                 SEARCH
               </span>
             </h2>
@@ -2072,7 +2248,7 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
                 placeholder="Enter a research hypothesis or query…"
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  color: '#fff', fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 16,
+                  color: 'var(--text)', fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 16,
                 }}
               />
               <button
@@ -2112,12 +2288,41 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
             )}
           </div>
 
-          {/* ── QUICK CHIPS ── */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 32 }}>
+          {/* ── SUGGESTIONS: recent · for you · explore ── */}
+          {recent.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Recent</span>
+              {recent.slice(0, 4).map(t => (
+                <QuickChip key={'r-' + t} label={t} icon="history" tone="recent" onClick={() => { setQuery(t); handleSearch(t) }} />
+              ))}
+              <button onClick={() => { try { localStorage.removeItem(RECENT_KEY); } catch (_) {} setRecent([]); }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, opacity: 0.7 }} title="Clear recent searches">clear</button>
+            </div>
+          )}
+          {personalChips.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>For you</span>
+              {personalChips.slice(0, 5).map(t => (
+                <QuickChip key={'p-' + t} label={t} icon="auto_awesome" tone="foryou" onClick={() => { setQuery(t); handleSearch(t) }} />
+              ))}
+            </div>
+          )}
+
+          {/* ── EXPLORE CHIPS (rotating) ── */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 32 }}>
+            {(recent.length > 0 || personalChips.length > 0) && (
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Explore</span>
+            )}
             {visibleChips.map(t => (
               <QuickChip key={t} label={t} onClick={() => { setQuery(t); handleSearch(t) }} />
             ))}
           </div>
+
+          {/* ── PHASE 2: GROUNDED SYNTHESIS ── */}
+          {searched && !loading && (synthLoading || synthesis?.grounded) && (
+            <SynthesisCard synthesis={synthesis} loading={synthLoading}
+              onCite={(n) => { const c = (synthesis?.citations || []).find(x => x.n === n); if (c) { const r = results.find(rr => rr.id === c.id); if (r) setSelectedResult(r); } }} />
+          )}
 
           {/* ── CONSTELLATION ── */}
           {searched && results.length > 0 && !loading && (
@@ -2141,6 +2346,14 @@ export default function SemanticSearchPage({ user, onStartResearch, onNavigate, 
                 Analyzing conceptual overlaps…
               </p>
             </div>
+          )}
+
+          {/* ── PHASE 2: RESEARCH GAPS (idle only) ── */}
+          {!loading && !searched && (
+            <GapsPanel gaps={gaps} loading={gapsLoading} tried={gapsTried}
+              onFind={fetchGaps}
+              onPick={(g) => { setQuery(g.suggested_query); handleSearch(g.suggested_query); }}
+              onResearch={(g) => onStartResearch && onStartResearch(g.suggested_query)} />
           )}
 
           {/* ── IDLE / EMPTY STATE ── */}

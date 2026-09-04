@@ -327,7 +327,7 @@ export default function DebateChamberSection() {
               <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "10.5px", color: "rgba(180,200,220,0.65)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 <span style={{ color: C.gold }}>●</span> “{motion.title}”
               </p>
-              <button onClick={newMotion} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono',monospace", fontSize: "10px", cursor: "pointer", flexShrink: 0, letterSpacing: "0.04em", transition: "color .2s" }}
+              <button onClick={newMotion} style={{ background: "transparent", border: "none", color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace", fontSize: "10px", cursor: "pointer", flexShrink: 0, letterSpacing: "0.04em", transition: "color .2s" }}
                 onMouseOver={e => e.currentTarget.style.color = C.gold} onMouseOut={e => e.currentTarget.style.color = "rgba(255,255,255,0.35)"}>
                 ↻ new motion
               </button>

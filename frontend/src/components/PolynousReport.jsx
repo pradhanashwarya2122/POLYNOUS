@@ -826,6 +826,20 @@ const RP_CSS = `
 .rp-wrap { max-width: min(1320px, 94vw); margin: 0 auto; padding: 0 clamp(20px, 4vw, 72px) 80px; }
 /* keep pure-prose columns readable even when the shell goes full-bleed */
 .rp-lede, .rp-sublede, .rp-method, .rp-cap, .rp-find-t, .rp-contra p, .rp-dissent-q { max-width: 82ch; }
+/* LIGHT THEME: flip the report tokens (same values as the @media print theme). */
+:root[data-theme="light"] .rp {
+  --ink:#ffffff; --ink2:#ffffff; --panel:#f6f7f9; --panel2:#eef1f5;
+  --line:#d6dbe3; --line2:#e9ecf1;
+  --tx:#242832; --dim:#6b7280; --hi:#0b0d16;
+  --acc:#0b8a43; --acc-soft:rgba(11,138,67,0.10);
+  --pos:#0b8a43; --warn:#b26b00; --neg:#c0392b; --info:#0369a1;
+  --scrim: rgba(255,255,255,0.82);
+}
+:root[data-theme="light"] .rp.dbr {
+  --acc:#cc1030; --acc-soft:rgba(204,16,48,0.10);
+  --pos:#0b8a43; --neg:#cc1030; --warn:#b26b00; --info:#7c3aed;
+  --scrim: rgba(255,255,255,0.82);
+}
 .rp ::selection { background: var(--acc-soft); }
 .rp-mono { font-family: var(--mono); }
 .rp-dim { color: var(--dim); }

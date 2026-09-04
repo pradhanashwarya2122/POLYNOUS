@@ -4,11 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Critical: keep the reload/boot flash on the POLYNOUS dark background,
-         never white, so full-page navigations transition cleanly. -->
+    <!-- No-flash theme boot: set data-theme from the saved choice (or OS) BEFORE
+         the app or its styles paint, so a light-preferred reload never flashes
+         dark and vice-versa. theme.css then supplies the actual palette. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('polynous_theme');
+          if (t !== 'light' && t !== 'dark') {
+            t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+          }
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
     <style>
+      /* The body stays on the POLYNOUS dark ground; individual app screens paint
+         their own light background in light mode (opt-in), so a full-page reload
+         never flashes white and dark-designed pages keep their look. */
       html, body, #root { background: #0a0a1e; color: #d4e4fa; }
-      html { color-scheme: dark; }
     </style>
 
     <!-- ============================================= -->

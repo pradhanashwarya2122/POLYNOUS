@@ -5,19 +5,19 @@ import { useEffect } from "react";
    these routes already exist. */
 
 const C = {
-  green: "#00ff0f", cyan: "#00ccff", void: "#060610",
+  green: "#00ff0f", cyan: "#00ccff", void: "var(--bg)",
 };
 
 function Shell({ title, tag, accent = C.green, children }) {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   return (
-    <div style={{ minHeight: "100vh", background: C.void, color: "#fff", position: "relative" }}>
+    <div style={{ minHeight: "100vh", background: C.void, color: "var(--text)", position: "relative" }}>
       <div style={{ position: "fixed", inset: 0, background: `radial-gradient(ellipse 70% 50% at 50% 0%, ${accent}0c, transparent 60%)`, pointerEvents: "none" }} />
       <header style={{ position: "sticky", top: 0, zIndex: 20, backdropFilter: "blur(24px)", background: "rgba(6,6,16,0.7)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
             <img src="/favicon.png" alt="POLYNOUS" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover", border: `1px solid ${accent}40` }} />
-            <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 16, color: "#fff", letterSpacing: "0.06em" }}>POLYNOUS</span>
+            <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: 16, color: "var(--text)", letterSpacing: "0.06em" }}>POLYNOUS</span>
           </a>
           <a href="/" style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, color: "rgba(150,165,185,0.8)", textDecoration: "none" }}>← Back home</a>
         </div>
@@ -35,7 +35,7 @@ function Shell({ title, tag, accent = C.green, children }) {
 function Section({ h, children }) {
   return (
     <section style={{ marginBottom: 32 }}>
-      <h2 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", letterSpacing: "-0.02em", margin: "0 0 12px" }}>{h}</h2>
+      <h2 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 20, color: "var(--text)", letterSpacing: "-0.02em", margin: "0 0 12px" }}>{h}</h2>
       {children}
     </section>
   );

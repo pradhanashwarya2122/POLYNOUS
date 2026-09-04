@@ -52,6 +52,78 @@ def _mmr_rerank(query_vec, matches, k, lam: float = 0.7):
     return selected
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 1: HyDE + hybrid (dense ⊕ lexical) retrieval
+# ──────────────────────────────────────────────────────────────────────────────
+_HYDE_MAX_QUERY_WORDS = 8   # HyDE helps most on short / underspecified queries
+_STOP = set(
+    "the a an of to in on for and or is are was were be been being with by as at "
+    "from this that these those it its into over under about how what why does do".split()
+)
+
+
+def _hyde_expand(user, query: str) -> str:
+    """HyDE (Hypothetical Document Embeddings): ask the model for one dense,
+    factual sentence that a relevant document would contain, then embed the query
+    PLUS that sentence. This turns a bare 2-word query into a rich passage, which
+    dramatically improves recall. Best-effort — returns the raw query on any
+    failure, when disabled (SEARCH_HYDE=0), or for already-specific long queries.
+    """
+    if os.getenv("SEARCH_HYDE", "1") == "0":
+        return query
+    if len(query.split()) > _HYDE_MAX_QUERY_WORDS:
+        return query
+    try:
+        from app.llm_client import ask_llm
+        hyp = ask_llm(
+            user=user,
+            system_prompt=("Expand a short search query into ONE dense, factual sentence "
+                           "that a relevant document would contain. No preamble, one sentence, "
+                           "under 40 words."),
+            messages=[{"role": "user", "content": f"Query: {query}\nHypothetical answer sentence:"}],
+            max_tokens=80, temperature=0.3,
+        )
+        hyp = (hyp or "").strip().replace("\n", " ")
+        return f"{query}. {hyp}" if hyp else query
+    except Exception as e:
+        print(f"HyDE expand skipped: {e}")
+        return query
+
+
+def _tokenize(text: str):
+    import re
+    return [t for t in re.findall(r"[a-z0-9]+", (text or "").lower()) if len(t) > 1 and t not in _STOP]
+
+
+def _lexical_score(q_terms, text: str) -> float:
+    """Lightweight BM25-ish lexical score: distinct-term coverage plus a capped
+    term-frequency bonus. Catches exact terms, acronyms and proper names that
+    dense vectors blur. Returns 0..1."""
+    if not q_terms:
+        return 0.0
+    toks = _tokenize(text)
+    if not toks:
+        return 0.0
+    from collections import Counter
+    tf = Counter(toks)
+    uniq = set(q_terms)
+    covered = sum(1 for t in uniq if tf.get(t, 0) > 0)
+    freq = sum(min(tf.get(t, 0), 3) for t in uniq)
+    coverage = covered / len(uniq)
+    return 0.70 * coverage + 0.30 * min(1.0, freq / (3 * len(uniq)))
+
+
+def _rrf_fuse(dense_ids, lexical_ids, k: int = 60) -> Dict[str, float]:
+    """Reciprocal Rank Fusion of two rankings → {id: fused_score}. Scale-free, no
+    tuning of dense-vs-lexical weights needed."""
+    scores: Dict[str, float] = {}
+    for rank, _id in enumerate(dense_ids):
+        scores[_id] = scores.get(_id, 0.0) + 1.0 / (k + rank + 1)
+    for rank, _id in enumerate(lexical_ids):
+        scores[_id] = scores.get(_id, 0.0) + 1.0 / (k + rank + 1)
+    return scores
+
+
 class SemanticSearchEngine:
     def __init__(self):
         self.use_pinecone = False
@@ -149,26 +221,45 @@ class SemanticSearchEngine:
         """
         results = []
 
-        # ✅ 1. Try Pinecone with user namespace
+        # ✅ 1. Try Pinecone with user namespace — HyDE-expanded, hybrid-ranked.
         if self.use_pinecone and self.index:
             try:
                 namespace = f"user_{user_id}"
-                # Create query embedding using the user's own key
-                q_embedding = create_embedding(user, query)
+                # Phase 1a — HyDE: embed the query enriched with a hypothetical
+                # answer sentence, so short queries retrieve far better.
+                hyde_text = _hyde_expand(user, query)
+                q_embedding = create_embedding(user, hyde_text)
                 if q_embedding:
-                    # Phase D: over-fetch candidates, then re-rank with Maximal
-                    # Marginal Relevance so results are relevant AND diverse
-                    # (no near-duplicate research entries crowding the top).
+                    # Over-fetch a wide candidate set for fusion + diversity.
+                    over = max(top_k * 4, 20)
                     pine_results = self.index.query(
                         vector=q_embedding,
-                        top_k=max(top_k * 3, top_k),
+                        top_k=over,
                         include_metadata=True,
                         include_values=True,
                         filter=filters,
                         namespace=namespace,
                     )
-                    raw_matches = [m for m in pine_results.get("matches", []) if m.score > 0.3]
-                    matches = _mmr_rerank(q_embedding, raw_matches, top_k)
+                    raw_matches = [m for m in pine_results.get("matches", []) if m.score > 0.25]
+
+                    # Phase 1b — HYBRID: fuse the dense ranking with a lexical
+                    # ranking (over the ORIGINAL query, not the HyDE text) via
+                    # Reciprocal Rank Fusion, so exact terms / acronyms / names
+                    # that dense vectors blur are recovered. Then MMR for diversity.
+                    if raw_matches:
+                        by_id = {m.id: m for m in raw_matches}
+                        dense_ids = [m.id for m in sorted(raw_matches, key=lambda x: x.score, reverse=True)]
+                        q_terms = _tokenize(query)
+                        lex = []
+                        for m in raw_matches:
+                            meta = m.metadata or {}
+                            lex.append((m.id, _lexical_score(q_terms, f"{meta.get('query','')} {meta.get('answer','')}")))
+                        lexical_ids = [i for i, s in sorted(lex, key=lambda x: x[1], reverse=True) if s > 0]
+                        fused = _rrf_fuse(dense_ids, lexical_ids)
+                        fused_matches = [by_id[i] for i in sorted(fused, key=lambda i: fused[i], reverse=True) if i in by_id]
+                        matches = _mmr_rerank(q_embedding, fused_matches[: max(top_k * 2, top_k)], top_k)
+                    else:
+                        matches = []
                     for match in matches:
                             meta = match.metadata or {}
                             sources_raw = meta.get("sources", "[]")

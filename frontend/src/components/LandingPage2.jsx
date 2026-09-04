@@ -350,7 +350,7 @@ function Header(){
           {/* ✅ FIX 1: Sign In → Auth Page */}
           <button 
             onClick={() => window.location.href = '/auth'}
-            style={{padding:"7px 18px",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"9999px",background:"transparent",color:"rgba(255,255,255,0.45)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",fontWeight:500,cursor:"pointer",transition:"all 0.25s",letterSpacing:"0.01em"}} 
+            style={{padding:"7px 18px",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"9999px",background:"transparent",color: "var(--text-secondary)",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",fontWeight:500,cursor:"pointer",transition:"all 0.25s",letterSpacing:"0.01em"}} 
             onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} 
             onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="rgba(255,255,255,0.45)";}}
           >
@@ -396,7 +396,7 @@ function HeroSection(){
       </p>
 
       <div className="reveal search-bar search-focus" ref={useReveal(0.05)} style={{width:"min(760px,100%)",marginBottom:"18px",display:"flex",alignItems:"center",gap:"10px",padding:"7px",borderRadius:"9999px",background:"rgba(10,10,22,0.8)",border:`1px solid ${focused?"rgba(0,255,15,0.35)":"rgba(255,255,255,0.06)"}`,transitionDelay:"0.2s",transition:"border-color 0.25s,box-shadow 0.25s",backdropFilter:"blur(20px)"}}>
-        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color:"rgba(255,255,255,0.18)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
+        <span style={{fontFamily:"Material Symbols Outlined",fontSize:"19px",color: "var(--text-muted)",padding:"0 4px 0 16px",flexShrink:0}}>search</span>
         <input value={query} onChange={e=>setQuery(e.target.value)} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="What do you want to research?" style={{flex:1,height:"50px",padding:"0 8px",background:"transparent",border:"none",outline:"none",color:"#fff",fontFamily:"Hanken Grotesk,sans-serif",fontSize:"17px",fontWeight:400}}/>
         <button onClick={()=>go()} style={{height:"50px",padding:"0 26px",borderRadius:"9999px",border:"none",background:`linear-gradient(135deg,${C.green},#19e81f)`,color:C.void,cursor:"pointer",fontFamily:"Sora,sans-serif",fontSize:"14px",fontWeight:800,flexShrink:0,transition:"all 0.22s",letterSpacing:"0.04em",boxShadow:`0 0 20px rgba(0,255,15,0.3)`}} onMouseOver={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.boxShadow=`0 0 32px rgba(0,255,15,0.5)`;}} onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 0 20px rgba(0,255,15,0.3)`;}}>Research →</button>
       </div>
@@ -415,7 +415,7 @@ function HeroSection(){
             Start Research →
           </button>
         </div>
-        <a href="#how-it-works" style={{padding:"12px 28px",border:"1px solid rgba(255,255,255,0.09)",color:"rgba(255,255,255,0.55)",fontWeight:600,borderRadius:"9999px",background:"transparent",fontFamily:"Sora,sans-serif",fontSize:"16px",textDecoration:"none",transition:"all 0.25s",display:"inline-flex",alignItems:"center"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
+        <a href="#how-it-works" style={{padding:"12px 28px",border:"1px solid rgba(255,255,255,0.09)",color: "var(--text-secondary)",fontWeight:600,borderRadius:"9999px",background:"transparent",fontFamily:"Sora,sans-serif",fontSize:"16px",textDecoration:"none",transition:"all 0.25s",display:"inline-flex",alignItems:"center"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(0,204,255,0.35)";e.currentTarget.style.color=C.cyan;}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
           See How It Works ↓
         </a>
       </div>
@@ -427,7 +427,7 @@ function HeroSection(){
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.crimson,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.gold,opacity:0.7}}/>
           <div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.green,opacity:0.7}}/>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.18)",marginLeft:"10px",lineHeight:"10px"}}>polynous - neural-mesh</span>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color: "var(--text-muted)",marginLeft:"10px",lineHeight:"10px"}}>polynous - neural-mesh</span>
         </div>
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:C.green}}><span style={{color:"rgba(100,118,170,0.5)"}}>$ </span>npm run polynous</div>
         <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",color:"rgba(130,148,170,0.5)",marginTop:"10px",lineHeight:2}}>
@@ -435,7 +435,7 @@ function HeroSection(){
         </div>
       </div>
 
-      <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.15)",lineHeight:1.8,marginTop:"26px",letterSpacing:"0.09em"}}>
+      <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color: "var(--text-muted)",lineHeight:1.8,marginTop:"26px",letterSpacing:"0.09em"}}>
         7 specialized agents · Real-time web search · Cited & verified · Confidence scored · BYOK
       </p>
     </section>
@@ -524,15 +524,15 @@ function ApiSection(){
               <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${C.cyan}45,transparent)`}}/>
               <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px",borderBottom:"1px solid rgba(255,255,255,0.04)",paddingBottom:"12px"}}>
                 <span style={{fontFamily:"Material Symbols Outlined",color:C.green,fontSize:"17px"}}>settings_input_component</span>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color:"rgba(255,255,255,0.5)"}}>mesh_config.yaml</span>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"13px",color: "var(--text-secondary)"}}>mesh_config.yaml</span>
               </div>
               <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2.2}}>
                 <p style={{color:C.cyan}}>agents:</p>
-                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>research_lead: <span style={{color:C.green}}>"anthropic/claude-3-5-sonnet"</span></p>
-                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>dialectic_judge: <span style={{color:C.green}}>"openai/gpt-4o"</span></p>
-                <p style={{paddingLeft:"16px",color:"rgba(255,255,255,0.65)"}}>local_summarizer: <span style={{color:C.green}}>"ollama/llama3"</span></p>
-                <p style={{marginTop:"8px",color:"rgba(255,255,255,0.28)"}}>encryption: <span style={{color:C.amber}}>fernet</span></p>
-                <p style={{color:"rgba(255,255,255,0.28)"}}>zero_knowledge: <span style={{color:C.green}}>true</span></p>
+                <p style={{paddingLeft:"16px",color: "var(--text)"}}>research_lead: <span style={{color:C.green}}>"anthropic/claude-3-5-sonnet"</span></p>
+                <p style={{paddingLeft:"16px",color: "var(--text)"}}>dialectic_judge: <span style={{color:C.green}}>"openai/gpt-4o"</span></p>
+                <p style={{paddingLeft:"16px",color: "var(--text)"}}>local_summarizer: <span style={{color:C.green}}>"ollama/llama3"</span></p>
+                <p style={{marginTop:"8px",color: "var(--text-muted)"}}>encryption: <span style={{color:C.amber}}>fernet</span></p>
+                <p style={{color: "var(--text-muted)"}}>zero_knowledge: <span style={{color:C.green}}>true</span></p>
               </div>
             </div>
           </div>
@@ -662,7 +662,7 @@ function TechHighlights(){
                   <div style={{width:"46px",height:"46px",borderRadius:"12px",background:`rgba(${rgb},0.08)`,border:`1px solid rgba(${rgb},0.18)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                     <span style={{fontFamily:"Material Symbols Outlined",fontSize:"22px",color:t.color}}>{t.icon}</span>
                   </div>
-                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.12)",letterSpacing:"0.1em",marginTop:"3px"}}>0{i+1}</span>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color: "var(--text-muted)",letterSpacing:"0.1em",marginTop:"3px"}}>0{i+1}</span>
                 </div>
                 <h3 style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"15.5px",color:"#fff",marginBottom:"10px",letterSpacing:"-0.015em",lineHeight:1.2}}>{t.title}</h3>
                 <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(130,148,168,0.72)",lineHeight:1.72,margin:0}}>{t.desc}</p>
@@ -741,7 +741,7 @@ function AgentPlayground(){
             {PLAYGROUND_AGENTS.map(agent=>{
               const isSel=selected===agent.id;
               return(
-                <button key={agent.id} className="agent-btn" onClick={()=>run(agent)} style={{padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color:"rgba(255,255,255,0.06)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
+                <button key={agent.id} className="agent-btn" onClick={()=>run(agent)} style={{padding:"18px 14px",background:isSel?`${agent.color}10`:"rgba(8,8,20,0.85)",border:`1px solid ${isSel?agent.color: "var(--text-muted)"}`,color:isSel?agent.color:"rgba(130,148,168,0.65)",textAlign:"left",boxShadow:isSel?`0 0 20px ${agent.color}22,0 0 40px ${agent.color}10,inset 0 1px 0 ${agent.color}12`:"none",gridColumn:agent.id==="judge"?"1 / -1":undefined}}>
                   <div style={{fontSize:"22px",marginBottom:"6px"}}>{agent.emoji}</div>
                   <div style={{fontFamily:"Sora,sans-serif",fontWeight:700,fontSize:"11px",letterSpacing:"0.1em"}}>{agent.name}</div>
                   {isSel&&<div style={{fontFamily:"JetBrains Mono,monospace",fontSize:"8px",marginTop:"4px",opacity:0.55,color:agent.color}}>● ACTIVE</div>}
@@ -757,20 +757,20 @@ function AgentPlayground(){
                   <p style={{fontFamily:"Hanken Grotesk,sans-serif",fontSize:"14px",color:"rgba(185,200,175,0.75)",lineHeight:1.65,margin:0}}>{active.desc}</p>
                 </div>
               ):(
-                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)",lineHeight:1.7,margin:0}}>← Select an agent to see its role briefing and watch it run.</p>
+                <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color: "var(--text-muted)",lineHeight:1.7,margin:0}}>← Select an agent to see its role briefing and watch it run.</p>
               )}
             </div>
             <div ref={logRef} style={{flex:1,minHeight:"200px",maxHeight:"200px",overflowY:"auto",background:"#05050f",padding:"16px 20px",fontFamily:"JetBrains Mono,monospace",fontSize:"12px",lineHeight:2,scrollbarWidth:"thin",scrollbarColor:"rgba(0,255,15,0.1) transparent"}}>
-              {log.length===0&&<span style={{color:"rgba(255,255,255,0.12)"}}>_</span>}
+              {log.length===0&&<span style={{color: "var(--text-muted)"}}>_</span>}
               {log.map((e,i)=>(
                 <div key={i} style={{animation:"fadeUp 0.28s ease",color:e.color,display:"flex",gap:"10px",alignItems:"baseline"}}>
-                  <span style={{color:"rgba(255,255,255,0.15)",fontSize:"10px",minWidth:"18px"}}>{i+1}</span>
+                  <span style={{color: "var(--text-muted)",fontSize:"10px",minWidth:"18px"}}>{i+1}</span>
                   <span>{e.text}</span>
                 </div>
               ))}
               {running&&(
                 <div style={{display:"flex",alignItems:"center",gap:"5px",marginTop:"4px"}}>
-                  <span style={{color:"rgba(255,255,255,0.15)",fontSize:"10px"}}>{log.length+1}</span>
+                  <span style={{color: "var(--text-muted)",fontSize:"10px"}}>{log.length+1}</span>
                   {[0,1,2].map(i=><div key={i} style={{width:"4px",height:"4px",borderRadius:"50%",background:active?.color||C.green,animation:`pulse 1.1s ${i*0.18}s ease-in-out infinite`}}/>)}
                 </div>
               )}
@@ -778,11 +778,11 @@ function AgentPlayground(){
             <div style={{padding:"12px 18px",background:"rgba(5,5,15,0.96)",borderTop:"1px solid rgba(255,255,255,0.03)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px"}}>
               <div style={{display:"flex",alignItems:"center",gap:"7px"}}>
                 <div style={{width:"5px",height:"5px",borderRadius:"50%",background:running?C.amber:done?C.green:"rgba(255,255,255,0.12)",animation:running?"pulse 0.8s ease-in-out infinite":"none",transition:"background 0.3s"}}/>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color:"rgba(255,255,255,0.28)"}}>
+                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"10px",color: "var(--text-muted)"}}>
                   {running?`${active?.name} processing…`:done?`${active?.name} complete ✓`:"Awaiting selection"}
                 </span>
               </div>
-              {(selected||log.length>0)&&<button onClick={reset} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"7px",padding:"4px 12px",color:"rgba(255,255,255,0.28)",fontFamily:"JetBrains Mono,monospace",fontSize:"10px",cursor:"pointer",transition:"all 0.2s"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.2)";e.currentTarget.style.color="#fff";}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.07)";e.currentTarget.style.color="rgba(255,255,255,0.28)";}}>reset</button>}
+              {(selected||log.length>0)&&<button onClick={reset} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"7px",padding:"4px 12px",color: "var(--text-muted)",fontFamily:"JetBrains Mono,monospace",fontSize:"10px",cursor:"pointer",transition:"all 0.2s"}} onMouseOver={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.2)";e.currentTarget.style.color="#fff";}} onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.07)";e.currentTarget.style.color="rgba(255,255,255,0.28)";}}>reset</button>}
             </div>
           </div>
         </div>
@@ -860,7 +860,7 @@ function Footer(){
       <div style={{maxWidth:"1400px",margin:"0 auto",padding:"0 32px",display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"18px"}}>
           <span style={{fontFamily:"Sora,sans-serif",fontWeight:900,fontSize:"14px",color:C.green,letterSpacing:"0.1em"}}>POLYNOUS</span>
-          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color:"rgba(255,255,255,0.15)"}}>7 Agents · Claude + GPT + Tavily</span>
+          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:"11px",color: "var(--text-muted)"}}>7 Agents · Claude + GPT + Tavily</span>
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:"22px"}}>
           {[{label:"GitHub",href:"https://github.com/pradhanashwarya2122"},{label:"Docs",href:"#"},{label:"Privacy",href:"#"},{label:"Terms",href:"#"}].map(({label,href})=>(

@@ -564,7 +564,7 @@ export default function ResearchChamberSection() {
                     writingActive={writingActive}
                   />
                   {!running && !done && (
-                    <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", color: "rgba(255,255,255,0.15)", margin: 0 }}>Scroll down to start the pipeline…</p>
+                    <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Scroll down to start the pipeline…</p>
                   )}
                 </div>
 

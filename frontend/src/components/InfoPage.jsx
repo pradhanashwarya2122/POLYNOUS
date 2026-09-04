@@ -16,7 +16,7 @@ const HELP_RAIL = [
 // ============================================================================
 
 const C = {
-  bg: "#0a0a1e", surface: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)",
+  bg: "var(--bg)", surface: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)",
   primary: "#e8eaf2", secondary: "#9aa3b5", muted: "#6b7386",
   cyan: "#00ccff", green: "#00e64d", amber: "#ffb020", purple: "#a855f7",
 };

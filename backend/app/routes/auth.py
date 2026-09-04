@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
+from app.middleware.rate_limiter import register_limiter, login_limiter
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from jose.exceptions import JWTError as JoseJWTError        # ← ADDED
@@ -282,7 +283,8 @@ class TokenResponse(BaseModel):
 # ============================================================
 
 @router.post("/register")
-async def register(request: RegisterRequest, response: Response, db: Session = Depends(get_db)):
+async def register(request: RegisterRequest, response: Response, db: Session = Depends(get_db),
+                   _rl: None = Depends(register_limiter)):
     """
     Register a new user.
     ✅ Only checks duplicate email — username is optional & non‑unique
@@ -348,7 +350,8 @@ async def register(request: RegisterRequest, response: Response, db: Session = D
     }
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
+async def login(request: LoginRequest, response: Response, db: Session = Depends(get_db),
+                _rl: None = Depends(login_limiter)):
     """
     Login with email and password.
     ✅ Case‑insensitive email lookup

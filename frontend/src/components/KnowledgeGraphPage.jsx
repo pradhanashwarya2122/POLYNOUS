@@ -19,7 +19,7 @@ const C = {
   purple: "#A855F7",
   gold: "#FFB547",
   orange: "#FF8A3D",
-  void: "#080818",
+  void: "var(--bg)",
   surface: "rgba(12,12,30,0.72)",
   surfaceContainer: "rgba(18,18,42,0.82)",
   onSurface: "#F3F0FF",
@@ -207,7 +207,7 @@ function BigBangIntro({ onComplete, offsetLeft = 0 }) {
       const t = Math.min(1, elapsed / TOTAL_MS);
 
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = "#080818";
+      ctx.fillStyle = "var(--bg)";
       ctx.fillRect(0, 0, W, H);
 
       if (t < 0.12) {
@@ -320,7 +320,7 @@ function BigBangIntro({ onComplete, offsetLeft = 0 }) {
   return (
     <div style={{
       position: "fixed", top: 0, right: 0, bottom: 0, left: offsetLeft, zIndex: 9999,
-      background: "#080818",
+      background: "var(--bg)",
       display: "flex", alignItems: "center", justifyContent: "center",
       overflow: "hidden",
       transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)",
@@ -364,7 +364,7 @@ function BigBangIntro({ onComplete, offsetLeft = 0 }) {
             fontFamily: "'Space Grotesk', sans-serif",
             fontSize: 14,
             fontWeight: 400,
-            color: "rgba(255,255,255,0.28)",
+            color: "var(--text-muted)",
             letterSpacing: "0.05em",
             marginTop: 16,
             marginBottom: 56,
@@ -407,7 +407,7 @@ function BigBangIntro({ onComplete, offsetLeft = 0 }) {
             <div style={{
               fontFamily: "'Space Grotesk', sans-serif",
               fontSize: 10,
-              color: "rgba(255,255,255,0.14)",
+              color: "var(--text-muted)",
               marginTop: 22,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
@@ -451,7 +451,7 @@ function IdleStars({ charging }) {
     const loop = () => {
       frame++;
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = "#080818";
+      ctx.fillStyle = "var(--bg)";
       ctx.fillRect(0, 0, W, H);
 
       const NEBULAS = [
@@ -716,7 +716,7 @@ function GraphHeader({ nodeCount, edgeCount }) {
     <div style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 15, pointerEvents: "none" }}>
       <div style={{ background: "linear-gradient(180deg, rgba(8,8,28,0.75), rgba(8,8,24,0.60))", backdropFilter: "blur(20px)", border: "1px solid rgba(168,85,247,0.10)", borderRadius: 16, padding: "18px 52px 16px", display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 12px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03)" }}>
         <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 72, fontWeight: 700, fontStyle: "italic", letterSpacing: "0.03em", textTransform: "uppercase", color: "#FFFFFF", margin: 0, lineHeight: 0.9, textShadow: "0 0 8px rgba(168,85,247,0.35), 0 0 20px rgba(168,85,247,0.12)" }}>KNOWLEDGE GRAPH</h2>
-        <div style={{ marginTop: 8, display: "flex", gap: 14, alignItems: "center", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.40)" }}>
+        <div style={{ marginTop: 8, display: "flex", gap: 14, alignItems: "center", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-secondary)" }}>
           <span>{nodeCount} Nodes</span>
           <span style={{ color: "rgba(168,85,247,0.35)" }}>•</span>
           <span>{edgeCount} Edges</span>
@@ -757,13 +757,13 @@ function CommandPalette({ nodes, onClose, onSelectNode, onAction, filter, setFil
           <Ico name="cmd" size={16} color={C.purple} />
           <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search nodes or actions…"
             onKeyDown={e => { if (e.key === "Escape") onClose(); if (e.key === "Enter" && matchedNodes[0]) { onSelectNode(matchedNodes[0]); onClose(); } }}
-            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#fff", fontSize: 14, fontFamily: "'Space Grotesk',sans-serif" }} />
-          <kbd style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "2px 6px" }}>ESC</kbd>
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "var(--text)", fontSize: 14, fontFamily: "'Space Grotesk',sans-serif" }} />
+          <kbd style={{ fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "2px 6px" }}>ESC</kbd>
         </div>
         <div style={{ maxHeight: 400, overflowY: "auto" }}>
           {matchedNodes.length > 0 && (
             <div style={{ padding: "8px 0" }}>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.12em", padding: "4px 16px 6px" }}>Nodes</div>
+              <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.12em", padding: "4px 16px 6px" }}>Nodes</div>
               {matchedNodes.map((n, i) => {
                 const col = NODE_COLORS[n.type] || NODE_COLORS.default;
                 return (
@@ -771,7 +771,7 @@ function CommandPalette({ nodes, onClose, onSelectNode, onAction, filter, setFil
                     onMouseEnter={e => e.currentTarget.style.background = "rgba(168,85,247,0.08)"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: col.fill, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13, color: "#fff", fontFamily: "'Space Grotesk',sans-serif" }}>{n.label}</span>
+                    <span style={{ flex: 1, fontSize: 13, color: "var(--text)", fontFamily: "'Space Grotesk',sans-serif" }}>{n.label}</span>
                     <span style={{ fontSize: 9, color: col.text, textTransform: "uppercase" }}>{n.type?.replace("_", " ")}</span>
                   </div>
                 );
@@ -779,13 +779,13 @@ function CommandPalette({ nodes, onClose, onSelectNode, onAction, filter, setFil
             </div>
           )}
           <div style={{ padding: "8px 0", borderTop: matchedNodes.length ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.12em", padding: "4px 16px 6px" }}>Actions</div>
+            <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.12em", padding: "4px 16px 6px" }}>Actions</div>
             {matchedActions.map((a, i) => (
               <div key={i} onClick={a.action} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 16px", cursor: "pointer" }}
                 onMouseEnter={e => e.currentTarget.style.background = "rgba(168,85,247,0.08)"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <Ico name={a.icon} size={13} color="rgba(255,255,255,0.5)" />
-                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontFamily: "'Space Grotesk',sans-serif" }}>{a.label}</span>
+                <span style={{ fontSize: 13, color: "var(--text)", fontFamily: "'Space Grotesk',sans-serif" }}>{a.label}</span>
               </div>
             ))}
           </div>
@@ -846,30 +846,30 @@ function Pathfinder({ positions, graphData, onClose, onPathFound }) {
             <span style={{ fontSize: 11, color: C.cyan, fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>Path Finder</span>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.4 }}>
-            <Ico name="close" size={13} color="#fff" />
+            <Ico name="close" size={13} color="var(--text)" />
           </button>
         </div>
         {[["From", from, setFrom], ["To", to, setTo]].map(([label, val, setter]) => (
           <div key={label} style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Grotesk',sans-serif", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</div>
+            <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "'Space Grotesk',sans-serif", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</div>
             <input value={val} onChange={e => setter(e.target.value)} placeholder="Node name or ID…" onKeyDown={e => e.key === "Enter" && find()}
-              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(70,179,255,0.14)", borderRadius: 7, padding: "7px 10px", color: "#fff", fontSize: 11, fontFamily: "'Space Grotesk',sans-serif", outline: "none", boxSizing: "border-box" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(70,179,255,0.14)", borderRadius: 7, padding: "7px 10px", color: "var(--text)", fontSize: 11, fontFamily: "'Space Grotesk',sans-serif", outline: "none", boxSizing: "border-box" }} />
           </div>
         ))}
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={find} style={{ flex: 1, padding: "8px", borderRadius: 7, background: `${C.cyan}16`, color: C.cyan, fontWeight: 600, cursor: "pointer", fontSize: 11, fontFamily: "'Space Grotesk',sans-serif", border: `1px solid ${C.cyan}30` }}>
             {searching ? "Searching…" : "Find Path"}
           </button>
-          {result && <button onClick={clearPath} style={{ padding: "8px 10px", borderRadius: 7, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, border: "1px solid rgba(255,255,255,0.06)" }}><Ico name="close" size={11} color="rgba(255,255,255,0.4)" /></button>}
+          {result && <button onClick={clearPath} style={{ padding: "8px 10px", borderRadius: 7, background: "rgba(255,255,255,0.04)", color: "var(--text-muted)", cursor: "pointer", fontSize: 11, border: "1px solid rgba(255,255,255,0.06)" }}><Ico name="close" size={11} color="rgba(255,255,255,0.4)" /></button>}
         </div>
         {result?.steps && (
           <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 10 }}>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", marginBottom: 8 }}>Path - {result.steps.length} hops</div>
+            <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", marginBottom: 8 }}>Path - {result.steps.length} hops</div>
             {result.steps.map((step, i) => (
               <div key={i}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 8px", borderRadius: 6, background: "rgba(70,179,255,0.05)", border: "1px solid rgba(70,179,255,0.1)", marginBottom: 2 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.cyan }} />
-                  <span style={{ fontSize: 10, color: "#fff", fontFamily: "'Space Grotesk',sans-serif" }}>{step.node}</span>
+                  <span style={{ fontSize: 10, color: "var(--text)", fontFamily: "'Space Grotesk',sans-serif" }}>{step.node}</span>
                 </div>
                 {step.edge && <div style={{ fontSize: 9, color: C.cyan, fontFamily: "'Space Grotesk',sans-serif", fontStyle: "italic", paddingLeft: 18, marginBottom: 2 }}> -  {step.edge} - </div>}
               </div>
@@ -892,7 +892,7 @@ function HoverPopup({ node, position, connections }) {
       <div style={{ width: 220, background: "rgba(8,6,20,0.95)", backdropFilter: "blur(20px)", border: `1px solid ${col.glow}28`, borderRadius: 12, padding: "12px 14px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: col.fill }} />
-          <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 600, color: "#fff" }}>{node.label}</span>
+          <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{node.label}</span>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <span style={{ fontSize: 10, background: `${col.fill}18`, color: col.text, border: `1px solid ${col.fill}30`, borderRadius: 20, padding: "2px 8px", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase" }}>{node.type?.replace("_", " ")}</span>
@@ -909,7 +909,7 @@ function HoverPopup({ node, position, connections }) {
             </div>
           </div>
         )}
-        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 6, marginTop: 4 }}>Click for full details</div>
+        <div style={{ fontSize: 9, color: "var(--text-muted)", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 6, marginTop: 4 }}>Click for full details</div>
       </div>
     </div>
   );
@@ -943,17 +943,17 @@ function NodeDetailPanel({ node, details, research, onClose, onResearch, onFindP
             <Ico name="graph" size={16} color={col.fill} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{details?.name || node.label}</div>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{details?.name || node.label}</div>
             <span style={{ fontSize: 10, background: `${col.fill}18`, color: col.text, border: `1px solid ${col.fill}35`, borderRadius: 20, padding: "2px 8px", textTransform: "uppercase" }}>{node.type?.replace("_", " ")}</span>
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.4)", cursor: "pointer", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "var(--text-secondary)", cursor: "pointer", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Ico name="close" size={12} color="rgba(255,255,255,0.6)" />
           </button>
         </div>
         {details?.description && (
           <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "9px 11px", marginBottom: 10, border: "1px solid rgba(255,255,255,0.04)" }}>
             <div style={{ fontSize: 9, color: C.textSecondary, marginBottom: 4, textTransform: "uppercase" }}>Description</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.55 }}>{details.description}</div>
+            <div style={{ fontSize: 11, color: "var(--text)", lineHeight: 1.55 }}>{details.description}</div>
           </div>
         )}
         {twins && twins.length > 0 && (
@@ -976,7 +976,7 @@ function NodeDetailPanel({ node, details, research, onClose, onResearch, onFindP
           </div>
         )}
         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-          <button onClick={() => onResearch?.(node.label)} style={{ flex: 1, padding: "9px", borderRadius: 9, border: "none", background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`, color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 11 }}>Research</button>
+          <button onClick={() => onResearch?.(node.label)} style={{ flex: 1, padding: "9px", borderRadius: 9, border: "none", background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`, color: "var(--text)", fontWeight: 700, cursor: "pointer", fontSize: 11 }}>Research</button>
           <button onClick={() => onFindPath?.(node.label)} style={{ flex: 1, padding: "9px", borderRadius: 9, border: `1px solid ${C.cyan}35`, background: `${C.cyan}0c`, color: C.cyan, fontWeight: 700, cursor: "pointer", fontSize: 11 }}>Find Path</button>
         </div>
       </div>
@@ -1003,7 +1003,7 @@ function MiniMap({ positions, pan, zoom, canvasSize, onJump }) {
   }, [scale, minX, minY, zoom, canvasSize, onJump]);
   return (
     <div style={{ background: "rgba(8,6,20,0.9)", backdropFilter: "blur(12px)", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
-      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", padding: "4px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 4 }}>
+      <div style={{ fontSize: 8, color: "var(--text-muted)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", padding: "4px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 4 }}>
         <Ico name="minimap" size={9} color="rgba(255,255,255,0.3)" /> Overview
       </div>
       <svg width={mmSize} height={mmSize} onClick={handleClick} style={{ display: "block", cursor: "crosshair" }}>
@@ -1027,9 +1027,9 @@ function ContextMenu({ node, position, onClose, onResearch, onHighlight, onPathf
   return (
     <div style={{ position: "absolute", left: position.x, top: position.y, zIndex: 300, pointerEvents: "all" }} onClick={e => e.stopPropagation()}>
       <div style={{ background: "rgba(8,6,20,0.97)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", transform: visible ? "scale(1)" : "scale(0.93)", opacity: visible ? 1 : 0, transition: "all 0.16s cubic-bezier(0.34,1.56,0.64,1)", minWidth: 172 }}>
-        <div style={{ padding: "6px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", fontFamily: "'Space Grotesk',sans-serif", fontSize: 9, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" }}>{node.label?.slice(0, 22)}</div>
+        <div style={{ padding: "6px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", fontFamily: "'Space Grotesk',sans-serif", fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>{node.label?.slice(0, 22)}</div>
         {items.map((item, i) => (
-          <div key={i} onClick={item.action} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", fontSize: 11, color: "rgba(255,255,255,0.7)" }}
+          <div key={i} onClick={item.action} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", fontSize: 11, color: "var(--text)" }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
             <Ico name={item.icon} size={13} color="rgba(255,255,255,0.5)" /><span style={{ fontFamily: "'Space Grotesk',sans-serif" }}>{item.label}</span>
           </div>
@@ -1081,7 +1081,7 @@ function TimelineSlider({ onExportGIF, exporting, growthStep, maxGrowthStep, gro
       {/* - ZOOM CONTROL - */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 20, borderRight: "1px solid rgba(255,255,255,0.06)", marginRight: 20 }}>
         <span style={{ fontSize: 9, color: "rgba(168,85,247,0.6)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.10em" }}>Zoom</span>
-        <button onClick={() => onZoomChange(Math.max(0.3, zoom - 0.1))} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 4, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1 }}>−</button>
+        <button onClick={() => onZoomChange(Math.max(0.3, zoom - 0.1))} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 4, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-secondary)", fontSize: 14, lineHeight: 1 }}>−</button>
         <div style={{ width: 80, position: "relative", height: 4, borderRadius: 2, background: "rgba(255,255,255,0.07)" }}>
           <div style={{ position: "absolute", left: 0, top: 0, height: "100%", borderRadius: 2, width: `${((zoom - 0.3) / 3.7) * 100}%`, background: "linear-gradient(90deg,#7c3aed,#a855f7)" }} />
           <input
@@ -1090,7 +1090,7 @@ function TimelineSlider({ onExportGIF, exporting, growthStep, maxGrowthStep, gro
             style={{ position: "absolute", inset: 0, width: "100%", opacity: 0, cursor: "pointer", margin: 0, height: "100%" }}
           />
         </div>
-        <button onClick={() => onZoomChange(Math.min(4, zoom + 0.1))} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 4, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1 }}>+</button>
+        <button onClick={() => onZoomChange(Math.min(4, zoom + 0.1))} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 4, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-secondary)", fontSize: 14, lineHeight: 1 }}>+</button>
         <span style={{ fontFamily: "'Space Grotesk',monospace", fontSize: 9, color: "#a855f7", fontWeight: 700, minWidth: 34 }}>{Math.round(zoom * 100)}%</span>
       </div>
 
@@ -1200,7 +1200,7 @@ function GraphIntelPanel({ onStartResearch }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className="material-symbols-outlined" style={{ fontSize: 18, color: P }}>network_intelligence</span>
-          <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 15, color: "#fff" }}>Graph Intelligence</span>
+          <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 15, color: "var(--text)" }}>Graph Intelligence</span>
         </div>
         <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#9a8ab5", cursor: "pointer" }}>
           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
@@ -1210,7 +1210,7 @@ function GraphIntelPanel({ onStartResearch }) {
         {[["ask", "Ask"], ["links", "Suggested"], ["metrics", "Influence"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "7px 10px", borderRadius: 9, cursor: "pointer",
             fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 700,
-            background: tab === k ? `${P}22` : "rgba(255,255,255,0.03)", border: `1px solid ${tab === k ? P : "rgba(255,255,255,0.08)"}`, color: tab === k ? "#fff" : "#a99bc2" }}>{l}</button>
+            background: tab === k ? `${P}22` : "rgba(255,255,255,0.03)", border: `1px solid ${tab === k ? P : "rgba(255,255,255,0.08)"}`, color: tab === k ? "var(--text)" : "#a99bc2" }}>{l}</button>
         ))}
       </div>
 
@@ -1219,7 +1219,7 @@ function GraphIntelPanel({ onStartResearch }) {
           <div style={{ display: "flex", gap: 8 }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()}
               placeholder="Ask a question answered from your graph…"
-              style={{ flex: 1, background: "rgba(6,4,15,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#fff", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, outline: "none" }} />
+              style={{ flex: 1, background: "rgba(6,4,15,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "var(--text)", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13, outline: "none" }} />
             <button onClick={ask} disabled={busy || !q.trim()} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: P, color: "#150a24", fontWeight: 800, cursor: busy ? "default" : "pointer", opacity: busy || !q.trim() ? 0.6 : 1 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{busy ? "hourglass_empty" : "send"}</span>
             </button>
@@ -1233,7 +1233,7 @@ function GraphIntelPanel({ onStartResearch }) {
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: P, marginBottom: 7 }}>Relationships used</div>
                   {ans.triples.slice(0, 8).map((t, i) => (
                     <div key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#c4b6de", marginBottom: 4 }}>
-                      <span style={{ color: "#fff" }}>{t.s}</span> <span style={{ color: P }}>{t.rel}</span> <span style={{ color: "#fff" }}>{t.o}</span>
+                      <span style={{ color: "var(--text)" }}>{t.s}</span> <span style={{ color: P }}>{t.rel}</span> <span style={{ color: "var(--text)" }}>{t.o}</span>
                     </div>
                   ))}
                 </div>
@@ -1252,7 +1252,7 @@ function GraphIntelPanel({ onStartResearch }) {
             <button key={i} onClick={() => onStartResearch?.(`${s.source} and ${s.target}`)}
               style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "9px 12px", marginBottom: 7, cursor: "pointer" }}>
               <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: "#e6ddf5", flex: 1 }}>
-                <span style={{ color: "#fff", fontWeight: 600 }}>{s.source}</span> <span style={{ color: P }}>↔</span> <span style={{ color: "#fff", fontWeight: 600 }}>{s.target}</span>
+                <span style={{ color: "var(--text)", fontWeight: 600 }}>{s.source}</span> <span style={{ color: P }}>↔</span> <span style={{ color: "var(--text)", fontWeight: 600 }}>{s.target}</span>
               </span>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: P }}>{s.common_neighbors}◇</span>
             </button>
@@ -1267,7 +1267,7 @@ function GraphIntelPanel({ onStartResearch }) {
             <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
               {[["Concepts", metrics.summary.nodes], ["Links", metrics.summary.edges], ["Communities", metrics.communities]].map(([l, v]) => (
                 <div key={l} style={{ flex: 1, textAlign: "center", background: "rgba(255,255,255,0.03)", border: `1px solid ${P}22`, borderRadius: 10, padding: "9px 6px" }}>
-                  <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 800, color: "#fff" }}>{v ?? 0}</div>
+                  <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 800, color: "var(--text)" }}>{v ?? 0}</div>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: "#8a7ba6", textTransform: "uppercase", letterSpacing: "0.08em" }}>{l}</div>
                 </div>
               ))}
@@ -1293,7 +1293,7 @@ function GraphIntelPanel({ onStartResearch }) {
               </div>
               {conflicts.slice(0, 5).map((c, i) => (
                 <div key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#e6c4c4", marginBottom: 5 }}>
-                  <span style={{ color: "#fff" }}>{c.a}</span> <span style={{ color: "#ff6b6b" }}>{c.relation}</span> <span style={{ color: "#fff" }}>{c.b}</span>
+                  <span style={{ color: "var(--text)" }}>{c.a}</span> <span style={{ color: "#ff6b6b" }}>{c.relation}</span> <span style={{ color: "var(--text)" }}>{c.b}</span>
                 </div>
               ))}
             </div>
@@ -1700,7 +1700,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
     const W = Math.max(...allX) + 80 - minX, H = Math.max(...allY) + 80 - minY;
     const off = document.createElement("canvas"); off.width = W; off.height = H;
     const octx = off.getContext("2d");
-    octx.fillStyle = "#080818"; octx.fillRect(0, 0, W, H);
+    octx.fillStyle = "var(--bg)"; octx.fillRect(0, 0, W, H);
     octx.save(); octx.translate(-minX, -minY);
     filteredEdges.forEach(edge => {
       const src = positions.find(n => n.id === edge.source), tgt = positions.find(n => n.id === edge.target);
@@ -1966,7 +1966,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
             ctx.strokeStyle = `rgba(${Math.min(255, fr + 80)},${Math.min(255, fg + 80)},${Math.min(255, fb + 80)},0.7)`;
             ctx.lineWidth = 1 / z; ctx.stroke();
             ctx.globalAlpha = 1;
-            ctx.fillStyle = (isHov || isSel) ? "#ffffff" : "rgba(255,255,255,0.92)";
+            ctx.fillStyle = (isHov || isSel) ? "var(--text)" : "rgba(255,255,255,0.92)";
             ctx.fillText(labelText, n.x, cy);
             ctx.textBaseline = "alphabetic";
           }
@@ -2087,7 +2087,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
               </button>
               {clusterCollapsed && expandedClusters.size > 0 && (
                 <button onClick={() => setExpandedClusters(new Set())}
-                  style={{ padding: "5px 11px", borderRadius: 9999, cursor: "pointer", background: "rgba(11,9,20,0.8)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)", color: "rgba(255,255,255,0.6)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+                  style={{ padding: "5px 11px", borderRadius: 9999, cursor: "pointer", background: "rgba(11,9,20,0.8)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)", color: "var(--text)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
                   Re-collapse {expandedClusters.size} expanded
                 </button>
               )}
@@ -2113,8 +2113,8 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
               <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 13px", borderRadius: 10, background: "rgba(11,9,20,0.82)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)" }}>
                 <Ico name={icon} size={13} color="rgba(192,132,252,0.9)" />
                 <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{label}</span>
-                  <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12.5, fontWeight: 700, color: "#fff", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-secondary)" }}>{label}</span>
+                  <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12.5, fontWeight: 700, color: "var(--text)", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span>
                 </span>
               </div>
             );
@@ -2122,7 +2122,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
               <div style={{ position: "absolute", top: 105, left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", maxWidth: "94%" }}>
                 <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", justifyContent: "center", padding: "7px 14px", borderRadius: 9999, background: "rgba(11,9,20,0.82)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.18)" }}>
                   {LEGEND.map(([t, lab, col]) => (
-                    <span key={t} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "rgba(255,255,255,0.78)" }}>
+                    <span key={t} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "var(--text)" }}>
                       <span style={{ width: 9, height: 9, borderRadius: "50%", background: col, boxShadow: `0 0 6px ${col}` }} /> {lab}
                     </span>
                   ))}
@@ -2139,7 +2139,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
 
           {/* Empty-state prompt — a sparse graph looks broken; guide the user. */}
           {positions.length > 0 && positions.length < 10 && (
-            <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", padding: "9px 16px", borderRadius: 9999, background: "rgba(11,9,20,0.85)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "rgba(255,255,255,0.7)" }}>
+            <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", padding: "9px 16px", borderRadius: 9999, background: "rgba(11,9,20,0.85)", backdropFilter: "blur(14px)", border: "1px solid rgba(168,85,247,0.2)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "var(--text)" }}>
               Run a few more research or debate sessions to grow your map.
             </div>
           )}
@@ -2180,8 +2180,8 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                       onChange={e => { e.stopPropagation(); setSearchQuery(e.target.value); }}
                       onKeyDown={e => { e.stopPropagation(); handleSearchKeyDown(e); }}
                       placeholder="Search nodes… (Enter to go)"
-                      style={{ background:"none", border:"none", outline:"none", color:"#fff", fontSize:11, fontFamily:"'Space Grotesk',sans-serif", width:"100%" }} />
-                    {searchQuery && <button onClick={() => setSearchQuery("")} style={{ background:"none", border:"none", cursor:"pointer", opacity:0.4 }}><Ico name="close" size={11} color="#fff" /></button>}
+                      style={{ background:"none", border:"none", outline:"none", color:"var(--text)", fontSize:11, fontFamily:"'Space Grotesk',sans-serif", width:"100%" }} />
+                    {searchQuery && <button onClick={() => setSearchQuery("")} style={{ background:"none", border:"none", cursor:"pointer", opacity:0.4 }}><Ico name="close" size={11} color="var(--text)" /></button>}
                   </div>
                 </div>
                 <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
@@ -2298,8 +2298,8 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                       {Object.entries(communityLabels).slice(0,8).map(([cid, v]) => (
                         <div key={cid} style={{ display:"flex", alignItems:"center", gap:6, fontSize:9, fontFamily:"'Space Grotesk',sans-serif" }}>
                           <span style={{ width:8, height:8, borderRadius:2, background: COMMUNITY_PALETTE[Number(cid)%COMMUNITY_PALETTE.length].fill, flexShrink:0 }} />
-                          <span style={{ color:"rgba(255,255,255,0.75)", fontWeight:600 }}>{v.label}</span>
-                          <span style={{ color:"rgba(255,255,255,0.28)" }}>· {v.size}</span>
+                          <span style={{ color: "var(--text)", fontWeight:600 }}>{v.label}</span>
+                          <span style={{ color: "var(--text-muted)" }}>· {v.size}</span>
                         </div>
                       ))}
                     </div>
@@ -2308,12 +2308,12 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                   {/* Capabilities info */}
                   <button onClick={e => { e.stopPropagation(); setShowCaps(s => !s); }}
                     style={{ marginTop:8, width:"100%", padding:"5px 0", borderRadius:6, cursor:"pointer", fontSize:8.5, fontFamily:"'Space Grotesk',sans-serif", letterSpacing:"0.04em",
-                      border:"1px dashed rgba(255,255,255,0.1)", background:"transparent", color:"rgba(255,255,255,0.4)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                      border:"1px dashed rgba(255,255,255,0.1)", background:"transparent", color: "var(--text-secondary)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                     <Ico name="help" size={10} color="rgba(255,255,255,0.4)" /> {showCaps ? "Hide" : "What can this do?"}
                   </button>
                   {showCaps && (
                     <div style={{ marginTop:7, display:"flex", flexDirection:"column", gap:6, fontFamily:"'Space Grotesk',sans-serif" }}>
-                      <div style={{ fontSize:8, color:"rgba(255,255,255,0.28)", lineHeight:1.5 }}>
+                      <div style={{ fontSize:8, color: "var(--text-muted)", lineHeight:1.5 }}>
                         Real graph ML computed on CPU inside your knowledge graph — no GPU, no GDS plugin:
                       </div>
                       {[
@@ -2329,9 +2329,9 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                           <span style={{ marginTop:2, width:6, height:6, borderRadius:"50%", flexShrink:0, background: live?"#38e8ff":"rgba(255,255,255,0.18)", boxShadow: live?"0 0 6px rgba(56,232,255,0.6)":"none" }} />
                           <div>
                             <div style={{ fontSize:9, fontWeight:600, color: live?"rgba(255,255,255,0.78)":"rgba(255,255,255,0.4)" }}>
-                              {t} {!live && <span style={{ fontSize:7.5, color:"rgba(255,255,255,0.3)", fontWeight:400 }}>· roadmap</span>}
+                              {t} {!live && <span style={{ fontSize:7.5, color: "var(--text-muted)", fontWeight:400 }}>· roadmap</span>}
                             </div>
-                            <div style={{ fontSize:8, color:"rgba(255,255,255,0.34)", lineHeight:1.45 }}>{d}</div>
+                            <div style={{ fontSize:8, color: "var(--text-muted)", lineHeight:1.45 }}>{d}</div>
                           </div>
                         </div>
                       ))}
@@ -2345,7 +2345,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                     <button onClick={e => { e.stopPropagation(); exportPNG(); }} style={{ flex:1, padding:"7px 0", borderRadius:6, fontSize:10, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer", border:"1px solid rgba(230,196,74,0.2)", background:"rgba(230,196,74,0.06)", color:"rgba(230,196,74,0.8)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                       <Ico name="download" size={11} color="rgba(230,196,74,0.75)" /> PNG {showExportHint ? "✓" : ""}
                     </button>
-                    <button onClick={e => { e.stopPropagation(); clearPositions(); }} style={{ flex:1, padding:"7px 0", borderRadius:6, fontSize:10, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer", border:"1px solid rgba(255,255,255,0.07)", background:"rgba(255,255,255,0.03)", color:"rgba(255,255,255,0.32)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                    <button onClick={e => { e.stopPropagation(); clearPositions(); }} style={{ flex:1, padding:"7px 0", borderRadius:6, fontSize:10, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer", border:"1px solid rgba(255,255,255,0.07)", background:"rgba(255,255,255,0.03)", color: "var(--text-muted)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                       <Ico name="reset" size={11} color="rgba(255,255,255,0.3)" /> Reset
                     </button>
                     <button onClick={e => { e.stopPropagation(); centerGraph(); }} style={{ flex:1, padding:"7px 0", borderRadius:6, fontSize:10, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer", border:"1px solid rgba(168,85,247,0.2)", background:"rgba(168,85,247,0.06)", color:"rgba(168,85,247,0.8)", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
@@ -2380,7 +2380,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
           <div style={{ position: "absolute", top: 56, right: 14, zIndex: 20, width: 210 }}>
             {!selectedNode && (
               <div style={{ background: "rgba(11,9,20,0.95)", border: "1px solid rgba(168,85,247,0.16)", borderRadius: 12, padding: "12px 14px", backdropFilter: "blur(18px)", marginBottom: 8, boxShadow: "0 20px 50px -24px rgba(0,0,0,0.8)" }}>
-                <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 9, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 11, fontWeight: 600, color: "var(--text)", marginBottom: 9, display: "flex", alignItems: "center", gap: 6 }}>
                   <Ico name="analytics" size={13} color="rgba(168,85,247,0.7)" /> Topology
                 </div>
                 <MetricRow label="Nodes" value={graphData.nodes?.length || 0} color={C.purple} />
@@ -2393,11 +2393,11 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
               </div>
             )}
             <div style={{ background: "rgba(11,9,20,0.95)", border: "1px solid rgba(168,85,247,0.14)", borderRadius: 12, padding: "12px 14px", backdropFilter: "blur(18px)", boxShadow: "0 20px 50px -24px rgba(0,0,0,0.8)" }}>
-              <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 8, color: "rgba(255,255,255,0.22)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 7 }}>Node Types</div>
+              <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 8, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 7 }}>Node Types</div>
               {["claim", "evidence", "argument", "topic", "debate_topic", "concept", "entity"].map(type => (
                 <div key={type} style={{ display: "flex", alignItems: "center", gap: 7, opacity: filter === "all" || filter === type ? 1 : 0.2, marginBottom: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: NODE_COLORS[type]?.fill }} />
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.42)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>{type.replace("_", " ")}</span>
+                  <span style={{ fontSize: 9, color: "var(--text-secondary)", fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>{type.replace("_", " ")}</span>
                 </div>
               ))}
               {pathResult && (
@@ -2405,7 +2405,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.gold }} />
                   <span style={{ fontSize: 9, color: C.gold, fontFamily: "'Space Grotesk',sans-serif" }}>Path</span>
                   <button onClick={() => setPathResult(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", opacity: 0.4 }}>
-                    <Ico name="close" size={10} color="#fff" />
+                    <Ico name="close" size={10} color="var(--text)" />
                   </button>
                 </div>
               )}
@@ -2433,7 +2433,7 @@ export default function KnowledgeGraphPage({ user, onStartResearch, onNavigate, 
           {hovered && !hoveredLong && !selectedNode && !dragging && (
             <div style={{ position: "absolute", left: hoverPopupPos.x + 12, top: hoverPopupPos.y - 32, zIndex: 50, pointerEvents: "none", background: "rgba(8,6,20,0.93)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, padding: "5px 10px", backdropFilter: "blur(12px)", display: "flex", gap: 7, alignItems: "center" }}>
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: (NODE_COLORS[hovered.type] || NODE_COLORS.default).fill }} />
-              <span style={{ color: "#fff", fontSize: 11, fontFamily: "'Space Grotesk',sans-serif" }}>{hovered.label}</span>
+              <span style={{ color: "var(--text)", fontSize: 11, fontFamily: "'Space Grotesk',sans-serif" }}>{hovered.label}</span>
               <span style={{ color: (NODE_COLORS[hovered.type] || NODE_COLORS.default).text, fontSize: 8, textTransform: "uppercase", opacity: 0.55 }}>{hovered.type?.replace("_", " ")}</span>
             </div>
           )}

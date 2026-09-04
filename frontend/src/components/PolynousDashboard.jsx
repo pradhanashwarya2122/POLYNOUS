@@ -4,9 +4,9 @@ import ForecastPanel from "./react-bits/ForecastPanel";
 
 const C = {
   green: "#00ff0f", cyan: "#00ccff", crimson: "#ff2040", purple: "#a855f7",
-  gold: "#ffd700", void: "#0a0a1e", surface: "#111125", surfaceContainer: "#1e1e32",
-  onSurface: "#e2e0fc", onSurfaceVariant: "#b9ccb0",
-  textSecondary: "#8899aa", white10: "rgba(255,255,255,0.1)", white5: "rgba(255,255,255,0.05)",
+  gold: "#ffd700", void: "var(--bg)", surface: "var(--surface)", surfaceContainer: "var(--surface-2)",
+  onSurface: "var(--text)", onSurfaceVariant: "var(--text-secondary)",
+  textSecondary: "var(--text-muted)", white10: "rgba(255,255,255,0.1)", white5: "rgba(255,255,255,0.05)",
   fontDisplay: "'Anton', sans-serif",
 };
 
@@ -91,16 +91,16 @@ function Styles() {
   return <style>{`
     @import url('https://fonts.googleapis.com/css2?family=Anton&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&family=Material+Symbols+Outlined&display=swap');
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{background:#0a0a1e;color:#e2e0fc;font-family:'Hanken Grotesk',sans-serif;overflow-x:hidden}
+    body{background:var(--bg);color:var(--text);font-family:'Hanken Grotesk',sans-serif;overflow-x:hidden}
     ::selection{background:rgba(0,255,15,0.25)}
     @keyframes rainbow-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
     @keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
     @keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
     @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-    .period-btn{padding:4px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;border:none;background:transparent;cursor:pointer;border-radius:9999px;transition:all 0.2s;color:#b9ccb0}
+    .period-btn{padding:4px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;border:none;background:transparent;cursor:pointer;border-radius:9999px;transition:all 0.2s;color:var(--text-secondary)}
     .period-btn-active{background:rgba(0,255,15,0.1);color:#00ff0f}
-    .period-btn-inactive:hover{color:#e2e0fc}
+    .period-btn-inactive:hover{color:var(--text)}
     .card-glow{transition:box-shadow 0.4s ease}
     .card-glow:hover{box-shadow:0 0 30px rgba(0,204,255,0.08),0 0 60px rgba(0,255,15,0.04)!important}
     .hover-tooltip{animation:fadeSlideUp 0.18s cubic-bezier(0.34,1.56,0.64,1) forwards;pointer-events:none}
@@ -275,7 +275,7 @@ function ActivityChart({ data, period }) {
       }
       ctx.beginPath(); ctx.arc(p.x, p.y, dotR, 0, Math.PI * 2);
       ctx.fillStyle = color; ctx.shadowBlur = isHovered ? 20 : 12; ctx.shadowColor = color; ctx.fill(); ctx.shadowBlur = 0;
-      ctx.beginPath(); ctx.arc(p.x, p.y, isHovered ? 3 : 2, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, isHovered ? 3 : 2, 0, Math.PI * 2); ctx.fillStyle = 'var(--text)'; ctx.fill();
     });
 
     const skip = Math.ceil(entries.length / 7);
@@ -353,7 +353,7 @@ function ActivityChart({ data, period }) {
           boxShadow: '0 0 20px rgba(0,204,255,0.2), 0 8px 32px rgba(0,0,0,0.6)',
           zIndex: 100, minWidth: 140, pointerEvents: 'none',
         }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 8 }}>{tooltip.date}</div>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{tooltip.date}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
               { label: 'Queries', val: tooltip.queries, color: C.cyan },
@@ -533,7 +533,7 @@ function ConfidenceRing({ distribution }) {
         ctx.beginPath(); ctx.arc(ex, ey, s.lw / 2 + 1, 0, Math.PI * 2); ctx.fillStyle = s.color; ctx.shadowBlur = 8; ctx.shadowColor = s.color; ctx.fill(); ctx.shadowBlur = 0;
       });
       ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.fillStyle = 'rgba(10,10,30,0.95)'; ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'var(--text)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = 'bold 13px "Sora",sans-serif';
       ctx.fillText(Math.round(highPct * 100 * ease) + '%', cx, cy);
       t++; if (t <= 80) animRef.current = requestAnimationFrame(drawFrame);
@@ -590,7 +590,7 @@ function ConfidenceRing({ distribution }) {
           zIndex: 200, textAlign: 'center', minWidth: 130,
         }}>
           <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: tooltip.seg.color, marginBottom: 4 }}>{tooltip.seg.label}</div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 20, fontWeight: 700, color: '#fff' }}>{pctLabel(tooltip.seg.val)}</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{pctLabel(tooltip.seg.val)}</div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, marginTop: 2 }}>of all answers</div>
         </div>
       )}
@@ -666,7 +666,7 @@ function HeatmapChart({ data, activityData }) {
           ctx.globalAlpha = alpha; ctx.fillStyle = cellColor; ctx.shadowBlur = v > 0.5 ? 8 : 0; ctx.shadowColor = cellColor;
           ctx.beginPath(); ctx.roundRect(x + gap, y + gap, cw - gap * 2, ch - gap * 2, rx); ctx.fill();
           ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-          if (v > 0.7) { ctx.globalAlpha = 0.3; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(x + gap, y + gap, cw - gap * 2, 3, rx); ctx.fill(); ctx.globalAlpha = 1; }
+          if (v > 0.7) { ctx.globalAlpha = 0.3; ctx.fillStyle = 'var(--text)'; ctx.beginPath(); ctx.roundRect(x + gap, y + gap, cw - gap * 2, 3, rx); ctx.fill(); ctx.globalAlpha = 1; }
         }
         cells.push({ x: x + gap, y: y + gap, w: cw - gap * 2, h: ch - gap * 2, day, hour: c, val: rawVal, v });
       }
@@ -727,7 +727,7 @@ function HeatmapChart({ data, activityData }) {
           boxShadow: `0 0 20px ${heatColor(tooltip.v)}33,0 8px 28px rgba(0,0,0,0.7)`,
           zIndex: 200, textAlign: 'center', minWidth: 130,
         }}>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{tooltip.exactDate} · {tooltip.day}</div>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{tooltip.exactDate} · {tooltip.day}</div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: heatColor(tooltip.v), marginBottom: 6 }}>{tooltip.hour}</div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: heatColor(tooltip.v) + '18', border: `1px solid ${heatColor(tooltip.v)}44`, borderRadius: 9999, padding: '3px 10px' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: heatColor(tooltip.v), boxShadow: `0 0 6px ${heatColor(tooltip.v)}` }} />
@@ -752,7 +752,7 @@ function HeatmapChart({ data, activityData }) {
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 700, color: '#fff' }}>{dayModal.exactDate}</div>
+                <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{dayModal.exactDate}</div>
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textSecondary }}>{dayModal.day} · {dayModal.hour}</div>
               </div>
               <button onClick={() => setDayModal(null)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.textSecondary, cursor: 'pointer', width: 28, height: 28, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
@@ -785,7 +785,7 @@ function StatCard({ icon, color, label, value, trend }) {
       <div>
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.onSurfaceVariant, marginBottom: 4 }}>{label}</div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 700, color: "#fff" }}>{value}</span>
+          <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 700, color: "var(--text)" }}>{value}</span>
           {trend && trend.length > 0 && <Sparkline data={trend} color={color} />}
         </div>
       </div>
@@ -847,7 +847,7 @@ function EvaluationCard({ summary, onReloaded }) {
       <button onClick={runEval} disabled={running} style={{
         display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 20px", borderRadius: 9999,
         border: `1px solid ${C.green}`, background: running ? "rgba(0,255,15,0.06)" : "rgba(0,255,15,0.12)",
-        color: running ? C.textSecondary : "#fff", cursor: running ? "wait" : "pointer",
+        color: running ? C.textSecondary : "var(--text)", cursor: running ? "wait" : "pointer",
         fontFamily: "'Sora',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{running ? "hourglass_empty" : "play_arrow"}</span>
         {running ? `Running… ${progress ? `${progress.done}/${progress.total}` : ""}` : label}
@@ -861,7 +861,7 @@ function EvaluationCard({ summary, onReloaded }) {
   const heading = (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
       <SvgTarget size={20} color={C.green} />
-      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", margin: 0 }}>
+      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em", margin: 0 }}>
         Evaluation
       </h3>
     </div>
@@ -885,7 +885,7 @@ function EvaluationCard({ summary, onReloaded }) {
         {heading}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, textAlign: "center" }}>
           <SvgTarget size={34} color="rgba(0,255,15,0.3)" />
-          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: "#fff" }}>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: "var(--text)" }}>
             {summary.message || "No evaluation runs yet"}
           </div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.textSecondary, maxWidth: 300, lineHeight: 1.6, marginBottom: 6 }}>
@@ -1007,7 +1007,7 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
         <button onClick={() => handleNav('/research')} style={{ width: "100%", padding: "12px", background: RAINBOW[3], color: C.void, fontWeight: 700, borderRadius: 9999, border: "none", cursor: "pointer", fontFamily: "'Sora',sans-serif", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "transform 0.2s", whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.03)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}><Icon name="add" style={{ fontSize: 18, color: C.void, flexShrink: 0 }} />New Research</button>
         <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.surfaceContainer, border: `1px solid ${RAINBOW[4]}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="face" style={{ color: RAINBOW[4], fontSize: 22 }} /></div>
-          <div style={{ flex: 1, minWidth: 0 }}><p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.username || 'Guest'}</p><button onClick={handleLogout} style={{ fontSize: 10, color: C.crimson, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", padding: 0 }}>Disconnect</button></div>
+          <div style={{ flex: 1, minWidth: 0 }}><p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.username || 'Guest'}</p><button onClick={handleLogout} style={{ fontSize: 10, color: C.crimson, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", padding: 0 }}>Disconnect</button></div>
         </div>
       </div>
     </aside>
@@ -1018,9 +1018,9 @@ function Sidebar({ onNavigate, user, onLogout, collapsed, setCollapsed }) {
 function CardHeading({ svgIcon, title, badge }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 10 }}>
+      <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 10 }}>
         {svgIcon && <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>{svgIcon}</span>}
-        <span style={{ background: "linear-gradient(90deg,#fff 60%,rgba(255,255,255,0.5))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{title}</span>
+        <span style={{ background: "linear-gradient(90deg,var(--text) 60%,rgba(255,255,255,0.5))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{title}</span>
       </h3>
       {badge && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textSecondary, background: "rgba(255,255,255,0.05)", padding: "3px 10px", borderRadius: 9999 }}>{badge}</span>}
     </div>
@@ -1067,7 +1067,7 @@ function TopicsCard({ topicFreq }) {
                 flex: 1, padding: '5px 10px',
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 8, color: '#e2e0fc',
+                borderRadius: 8, color: 'var(--text)',
                 fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
                 outline: 'none',
               }}
@@ -1102,7 +1102,7 @@ function TopicsCard({ topicFreq }) {
                   onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                 >
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: `0 0 5px ${color}`, flexShrink: 0 }} />
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: '#e2e0fc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
                   <div style={{ width: 50, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
                     <div style={{ width: pct + '%', height: '100%', background: color, borderRadius: 2 }} />
                   </div>
@@ -1127,7 +1127,7 @@ function TopicsCard({ topicFreq }) {
             color: C.textSecondary, fontFamily: "'JetBrains Mono',monospace", fontSize: 10,
             transition: 'all 0.2s', width: '100%',
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.color = '#e2e0fc'; }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.color = 'var(--text)'; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = C.textSecondary; }}
         >
           {expanded ? '▲ Show Chart' : `▾ View All ${Object.keys(topicFreq).length} Topics`}
@@ -1360,9 +1360,9 @@ export default function PolynousDashboard({ user, onNavigate, onLogout }) {
 
               <div className="card-glow" style={{ background: "rgba(10,10,30,0.6)", backdropFilter: "blur(20px)", border: "1px solid " + C.white10, borderRadius: 20, padding: 22, minHeight: 320, display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em", display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ display: 'flex', alignItems: 'center' }}><SvgMap size={20} color={C.purple} /></span>
-                    <span style={{ background: "linear-gradient(90deg,#fff 60%,rgba(255,255,255,0.5))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Activity Heatmap</span>
+                    <span style={{ background: "linear-gradient(90deg,var(--text) 60%,rgba(255,255,255,0.5))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Activity Heatmap</span>
                   </h3>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.textSecondary }}>less</span>
