@@ -7,6 +7,53 @@ and compile-verified but not yet exercised end-to-end in production).
 
 ---
 
+## [Unreleased] — Interactive report actions: debate, perspective, cross-exam, replay, share, chain-of-research
+
+### Research report
+- **Debate against this report** — a floating "Debate report" dock action opens a
+  devil's-advocate rebuttal grounded strictly in the report's own material.
+  Optional user counter-argument, returns counter-thesis + 3-4 numbered points
+  + weakest-link + steelman. Backed by new `POST /report/debate-against`.
+- **View from another perspective** — six lenses (skeptic, contrarian, futurist,
+  practitioner, historian, ethicist) reframe the same evidence. Returns a
+  headline, reframe paragraph, accepts / objects-to bullets, and the question
+  the lens would ask next. Backed by new `POST /report/perspective`.
+- **Chain-of-research** — the same dock offers one-click follow-up queries
+  derived from the report's own findings, boundaries and query. Clicking one
+  launches a fresh research run via the `onRunQuery` prop (falls back to
+  `/?q=...` navigation).
+
+### Debate report
+- **Live cross-examination** — user poses a question, both advocates answer in
+  character, the judge scores 0-10 with a one-line reason. Threaded UI stacks
+  each round. Backed by new `POST /debate/cross-exam`.
+- **Replay with time-scrubber** — scrub through opening -> rebuttal -> verdict
+  turns; a clash meter shows momentum node-by-node, per-turn text panel slides
+  in with each stage. Fully client-side, works on any completed debate.
+- **Share the verdict** — canvas-generated 1200x630 verdict card (topic,
+  verdict badge, score line, clash meter) with a Save-PNG button and a
+  copy-summary fallback. Theme-aware (light/dark). Fully client-side.
+
+### Backend
+- New router `app/routes/report_actions.py`, wired into `main.py`. Three
+  endpoints: `POST /report/debate-against`, `POST /report/perspective`,
+  `POST /debate/cross-exam`. Reuses `report_chat._resolve_user_key` and
+  `_build_context`, so it is strictly BYO-key, provider-agnostic and grounded
+  in the caller-supplied report/debate context (no new web fetches).
+
+### UX
+- Dock floats bottom-right, opens with a subtle spring, hidden in print
+  (`data-print-hide`). Modals: backdrop blur, spring easing, escape-to-close,
+  scroll-locked while open. Editorial serif titles, mono kickers, warm/cool
+  accents so counter-cases and lenses read as visually distinct actions.
+
+### Caveats
+- All three LLM endpoints need a live BYO-key run to confirm answer quality
+  (backend + provider offline during development). Client-side share card and
+  replay scrubber verified in dev preview.
+
+---
+
 ## [Unreleased] — Print, provenance and rail fixes
 
 ### Print (global)

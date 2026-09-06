@@ -17,6 +17,7 @@ import { createRoot } from "react-dom/client";
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import SideRail from "./react-bits/SideRail";
 import { API_BASE_URL as APP_API_BASE, getAuthToken } from "../config";
+import ReportActions from "./ReportActions";
 
 const REPORT_RAIL = [
   { label: "Key takeaways", id: "rp-sec-00" },
@@ -1625,10 +1626,19 @@ export default function PolynousReport(props) {
     onScroll();
     return () => { clearTimeout(t); window.removeEventListener("scroll", onScroll); };
   }, [html]);
+  const actionsCtx = {
+    answer: d.chatAnswer || props.answer || "",
+    sourceSummaries: props.sourceSummaries || [],
+    citations: props.citations || d.ledger || [],
+    query: props.query || d.query || "",
+    findings: d.findings || [],
+    boundaries: d.boundaries || [],
+  };
   return (
     <>
       <div ref={ref} className="rp" dangerouslySetInnerHTML={{ __html: html }} />
       {rail.length > 2 && <SideRail items={rail} getContainer={() => ref.current} />}
+      <ReportActions ctx={actionsCtx} onRunQuery={props.onRunQuery} />
     </>
   );
 }

@@ -15,6 +15,7 @@ import React, { useEffect, useRef } from "react";
 import { ensureReportStyles } from "./PolynousReport";
 import { API_BASE_URL } from "../config";
 import SideRail from "./react-bits/SideRail";
+import DebateActions from "./DebateActions";
 
 /* ---------- helpers (shared idiom with the research report) ---------- */
 const pick = (...v) => { for (const x of v) if (x !== undefined && x !== null && x !== "") return x; return undefined; };
@@ -811,10 +812,26 @@ export default function PolynousDebateReport(props) {
     onScroll();
     return () => { clearTimeout(t0); clearTimeout(t); window.removeEventListener("scroll", onScroll); };
   }, [html]);
+  const dbaCtx = {
+    topic: d.topic,
+    winner: d.winner,
+    forScore: d.forScore,
+    againstScore: d.againstScore,
+    certainty: d.certainty,
+    leadA: d.balance.a,
+    proCase: [d.forPts.join("\n"), d.forRebuttal].filter(Boolean).join("\n\n"),
+    conCase: [d.againstPts.join("\n"), d.againstRebuttal].filter(Boolean).join("\n\n"),
+    proOpen: d.forPts.join("\n"),
+    conOpen: d.againstPts.join("\n"),
+    proReb: d.forRebuttal,
+    conReb: d.againstRebuttal,
+    verdict: d.reasoning || d.strongest || d.winnerLabel,
+  };
   return (
     <>
       <div ref={ref} className="rp dbr" dangerouslySetInnerHTML={{ __html: html }} />
       {rail.length > 2 && props.showRail !== false && <SideRail items={rail} accentColor="#ff2040" getContainer={() => ref.current} />}
+      <DebateActions ctx={dbaCtx} />
     </>
   );
 }
