@@ -7,6 +7,74 @@ and compile-verified but not yet exercised end-to-end in production).
 
 ---
 
+## [Unreleased] — Print, provenance and rail fixes
+
+### Print (global)
+- **Full-report print output** — the outer `100vh, overflow:hidden` shell was
+  clipping every printout to the current viewport. Added `frontend/src/print.css`
+  (loaded from `main.jsx`) that forces the app-shell containers open in
+  `@media print`, so both the research and debate reports print end to end.
+- **Chrome removed from print**: sidebar, globe, neural canvas, sensitivity
+  slider control, hovercard, toolbar (View Live Engine / New Debate / Export
+  JSON — now tagged `.debate-report-toolbar[data-print-hide]`), and every
+  `.print-hide` marker.
+- **Debate toolbar** in `DebateInterface.jsx` marked `data-print-hide`.
+
+### Pipeline provenance
+- **Removed** the hardcoded `Input · Search · Summarise · Critic · Evidence · Synthesis · Insights`
+  chip row — it looked like broken navigation because none of it was clickable
+  or reflected the real run.
+- **Rebuilt** the provenance list to render each real telemetry step with a
+  step number, name and token count. Honest empty-state message when a run
+  didn't emit per-step telemetry.
+
+### Side rail
+- **Peek-to-expand** behaviour: the rail is collapsed by default (only the
+  edge markers + a subtle vertical hairline show), and slides in from the right
+  with a spring-eased 420ms animation on hover or focus. The `ON THIS PAGE`
+  eyebrow and labels fade in after the slide completes.
+
+### Caveats
+- Print CSS verified via CSS rule matching (dev preview pane renders at 0×0
+  so visual QA isn't possible there). Try a real Save-as-PDF against
+  `/debate-report-preview` or a live run to confirm.
+
+---
+
+## [Unreleased] — Debate report substantive UI + minimalist free-key card
+
+### Debate report
+- **Evidence & grounding** rebuilt as a head-to-head visual: per-metric bars,
+  a winner tag on every row (`SUPPORTING ↑` / `COUNTER ↑` / `EVEN`), grounding
+  shown as both fraction and percent, and an overall "who wins on measured
+  evidence" banner at the bottom (with the note that argument-quality can still
+  swing the final verdict).
+- **Sensitivity analysis** made truly interactive: dragging the slider now live-
+  updates the evidence/quality weight labels, both per-side scores (out of 10)
+  with animated bars, the big "resulting lean" figure, the lean bar with a
+  midline flip-marker, and a colour-coded status flag (Stable/Marginal/Fragile/
+  Flipped) with plain-English text including *where* the verdict flips. Fires an
+  initial `pnbSens(50)` on mount so the flag reflects real state on first paint.
+- **Tribunal integrity** rebuilt as a real dashboard: a computed A/B/C/D grade
+  + Integrity Index (0-100) from four equal-weighted hard checks (scored on real
+  rubric · no hallucinations · grounding coverage · judge certainty), each with
+  a coloured left border, metric value, and detailed explanation. Framing check
+  + Steelman still surface on the right when the judge emits them.
+
+### Settings
+- Free-key card redesigned: minimalist, editorial, theme-token driven. Removed
+  the gradient background, glow shadow, and chunky progress bar. Now a single
+  bordered card with three stat blocks (`runs left today`, `days remaining`,
+  `total runs left`), a pulsing status dot, and a hairline daily-usage meter.
+
+### Caveats
+- Debate report changes verified on the /debate-report-preview demo (rubric shows
+  4 rows with winner tags, integrity grade badge renders, sensitivity slider
+  live-updates through 0-50-100 with the correct flip detection). Free-key card
+  needs a live-backend run to visually QA in its real setting.
+
+---
+
 ## [Unreleased] — Semantic search Phase 2: answer synthesis + gap detection
 
 ### Added

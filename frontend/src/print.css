@@ -1,0 +1,66 @@
+/* ============================================================================
+   POLYNOUS global print stylesheet.
+   Loaded once from main.jsx so every route prints cleanly, not just the report
+   components. The DebateInterface / ResearchInterface shells wrap the report
+   in fixed 100vh containers with overflow:hidden — without these overrides,
+   the browser only prints the current viewport, truncating the report. This
+   file forces the outer chrome open, hides interactive-only UI, and keeps the
+   report's own light-paper theme in charge.
+   ============================================================================ */
+@media print {
+  /* Force every scrolling / clipping container in the app shell to lay itself
+     out at natural document height so the browser can walk it across pages. */
+  html, body, #root,
+  html body div,
+  main, aside, section, header, footer, nav {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* App shell chrome that has no place on paper. */
+  aside[class*="side"], nav[class*="sidebar"],
+  .neural-canvas, canvas,
+  [class*="globe"], [class*="Globe"],
+  .side-rail, [class*="side-rail"],
+  .app-sidebar, .polynous-sidebar,
+  /* Interactive per-view controls above the report */
+  [data-print-hide],
+  .print-hide,
+  /* debate interface: "View Live Engine / New Debate / Export JSON" toolbar */
+  .debate-report-toolbar,
+  /* the report's own interactive control panels — keep the static readouts */
+  .dbr-sens-input, .dbr-sens-track > .dbr-sens-input,
+  .rp-slider, .rp-slider-wrap,
+  /* hover / floating UI */
+  .rp-hovercard, .rp-toast, .rp-drawer, .rp-backdrop {
+    display: none !important;
+  }
+
+  /* Ensure the print theme (defined in PolynousReport.jsx's RP_CSS) actually
+     wins over stray inline dark backgrounds on the shell. */
+  html, body {
+    background: #ffffff !important;
+    color: #14172a !important;
+  }
+
+  /* If the report sits inside a translucent scrim, drop that too. */
+  .rp {
+    background: #ffffff !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Keep page breaks sane on the newer debate/report elements. */
+  .dbr-int-check, .dbr-int-grade, .dbr-int-panel,
+  .dbr-rub-row, .dbr-rub-overall,
+  .dbr-sens-grid, .dbr-sens-flag,
+  .rp-ev-kpis, .rp-scgrade {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Global page margins so the ink doesn't run to the edge. */
+  @page { margin: 14mm 13mm; }
+}

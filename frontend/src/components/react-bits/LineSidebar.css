@@ -96,17 +96,30 @@
    theme-blended, and out of the way. Hidden on narrower viewports so it never
    collides with page content.
    =========================================================================== */
+/* Collapsed by default: only a slim edge is visible (thin markers + tiny
+   numeric ticks against the right edge of the viewport). Hover the region and
+   the full label rail slides in from the right. Feels like a Kindle-style
+   contents drawer — discoverable but never in the way. */
 .side-rail {
   position: fixed;
-  right: 26px;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   z-index: 60;
-  pointer-events: none; /* only the labels themselves are interactive */
+  padding: 12px 18px 12px 40px;      /* generous left gutter widens the hover target */
+  --peek-x: 0px;                      /* how far the rail slides in on hover */
 }
 
 .side-rail .line-sidebar {
-  pointer-events: auto;
+  transform: translateX(calc(100% - 34px));  /* only the 34px edge (markers) peeks */
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* the full menu slides in on any pointer interaction with the wrap */
+.side-rail:hover .line-sidebar,
+.side-rail:focus-within .line-sidebar {
+  transform: translateX(0);
 }
 
 /* right-anchored: labels sit to the right, markers reach outward toward the edge */
@@ -118,19 +131,64 @@
 
 .side-rail .line-sidebar__label {
   white-space: nowrap;
+  /* Labels fade in AFTER the slide reveals them, so they never smear across
+     the edge while the rail is still translating. */
+  opacity: 0.0;
+  transition: opacity 0.28s ease 0.05s;
+}
+.side-rail:hover .line-sidebar__label,
+.side-rail:focus-within .line-sidebar__label {
+  opacity: 1;
+  transition-delay: 0.14s;
 }
 
-/* a whisper-thin eyebrow above the rail for a finished, deliberate look */
+/* Markers stay always-visible so the rail feels present even when collapsed. */
+.side-rail .line-sidebar__marker {
+  opacity: 0.7;
+  transition: opacity 0.28s ease, background-color 0.28s ease;
+}
+
+/* A subtle vertical hairline hints "there's something here" when collapsed. */
+.side-rail::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(140, 158, 180, 0.28) 15%,
+    rgba(140, 158, 180, 0.28) 85%,
+    transparent 100%
+  );
+  transition: opacity 0.28s ease;
+  pointer-events: none;
+}
+.side-rail:hover::after,
+.side-rail:focus-within::after { opacity: 0; }
+
+/* Eyebrow above the rail, revealed with the labels. */
 .side-rail::before {
   content: 'ON THIS PAGE';
   position: absolute;
-  right: 2px;
-  top: -30px;
+  right: 18px;
+  top: -6px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 9px;
   letter-spacing: 0.24em;
-  color: rgba(140, 158, 180, 0.4);
-  writing-mode: horizontal-tb;
+  color: rgba(140, 158, 180, 0.55);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.side-rail:hover::before,
+.side-rail:focus-within::before {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.14s;
 }
 
 @media (max-width: 1280px) {

@@ -600,19 +600,27 @@ function sProvenance(d) { if (!d.telemetry.tokens && !d.timeline.length && !d.pr
   const t = d.telemetry;
   const tel = [["Tokens", t.tokens ? t.tokens.toLocaleString() : "n/a"], ["Est. cost", t.cost ? "$" + t.cost.toFixed(4) : "n/a"], ["Steps", t.steps.length || d.provenance.length], ["Model", esc(d.model)]];
   const telCells = tel.map(([l, v]) => `<div class="rp-tel"><span class="rp-dim">${l}</span><span class="rp-mono rp-tel-v">${v}</span></div>`).join("");
-  const pipe = ["Input", "Search", "Summarise", "Critic", "Evidence", "Synthesis", "Insights"].map((s, i, a) => `<span class="rp-step">${s}</span>${i < a.length - 1 ? '<span class="rp-steprule"></span>' : ""}`).join("");
-  const prov = d.provenance.map((s) => `<div class="rp-provrow"><span>${esc(s.name)}</span><span class="rp-mono rp-dim">${s.tokens ? s.tokens.toLocaleString() + " tok" : ""}</span></div>`).join("");
+  // Real pipeline provenance from the run's telemetry steps. Each step shows
+  // its name, token count (if measured), and a subtle numeric index — no
+  // hardcoded chip row that looks like broken navigation.
+  const provRows = d.provenance.length
+    ? d.provenance.map((s, i) => `<div class="rp-provrow">
+        <span class="rp-num">${String(i + 1).padStart(2, "0")}</span>
+        <span class="rp-provname">${esc(s.name)}</span>
+        <span class="rp-mono rp-dim">${s.tokens ? s.tokens.toLocaleString() + " tok" : "—"}</span>
+      </div>`).join("")
+    : `<p class="rp-mut rp-dim" style="font-style:italic">Per-step telemetry was not captured for this run.</p>`;
   const cons = d.constellation.map((c) => `<li role="button" tabindex="0" onclick="pnOpen()"><span class="rp-num">${c.n}</span>${esc(c.t)}</li>`).join("");
   const chartBlock = d.timeline.length ? `<div class="rp-subh" style="margin-top:34px">Evidence published per year</div>
     <p class="rp-cap" style="margin:-4px 0 10px;font-style:normal">Trust-weighted volume of this topic's cited sources by publication year, relative to the busiest year. Peaks are where research clustered; dips are quieter years.</p>
     <div id="rp-confchart" class="rp-chart-mount"></div>
     <div class="rp-tlmiles">${miles}</div>` : "";
   return `<section class="rp-sec rp-rev">${eye("15", "Provenance")}
-    <div class="rp-pipe">${pipe}</div>
+    <p class="rp-sublede">The measured cost of this run and every step the pipeline actually took, drawn from the telemetry the agents emitted — not a decorative diagram.</p>
     ${chartBlock}
     <div class="rp-provgrid">
       <div><div class="rp-subh">Run telemetry</div><div class="rp-tels">${telCells}</div><div class="rp-tools">${d.tools.map((t) => `<span class="rp-chip">${esc(t)}</span>`).join("")}</div></div>
-      <div><div class="rp-subh">Pipeline provenance</div>${prov}</div>
+      <div><div class="rp-subh">Pipeline provenance</div><div class="rp-provlist">${provRows}</div></div>
       <div><div class="rp-subh">Source constellation</div><ol class="rp-cons">${cons}</ol></div>
     </div>
   </section>`;
@@ -1049,7 +1057,11 @@ const RP_CSS = `
 .rp-tel .rp-dim { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; }
 .rp-tel-v { font-size: 22px; color: var(--hi); font-weight: 600; letter-spacing: -0.02em; }
 .rp-tools { display: flex; flex-wrap: wrap; gap: 6px; }
-.rp-provrow { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line2); font-size: 13px; color: var(--tx); text-transform: capitalize; }
+.rp-provlist { display: flex; flex-direction: column; margin-top: 6px; }
+.rp-provrow { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 11px 2px; border-bottom: 1px solid var(--line2); font-size: 13px; color: var(--tx); }
+.rp-provrow:last-child { border-bottom: 0; }
+.rp-provrow .rp-num { font-family: var(--mono); font-size: 11px; color: var(--acc); letter-spacing: 0.05em; }
+.rp-provname { text-transform: capitalize; color: var(--hi); font-family: var(--serif); font-weight: 600; letter-spacing: -0.005em; }
 .rp-cons { list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .rp-cons li { display: flex; gap: 10px; font-size: 12.5px; color: var(--tx); cursor: pointer; }
 .rp-cons li:hover { color: var(--hi); }

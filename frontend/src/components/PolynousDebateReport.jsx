@@ -212,50 +212,157 @@ function sCases(d) {
 }
 
 function sRubric(d) {
-  const row = (label, f, a) => `<tr><td class="dbr-rub-l">${label}</td><td class="rp-mono pos">${f}</td><td class="rp-mono neg">${a}</td></tr>`;
+  // Real, computed per-advocate metrics rendered as a visual head-to-head so
+  // the reader can SEE who wins each dimension. Percentages, bars, and a
+  // per-row winner tag replace the flat "table of numbers" version.
+  const rF = d.rubF, rA = d.rubA;
+  const gF = rF.sentences ? (rF.grounded / rF.sentences) * 100 : 0;
+  const gA = rA.sentences ? (rA.grounded / rA.sentences) * 100 : 0;
+  const sMax = Math.max(Number(rF.sources) || 0, Number(rA.sources) || 0, 1);
+  const scoreMax = Math.max(Number(rF.score) || 0, Number(rA.score) || 0, 1);
+  const halfBar = (val, max, tone) => `<div class="dbr-rub-bar"><i class="${tone}" style="width:${Math.max(2, Math.min(100, (val / max) * 100))}%"></i></div>`;
+  const winnerTag = (fVal, aVal, higherWins = true) => {
+    if (fVal === aVal) return `<span class="dbr-rub-win tie">EVEN</span>`;
+    const fWins = higherWins ? fVal > aVal : fVal < aVal;
+    return `<span class="dbr-rub-win ${fWins ? "pos" : "neg"}">${fWins ? "SUPPORTING" : "COUNTER"} ↑</span>`;
+  };
+  const row = (label, hint, fVal, fDisp, aVal, aDisp, higherWins, max) => `
+    <div class="dbr-rub-row">
+      <div class="dbr-rub-metric"><b>${label}</b><span class="rp-dim">${hint}</span></div>
+      <div class="dbr-rub-side pos"><span class="dbr-rub-val">${fDisp}</span>${halfBar(fVal, max, "pos")}</div>
+      <div class="dbr-rub-verdict">${winnerTag(fVal, aVal, higherWins)}</div>
+      <div class="dbr-rub-side neg"><span class="dbr-rub-val">${aDisp}</span>${halfBar(aVal, max, "neg")}</div>
+    </div>`;
+  const overall = (Number(rF.score) || 0) > (Number(rA.score) || 0) ? "pos" : (Number(rF.score) || 0) < (Number(rA.score) || 0) ? "neg" : "tie";
+  const overallTxt = overall === "pos" ? "Supporting wins on measured evidence" : overall === "neg" ? "Counter wins on measured evidence" : "Both sides tied on measured evidence";
   return `<section class="rp-sec rp-rev">${eye("03", "Evidence &amp; grounding")}
-    <p class="rp-sublede">The real, computed per-advocate rubric, not a decorative score.</p>
-    <div class="rp-tablewrap"><table class="rp-table dbr-rub"><thead><tr><th>Metric</th><th>Supporting</th><th>Counter</th></tr></thead><tbody>
-      ${row("Distinct sources cited", d.rubF.sources, d.rubA.sources)}
-      ${row("Grounded sentences", d.rubF.grounded + "/" + d.rubF.sentences, d.rubA.grounded + "/" + d.rubA.sentences)}
-      ${row("Hallucinated citations", d.rubF.hall, d.rubA.hall)}
-      ${row("Computed score", d.rubF.score, d.rubA.score)}
-    </tbody></table></div></section>`;
+    <p class="rp-sublede">The real, computed per-advocate rubric — every number is measured from the arguments and their citations, not the judge's opinion.</p>
+    <div class="dbr-rub2">
+      <div class="dbr-rub-head">
+        <div></div>
+        <div class="dbr-rub-hcol pos">Supporting</div>
+        <div class="dbr-rub-hcol"></div>
+        <div class="dbr-rub-hcol neg">Counter</div>
+      </div>
+      ${row("Distinct sources cited", "breadth of the evidence base", Number(rF.sources) || 0, `${rF.sources}`, Number(rA.sources) || 0, `${rA.sources}`, true, sMax)}
+      ${row("Grounded sentences", "share of claims backed by a citation", gF, `${rF.grounded}/${rF.sentences} <span class="rp-dim">· ${Math.round(gF)}%</span>`, gA, `${rA.grounded}/${rA.sentences} <span class="rp-dim">· ${Math.round(gA)}%</span>`, true, 100)}
+      ${row("Hallucinated citations", "fewer is better — cited a non-existent source", Number(rF.hall) || 0, `${rF.hall}`, Number(rA.hall) || 0, `${rA.hall}`, false, Math.max(Number(rF.hall) || 0, Number(rA.hall) || 0, 1))}
+      ${row("Computed evidence score", "50% of the final rubric score", Number(rF.score) || 0, `${rF.score}<span class="rp-dim">/10</span>`, Number(rA.score) || 0, `${rA.score}<span class="rp-dim">/10</span>`, true, 10)}
+      <div class="dbr-rub-overall ${overall}"><span class="dbr-rub-overall-i">◆</span> <b>${overallTxt}.</b> Argument quality (the judge's 50%) can still swing the final verdict — see Sensitivity analysis below.</div>
+    </div></section>`;
 }
 
 function sSensitivity(d) {
+  // Live "what-if" panel: drag the evidence weight and everything updates —
+  // the lean bar, the winner label, the two side scores, and a plain-English
+  // interpretation. Includes a flip-point marker so the reader can see how
+  // fragile the verdict is at a glance.
   return `<section class="rp-sec rp-rev">${eye("04", "Sensitivity analysis")}
-    <p class="rp-sublede">The verdict blends measured evidence with argument quality. Drag to re-weight and watch the lean move; a flip means the verdict is fragile to that assumption.</p>
-    <div class="rp-sens">
-      <div class="rp-sens-row"><span class="rp-dim">EVIDENCE WEIGHT</span><span class="rp-mono" id="dbr-sens-w">50%</span></div>
-      <input id="dbr-sens" class="rp-slider" type="range" min="0" max="100" value="50" oninput="pnbSens(this.value)" aria-label="Evidence weight"/>
-      <div class="rp-sens-out">
-        <div class="rp-sens-score"><span class="rp-dim">RESULTING LEAN</span><span class="rp-fig-s pos" id="dbr-sens-score">${d.balance.a}%</span><span class="rp-dim">toward Supporting</span></div>
-        <div class="rp-sens-flag pos" id="dbr-sens-flag">Stable. The verdict holds across reasonable weightings.</div>
+    <p class="rp-sublede">Drag the weight to see how the verdict would change if the judge trusted measured evidence more (or less) than argument quality. A flipped lean means the verdict is fragile to this assumption.</p>
+    <div class="dbr-sens2">
+      <div class="dbr-sens-head">
+        <div class="dbr-sens-legend"><span class="dbr-legdot pos"></span> Evidence <span class="rp-dim">rubric-measured</span></div>
+        <div class="dbr-sens-legend"><span class="dbr-legdot neg"></span> Argument quality <span class="rp-dim">judge-graded</span></div>
+      </div>
+      <div class="dbr-sens-track" role="group">
+        <input id="dbr-sens" class="dbr-sens-input" type="range" min="0" max="100" value="50" oninput="pnbSens(this.value)" aria-label="Evidence weight"/>
+        <div class="dbr-sens-fill"><i id="dbr-sens-fill" style="width:50%"></i></div>
+        <div class="dbr-sens-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+      </div>
+      <div class="dbr-sens-row-w">
+        <span class="rp-dim">Evidence weight</span>
+        <span class="rp-mono" id="dbr-sens-w">50%</span>
+        <span class="rp-dim">Quality weight</span>
+        <span class="rp-mono" id="dbr-sens-qw">50%</span>
+      </div>
+
+      <div class="dbr-sens-grid">
+        <div class="dbr-sens-card pos">
+          <div class="dbr-sens-side">Supporting</div>
+          <div class="dbr-sens-num pos"><span id="dbr-sens-fscore">${d.forScore}</span><span class="rp-dim">/10</span></div>
+          <div class="dbr-sens-bar"><i id="dbr-sens-fbar" class="pos" style="width:${d.forScore * 10}%"></i></div>
+        </div>
+        <div class="dbr-sens-verdict">
+          <span class="rp-dim">RESULTING LEAN</span>
+          <div class="dbr-sens-verdict-fig"><span class="rp-fig-s" id="dbr-sens-score">${d.balance.a}%</span></div>
+          <span class="rp-dim" id="dbr-sens-toward">toward Supporting</span>
+        </div>
+        <div class="dbr-sens-card neg" style="text-align:right">
+          <div class="dbr-sens-side">Counter</div>
+          <div class="dbr-sens-num neg"><span id="dbr-sens-ascore">${d.againstScore}</span><span class="rp-dim">/10</span></div>
+          <div class="dbr-sens-bar"><i id="dbr-sens-abar" class="neg" style="width:${d.againstScore * 10}%"></i></div>
+        </div>
+      </div>
+
+      <div class="dbr-sens-lean">
+        <div class="dbr-sens-lean-line">
+          <span class="dbr-sens-lean-l pos">Supporting</span>
+          <span class="dbr-sens-lean-r neg">Counter</span>
+        </div>
+        <div class="dbr-sens-lean-bar">
+          <div class="dbr-sens-lean-mid"></div>
+          <i id="dbr-sens-leanbar" class="pos" style="width:${d.balance.a}%"></i>
+        </div>
+      </div>
+
+      <div class="dbr-sens-flag pos" id="dbr-sens-flag">
+        <span class="dbr-sens-flag-i">✓</span>
+        <span class="dbr-sens-flag-t">Stable. The verdict holds across reasonable weightings.</span>
       </div>
     </div></section>`;
 }
 
 function sIntegrity(d) {
-  const framing = d.framing ? `<div><div class="rp-subh">Framing check</div><p class="dbr-mut">${esc(stripEmoji(d.framing.note || d.framing.verdict || "The proposition was checked for loaded or false-dichotomy framing."))}</p></div>` : "";
-  const steel = d.steelman ? `<div><div class="rp-subh">Steelman, both sides</div><div class="dbr-steel"><p><span class="rp-tag pos">FOR</span> ${esc(stripEmoji(d.steelman.for || ""))}</p><p><span class="rp-tag neg">AGAINST</span> ${esc(stripEmoji(d.steelman.against || ""))}</p></div></div>` : "";
-  // Always-present, computed checks from the real rubric — so the section carries
-  // substance even when the judge didn't emit a framing/steelman pass.
+  // Rebuilt as a real integrity dashboard: an overall grade computed from the
+  // four hard checks (rubric-scored, no hallucinations, grounding coverage,
+  // judge certainty), plus framing/steelman when the judge supplied them.
+  const framing = d.framing ? `<div class="dbr-int-panel"><div class="rp-subh">Framing check</div><p class="dbr-int-p">${esc(stripEmoji(d.framing.note || d.framing.verdict || "The proposition was checked for loaded or false-dichotomy framing."))}</p></div>` : "";
+  const steel = d.steelman ? `<div class="dbr-int-panel"><div class="rp-subh">Steelman, both sides</div><div class="dbr-steel"><p><span class="rp-tag pos">FOR</span> ${esc(stripEmoji(d.steelman.for || ""))}</p><p><span class="rp-tag neg">AGAINST</span> ${esc(stripEmoji(d.steelman.against || ""))}</p></div></div>` : "";
   const hall = (Number(d.rubF.hall) || 0) + (Number(d.rubA.hall) || 0);
-  const fg = `${d.rubF.grounded || 0}/${d.rubF.sentences || 0}`;
-  const ag = `${d.rubA.grounded || 0}/${d.rubA.sentences || 0}`;
+  const sTot = (Number(d.rubF.sentences) || 0) + (Number(d.rubA.sentences) || 0);
+  const gTot = (Number(d.rubF.grounded) || 0) + (Number(d.rubA.grounded) || 0);
+  const grounding = sTot ? Math.round((gTot / sTot) * 100) : 0;
   const scored = d.winner !== "UNSCORED";
+  const cert = Number(d.certainty) || 0;
   const rows = [
-    { ok: scored, label: "Scored on a real rubric", note: scored ? "Both sides were scored on measured evidence plus argument quality; no fabricated tie." : "The judge could not score this debate, so the verdict is UNSCORED, never a made-up result." },
-    { ok: hall === 0, label: "Citation integrity", note: hall === 0 ? "No hallucinated citations in either case; every cited source is real." : `${hall} hallucinated citation${hall > 1 ? "s" : ""} were flagged and scored zero.` },
-    { ok: true, label: "Evidence grounding", note: `FOR grounded ${fg} of its sentences in cited sources; AGAINST grounded ${ag}. Both cases argued from the same shared evidence pool.` },
-    { ok: (Number(d.certainty) || 0) >= 60, label: "Judge certainty", note: `${d.certainty}% certainty, with a confidence band of ${d.ci.low}% to ${d.ci.high}%.` },
+    { ok: scored, weight: 25, label: "Scored on a real rubric", metric: scored ? "PASS" : "UNSCORED",
+      note: scored ? "Both sides were scored on measured evidence plus argument quality — no fabricated tie." : "The judge could not score this debate, so the verdict is UNSCORED. Never a made-up result." },
+    { ok: hall === 0, weight: 25, label: "Citation integrity", metric: hall === 0 ? "0 flags" : `${hall} flag${hall > 1 ? "s" : ""}`,
+      note: hall === 0 ? "No hallucinated citations. Every [n] points to a source that actually exists in the shared evidence pool." : `${hall} hallucinated citation${hall > 1 ? "s" : ""} were flagged and scored zero — the rubric can't be fooled.` },
+    { ok: grounding >= 40, weight: 25, label: "Evidence grounding", metric: `${grounding}%`,
+      note: `${gTot} of ${sTot} sentences across both sides carry a citation to a real source. ` + (grounding >= 60 ? "Strong grounding — most claims are backed." : grounding >= 40 ? "Moderate — enough of the case is anchored to sources." : "Weak — a lot of the argument was assertion, not evidence.") },
+    { ok: cert >= 60, weight: 25, label: "Judge certainty", metric: `${cert}%`,
+      note: `Confidence band ${d.ci.low}% to ${d.ci.high}%. ` + (cert >= 75 ? "High conviction in the verdict." : cert >= 60 ? "Moderate conviction." : "Low conviction — treat the verdict as tentative.") },
   ];
-  const checks = `<div><div class="rp-subh">Integrity checks</div>${rows.map((c) => `<div class="dbr-check"><span class="dbr-check-i ${c.ok ? "pos" : "warn"}">${c.ok ? "✓" : "!"}</span><div class="dbr-check-b"><b>${esc(c.label)}</b><p class="rp-dim">${esc(c.note)}</p></div></div>`).join("")}</div>`;
-  const right = (framing || steel) ? `<div>${framing}${steel}</div>` : "";
+  const scorePct = Math.round(rows.reduce((s, r) => s + (r.ok ? r.weight : r.weight * 0.35), 0));
+  const grade = scorePct >= 90 ? "A" : scorePct >= 75 ? "B" : scorePct >= 55 ? "C" : "D";
+  const gradeTone = scorePct >= 90 ? "pos" : scorePct >= 75 ? "info" : scorePct >= 55 ? "warn" : "neg";
+  const checksHtml = rows.map((c) => `
+    <div class="dbr-int-check ${c.ok ? "pos" : "warn"}">
+      <div class="dbr-int-check-head">
+        <span class="dbr-int-check-i">${c.ok ? "✓" : "!"}</span>
+        <span class="dbr-int-check-l">${esc(c.label)}</span>
+        <span class="dbr-int-check-m rp-mono">${esc(c.metric)}</span>
+      </div>
+      <p class="dbr-int-check-n">${esc(c.note)}</p>
+    </div>`).join("");
+  const rightBlocks = [framing, steel].filter(Boolean).join("");
+  const rightPane = rightBlocks ? `<div class="dbr-int-right">${rightBlocks}</div>` : "";
   return `<section class="rp-sec rp-rev">${eye("05", "Tribunal integrity")}
-    <p class="rp-sublede">The checks that keep the verdict honest: a real rubric, no invented citations, transparent grounding and a stated certainty.</p>
-    <div class="rp-split">${checks}${right}</div></section>`;
+    <p class="rp-sublede">The four hard checks that keep the verdict honest, plus a computed integrity grade so nothing is graded on vibes.</p>
+    <div class="dbr-int">
+      <div class="dbr-int-grade ${gradeTone}">
+        <div class="dbr-int-grade-badge"><span class="dbr-int-grade-l">${grade}</span></div>
+        <div class="dbr-int-grade-body">
+          <div class="dbr-int-grade-idx"><span class="rp-fig-s">${scorePct}</span><span class="rp-stat-l">Integrity index / 100</span></div>
+          <p class="rp-cap" style="margin-top:6px">Equal weight to each check: real rubric + no hallucinations + grounding coverage + judge certainty.</p>
+        </div>
+      </div>
+      <div class="dbr-int-body">
+        <div class="dbr-int-checks">${checksHtml}</div>
+        ${rightPane}
+      </div>
+    </div></section>`;
 }
 
 function sDissent(d) {
@@ -412,6 +519,123 @@ const DBR_CSS = `
 .dbr-fal p { font-size: 13px; color: var(--tx); line-height: 1.55; }
 .dbr-tr { display: flex; align-items: baseline; gap: 12px; }
 .dbr-tr .rp-fig-s { font-size: 40px; }
+/* ── Tribunal integrity dashboard ─────────────────────────────────────── */
+.dbr-int { display: flex; flex-direction: column; gap: 20px; margin-top: 12px; }
+.dbr-int-grade { display: flex; align-items: center; gap: 22px; padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.dbr-int-grade-badge { width: 62px; height: 62px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1.5px solid; }
+.dbr-int-grade.pos .dbr-int-grade-badge { border-color: var(--pos); background: rgba(0,230,77,0.09); }
+.dbr-int-grade.info .dbr-int-grade-badge { border-color: var(--info); background: rgba(168,85,247,0.10); }
+.dbr-int-grade.warn .dbr-int-grade-badge { border-color: var(--warn); background: rgba(255,215,0,0.10); }
+.dbr-int-grade.neg .dbr-int-grade-badge { border-color: var(--neg); background: rgba(255,32,64,0.10); }
+.dbr-int-grade-l { font-family: var(--serif); font-size: 34px; font-weight: 700; color: var(--hi); line-height: 1; }
+.dbr-int-grade-body { flex: 1; }
+.dbr-int-grade-idx { display: flex; align-items: baseline; gap: 10px; }
+.dbr-int-body { display: grid; grid-template-columns: 1fr; gap: 22px; }
+.dbr-int-body:has(.dbr-int-right) { grid-template-columns: 1.15fr 1fr; }
+.dbr-int-checks { display: flex; flex-direction: column; gap: 10px; }
+.dbr-int-check { padding: 14px 16px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.015); transition: border-color .2s; }
+.dbr-int-check.pos { border-left: 3px solid var(--pos); }
+.dbr-int-check.warn { border-left: 3px solid var(--warn); }
+.dbr-int-check-head { display: flex; align-items: center; gap: 10px; }
+.dbr-int-check-i { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; font-size: 12.5px; flex-shrink: 0; }
+.dbr-int-check.pos .dbr-int-check-i { background: rgba(0,230,77,0.16); color: var(--pos); }
+.dbr-int-check.warn .dbr-int-check-i { background: rgba(255,215,0,0.18); color: var(--warn); }
+.dbr-int-check-l { font-family: var(--serif); font-weight: 600; font-size: 14.5px; color: var(--hi); flex: 1; }
+.dbr-int-check-m { font-size: 12px; color: var(--dim); letter-spacing: 0.04em; }
+.dbr-int-check-n { margin-top: 8px; margin-left: 32px; font-size: 12.5px; line-height: 1.55; color: var(--tx); }
+.dbr-int-right { display: flex; flex-direction: column; gap: 18px; }
+.dbr-int-panel { padding: 14px 16px; border: 1px solid var(--line2); background: rgba(255,255,255,0.015); border-radius: 10px; }
+.dbr-int-p { font-size: 13px; line-height: 1.55; color: var(--tx); margin-top: 8px; }
+.dbr-steel { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.dbr-steel p { font-size: 13px; line-height: 1.55; color: var(--tx); }
+.dbr-steel .rp-tag { margin-right: 6px; }
+@media (max-width: 820px) { .dbr-int-body:has(.dbr-int-right) { grid-template-columns: 1fr; } }
+
+/* ── Evidence & grounding rubric (head-to-head visual) ────────────────── */
+.dbr-rub2 { display: flex; flex-direction: column; margin-top: 8px; }
+.dbr-rub-head { display: grid; grid-template-columns: 1.7fr 1fr auto 1fr; gap: 18px; padding: 0 4px 12px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.dbr-rub-hcol { text-align: center; font-weight: 700; }
+.dbr-rub-hcol.pos { color: var(--pos); text-align: left; }
+.dbr-rub-hcol.neg { color: var(--neg); text-align: right; }
+.dbr-rub-row { display: grid; grid-template-columns: 1.7fr 1fr auto 1fr; gap: 18px; align-items: center; padding: 18px 4px; border-bottom: 1px solid var(--line2); }
+.dbr-rub-row:last-of-type { border-bottom: 0; }
+.dbr-rub-metric b { display: block; font-family: var(--serif); font-size: 15px; color: var(--hi); font-weight: 600; letter-spacing: -0.01em; }
+.dbr-rub-metric .rp-dim { display: block; font-size: 11.5px; margin-top: 2px; font-family: var(--sans); }
+.dbr-rub-side { display: flex; flex-direction: column; gap: 8px; }
+.dbr-rub-side.neg { align-items: flex-end; text-align: right; }
+.dbr-rub-val { font-family: var(--mono); font-size: 15.5px; font-weight: 700; color: var(--hi); }
+.dbr-rub-val .rp-dim { font-family: var(--sans); font-weight: 400; font-size: 12px; margin-left: 4px; }
+.dbr-rub-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+.dbr-rub-bar i { display: block; height: 100%; border-radius: 2px; transition: width .4s cubic-bezier(.16,1,.3,1); }
+.dbr-rub-bar i.pos { background: var(--pos); }
+.dbr-rub-bar i.neg { background: var(--neg); }
+.dbr-rub-side.neg .dbr-rub-bar i { margin-left: auto; }
+.dbr-rub-verdict { text-align: center; }
+.dbr-rub-win { display: inline-block; padding: 4px 9px; border-radius: 4px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; font-weight: 700; white-space: nowrap; }
+.dbr-rub-win.pos { background: rgba(0,230,77,0.13); color: var(--pos); border: 1px solid rgba(0,230,77,0.30); }
+.dbr-rub-win.neg { background: rgba(255,32,64,0.13); color: var(--neg); border: 1px solid rgba(255,32,64,0.32); }
+.dbr-rub-win.tie { background: rgba(255,255,255,0.04); color: var(--dim); border: 1px solid var(--line); }
+.dbr-rub-overall { margin-top: 20px; padding: 14px 18px; border-radius: 10px; font-size: 13.5px; line-height: 1.55; color: var(--tx); }
+.dbr-rub-overall.pos { background: rgba(0,230,77,0.06); border: 1px solid rgba(0,230,77,0.24); }
+.dbr-rub-overall.neg { background: rgba(255,32,64,0.06); border: 1px solid rgba(255,32,64,0.26); }
+.dbr-rub-overall.tie { background: rgba(255,255,255,0.03); border: 1px solid var(--line); }
+.dbr-rub-overall b { color: var(--hi); }
+.dbr-rub-overall-i { font-family: var(--mono); font-size: 12px; margin-right: 4px; opacity: 0.7; }
+.dbr-rub-overall.pos .dbr-rub-overall-i { color: var(--pos); }
+.dbr-rub-overall.neg .dbr-rub-overall-i { color: var(--neg); }
+@media (max-width: 720px) {
+  .dbr-rub-head, .dbr-rub-row { grid-template-columns: 1fr; gap: 10px; }
+  .dbr-rub-verdict { text-align: left; }
+  .dbr-rub-side.neg { align-items: flex-start; text-align: left; }
+  .dbr-rub-side.neg .dbr-rub-bar i { margin-left: 0; }
+}
+
+/* ── Sensitivity analysis (interactive what-if) ────────────────────────── */
+.dbr-sens2 { display: flex; flex-direction: column; gap: 20px; margin-top: 16px; }
+.dbr-sens-head { display: flex; gap: 24px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx); }
+.dbr-sens-legend { display: flex; align-items: center; gap: 8px; }
+.dbr-legdot { width: 9px; height: 9px; border-radius: 50%; }
+.dbr-legdot.pos { background: var(--pos); box-shadow: 0 0 8px rgba(0,230,77,0.35); }
+.dbr-legdot.neg { background: var(--neg); box-shadow: 0 0 8px rgba(255,32,64,0.35); }
+.dbr-sens-track { position: relative; height: 34px; }
+.dbr-sens-input { position: absolute; inset: 0; width: 100%; height: 20px; margin: 7px 0; background: transparent; z-index: 3; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.dbr-sens-input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--hi); border: 3px solid var(--acc); box-shadow: 0 0 14px rgba(255,32,64,0.55), 0 2px 8px rgba(0,0,0,0.4); cursor: grab; transition: transform .15s ease; }
+.dbr-sens-input::-webkit-slider-thumb:active { transform: scale(1.15); cursor: grabbing; }
+.dbr-sens-input::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--hi); border: 3px solid var(--acc); box-shadow: 0 0 14px rgba(255,32,64,0.55); cursor: grab; }
+.dbr-sens-fill { position: absolute; top: 14px; left: 0; right: 0; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; z-index: 1; }
+.dbr-sens-fill i { display: block; height: 100%; background: linear-gradient(90deg, var(--acc) 0%, var(--acc) 100%); box-shadow: 0 0 12px rgba(255,32,64,0.5); border-radius: 3px; transition: width .25s cubic-bezier(.16,1,.3,1); }
+.dbr-sens-ticks { position: absolute; bottom: -18px; left: 0; right: 0; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9.5px; color: var(--dim); letter-spacing: 0.05em; }
+.dbr-sens-row-w { display: grid; grid-template-columns: auto auto 1fr auto auto; gap: 8px; align-items: baseline; padding-top: 14px; font-size: 12px; }
+.dbr-sens-row-w .rp-mono { font-size: 13.5px; color: var(--hi); }
+.dbr-sens-row-w .rp-mono#dbr-sens-qw { text-align: right; margin-left: auto; }
+.dbr-sens-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px; align-items: center; padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.dbr-sens-card .dbr-sens-side { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+.dbr-sens-num { font-family: var(--serif); font-size: 34px; font-weight: 700; line-height: 1; }
+.dbr-sens-num .rp-dim { font-size: 15px; margin-left: 3px; }
+.dbr-sens-bar { margin-top: 10px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.dbr-sens-bar i { display: block; height: 100%; transition: width .35s cubic-bezier(.16,1,.3,1); }
+.dbr-sens-bar i.pos { background: var(--pos); }
+.dbr-sens-bar i.neg { background: var(--neg); }
+.dbr-sens-verdict { text-align: center; padding: 0 12px; border-left: 1px solid var(--line2); border-right: 1px solid var(--line2); }
+.dbr-sens-verdict-fig { font-family: var(--serif); font-size: 44px; font-weight: 800; line-height: 1; margin: 8px 0; color: var(--hi); transition: color .25s ease; }
+.dbr-sens-lean { padding: 14px 2px 4px; }
+.dbr-sens-lean-line { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+.dbr-sens-lean-l { color: var(--pos); }
+.dbr-sens-lean-r { color: var(--neg); }
+.dbr-sens-lean-bar { position: relative; height: 8px; background: rgba(255,255,255,0.04); border-radius: 4px; overflow: hidden; }
+.dbr-sens-lean-bar i { display: block; height: 100%; transition: width .4s cubic-bezier(.16,1,.3,1), background .3s ease; border-radius: 4px 0 0 4px; }
+.dbr-sens-lean-mid { position: absolute; top: -4px; bottom: -4px; left: 50%; width: 1px; background: var(--dim); opacity: 0.4; z-index: 2; }
+.dbr-sens-flag { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 10px; font-size: 13.5px; line-height: 1.5; transition: all .25s ease; }
+.dbr-sens-flag.pos { background: rgba(0,230,77,0.08); border: 1px solid rgba(0,230,77,0.28); color: var(--tx); }
+.dbr-sens-flag.warn { background: rgba(255,215,0,0.09); border: 1px solid rgba(255,215,0,0.32); color: var(--tx); }
+.dbr-sens-flag.neg { background: rgba(255,32,64,0.09); border: 1px solid rgba(255,32,64,0.35); color: var(--tx); }
+.dbr-sens-flag-i { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; font-size: 12.5px; margin-top: 1px; }
+.dbr-sens-flag.pos .dbr-sens-flag-i { background: rgba(0,230,77,0.16); color: var(--pos); }
+.dbr-sens-flag.warn .dbr-sens-flag-i { background: rgba(255,215,0,0.18); color: var(--warn); }
+.dbr-sens-flag.neg .dbr-sens-flag-i { background: rgba(255,32,64,0.16); color: var(--neg); }
+.dbr-sens-flag-t { flex: 1; }
+.dbr-sens-flag-t b { color: var(--hi); font-weight: 700; }
+
 .dbr-vote { display: flex; gap: 10px; }
 .dbr-vote-b { padding: 10px 20px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,0.02); color: var(--tx); font-family: var(--sans); font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all .2s cubic-bezier(.16,1,.3,1); }
 .dbr-vote-b:hover { border-color: var(--acc); color: var(--hi); transform: translateY(-1px); }
@@ -460,19 +684,53 @@ function installDbrHandlers() {
     const aNew = w * s.aE + (1 - w) * s.aQ;
     const tot = fNew + aNew;
     const lean = tot > 0 ? Math.max(1, Math.min(99, Math.round((fNew / tot) * 100))) : 50;
-    const wEl = $("dbr-sens-w"); if (wEl) wEl.textContent = v + "%";
-    const score = $("dbr-sens-score"), flag = $("dbr-sens-flag");
-    if (score) { score.textContent = lean + "%"; score.className = "rp-fig-s " + (lean >= 50 ? "pos" : "neg"); }
-    if (score && score.nextElementSibling) score.nextElementSibling.textContent = lean >= 50 ? "toward Supporting" : "toward Counter";
-    // Does the lean cross 50 anywhere across the full weight range? If so the verdict is fragile.
+    const setTxt = (id, t) => { const el = $(id); if (el) el.textContent = t; };
+    const setWidth = (id, pct) => { const el = $(id); if (el) el.style.width = Math.max(0, Math.min(100, pct)) + "%"; };
+    // Header weights
+    setTxt("dbr-sens-w", v + "%");
+    setTxt("dbr-sens-qw", (100 - v) + "%");
+    // Track fill (evidence-weight bar)
+    setWidth("dbr-sens-fill", v);
+    // Per-side live scores (out of 10) with animated bars
+    setTxt("dbr-sens-fscore", fNew.toFixed(1));
+    setTxt("dbr-sens-ascore", aNew.toFixed(1));
+    setWidth("dbr-sens-fbar", fNew * 10);
+    setWidth("dbr-sens-abar", aNew * 10);
+    // Big verdict number + who it's toward + colour
+    const score = $("dbr-sens-score");
+    if (score) { score.textContent = lean + "%"; score.style.color = lean >= 50 ? "var(--pos)" : "var(--neg)"; }
+    setTxt("dbr-sens-toward", lean >= 50 ? "toward Supporting" : "toward Counter");
+    // Lean bar (pos side fill; midline visible)
+    const leanBar = $("dbr-sens-leanbar");
+    if (leanBar) { leanBar.style.width = lean + "%"; leanBar.className = lean >= 50 ? "pos" : "neg"; }
+    // Fragility analysis: does the lean flip anywhere in [0, 1]?
     const leanAt = (ww) => { const f = ww * s.fE + (1 - ww) * s.fQ, a = ww * s.aE + (1 - ww) * s.aQ; return (f + a) > 0 ? (f / (f + a)) * 100 : 50; };
     const base = leanAt(0.5) >= 50;
-    let flips = false; for (let ww = 0; ww <= 1.001; ww += 0.1) { if ((leanAt(ww) >= 50) !== base) { flips = true; break; } }
+    let flips = false, flipAt = null;
+    for (let ww = 0; ww <= 1.001; ww += 0.05) {
+      if ((leanAt(ww) >= 50) !== base) { flips = true; flipAt = Math.round(ww * 100); break; }
+    }
+    const flag = $("dbr-sens-flag");
     if (flag) {
-      if ((lean >= 50) !== base) { flag.className = "rp-sens-flag neg"; flag.textContent = `Flipped. At ${v}% evidence weight the ${lean >= 50 ? "Supporting" : "Counter"} case leads instead, the verdict is fragile to this assumption.`; }
-      else if (flips) { flag.className = "rp-sens-flag warn"; flag.textContent = "Fragile. The verdict flips at some weightings, so it depends on how much you trust measured evidence over rhetoric."; }
-      else if (Math.abs(lean - 50) < 6) { flag.className = "rp-sens-flag warn"; flag.textContent = "Marginal. The lean is thin at this weighting."; }
-      else { flag.className = "rp-sens-flag pos"; flag.textContent = "Stable. The verdict holds across every reasonable weighting of evidence versus argument."; }
+      const ico = flag.querySelector(".dbr-sens-flag-i");
+      const txt = flag.querySelector(".dbr-sens-flag-t");
+      let cls = "pos", icon = "✓", msg = "";
+      if ((lean >= 50) !== base) {
+        cls = "neg"; icon = "⚠";
+        msg = `<b>Flipped.</b> At ${v}% evidence weight the ${lean >= 50 ? "Supporting" : "Counter"} case leads instead. The verdict is fragile to this assumption.`;
+      } else if (flips) {
+        cls = "warn"; icon = "!";
+        msg = `<b>Fragile.</b> The verdict flips near ${flipAt}% evidence weight, so it depends on how much you trust measured evidence over rhetoric.`;
+      } else if (Math.abs(lean - 50) < 6) {
+        cls = "warn"; icon = "!";
+        msg = `<b>Marginal.</b> The lean is thin (${lean}%) at this weighting. A small shift in either score would flip it.`;
+      } else {
+        cls = "pos"; icon = "✓";
+        msg = `<b>Stable.</b> The ${base ? "Supporting" : "Counter"} case leads across every reasonable weighting of evidence versus argument quality.`;
+      }
+      flag.className = "dbr-sens-flag " + cls;
+      if (ico) ico.textContent = icon;
+      if (txt) txt.innerHTML = msg;
     }
   };
   window.pnbVote = (btn, choice) => {
@@ -538,6 +796,9 @@ export default function PolynousDebateReport(props) {
   }
   useEffect(() => { ensureReportStyles(); injectDbr(); installDbrHandlers(); }, []);
   useEffect(() => {
+    // Prime the sensitivity panel with a real 50/50 read so the flag + bars
+    // reflect actual state on first paint (not the hardcoded "Stable" text).
+    const t0 = setTimeout(() => { try { window.pnbSens && window.pnbSens(50); } catch (_) {} }, 60);
     const t = setTimeout(() => runCounters(ref.current), 400);
     const onScroll = () => {
       const bar = ref.current && ref.current.querySelector("#dbr-prog");
@@ -548,7 +809,7 @@ export default function PolynousDebateReport(props) {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
-    return () => { clearTimeout(t); window.removeEventListener("scroll", onScroll); };
+    return () => { clearTimeout(t0); clearTimeout(t); window.removeEventListener("scroll", onScroll); };
   }, [html]);
   return (
     <>

@@ -1684,51 +1684,125 @@ function ApiKeysSection({ push }) {
         </div>
       )}
 
-      {/* ── Free-trial status: countdown + run meter + weak-model note ── */}
+      {/* ── Free-key status: minimalist, editorial, no glow ── */}
       {freeStatus?.trial?.active && (() => {
         const t = freeStatus.trial;
-        const runsPct = t.runs_cap ? Math.min(100, Math.round((t.runs_used / t.runs_cap) * 100)) : 0;
-        const dailyPct = t.daily_cap ? Math.min(100, Math.round(((t.runs_today || 0) / t.daily_cap) * 100)) : 0;
-        const low = (t.days_left != null && t.days_left <= 2) || (t.runs_left != null && t.runs_left <= 3) || (t.daily_left != null && t.daily_left <= 1);
-        const accent = t.expired ? "#ff6b8a" : low ? "#ffb64a" : "#00ff47";
         const bric = "'Bricolage Grotesque','Sora',sans-serif";
-        return (
-          <div style={{ marginBottom: 20, padding: "18px 20px", borderRadius: 14,
-            background: "linear-gradient(160deg, rgba(19,19,38,0.72), rgba(6,6,15,0.88))",
-            border: `1px solid ${accent}38`, boxShadow: `0 20px 50px -30px ${accent}55` }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: t.runs_cap ? 12 : 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 20, color: accent }}>{t.expired ? "hourglass_disabled" : "check_circle"}</span>
-                <h3 style={{ fontFamily: bric, fontWeight: 700, fontSize: 16, color: "var(--text)", margin: 0, letterSpacing: "-0.01em" }}>
-                  {t.expired ? "Free key ended" : `Free ${freeStatus?.claimed_provider_label || "Gemini"} key active`}
-                </h3>
-                <span style={{ fontFamily: C.fontMono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 9999, padding: "3px 9px" }}>
-                  {(freeStatus?.claimed_provider_label || t.provider || "Gemini").toUpperCase()}{t.model ? ` · ${t.model}` : ""}
-                </span>
-              </div>
-              {!t.expired && (
-                <div style={{ fontFamily: C.fontMono, fontSize: 12, color: accent, fontWeight: 700, whiteSpace: "nowrap" }}>
-                  {t.daily_left != null ? `${t.daily_left} of ${t.daily_cap} run${t.daily_cap === 1 ? "" : "s"} left today` : ""}
-                  {t.daily_left != null && t.days_left != null ? " · " : ""}
-                  {t.days_left != null ? `${t.days_left} day${t.days_left === 1 ? "" : "s"} left` : ""}
-                </div>
-              )}
+        const mono = "'JetBrains Mono',monospace";
+        const label = freeStatus?.claimed_provider_label || t.provider || "Gemini";
+        const dailyCap = t.daily_cap || 3;
+        const dailyLeft = t.daily_left != null ? t.daily_left : dailyCap;
+        const daysLeft = t.days_left;
+        const daysCap = t.days || 7;
+        const runsCap = t.runs_cap || 15;
+        const runsLeft = t.runs_left != null ? t.runs_left : runsCap;
+        // Determine card state for accent (kept subtle: only affects the accent stripe + status pill)
+        const state = t.expired ? "ended" : (dailyLeft === 0 ? "capped" : (daysLeft != null && daysLeft <= 1) || dailyLeft <= 1 ? "low" : "active");
+        const accent = state === "ended" ? "var(--neg)" : state === "capped" ? "var(--warn)" : state === "low" ? "var(--warn)" : "var(--green)";
+        const statusText = state === "ended" ? "Ended" : state === "capped" ? "Daily cap reached" : state === "low" ? "Ending soon" : "Active";
+        // Stat block
+        const Stat = ({ n, cap, unit, tone }) => (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 90 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+              <span style={{ fontFamily: bric, fontWeight: 700, fontSize: 26, color: "var(--text)", lineHeight: 1, letterSpacing: "-0.02em" }}>{n}</span>
+              <span style={{ fontFamily: mono, fontSize: 12, color: "var(--text-muted)" }}>/ {cap}</span>
             </div>
-            {t.runs_cap ? (
-              <div style={{ height: 6, borderRadius: 9999, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginBottom: 10 }}>
-                <div style={{ height: "100%", width: `${runsPct}%`, background: accent, borderRadius: 9999, transition: "width 0.5s cubic-bezier(0.23,1,0.32,1)" }} />
+            <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)" }}>{unit}</span>
+          </div>
+        );
+
+        return (
+          <div style={{
+            marginBottom: 22, borderRadius: 12,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            overflow: "hidden",
+          }}>
+            {/* Header: brand mark + status pill */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              gap: 12, padding: "16px 20px",
+              borderBottom: "1px solid var(--border-soft)",
+              flexWrap: "wrap",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{
+                  fontFamily: mono, fontSize: 10.5, letterSpacing: "0.16em",
+                  textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700,
+                }}>◆ FREE KEY</span>
+                <span style={{
+                  fontFamily: bric, fontSize: 15, fontWeight: 700, color: "var(--text)",
+                  letterSpacing: "-0.015em",
+                }}>{label}</span>
+                {t.model && (
+                  <span style={{
+                    fontFamily: mono, fontSize: 10, letterSpacing: "0.06em",
+                    color: "var(--text-muted)", padding: "3px 8px",
+                    borderRadius: 4, border: "1px solid var(--border-soft)",
+                  }}>{t.model}</span>
+                )}
               </div>
-            ) : null}
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                fontFamily: mono, fontSize: 10, letterSpacing: "0.14em",
+                textTransform: "uppercase", fontWeight: 700, color: accent,
+              }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: accent, boxShadow: state === "active" ? `0 0 8px ${accent}` : "none" }} />
+                {statusText}
+              </span>
+            </div>
+
+            {/* Stats row */}
             {!t.expired && (
-              <div style={{ fontFamily: C.fontMono, fontSize: 10.5, letterSpacing: "0.04em", color: C.textSecondary, marginBottom: 10 }}>
-                Expires after <strong style={{ color: "var(--text)" }}>{t.runs_cap || 15} queries</strong> or <strong style={{ color: "var(--text)" }}>{t.days || 7} days</strong>, whichever comes first.
+              <div style={{
+                display: "flex", gap: 30, padding: "20px 20px 16px",
+                flexWrap: "wrap", alignItems: "flex-end",
+              }}>
+                <Stat n={dailyLeft} cap={dailyCap} unit="runs left today" />
+                {daysLeft != null && <Stat n={daysLeft} cap={daysCap} unit="days remaining" />}
+                {t.runs_cap && <Stat n={runsLeft} cap={runsCap} unit="total runs left" />}
               </div>
             )}
-            <p style={{ fontFamily: C.fontBody, fontSize: 12.5, lineHeight: 1.6, color: C.onSurfaceVariant, margin: 0 }}>
-              {t.expired
-                ? "Your trial is over. Add your own API key below to keep researching, it takes under a minute."
-                : (<>This is a <strong style={{ color: "var(--text)" }}>lightweight trial model</strong> for exploring POLYNOUS. Stronger providers (<strong style={{ color: "var(--text)" }}>Claude, GPT, Gemini</strong>) give noticeably better, more reliable results. Add your own key anytime below.</>)}
-            </p>
+
+            {/* Fine print */}
+            <div style={{
+              padding: "0 20px 16px",
+              display: "flex", flexDirection: "column", gap: 6,
+            }}>
+              <p style={{
+                fontFamily: C.fontBody, fontSize: 12.5, lineHeight: 1.55,
+                color: "var(--text-muted)", margin: 0, maxWidth: "68ch",
+              }}>
+                {t.expired
+                  ? "Your free trial has ended. Add your own API key below to keep researching."
+                  : `${dailyCap} runs per day · resets at midnight UTC · lightweight model. Add your own Claude, GPT or Gemini key below for unlimited use and stronger results.`}
+              </p>
+            </div>
+
+            {/* Daily-cap progress: hairline meter, not a chunky glow bar */}
+            {!t.expired && (
+              <div style={{ padding: "0 20px 16px" }}>
+                <div style={{
+                  display: "flex", justifyContent: "space-between",
+                  fontFamily: mono, fontSize: 9.5, letterSpacing: "0.06em",
+                  color: "var(--text-muted)", marginBottom: 5,
+                }}>
+                  <span>TODAY'S USAGE</span>
+                  <span>{t.runs_today || 0} / {dailyCap}</span>
+                </div>
+                <div style={{
+                  height: 3, borderRadius: 2, background: "var(--overlay)",
+                  overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${Math.min(100, Math.round(((t.runs_today || 0) / dailyCap) * 100))}%`,
+                    background: accent,
+                    transition: "width 0.4s cubic-bezier(0.16,1,0.3,1)",
+                  }} />
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}
